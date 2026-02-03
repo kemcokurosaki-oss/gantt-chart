@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>工事工程表 Pro - 全期間表示版</title>
+    
+    <link rel="stylesheet" href="https://cdn.dhtmlx.com/gantt/edge/dhtmlxgantt.css">
+    <script src="https://cdn.dhtmlx.com/gantt/edge/dhtmlxgantt.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+        html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: "メイリオ", sans-serif; }
+        .main-container { display: flex; flex-direction: column; height: 100vh; }
+        .header-panel { background: #fff; padding: 10px 15px; border-bottom: 1px solid #ccc; display: flex; flex-direction: column; gap: 8px; }
+        .input-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+        .input-row input { padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; }
+        .btn-add { padding: 6px 15px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .content-area { display: flex; flex: 1; overflow: hidden; }
+        .sidebar { width: 130px; background: #2c3e50; color: #ecf0f1; display: flex; flex-direction: column; border-right: 1px solid #1a252f; }
+        .sidebar-title { padding: 10px; font-weight: bold; background: #1a252f; font-size: 13px; }
+        .project-list { flex: 1; overflow-y: auto; }
+        .project-item { padding: 8px 10px; border-bottom: 1px solid #34495e; cursor: pointer; font-size: 14px; transition: 0.2s; font-weight: bold; }
+        .project-item:hover { background: #34495e; }
+        .project-item.active { background: #3498db; color: white; border-left: 5px solid #fff; }
+        .chart-container { flex: 1; display: flex; flex-direction: column; background: #fff; position: relative; }
+
+        /* ライトボックスの期間選択を年月日の順に並び替え */
+        .gantt_section_time { display: flex !important; flex-wrap: wrap; align-items: center; gap: 5px; }
+        .gantt_section_time select:nth-of-type(1) { order: 3; } /* 日 */
+        .gantt_section_time select:nth-of-type(2) { order: 2; } /* 月 */
+        .gantt_section_time select:nth-of-type(3) { order: 1; } /* 年 */
+        .gantt_section_time input, .gantt_section_time span { order: 4; }
+
+        #gantt_here { flex: 1; width: 100%; }
+        .toolbar { background: #f8f9fa; padding: 5px 15px; border-bottom: 1px solid #ddd; display: flex; gap: 10px; align-items: center; font-size: 12px; }
+        .zoom-btn { padding: 3px 10px; cursor: pointer; background: #fff; border: 1px solid #ccc; border-radius: 3px; }
+        .zoom-btn.active { background-color: #3498db; color: #fff; border-color: #3498db; }
+        
+        .weekend { background: #f4f4f4 !important; } /* 土日：薄いグレー */
+        .today-line { background: #ff5252; width: 2px !important; opacity: 0.8; z-index: 1000; }
+        .gantt_group_row { background-color: #eef6ff !important; font-weight: bold !important; } /* 見出し行：薄い青色 */
+        
+        /* 業務別カラー設定（中程度のパステル調） */
+        .task-blue, .gantt_project.task-blue { background-color: #85C1E9 !important; border-color: #5DADE2 !important; }
+        .task-green, .gantt_project.task-green { background-color: #82E0AA !important; border-color: #58D68D !important; }
+        .task-yellow, .gantt_project.task-yellow { background-color: #F7DC6F !important; border-color: #F4D03F !important; }
+        .task-red, .gantt_project.task-red { background-color: #F1948A !important; border-color: #EC7063 !important; }
+        .task-orange, .gantt_project.task-orange { background-color: #F8C471 !important; border-color: #F5B041 !important; }
+        .task-purple, .gantt_project.task-purple { background-color: #D7BDE2 !important; border-color: #AF7AC5 !important; }
+        
+        /* 特殊タスク（マイルストーン）のスタイル - 非常に目立つ濃い色を設定 */
+        .milestone-circle .gantt_task_content { display: none; }
+        .milestone-circle { background: none !important; border: none !important; }
+        .milestone-circle::before {
+            content: "●";
+            color: #d32f2f; /* 濃い赤 */
+            font-size: 26px;
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+        }
+
+        .milestone-diamond .gantt_task_content { display: none; }
+        .milestone-diamond { background: none !important; border: none !important; }
+        .milestone-diamond::before {
+            content: "◆";
+            color: #1976D2; /* 濃い青 */
+            font-size: 28px;
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+        }
+
+        .milestone-star .gantt_task_content { display: none; }
+        .milestone-star { background: none !important; border: none !important; }
+        .milestone-star::before {
+            content: "★";
+            color: #2E7D32; /* 濃い緑 */
+            font-size: 30px;
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+        }
+        
+        /* バー内の文字色（白文字に統一） */
+        .gantt_task_content { color: #fff !important; font-weight: bold; text-shadow: 1px 1px 2px rgba(0,0,0,0.3); }
+
+        .filter-group {
+            display: flex;
+            gap: 5px;
+            align-items: center;
+            margin-left: 10px;
+            padding-left: 10px;
+            border-left: 1px solid #ccc;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <div class="header-panel">
+            <div class="input-row">
+                <input type="text" id="project_number" placeholder="工事番号" style="width:100px">
+                <input type="text" id="machine_input" placeholder="機械名" style="width:120px">
+                <input type="date" id="project_start_date" title="プロジェクト開始日">
+                <button class="btn-add" onclick="addProjectFromTemplate()">新規追加</button>
+                <span style="margin-left: 15px; font-size: 13px; font-weight: bold; color: #333;">
+                    <span style="color: #d32f2f; font-size: 20px;">●</span> 外観検査
+                    <span style="margin-left: 10px; color: #1976D2; font-size: 20px;">◆</span> 出荷確認会議
+                    <span style="margin-left: 10px; color: #2E7D32; font-size: 22px;">★</span> 工場出荷
+                </span>
+                <span id="save-status" style="font-size:11px; color:#999; margin-left:10px;"></span>
+            </div>
+        </div>
+
+        <div class="toolbar">
+            <span>表示切替:</span>
+            <button class="zoom-btn" onclick="setZoom('days')">日単位</button>
+            <button class="zoom-btn" onclick="setZoom('weeks')">週単位</button>
+            <button class="zoom-btn" onclick="scrollToToday()" style="background-color: #ebf5ff; border-color: #3498db; color: #3498db; margin-left: 5px;">今日へ移動</button>
+            
+            <div class="filter-group">
+                <span>大項目フィルタ:</span>
+                <button class="zoom-btn major-filter-btn" onclick="filterByMajorItem('営業', this)">営業</button>
+                <button class="zoom-btn major-filter-btn" onclick="filterByMajorItem('設計', this)">設計</button>
+                <button class="zoom-btn major-filter-btn" onclick="filterByMajorItem('製管', this)">製管</button>
+                <button class="zoom-btn major-filter-btn" onclick="filterByMajorItem('組立', this)">組立</button>
+                <button class="zoom-btn major-filter-btn" onclick="filterByMajorItem('電装', this)">電装</button>
+                <button class="zoom-btn major-filter-btn" onclick="filterByMajorItem('品証', this)">品証</button>
+                <button class="zoom-btn major-filter-btn" onclick="filterByMajorItem('操業', this)">操業</button>
+            </div>
+
+            <div class="filter-group">
+                <span>担当検索:</span>
+                <input type="text" id="owner_search" placeholder="名前を入力..." style="width:100px; padding:3px; border:1px solid #ccc; border-radius:3px; font-size:12px;" oninput="filterByOwner(this.value)">
+            </div>
+
+            <span id="filter_status" style="margin-left:auto; font-weight:bold; color:#3498db;">全工程を表示中</span>
+            <button class="zoom-btn" onclick="resetFilter()">表示リセット</button>
+        </div>
+
+        <div class="content-area">
+            <div class="sidebar">
+                <div class="sidebar-title">工事一覧 (<span id="project_count">0</span>)</div>
+                <div id="project_list" class="project-list"></div>
+            </div>
+            <div class="chart-container">
+                <div id="gantt_here"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const S_URL = "https://dgekjzkrybrswsxlcbvh.supabase.co";
+        const S_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRnZWtqemtyeWJyc3dzeGxjYnZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg4ODQ3MjIsImV4cCI6MjA4NDQ2MDcyMn0.BsEj53lV3p76yE9fMPTaLn7ocKTNzYPTqIAnBafYItU";
+        const supabaseClient = supabase.createClient(S_URL, S_KEY);
+
+        let currentFilter = null;
+        let currentMajorFilter = null;
+        let currentOwnerFilter = "";
+        const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+        const dateToDb = gantt.date.date_to_str("%Y-%m-%d");
+        const dateToDisplay = gantt.date.date_to_str("%Y/%m/%d");
+
+        gantt.plugins({ marker: true, grouplist: true });
+        
+        // カレンダー表示範囲（2024/11/1〜3年間）
+        gantt.config.start_date = new Date(2024, 10, 1);
+        gantt.config.end_date = new Date(2027, 10, 1);
+        gantt.config.date_format = "%Y-%m-%d";
+        gantt.config.date_grid = "%Y/%m/%d";
+
+        gantt.config.columns = [
+            { name: "project_number", label: "工事番号", width: 90, align: "center", template: function(obj) {
+                return obj.project_number || ""; 
+            }},
+            { name: "text", label: "タスク名", width: 160, tree: true, template: function(obj) {
+                return obj.text;
+            }},
+            { name: "machine", label: "機械", width: 80, align: "center", template: function(obj) {
+                return obj.machine || "";
+            }},
+            { name: "unit", label: "ユニット", width: 80, align: "center", template: function(obj) {
+                return obj.unit || "";
+            }},
+            { name: "owner", label: "担当", width: 100, align: "left", template: function(obj) {
+                if (obj.$virtual || !obj.owner) return "";
+                return obj.owner.replace(/\d+/g, ""); // すべての数字を削除
+            }},
+            { name: "start_date", label: "開始日", width: 100, align: "center", template: (t) => {
+                return dateToDisplay(t.start_date);
+            }},
+            { name: "end_date", label: "終了日", width: 100, align: "center", template: (t) => {
+                return dateToDisplay(gantt.calculateEndDate(t.start_date, t.duration));
+            }},
+            { name: "add", label: "", width: 44 }
+        ];
+        gantt.config.grid_width = 754;
+        gantt.config.row_height = 30; // 行の高さを少し狭く設定 (デフォルトは約35〜38px)
+        gantt.config.open_tree_initially = false; // 最初は閉じておく
+        gantt.config.order_branch = true; // ドラッグによる並べ替えを有効化
+        gantt.config.order_branch_free = true;
+
+        // 詳細編集画面（ライトボックス）の設定
+        gantt.config.lightbox.sections = [
+            { name: "description", height: 70, map_to: "text", type: "textarea", focus: true },
+            { name: "parent", height: 30, map_to: "parent", type: "textarea" }, // 大項目(見出し)編集用
+            { name: "project_number", height: 30, map_to: "project_number", type: "textarea" },
+            { name: "machine", height: 30, map_to: "machine", type: "textarea" },
+            { name: "unit", height: 30, map_to: "unit", type: "textarea" },
+            { name: "major_item", height: 30, map_to: "major_item", type: "select", options: [
+                { key: "", label: "なし" },
+                { key: "設計", label: "設計" },
+                { key: "製管", label: "製管" },
+                { key: "組立", label: "組立" },
+                { key: "電装", label: "電装" },
+                { key: "品証", label: "品証" },
+                { key: "操業", label: "操業" },
+                { key: "営業", label: "営業" }
+            ]},
+            { name: "owner", height: 30, map_to: "owner", type: "textarea" },
+            { name: "time", height: 72, type: "duration", map_to: "auto" }
+        ];
+        gantt.config.lightbox.time_format = "%Y/%m/%d";
+        gantt.locale.labels.section_parent = "大項目名(見出し)";
+        gantt.locale.labels.section_project_number = "工事番号";
+        gantt.locale.labels.section_machine = "機械名";
+        gantt.locale.labels.section_unit = "ユニット";
+        gantt.locale.labels.section_major_item = "色分け(業務)";
+        gantt.locale.labels.section_description = "タスク名";
+        gantt.locale.labels.section_owner = "担当";
+        gantt.locale.labels.section_time = "期間";
+
+        // ＋ボタンの挙動をカスタマイズ（親の情報を引き継ぐ）
+        gantt.attachEvent("onTaskCreated", function(task){
+            if (task.parent) {
+                const parentTask = gantt.getTask(task.parent);
+                if (parentTask.$virtual) {
+                    task.project_number = parentTask.project_number;
+                    task.parent = parentTask.text; // 見出し名をparent列にセット
+                }
+            }
+            return true;
+        });
+
+        gantt.templates.grid_row_class = function(start, end, task){
+            if(task.$virtual) return "gantt_group_row";
+            return "";
+        };
+
+        gantt.templates.task_row_class = function(start, end, task){
+            return "";
+        };
+
+        // フィルタ設定：工事番号、大項目、担当名の絞り込み
+        gantt.attachEvent("onBeforeTaskDisplay", function(id, task){
+            if (currentFilter && task.project_number !== currentFilter) return false;
+            if (currentMajorFilter && task.major_item !== currentMajorFilter) return false;
+            if (currentOwnerFilter && (!task.owner || !task.owner.includes(currentOwnerFilter))) return false;
+            return true;
+        });
+
+        // 今日のマーカー
+        gantt.addMarker({ start_date: new Date(), css: "today-line", text: "今日" });
+
+        // 業務別（major_item）および特殊タスク（text）の色分け・マークテンプレート
+        gantt.templates.task_class = function(start, end, task) {
+            if (task.text === "外観検査") return "milestone-circle";
+            if (task.text === "出荷確認会議") return "milestone-diamond";
+            if (task.text === "工場出荷") return "milestone-star";
+
+            switch (task.major_item) {
+                case '設計': return "task-blue";
+                case '製管':
+                case '品証': return "task-green";
+                case '組立': return "task-yellow";
+                case '電装': return "task-purple";
+                case '操業': return "task-red";
+                case '営業': return "task-orange";
+                default: return "";
+            }
+        };
+        
+        gantt.templates.timeline_cell_class = (task, date) => (date.getDay() === 0 || date.getDay() === 6) ? "weekend" : "";
+        
+        const zoomConfig = {
+            levels: [
+                { name: "days", scale_height: 75, min_column_width: 30, scales: [
+                    { unit: "month", step: 1, format: "%Y/%n" },
+                    { unit: "day", step: 1, format: "%j" }, 
+                    { unit: "day", step: 1, format: (date) => dayNames[date.getDay()] }
+                ]},
+                { name: "weeks", scale_height: 50, min_column_width: 40, scales: [
+                    { unit: "month", step: 1, format: "%Y/%n" },
+                    { unit: "week", step: 1, format: (date) => {
+                        const dateToStr = gantt.date.date_to_str("%j");
+                        return dateToStr(date);
+                    }}
+                ]}
+            ]
+        };
+        gantt.ext.zoom.init(zoomConfig);
+        gantt.init("gantt_here");
+
+        async function fetchTasks() {
+            // 並び順（sort_order）で取得
+            const { data, error } = await supabaseClient.from('tasks').select('*').order('sort_order', { ascending: true });
+            if (error) return;
+            
+            const rawTasks = data.map(t => ({
+                id: t.id, text: t.text, start_date: t.start_date,
+                duration: t.duration, owner: t.owner, project_number: t.project_number,
+                machine: t.machine, unit: t.unit, major_item: t.major_item,
+                sort_order: t.sort_order,
+                parent: t.parent // parent列を読み込む
+            }));
+
+            // 階層構造の構築
+            const tasksWithHierarchy = [];
+            const parentsMap = {};
+
+            // 1. 工事番号ごとにグループ化して処理
+            const projects = [...new Set(rawTasks.map(t => t.project_number))].filter(Boolean).sort();
+
+            projects.forEach(pNum => {
+                const projectTasks = rawTasks.filter(t => t.project_number === pNum);
+                
+                projectTasks.forEach(t => {
+                    if (t.parent) {
+                        // 工事番号 + parent名 で一意の親IDを作る
+                        const parentKey = `p_${pNum}_${t.parent}`;
+                        
+                        if (!parentsMap[parentKey]) {
+                            parentsMap[parentKey] = {
+                                id: parentKey,
+                                text: t.parent, // 見出しにはparent列の文字を表示
+                                project_number: pNum,
+                                machine: t.machine,
+                                major_item: t.major_item,
+                                open: false, // 初期状態は閉じる
+                                type: "project",
+                                $virtual: true
+                            };
+                            tasksWithHierarchy.push(parentsMap[parentKey]);
+                        }
+                        // タスクをこの親の下に配置
+                        t.parent = parentKey;
+                    } else {
+                        // parentが空の場合はルート（または工事番号直下）
+                        t.parent = 0;
+                    }
+                    tasksWithHierarchy.push(t);
+                });
+            });
+
+            updateProjectList(rawTasks);
+            gantt.clearAll();
+            gantt.parse({ data: tasksWithHierarchy });
+            scrollToToday(); // 初回読み込み時に今日へジャンプ
+        }
+
+        // 今日へスクロールする関数（少し余裕を持って表示）
+        function scrollToToday() {
+            const pos = gantt.posFromDate(new Date());
+            gantt.scrollTo(pos - 200, null);
+        }
+
+        function setZoom(level) { gantt.ext.zoom.setLevel(level); }
+
+        function updateProjectList(tasks) {
+            const listEl = document.getElementById('project_list');
+            const projects = [...new Set(tasks.map(t => t.project_number))].filter(Boolean).sort();
+            listEl.innerHTML = "";
+            document.getElementById('project_count').innerText = projects.length;
+            projects.forEach(p => {
+                const item = document.createElement('div');
+                item.className = `project-item ${currentFilter === p ? 'active' : ''}`;
+                item.innerText = p;
+                item.onclick = () => filterByProject(p);
+                listEl.appendChild(item);
+            });
+        }
+
+        function filterByProject(p) {
+            currentFilter = p;
+            updateFilterStatus();
+            gantt.render();
+            updateProjectList(gantt.getDatastore("task").getItems());
+        }
+
+        function filterByMajorItem(major, btn) {
+            // すでに選択されているボタンを再度押した場合は解除
+            if (currentMajorFilter === major) {
+                currentMajorFilter = null;
+                btn.classList.remove('active');
+            } else {
+                currentMajorFilter = major;
+                // 他のボタンのactiveを解除
+                document.querySelectorAll('.major-filter-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            }
+            updateFilterStatus();
+            gantt.render();
+        }
+
+        function filterByOwner(val) {
+            currentOwnerFilter = val;
+            updateFilterStatus();
+            gantt.render();
+        }
+
+        function updateFilterStatus() {
+            let status = "";
+            let parts = [];
+            if (currentFilter) parts.push(`工事 ${currentFilter}`);
+            if (currentMajorFilter) parts.push(currentMajorFilter);
+            if (currentOwnerFilter) parts.push(`担当: ${currentOwnerFilter}`);
+            
+            if (parts.length > 0) {
+                status = parts.join(" / ") + " を表示中";
+            } else {
+                status = "全工程を表示中";
+            }
+            document.getElementById('filter_status').innerText = status;
+        }
+
+        function resetFilter() {
+            currentFilter = null;
+            currentMajorFilter = null;
+            currentOwnerFilter = "";
+            document.getElementById('owner_search').value = "";
+            document.querySelectorAll('.major-filter-btn').forEach(b => b.classList.remove('active'));
+            updateFilterStatus();
+            gantt.render();
+        }
+
+        // 自動保存
+        gantt.attachEvent("onAfterTaskUpdate", async function(id, item){
+            if(item.$virtual) return;
+            await supabaseClient.from('tasks').update({
+                text: item.text, 
+                start_date: dateToDb(item.start_date), 
+                duration: item.duration,
+                machine: item.machine, 
+                unit: item.unit, 
+                major_item: item.major_item,
+                owner: item.owner,
+                project_number: item.project_number,
+                parent: item.parent // parent列を保存
+            }).eq('id', id);
+        });
+
+        // 新規タスク作成時の処理（+ボタンなど）
+        gantt.attachEvent("onAfterTaskAdd", async function(id, item){
+            const { data, error } = await supabaseClient.from('tasks').insert([{
+                text: item.text,
+                start_date: dateToDb(item.start_date),
+                duration: item.duration,
+                project_number: item.project_number || "",
+                machine: item.machine || "",
+                unit: item.unit || "",
+                major_item: item.major_item || "",
+                owner: item.owner || "",
+                sort_order: gantt.getTaskIndex(id),
+                parent: item.parent || "" // parent列を保存
+            }]).select();
+
+            if (error) {
+                alert("登録エラー: " + error.message);
+                gantt.deleteTask(id);
+            } else {
+                // Supabaseから発行された本当のIDに書き換える
+                gantt.changeTaskId(id, data[0].id);
+                // 階層構造を再構築するため一度読み直す
+                fetchTasks();
+            }
+        });
+
+        // 削除イベント
+        gantt.attachEvent("onBeforeTaskDelete", async function(id, item){
+            const { error } = await supabaseClient.from('tasks').delete().eq('id', id);
+            if(error) {
+                alert("削除エラー: " + error.message);
+                return false;
+            }
+            return true;
+        });
+
+        async function addProjectFromTemplate() {
+            const pNumber = document.getElementById('project_number').value;
+            const machine = document.getElementById('machine_input').value;
+            const startStr = document.getElementById('project_start_date').value;
+
+            if (!pNumber || !machine || !startStr) {
+                return alert("工事番号、機械名、開始日をすべて入力してください");
+            }
+
+            // 1. テンプレートから該当する機械のデータを取得（大文字小文字を区別しない検索）
+            const { data: templates, error: tError } = await supabaseClient
+                .from('task_template')
+                .select('*')
+                .ilike('machine', machine.trim());
+
+            if (tError) {
+                console.error("Supabase Query Error:", tError);
+                return alert("テンプレート取得エラー: " + tError.message);
+            }
+
+            if (!templates || templates.length === 0) {
+                const { data: allData } = await supabaseClient.from('task_template').select('machine').limit(10);
+                const existingMachines = allData ? allData.map(d => d.machine).join(", ") : "なし";
+                console.log("DB内にある機械名の例:", existingMachines);
+                
+                return alert(`「${machine}」に対応するテンプレートが見つかりません。\n\n【確認事項】\n1. Supabaseのtask_templateテーブルに machine='${machine}' のデータがあるか確認してください。\n2. 前後の空白や、全角・半角の違いがないか確認してください。\n\n※コンソール(F12)にDB内のサンプルデータを表示しました。`);
+            }
+
+            const projectStart = new Date(startStr);
+            const newTasks = templates.map(temp => {
+                const taskStart = new Date(projectStart);
+                taskStart.setDate(taskStart.getDate() + (temp.relative_start_day || 0));
+                
+                return {
+                    project_number: pNumber,
+                    machine: machine,
+                    text: temp.text,
+                    major_item: temp.major_item,
+                    start_date: dateToDb(taskStart),
+                    duration: temp.duration || 1,
+                    unit: temp.unit || ""
+                };
+            });
+
+            const { error: iError } = await supabaseClient.from('tasks').insert(newTasks);
+            
+            if (iError) {
+                alert("タスク登録エラー: " + iError.message);
+            } else {
+                alert(`${newTasks.length}件のタスクをテンプレートから追加しました`);
+                document.getElementById('project_number').value = "";
+                document.getElementById('machine_input').value = "";
+                document.getElementById('project_start_date').value = "";
+                fetchTasks();
+            }
+        }
+
+        fetchTasks();
+    </script>
+</body>
+</html>
