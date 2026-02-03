@@ -678,9 +678,15 @@
             // テンプレートの各項目を「見出し行」として作成
             // parent列にある項目を元に、逆算で期間を計算
             templates.forEach((temp, index) => {
-                const taskStart = new Date(shippingDate);
-                // 出荷日から relative_start_day 分戻る（逆算）
-                taskStart.setDate(taskStart.getDate() + (temp.relative_start_day || 0));
+                let taskStart;
+                if (temp.parent === "受注") {
+                    // 受注の見出しは入力した受注日を最優先に使用
+                    taskStart = new Date(orderDate);
+                } else {
+                    // それ以外は出荷日から relative_start_day 分戻る（逆算）
+                    taskStart = new Date(shippingDate);
+                    taskStart.setDate(taskStart.getDate() + (temp.relative_start_day || 0));
+                }
                 
                 newTasks.push({
                     project_number: pNumber,
