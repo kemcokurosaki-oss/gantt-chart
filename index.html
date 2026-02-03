@@ -37,9 +37,9 @@
         .zoom-btn { padding: 3px 10px; cursor: pointer; background: #fff; border: 1px solid #ccc; border-radius: 3px; }
         .zoom-btn.active { background-color: #3498db; color: #fff; border-color: #3498db; }
         
-        .weekend { background: #f4f4f4 !important; } /* 土日：薄いグレー */
+        .weekend { background: #f4f4f4 !important; } /* 土日：元の薄いグレー */
         .today-line { background: #ff5252; width: 2px !important; opacity: 0.8; z-index: 1000; }
-        .gantt_group_row { background-color: #eef6ff !important; font-weight: bold !important; } /* 見出し行：薄い青色 */
+        .gantt_group_row { background-color: #f0f7ff !important; font-weight: bold !important; } /* 見出し行：さらに薄いスカイブルー */
         
         /* 業務別カラー設定（中程度のパステル調） */
         .task-blue, .gantt_project.task-blue { background-color: #85C1E9 !important; border-color: #5DADE2 !important; }
@@ -107,8 +107,14 @@
         <div class="header-panel">
             <div class="input-row">
                 <input type="text" id="project_number" placeholder="工事番号" style="width:100px">
-                <input type="text" id="machine_input" placeholder="機械名" style="width:120px">
-                <input type="date" id="project_start_date" title="プロジェクト開始日">
+                <div style="display: flex; align-items: center; gap: 5px;">
+                    <span style="font-size: 12px; color: #666;">受注日:</span>
+                    <input type="date" id="order_date" title="受注日">
+                </div>
+                <div style="display: flex; align-items: center; gap: 5px;">
+                    <span style="font-size: 12px; color: #666;">出荷日:</span>
+                    <input type="date" id="shipping_date" title="出荷日">
+                </div>
                 <button class="btn-add" onclick="addProjectFromTemplate()">新規追加</button>
                 <span style="margin-left: 15px; font-size: 13px; font-weight: bold; color: #333;">
                     <span style="color: #d32f2f; font-size: 20px;">●</span> 外観検査
@@ -120,12 +126,7 @@
         </div>
 
         <div class="toolbar">
-            <span>表示切替:</span>
-            <button class="zoom-btn" onclick="setZoom('days')">日単位</button>
-            <button class="zoom-btn" onclick="setZoom('weeks')">週単位</button>
-            <button class="zoom-btn" onclick="scrollToToday()" style="background-color: #ebf5ff; border-color: #3498db; color: #3498db; margin-left: 5px;">今日へ移動</button>
-            
-            <div class="filter-group">
+            <div class="filter-group" style="margin-left: 0; padding-left: 0; border-left: none;">
                 <span>大項目フィルタ:</span>
                 <button class="zoom-btn major-filter-btn" onclick="filterByMajorItem('営業', this)">営業</button>
                 <button class="zoom-btn major-filter-btn" onclick="filterByMajorItem('設計', this)">設計</button>
@@ -137,12 +138,23 @@
             </div>
 
             <div class="filter-group">
+                <span>機械検索:</span>
+                <input type="text" id="machine_search" placeholder="機械名を入力..." style="width:100px; padding:3px; border:1px solid #ccc; border-radius:3px; font-size:12px;" oninput="filterByMachine(this.value)">
+            </div>
+
+            <div class="filter-group">
                 <span>担当検索:</span>
                 <input type="text" id="owner_search" placeholder="名前を入力..." style="width:100px; padding:3px; border:1px solid #ccc; border-radius:3px; font-size:12px;" oninput="filterByOwner(this.value)">
             </div>
 
-            <span id="filter_status" style="margin-left:auto; font-weight:bold; color:#3498db;">全工程を表示中</span>
-            <button class="zoom-btn" onclick="resetFilter()">表示リセット</button>
+            <div style="margin-left:auto; display:flex; align-items:center; gap:10px;">
+                <span>表示切替:</span>
+                <button class="zoom-btn" onclick="setZoom('days')">日単位</button>
+                <button class="zoom-btn" onclick="setZoom('weeks')">週単位</button>
+                <button class="zoom-btn" onclick="scrollToToday()" style="background-color: #ebf5ff; border-color: #3498db; color: #3498db;">今日へ移動</button>
+                <span id="filter_status" style="font-weight:bold; color:#3498db;">全工程を表示中</span>
+                <button class="zoom-btn" onclick="resetFilter()">表示リセット</button>
+            </div>
         </div>
 
         <div class="content-area">
@@ -164,6 +176,7 @@
         let currentFilter = null;
         let currentMajorFilter = null;
         let currentOwnerFilter = "";
+        let currentMachineFilter = "";
         const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
         const dateToDb = gantt.date.date_to_str("%Y-%m-%d");
         const dateToDisplay = gantt.date.date_to_str("%Y/%m/%d");
@@ -177,16 +190,18 @@
         gantt.config.date_grid = "%Y/%m/%d";
 
         gantt.config.columns = [
-            { name: "project_number", label: "工事番号", width: 90, align: "center", template: function(obj) {
+            { name: "project_number", label: "工事番号", width: 75, align: "center", template: function(obj) {
                 return obj.project_number || ""; 
             }},
             { name: "text", label: "タスク名", width: 160, tree: true, template: function(obj) {
                 return obj.text;
             }},
             { name: "machine", label: "機械", width: 60, align: "center", template: function(obj) {
+                if (obj.$virtual) return "";
                 return obj.machine || "";
             }},
             { name: "unit", label: "ユニット", width: 60, align: "center", template: function(obj) {
+                if (obj.$virtual) return "";
                 return obj.unit || "";
             }},
             { name: "owner", label: "担当", width: 100, align: "left", template: function(obj) {
@@ -201,16 +216,36 @@
             }},
             { name: "add", label: "", width: 44 }
         ];
-        gantt.config.grid_width = 714;
+        gantt.config.grid_width = 699;
         gantt.config.row_height = 30; // 行の高さを少し狭く設定 (デフォルトは約35〜38px)
         gantt.config.open_tree_initially = false; // 最初は閉じておく
         gantt.config.order_branch = true; // ドラッグによる並べ替えを有効化
         gantt.config.order_branch_free = true;
 
+        // 大項目の選択肢リスト
+        const parentOptions = [
+            { key: "", label: "なし" },
+            { key: "受注", label: "受注" },
+            { key: "基本設計＆計画承認", label: "基本設計＆計画承認" },
+            { key: "部品手配1", label: "部品手配1" },
+            { key: "出図＆部品手配2", label: "出図＆部品手配2" },
+            { key: "電気設計", label: "電気設計" },
+            { key: "盤組立", label: "盤組立" },
+            { key: "組立全体", label: "組立全体" },
+            { key: "外観検査", label: "外観検査" },
+            { key: "タスクリスト作成", label: "タスクリスト作成" },
+            { key: "試運転", label: "試運転" },
+            { key: "客先立会", label: "客先立会" },
+            { key: "出荷確認会議", label: "出荷確認会議" },
+            { key: "出荷準備", label: "出荷準備" },
+            { key: "出荷", label: "出荷" },
+            { key: "現地工事", label: "現地工事" }
+        ];
+
         // 詳細編集画面（ライトボックス）の設定
         gantt.config.lightbox.sections = [
             { name: "description", height: 70, map_to: "text", type: "textarea", focus: true },
-            { name: "parent", height: 30, map_to: "parent", type: "textarea" }, // 大項目(見出し)編集用
+            { name: "parent_name", height: 30, map_to: "parent_name", type: "select", options: parentOptions }, // セレクトボックスに変更
             { name: "project_number", height: 30, map_to: "project_number", type: "textarea" },
             { name: "machine", height: 30, map_to: "machine", type: "textarea" },
             { name: "unit", height: 30, map_to: "unit", type: "textarea" },
@@ -228,7 +263,7 @@
             { name: "time", height: 72, type: "duration", map_to: "auto" }
         ];
         gantt.config.lightbox.time_format = "%Y/%m/%d";
-        gantt.locale.labels.section_parent = "大項目名(見出し)";
+        gantt.locale.labels.section_parent_name = "大項目名(見出し)";
         gantt.locale.labels.section_project_number = "工事番号";
         gantt.locale.labels.section_machine = "機械名";
         gantt.locale.labels.section_unit = "ユニット";
@@ -243,7 +278,7 @@
                 const parentTask = gantt.getTask(task.parent);
                 if (parentTask.$virtual) {
                     task.project_number = parentTask.project_number;
-                    task.parent = parentTask.text; // 見出し名をparent列にセット
+                    task.parent_name = parentTask.text; // きれいな名前を引き継ぐ
                 }
             }
             return true;
@@ -258,11 +293,26 @@
             return "";
         };
 
-        // フィルタ設定：工事番号、大項目、担当名の絞り込み
+        // フィルタ設定：工事番号、大項目、担当名、機械名の絞り込み
         gantt.attachEvent("onBeforeTaskDisplay", function(id, task){
+            // 見出し行（仮想タスク）の場合の処理
+            if (task.$virtual) {
+                // 1. 工事番号フィルタが適用されている場合、その工事番号以外の見出しは非表示
+                if (currentFilter && !task.id.startsWith(`p_${currentFilter}_`)) {
+                    return false;
+                }
+                // 2. 大項目フィルタが適用されている場合、見出しの major_item が一致しない場合は非表示
+                if (currentMajorFilter && task.major_item !== currentMajorFilter) {
+                    return false;
+                }
+                return true;
+            }
+            
+            // 通常タスクのフィルタ
             if (currentFilter && task.project_number !== currentFilter) return false;
             if (currentMajorFilter && task.major_item !== currentMajorFilter) return false;
             if (currentOwnerFilter && (!task.owner || !task.owner.includes(currentOwnerFilter))) return false;
+            if (currentMachineFilter && (!task.machine || !task.machine.includes(currentMachineFilter))) return false;
             return true;
         });
 
@@ -291,12 +341,12 @@
         
         const zoomConfig = {
             levels: [
-                { name: "days", scale_height: 75, min_column_width: 30, scales: [
+                { name: "days", scale_height: 75, min_column_width: 25, scales: [
                     { unit: "month", step: 1, format: "%Y/%n" },
                     { unit: "day", step: 1, format: "%j" }, 
                     { unit: "day", step: 1, format: (date) => dayNames[date.getDay()] }
                 ]},
-                { name: "weeks", scale_height: 50, min_column_width: 40, scales: [
+                { name: "weeks", scale_height: 50, min_column_width: 25, scales: [
                     { unit: "month", step: 1, format: "%Y/%n" },
                     { unit: "week", step: 1, format: (date) => {
                         const dateToStr = gantt.date.date_to_str("%j");
@@ -315,46 +365,117 @@
             
             const rawTasks = data.map(t => ({
                 id: t.id, text: t.text, start_date: t.start_date,
-                duration: t.duration, owner: t.owner, project_number: t.project_number,
+                duration: t.duration, owner: t.owner, project_number: (t.project_number || "").toString().trim(),
                 machine: t.machine, unit: t.unit, major_item: t.major_item,
                 sort_order: t.sort_order,
-                parent: t.parent // parent列を読み込む
+                parent_name: (t.parent || "").toString().trim() // 空白を除去して保持
             }));
 
-            // 階層構造の構築
+            // 指定された大項目の並び順
+            const parentOrder = [
+                "受注", "基本設計＆計画承認", "部品手配1", "出図＆部品手配2", 
+                "電気設計", "盤組立", "組立全体", "外観検査", "タスクリスト作成", 
+                "試運転", "客先立会", "出荷確認会議", "出荷準備", "出荷", "現地工事"
+            ];
+
             const tasksWithHierarchy = [];
             const parentsMap = {};
 
-            // 1. 工事番号ごとにグループ化して処理
-            const projects = [...new Set(rawTasks.map(t => t.project_number))].filter(Boolean).sort();
+            // 1. 工事番号を特定のルールでソートして取得
+            // 優先度: 2000番台(1) > 3000番台(2) > 4000番台(3) > D番台(4) > その他(5)
+            // 3000番台内では、数字のみを先、アルファベット混じり(3C等)を後に配置
+            const getPriority = (p) => {
+                if (p.startsWith('2')) return 1;
+                if (p.startsWith('3')) return 2;
+                if (p.startsWith('4')) return 3;
+                if (p.startsWith('D')) return 4;
+                return 5;
+            };
+            const isPureNumeric = (s) => /^\d+$/.test(s);
+
+            const projects = [...new Set(rawTasks.map(t => t.project_number))]
+                .filter(Boolean)
+                .sort((a, b) => {
+                    const priA = getPriority(a);
+                    const priB = getPriority(b);
+                    if (priA !== priB) return priA - priB;
+                    
+                    // 同じ番台内での処理（例：3000番台）
+                    const numA = isPureNumeric(a);
+                    const numB = isPureNumeric(b);
+                    if (numA && !numB) return -1; // 数字のみを優先
+                    if (!numA && numB) return 1;  // アルファベット混じりを後に
+                    
+                    return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+                });
 
             projects.forEach(pNum => {
                 const projectTasks = rawTasks.filter(t => t.project_number === pNum);
                 
-                projectTasks.forEach(t => {
-                    if (t.parent) {
-                        // 工事番号 + parent名 で一意の親IDを作る
-                        const parentKey = `p_${pNum}_${t.parent}`;
+                // 2. 指定された順序（parentOrder）に従って見出しとタスクを配置
+                parentOrder.forEach(pName => {
+                    const tasksInParent = projectTasks.filter(t => t.parent_name === pName);
+                    if (tasksInParent.length > 0) {
+                        const parentKey = `p_${pNum}_${pName}`;
                         
+                        // 見出し行の期間を計算（子タスクの最小開始日と最大終了日）
+                        let minStart = null;
+                        let maxEnd = null;
+                        tasksInParent.forEach(t => {
+                            const start = new Date(t.start_date);
+                            const end = gantt.calculateEndDate(start, t.duration);
+                            if (!minStart || start < minStart) minStart = start;
+                            if (!maxEnd || end > maxEnd) maxEnd = end;
+                        });
+
                         if (!parentsMap[parentKey]) {
                             parentsMap[parentKey] = {
                                 id: parentKey,
-                                text: t.parent, // 見出しにはparent列の文字を表示
+                                text: pName,
                                 project_number: pNum,
-                                machine: t.machine,
-                                major_item: t.major_item,
-                                open: false, // 初期状態は閉じる
+                                machine: tasksInParent[0].machine,
+                                major_item: tasksInParent[0].major_item,
+                                start_date: minStart,
+                                end_date: maxEnd,
+                                open: false,
                                 type: "project",
                                 $virtual: true
                             };
                             tasksWithHierarchy.push(parentsMap[parentKey]);
                         }
-                        // タスクをこの親の下に配置
-                        t.parent = parentKey;
-                    } else {
-                        // parentが空の場合はルート（または工事番号直下）
-                        t.parent = 0;
+                        tasksInParent.forEach(t => {
+                            t.parent = parentKey;
+                            tasksWithHierarchy.push(t);
+                        });
                     }
+                });
+
+                // 3. 指定リストに含まれない大項目（その他）
+                const otherTasks = projectTasks.filter(t => t.parent_name && !parentOrder.includes(t.parent_name));
+                const otherParentNames = [...new Set(otherTasks.map(t => t.parent_name))];
+                otherParentNames.forEach(pName => {
+                    const tasksInParent = otherTasks.filter(t => t.parent_name === pName);
+                    if (tasksInParent.length > 0) {
+                        const parentKey = `p_${pNum}_${pName}`;
+                        if (!parentsMap[parentKey]) {
+                            parentsMap[parentKey] = {
+                                id: parentKey, text: pName, project_number: pNum,
+                                machine: tasksInParent[0].machine, major_item: tasksInParent[0].major_item,
+                                open: false, type: "project", $virtual: true
+                            };
+                            tasksWithHierarchy.push(parentsMap[parentKey]);
+                        }
+                        tasksInParent.forEach(t => {
+                            t.parent = parentKey;
+                            tasksWithHierarchy.push(t);
+                        });
+                    }
+                });
+
+                // 4. 大項目が未設定のタスク（工事番号の直下）
+                const noParentTasks = projectTasks.filter(t => !t.parent_name);
+                noParentTasks.forEach(t => {
+                    t.parent = 0;
                     tasksWithHierarchy.push(t);
                 });
             });
@@ -362,7 +483,7 @@
             updateProjectList(rawTasks);
             gantt.clearAll();
             gantt.parse({ data: tasksWithHierarchy });
-            scrollToToday(); // 初回読み込み時に今日へジャンプ
+            scrollToToday();
         }
 
         // 今日へスクロールする関数（少し余裕を持って表示）
@@ -387,10 +508,18 @@
         }
 
         function filterByProject(p) {
-            currentFilter = p;
+            // すでに選択されている工事番号を再度押した場合は解除
+            if (currentFilter === p) {
+                currentFilter = null;
+            } else {
+                currentFilter = p;
+            }
             updateFilterStatus();
             gantt.render();
-            updateProjectList(gantt.getDatastore("task").getItems());
+            // 工事一覧の見た目も更新するために fetchTasks を呼ぶか、現在の生データからリストを再描画
+            // ここでは簡易的に現在の表示状態に合わせてリストを更新
+            const allTasks = gantt.getDatastore("task").getItems().filter(t => !t.$virtual);
+            updateProjectList(allTasks);
         }
 
         function filterByMajorItem(major, btn) {
@@ -414,11 +543,18 @@
             gantt.render();
         }
 
+        function filterByMachine(val) {
+            currentMachineFilter = val;
+            updateFilterStatus();
+            gantt.render();
+        }
+
         function updateFilterStatus() {
             let status = "";
             let parts = [];
             if (currentFilter) parts.push(`工事 ${currentFilter}`);
             if (currentMajorFilter) parts.push(currentMajorFilter);
+            if (currentMachineFilter) parts.push(`機械: ${currentMachineFilter}`);
             if (currentOwnerFilter) parts.push(`担当: ${currentOwnerFilter}`);
             
             if (parts.length > 0) {
@@ -433,10 +569,14 @@
             currentFilter = null;
             currentMajorFilter = null;
             currentOwnerFilter = "";
+            currentMachineFilter = "";
             document.getElementById('owner_search').value = "";
+            document.getElementById('machine_search').value = "";
             document.querySelectorAll('.major-filter-btn').forEach(b => b.classList.remove('active'));
             updateFilterStatus();
-            gantt.render();
+            
+            // データを再読み込みして初期状態（閉じた状態）で描画し直す
+            fetchTasks();
         }
 
         // 自動保存
@@ -451,7 +591,7 @@
                 major_item: item.major_item,
                 owner: item.owner,
                 project_number: item.project_number,
-                parent: item.parent // parent列を保存
+                parent: item.parent_name // きれいな名前を保存
             }).eq('id', id);
         });
 
@@ -467,16 +607,14 @@
                 major_item: item.major_item || "",
                 owner: item.owner || "",
                 sort_order: gantt.getTaskIndex(id),
-                parent: item.parent || "" // parent列を保存
+                parent: item.parent_name || "" // きれいな名前を保存
             }]).select();
 
             if (error) {
                 alert("登録エラー: " + error.message);
                 gantt.deleteTask(id);
             } else {
-                // Supabaseから発行された本当のIDに書き換える
                 gantt.changeTaskId(id, data[0].id);
-                // 階層構造を再構築するため一度読み直す
                 fetchTasks();
             }
         });
@@ -491,59 +629,109 @@
             return true;
         });
 
+        // ドラッグ＆ドロップ後の並び順保存
+        gantt.attachEvent("onRowDragEnd", async function(id, target) {
+            const task = gantt.getTask(id);
+            // 同じ親（見出し行）を持つ兄弟タスクを取得
+            const siblings = gantt.getChildren(task.parent);
+            
+            const updates = siblings.map((sId, index) => {
+                // 仮想タスク（見出し行）はDBにないのでスキップ
+                if (sId.toString().startsWith("p_")) return null;
+                
+                return supabaseClient.from('tasks').update({
+                    sort_order: index
+                }).eq('id', sId);
+            }).filter(p => p !== null);
+
+            if (updates.length > 0) {
+                await Promise.all(updates);
+                console.log("並び順をDBに保存しました");
+            }
+        });
+
         async function addProjectFromTemplate() {
             const pNumber = document.getElementById('project_number').value;
-            const machine = document.getElementById('machine_input').value;
-            const startStr = document.getElementById('project_start_date').value;
+            const orderDateStr = document.getElementById('order_date').value;
+            const shippingDateStr = document.getElementById('shipping_date').value;
 
-            if (!pNumber || !machine || !startStr) {
-                return alert("工事番号、機械名、開始日をすべて入力してください");
+            if (!pNumber || !orderDateStr || !shippingDateStr) {
+                return alert("工事番号、受注日、出荷日をすべて入力してください");
             }
 
-            // 1. テンプレートから該当する機械のデータを取得（大文字小文字を区別しない検索）
+            // 1. テンプレートから全てのデータを取得（見出し行の元データとして使用）
             const { data: templates, error: tError } = await supabaseClient
                 .from('task_template')
-                .select('*')
-                .ilike('machine', machine.trim());
+                .select('*');
 
             if (tError) {
                 console.error("Supabase Query Error:", tError);
                 return alert("テンプレート取得エラー: " + tError.message);
             }
 
-            if (!templates || templates.length === 0) {
-                const { data: allData } = await supabaseClient.from('task_template').select('machine').limit(10);
-                const existingMachines = allData ? allData.map(d => d.machine).join(", ") : "なし";
-                console.log("DB内にある機械名の例:", existingMachines);
-                
-                return alert(`「${machine}」に対応するテンプレートが見つかりません。\n\n【確認事項】\n1. Supabaseのtask_templateテーブルに machine='${machine}' のデータがあるか確認してください。\n2. 前後の空白や、全角・半角の違いがないか確認してください。\n\n※コンソール(F12)にDB内のサンプルデータを表示しました。`);
-            }
+            const orderDate = new Date(orderDateStr);
+            const shippingDate = new Date(shippingDateStr);
 
-            const projectStart = new Date(startStr);
-            const newTasks = templates.map(temp => {
-                const taskStart = new Date(projectStart);
+            // 2. 見出し行（親タスク）のみを作成
+            const newTasks = [];
+
+            // テンプレートの各項目を「見出し行」として作成
+            // parent列にある項目を元に、逆算で期間を計算
+            templates.forEach((temp, index) => {
+                const taskStart = new Date(shippingDate);
+                // 出荷日から relative_start_day 分戻る（逆算）
                 taskStart.setDate(taskStart.getDate() + (temp.relative_start_day || 0));
                 
-                return {
+                newTasks.push({
                     project_number: pNumber,
-                    machine: machine,
-                    text: temp.text,
+                    text: temp.parent || temp.text, // バーの中に表示するテキスト（parentを優先）
                     major_item: temp.major_item,
                     start_date: dateToDb(taskStart),
                     duration: temp.duration || 1,
-                    unit: temp.unit || ""
-                };
+                    parent: temp.parent || temp.text, // 階層化のキー
+                    machine: "", // 見出し行なので空
+                    unit: "",     // 見出し行なので空
+                    sort_order: index // 初期並び順を設定
+                });
             });
 
+            // 「受注」と「出荷」がテンプレートにない場合のための補完
+            if (!newTasks.find(t => t.parent === "受注")) {
+                newTasks.push({
+                    project_number: pNumber, text: "受注", major_item: "営業",
+                    start_date: dateToDb(orderDate), duration: 1, parent: "受注",
+                    sort_order: -1 // 受注は常に先頭
+                });
+            }
+            if (!newTasks.find(t => t.parent === "出荷")) {
+                newTasks.push({
+                    project_number: pNumber, text: "出荷", major_item: "操業",
+                    start_date: dateToDb(shippingDate), duration: 1, parent: "出荷",
+                    sort_order: 999 // 出荷は常に最後の方
+                });
+            }
+
+            // 「基本設計＆計画承認」の期間調整（受注〜部品手配1の間を埋める）
+            const partsOrder1 = newTasks.find(t => t.parent === "部品手配1");
+            const designTask = newTasks.find(t => t.parent === "基本設計＆計画承認");
+            if (partsOrder1 && designTask) {
+                designTask.start_date = dateToDb(orderDate);
+                const p1Start = new Date(partsOrder1.start_date);
+                const diffTime = Math.abs(p1Start - orderDate);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                designTask.duration = diffDays;
+            }
+
+            // Supabaseへ一括登録
             const { error: iError } = await supabaseClient.from('tasks').insert(newTasks);
             
             if (iError) {
                 alert("タスク登録エラー: " + iError.message);
             } else {
-                alert(`${newTasks.length}件のタスクをテンプレートから追加しました`);
+                alert(`工事番号 ${pNumber} の標準工程（見出し行）を一括作成しました。`);
                 document.getElementById('project_number').value = "";
-                document.getElementById('machine_input').value = "";
-                document.getElementById('project_start_date').value = "";
+                document.getElementById('order_date').value = "";
+                document.getElementById('shipping_date').value = "";
                 fetchTasks();
             }
         }
