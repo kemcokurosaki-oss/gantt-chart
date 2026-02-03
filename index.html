@@ -183,10 +183,10 @@
             { name: "text", label: "タスク名", width: 160, tree: true, template: function(obj) {
                 return obj.text;
             }},
-            { name: "machine", label: "機械", width: 80, align: "center", template: function(obj) {
+            { name: "machine", label: "機械", width: 60, align: "center", template: function(obj) {
                 return obj.machine || "";
             }},
-            { name: "unit", label: "ユニット", width: 80, align: "center", template: function(obj) {
+            { name: "unit", label: "ユニット", width: 60, align: "center", template: function(obj) {
                 return obj.unit || "";
             }},
             { name: "owner", label: "担当", width: 100, align: "left", template: function(obj) {
@@ -201,7 +201,7 @@
             }},
             { name: "add", label: "", width: 44 }
         ];
-        gantt.config.grid_width = 754;
+        gantt.config.grid_width = 714;
         gantt.config.row_height = 30; // 行の高さを少し狭く設定 (デフォルトは約35〜38px)
         gantt.config.open_tree_initially = false; // 最初は閉じておく
         gantt.config.order_branch = true; // ドラッグによる並べ替えを有効化
