@@ -18,7 +18,8 @@
         .btn-add { padding: 6px 15px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
         .content-area { display: flex; flex: 1; overflow: hidden; }
         .sidebar { width: 100px; background: #2c3e50; color: #ecf0f1; display: flex; flex-direction: column; border-right: 1px solid #1a252f; }
-        .sidebar-title { padding: 10px; font-weight: bold; background: #1a252f; font-size: 13px; }
+        .sidebar-title { padding: 10px; font-weight: bold; background: #1a252f; font-size: 13px; cursor: pointer; transition: 0.2s; }
+        .sidebar-title:hover { background: #34495e; }
         .project-list { flex: 1; overflow-y: auto; }
         .project-item { padding: 8px 10px; border-bottom: 1px solid #34495e; cursor: pointer; font-size: 14px; transition: 0.2s; font-weight: bold; }
         .project-item:hover { background: #34495e; }
@@ -159,7 +160,7 @@
 
         <div class="content-area">
             <div class="sidebar">
-                <div class="sidebar-title">工事一覧</div>
+                <div class="sidebar-title" onclick="resetFilter()" title="クリックして全表示にリセット">工事一覧</div>
                 <div id="project_list" class="project-list"></div>
             </div>
             <div class="chart-container">
