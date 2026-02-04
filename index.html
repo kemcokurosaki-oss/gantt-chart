@@ -183,11 +183,19 @@
 
         gantt.plugins({ marker: true, grouplist: true });
         
-        // カレンダー表示範囲（2024/11/1〜3年間）
+        // カレンダー表示範囲（2024/11/1〜3年間）を固定
         gantt.config.start_date = new Date(2024, 10, 1);
         gantt.config.end_date = new Date(2027, 10, 1);
+        gantt.config.fit_tasks = false; // タスクに合わせて範囲を自動調整しない
+        gantt.config.smart_scales = false; // スケールの最適化を無効化（表示消失を防ぐ）
         gantt.config.date_format = "%Y-%m-%d";
         gantt.config.date_grid = "%Y/%m/%d";
+
+        // カレンダーの日付表示を常に固定する（フィルター時などに消えるのを防ぐ）
+        gantt.attachEvent("onBeforeGanttRender", function(){
+            gantt.config.start_date = new Date(2024, 10, 1);
+            gantt.config.end_date = new Date(2027, 10, 1);
+        });
 
         gantt.config.columns = [
             { name: "project_number", label: "工事番号", width: 75, align: "center", template: function(obj) {
@@ -483,6 +491,12 @@
             updateProjectList(rawTasks);
             gantt.clearAll();
             gantt.parse({ data: tasksWithHierarchy });
+            
+            // カレンダー範囲を強制的に再適用（parseによる自動調整を上書き）
+            gantt.config.start_date = new Date(2024, 10, 1);
+            gantt.config.end_date = new Date(2027, 10, 1);
+            gantt.render();
+            
             scrollToToday();
         }
 
