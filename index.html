@@ -24,7 +24,7 @@
         .project-item { padding: 8px 10px; border-bottom: 1px solid #34495e; cursor: pointer; font-size: 14px; transition: 0.2s; font-weight: bold; }
         .project-item:hover { background: #34495e; }
         .project-item.active { background: #3498db; color: white; border-left: 5px solid #fff; }
-        .chart-container { flex: 1; display: flex; flex-direction: column; background: #fff; position: relative; }
+        .chart-container { flex: 1; display: flex; flex-direction: column; background: #fff; position: relative; overflow: hidden; }
 
         /* ライトボックスの期間選択を年月日の順に並び替え */
         .gantt_section_time { display: flex !important; flex-wrap: wrap; align-items: center; gap: 5px; }
@@ -33,7 +33,10 @@
         .gantt_section_time select:nth-of-type(3) { order: 1; } /* 年 */
         .gantt_section_time input, .gantt_section_time span { order: 4; }
 
-        #gantt_here { flex: 1; width: 100%; }
+        .gantt-layout-container { display: flex; flex-direction: column; flex: 1; min-height: 0; width: 100%; }
+        #main.gantt-main { flex: 1; min-height: 0; width: 100%; }
+        #resource.gantt-resource { flex: 0 0 260px; min-height: 260px; width: 100%; display: flex; flex-direction: column; border-top: 1px solid #ddd; background: #fff; overflow: hidden; transition: flex 0.2s ease, min-height 0.2s ease; }
+        #resource.gantt-resource.resource-panel-closed { flex: 0 0 0; min-height: 0; height: 0; overflow: hidden; border-top: none; }
         .toolbar { background: #f8f9fa; padding: 5px 15px; border-bottom: 1px solid #ddd; display: flex; gap: 10px; align-items: center; font-size: 12px; }
         .zoom-btn { padding: 3px 10px; cursor: pointer; background: #fff; border: 1px solid #ccc; border-radius: 3px; }
         .zoom-btn.active { background-color: #3498db; color: #fff; border-color: #3498db; }
@@ -96,6 +99,13 @@
         /* バー内の文字色（白文字に統一） */
         .gantt_task_content { color: #fff !important; font-weight: bold; text-shadow: 1px 1px 2px rgba(0,0,0,0.3); }
 
+        /* 開始日リサイズハンドル（バー左の三角）を表示・有効化（終了日同様に変更可能にする） */
+        .gantt_task_drag[data-bind-property="start_date"] {
+            display: block !important;
+            visibility: visible !important;
+            pointer-events: auto !important;
+        }
+
         .filter-group {
             display: flex;
             gap: 5px;
@@ -124,6 +134,215 @@
             line-height: 1.5;
             border: 1px solid rgba(255,255,255,0.2);
         }
+
+        /* リソース（下段）＝全体工程表と同じデザイン・土日・今日線を一直線に */
+        .resource-header {
+            background: #f8f9fa;
+            padding: 5px 15px;
+            font-weight: bold;
+            font-size: 12px;
+            color: #2c3e50;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #ddd;
+        }
+        .resource-header-close {
+            margin-left: 8px;
+            padding: 2px 8px;
+            border: 1px solid #ccc;
+            background: #fff;
+            color: #666;
+            font-size: 16px;
+            line-height: 1;
+            cursor: pointer;
+            border-radius: 3px;
+        }
+        .resource-header-close:hover { background: #f0f0f0; color: #333; }
+        .resource-content {
+            flex: 1;
+            overflow: auto;
+            padding: 0;
+            min-height: 0;
+            background: #fff;
+        }
+        .resource-content-inner {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            min-width: 1px;
+            padding: 0 0 10px 0;
+        }
+        .resource-item {
+            display: flex;
+            margin-bottom: 0;
+            align-items: center;
+            font-size: 12px;
+            min-width: min-content;
+            min-height: 24px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .resource-item:last-child { border-bottom: none; }
+        /* 下段グリッド：上段と同じ列幅（GRID_WIDTH=699）でカレンダー開始位置を一致・横スクロール時も固定 */
+        .resource-grid-container {
+            width: 699px;
+            min-width: 699px;
+            flex-shrink: 0;
+            position: sticky;
+            left: 0;
+            z-index: 2;
+            display: flex;
+            background: #f5f5f5;
+        }
+        .resource-item .resource-grid-container { background: #fff; }
+        .resource-grid {
+            width: 699px;
+            min-width: 699px;
+            display: flex;
+            flex-shrink: 0;
+            background: inherit;
+            border-right: 1px solid #e0e0e0;
+        }
+        .resource-grid .resource-cell {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            padding: 0 4px;
+            font-size: 12px;
+            border-right: 1px solid #e0e0e0;
+            box-sizing: border-box;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .resource-grid .resource-cell:last-child { border-right: none; }
+        .resource-scale-row .resource-grid { background: #f5f5f5; }
+        .resource-item .resource-grid { background: #fff; }
+        .resource-cell-w75 { width: 75px; min-width: 75px; justify-content: center; }
+        .resource-cell-w160 { width: 160px; min-width: 160px; }
+        .resource-cell-w60 { width: 60px; min-width: 60px; justify-content: center; }
+        .resource-cell-w100 { width: 100px; min-width: 100px; }
+        .resource-cell-w44 { width: 44px; min-width: 44px; }
+        .resource-grid-fill {
+            width: 624px;
+            min-width: 624px;
+            flex-shrink: 0;
+            background: #f5f5f5;
+            border-right: 1px solid #e0e0e0;
+        }
+        .resource-scale-label {
+            width: 75px;
+            min-width: 75px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            padding: 0 4px;
+            color: #333;
+            font-weight: bold;
+            font-size: 12px;
+            position: sticky;
+            left: 0;
+            z-index: 2;
+            background: #f5f5f5;
+            border-right: 1px solid #e0e0e0;
+            box-sizing: border-box;
+        }
+        .resource-timeline {
+            flex: 1;
+            min-width: 0;
+            position: relative;
+            z-index: 0;
+            height: 22px;
+            background: #fff;
+            border-right: 1px solid #e0e0e0;
+            /* 右スクロール時、グリッド範囲に入ったバーを完全に非表示にする */
+            clip-path: inset(0 0 0 var(--resource-clip-left, 0px));
+        }
+        .resource-timeline-grid {
+            position: absolute;
+            left: 0;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            z-index: 0;
+        }
+        .resource-timeline-grid-cell {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            border-right: 1px solid #e0e0e0;
+            box-sizing: border-box;
+        }
+        .resource-timeline-grid-cell:last-child { border-right: none; }
+        .resource-bar {
+            position: absolute;
+            z-index: 1;
+            height: 100%;
+            border-radius: 2px;
+            border: 1px solid rgba(0,0,0,0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff !important;
+            font-size: 11px;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+            box-sizing: border-box;
+        }
+        /* 上段ガントと同じ色・枠（リソースバー用） */
+        .resource-bar.task-blue { background-color: #85C1E9 !important; border-color: #5DADE2 !important; }
+        .resource-bar.task-green { background-color: #82E0AA !important; border-color: #58D68D !important; }
+        .resource-bar.task-yellow { background-color: #F7DC6F !important; border-color: #F4D03F !important; }
+        .resource-bar.task-red { background-color: #F1948A !important; border-color: #EC7063 !important; }
+        .resource-bar.task-orange { background-color: #F8C471 !important; border-color: #F5B041 !important; }
+        .resource-bar.task-purple { background-color: #D7BDE2 !important; border-color: #AF7AC5 !important; }
+        /* マイルストーン：上段と同じ記号のみ表示 */
+        .resource-bar.milestone-circle { background: none !important; border: none !important; }
+        .resource-bar.milestone-circle .resource-bar-text { display: none; }
+        .resource-bar.milestone-circle::before { content: "●"; color: #d32f2f; font-size: 22px; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); text-shadow: 1px 1px 2px rgba(0,0,0,0.1); }
+        .resource-bar.milestone-diamond { background: none !important; border: none !important; }
+        .resource-bar.milestone-diamond .resource-bar-text { display: none; }
+        .resource-bar.milestone-diamond::before { content: "◆"; color: #1976D2; font-size: 24px; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); text-shadow: 1px 1px 2px rgba(0,0,0,0.1); }
+        .resource-bar.milestone-star { background: none !important; border: none !important; }
+        .resource-bar.milestone-star .resource-bar-text { display: none; }
+        .resource-bar.milestone-star::before { content: "★"; color: #2E7D32; font-size: 26px; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); text-shadow: 1px 1px 2px rgba(0,0,0,0.2); }
+        .resource-scale-row { display: flex; align-items: stretch; margin-bottom: 0; font-size: 12px; }
+        .resource-scale-row:first-of-type .resource-scale-inner { border-bottom: 1px solid #e0e0e0; }
+        .resource-scale-row:last-of-type .resource-scale-inner { height: 24px; }
+        .resource-grid-lines-only .resource-scale-inner { height: 10px; min-height: 10px; }
+        .resource-grid-lines-only .resource-scale-cell { border-right: 1px solid #e0e0e0; }
+        .resource-scale-inner {
+            flex: 1;
+            min-width: 0;
+            position: relative;
+            height: 22px;
+            background: #f5f5f5;
+            border: 1px solid #e0e0e0;
+            border-top: none;
+            box-sizing: border-box;
+        }
+        .resource-scale-row:first-of-type .resource-scale-inner { border-top: 1px solid #e0e0e0; }
+        .resource-scale-cell {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-right: 1px solid #e0e0e0;
+            box-sizing: border-box;
+            color: #333;
+            font-size: 12px;
+            text-align: center;
+        }
+        .resource-scale-cell:last-child { border-right: none; }
+        .resource-scale-cell.weekend { background: #f4f4f4 !important; }
+        .resource-calendar-wrap { margin-bottom: 4px; }
+        .resource-today-line { position: absolute; top: 0; bottom: 0; width: 2px; background: #ff5252; opacity: 0.8; z-index: 10; pointer-events: none; }
+        .resource-today-wrap { position: relative; }
+        .resource-today-row .resource-scale-inner { background: transparent; border: none; }
+        .resource-placeholder { padding: 24px; color: #999; text-align: center; font-size: 13px; }
     </style>
 </head>
 <body>
@@ -171,6 +390,11 @@
                 <input type="text" id="owner_search" placeholder="名前を入力..." style="width:100px; padding:3px; border:1px solid #ccc; border-radius:3px; font-size:12px;" oninput="filterByOwner(this.value)">
             </div>
 
+            <div class="filter-group">
+                <span>リソース（担当者）:</span>
+                <input type="text" id="resource_owner_input" placeholder="担当名を入力..." style="width:120px; padding:3px; border:1px solid #ccc; border-radius:3px; font-size:12px;" oninput="showResourceViewByOwner(this.value)">
+            </div>
+
             <div style="margin-left:auto; display:flex; align-items:center; gap:10px;">
                 <span>表示切替:</span>
                 <button class="zoom-btn" onclick="setZoom('days')">日単位</button>
@@ -187,7 +411,17 @@
                 <div id="project_list" class="project-list"></div>
             </div>
             <div class="chart-container">
-                <div id="gantt_here"></div>
+                <!-- 上段 main / 下段 resource の2段レイアウト（gantt.config.layout の代わりに同一コンテナで分割） -->
+                <div id="gantt_layout_container" class="gantt-layout-container">
+                    <div id="main" class="gantt-main"></div>
+                    <div id="resource" class="gantt-resource resource-panel-closed">
+                        <div class="resource-header">
+                            <span id="resource_title">リソース状況（担当者で選択）</span>
+                            <button type="button" class="resource-header-close" id="resource_close_btn" title="リソース画面を閉じる" aria-label="閉じる">×</button>
+                        </div>
+                        <div id="resource_content" class="resource-content"></div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -205,50 +439,70 @@
         const dateToDb = gantt.date.date_to_str("%Y-%m-%d");
         const dateToDisplay = gantt.date.date_to_str("%Y/%m/%d");
 
+        // 上段・下段で共通のグリッド幅・列幅（カレンダー位置を完全一致させるため）
+        const GRID_WIDTH = 699;
+        const COLUMN_WIDTHS = [75, 160, 60, 60, 100, 100, 100, 44]; // 工事番号, タスク名, 機械, ユニット, 担当, 開始日, 終了日, add
+
+        // 表示期間（上段・下段で同一にし、ズレを防ぐ）
+        const GANTT_START_DATE = new Date(2024, 10, 1);  // 2024/11/1
+        const GANTT_END_DATE = new Date(2027, 11, 0);   // 2027/11/30（11月末）
+
         gantt.plugins({ marker: true, grouplist: true });
         
-        // カレンダー表示範囲（2024/11/1〜3年間）を固定
-        gantt.config.start_date = new Date(2024, 10, 1);
-        gantt.config.end_date = new Date(2027, 10, 1);
-        gantt.config.fit_tasks = false; // タスクに合わせて範囲を自動調整しない
+        gantt.config.start_date = new Date(GANTT_START_DATE.getTime());
+        gantt.config.end_date = new Date(GANTT_END_DATE.getTime());
+        gantt.config.fit_tasks = false; // タスクの有無に関わらず設定期間を維持（下段が10月で終わらないように）
         gantt.config.include_empty_scales = true; // タスクがない期間もカレンダーを表示する
         gantt.config.date_format = "%Y-%m-%d";
         gantt.config.date_grid = "%Y/%m/%d";
 
-        // カレンダーの日付表示を常に固定する（フィルター時などに消えるのを防ぐ）
+        // 上下2段レイアウト：上段 #main（全体工程表）、下段 #resource（リソース）は HTML の gantt_layout_container で分割
+        // カレンダー・ズーム・横スクロールは上下で常に一致させる
+
+        // カレンダー範囲の強制適用（上段・下段で同じ期間を維持）
         gantt.attachEvent("onBeforeGanttRender", function(){
-            gantt.config.start_date = new Date(2024, 10, 1);
-            gantt.config.end_date = new Date(2027, 10, 1);
+            gantt.config.start_date = new Date(GANTT_START_DATE.getTime());
+            gantt.config.end_date = new Date(GANTT_END_DATE.getTime());
+            gantt.config.fit_tasks = false;
+        });
+        // ガント再描画後、下段に内容があればスクロール・ズーム同期を再設定
+        gantt.attachEvent("onAfterGanttRender", function(){
+            var rc = document.getElementById('resource_content');
+            if (rc && rc.firstElementChild && rc.firstElementChild.classList.contains('resource-content-inner')) {
+                setTimeout(function(){ setupResourceGanttScrollSync(); }, 50);
+            }
         });
 
         gantt.config.columns = [
-            { name: "project_number", label: "工事番号", width: 75, align: "center", template: function(obj) {
+            { name: "project_number", label: "工事番号", width: COLUMN_WIDTHS[0], align: "center", template: function(obj) {
                 return obj.project_number || ""; 
             }},
-            { name: "text", label: "タスク名", width: 160, tree: true, template: function(obj) {
+            { name: "text", label: "タスク名", width: COLUMN_WIDTHS[1], tree: true, template: function(obj) {
                 return obj.text;
             }},
-            { name: "machine", label: "機械", width: 60, align: "center", template: function(obj) {
+            { name: "machine", label: "機械", width: COLUMN_WIDTHS[2], align: "center", template: function(obj) {
                 if (obj.$virtual) return "";
                 return obj.machine || "";
             }},
-            { name: "unit", label: "ユニット", width: 60, align: "center", template: function(obj) {
+            { name: "unit", label: "ユニット", width: COLUMN_WIDTHS[3], align: "center", template: function(obj) {
                 if (obj.$virtual) return "";
                 return obj.unit || "";
             }},
-            { name: "owner", label: "担当", width: 100, align: "left", template: function(obj) {
+            { name: "owner", label: "担当", width: COLUMN_WIDTHS[4], align: "left", template: function(obj) {
                 if (obj.$virtual || !obj.owner) return "";
                 return obj.owner.replace(/\d+/g, ""); // すべての数字を削除
             }},
-            { name: "start_date", label: "開始日", width: 100, align: "center", template: (t) => {
+            { name: "start_date", label: "開始日", width: COLUMN_WIDTHS[5], align: "center", template: (t) => {
                 return dateToDisplay(t.start_date);
             }},
-            { name: "end_date", label: "終了日", width: 100, align: "center", template: (t) => {
+            { name: "end_date", label: "終了日", width: COLUMN_WIDTHS[6], align: "center", template: (t) => {
                 return dateToDisplay(gantt.calculateEndDate(t.start_date, t.duration));
             }},
-            { name: "add", label: "", width: 44 }
+            { name: "add", label: "", width: COLUMN_WIDTHS[7] }
         ];
-        gantt.config.grid_width = 699;
+        gantt.config.grid_width = GRID_WIDTH;
+        gantt.config.grid_resize = false; // グリッド境界のドラッグで幅を変えるとズレるため無効化
+        gantt.config.drag_resize = true;   // バー両端の三角で開始日・終了日を変更可能に
         gantt.config.row_height = 30; // 行の高さを少し狭く設定 (デフォルトは約35〜38px)
         gantt.config.open_tree_initially = false; // 最初は閉じておく
         gantt.config.order_branch = true; // ドラッグによる並べ替えを有効化
@@ -394,7 +648,83 @@
             ]
         };
         gantt.ext.zoom.init(zoomConfig);
-        gantt.init("gantt_here");
+        gantt.init("main");
+
+        // メインガントの横スクロール要素を取得（上段 #main 内のタイムライン部分）
+        function getGanttScrollElement() {
+            var root = document.getElementById('main');
+            if (!root) return null;
+            var best = null;
+            var walk = function(el) {
+                if (!el || el.id === 'resource_panel') return;
+                var style = window.getComputedStyle(el);
+                var overflowX = style.overflowX || style.overflow;
+                var canScroll = el.scrollWidth > el.clientWidth && (overflowX === 'auto' || overflowX === 'scroll' || overflowX === 'overlay');
+                if (canScroll && !best) best = el;
+                for (var i = 0; i < el.children.length; i++) walk(el.children[i]);
+            };
+            walk(root);
+            return best;
+        }
+
+        // メインガントのカレンダー列幅（px）を取得（リソース画面の列幅を合わせるため）
+        function getGanttColumnWidth() {
+            var root = document.getElementById('main');
+            if (!root) return 25;
+            var cell = root.querySelector('.gantt_scale_cell');
+            if (cell && cell.offsetWidth > 0) return cell.offsetWidth;
+            return 25;
+        }
+        // 現在のズームが週単位かどうか（0=日単位, 1=週単位）
+        function isGanttWeekZoom() {
+            try {
+                var level = gantt.ext.zoom.getLevel();
+                return level === 1 || level === "weeks";
+            } catch (e) { return true; }
+        }
+
+        // リソースパネルとメインガントの横スクロールを連動（同一時間軸・双方向同期）
+        var resourceGanttSyncLock = false;
+        var _ganttScrollElAttached = null;
+        var _resourceContentAttached = null;
+        function _syncFromGantt() {
+            if (resourceGanttSyncLock) return;
+            var ge = getGanttScrollElement(), rc = document.getElementById('resource_content');
+            if (!ge || !rc || !rc.firstElementChild) return;
+            resourceGanttSyncLock = true;
+            // 下段のタイムライン幅を上段と同一にしているので 1:1 で同期（2024/11～2027/11 の範囲で完全一致）
+            rc.scrollLeft = ge.scrollLeft;
+            resourceGanttSyncLock = false;
+            // グリッド範囲に入ったバーを完全に非表示
+            rc.style.setProperty('--resource-clip-left', rc.scrollLeft + 'px');
+        }
+        function _syncFromResource() {
+            if (resourceGanttSyncLock) return;
+            var ge = getGanttScrollElement(), rc = document.getElementById('resource_content');
+            if (!ge || !rc) return;
+            resourceGanttSyncLock = true;
+            ge.scrollLeft = rc.scrollLeft;
+            resourceGanttSyncLock = false;
+            // グリッド範囲に入ったバーを完全に非表示（タイムラインをスクロール量でクリップ）
+            rc.style.setProperty('--resource-clip-left', rc.scrollLeft + 'px');
+        }
+        function setupResourceGanttScrollSync() {
+            var ganttEl = getGanttScrollElement();
+            var resourceContent = document.getElementById('resource_content');
+            if (!ganttEl || !resourceContent || !resourceContent.firstElementChild) return;
+            if (_ganttScrollElAttached) _ganttScrollElAttached.removeEventListener('scroll', _syncFromGantt);
+            if (_resourceContentAttached) _resourceContentAttached.removeEventListener('scroll', _syncFromResource);
+            _ganttScrollElAttached = ganttEl;
+            _resourceContentAttached = resourceContent;
+            ganttEl.addEventListener('scroll', _syncFromGantt);
+            resourceContent.addEventListener('scroll', _syncFromResource);
+            _syncFromGantt();
+        }
+
+        // 入力した担当名で owner を検索し、下段に表示
+        function showResourceViewByOwner(ownerValue) {
+            showResourceView(ownerValue || "", true);
+        }
 
         async function fetchTasks() {
             // 並び順（sort_order）で取得
@@ -518,7 +848,20 @@
             updateProjectList(rawTasks);
             gantt.clearAll();
             gantt.parse({ data: tasksWithHierarchy });
+            // カレンダー範囲の強制適用（parse 後も 2027/11 まで維持）
+            gantt.config.start_date = new Date(GANTT_START_DATE.getTime());
+            gantt.config.end_date = new Date(GANTT_END_DATE.getTime());
+            gantt.config.fit_tasks = false;
+            gantt.render();
+            // 初期表示位置を今日の日付に合わせ、上段・下段のスクロールを同期
             scrollToToday();
+            setTimeout(function() {
+                var rc = document.getElementById('resource_content');
+                if (rc && rc.firstElementChild && rc.firstElementChild.classList.contains('resource-content-inner')) {
+                    setupResourceGanttScrollSync();
+                    _syncFromGantt();
+                }
+            }, 100);
         }
 
         function scrollToToday() {
@@ -528,9 +871,12 @@
 
         function setZoom(level) { 
             gantt.ext.zoom.setLevel(level); 
-            gantt.config.start_date = new Date(2024, 10, 1);
-            gantt.config.end_date = new Date(2027, 10, 1);
+            gantt.config.start_date = new Date(GANTT_START_DATE.getTime());
+            gantt.config.end_date = new Date(GANTT_END_DATE.getTime());
+            gantt.config.fit_tasks = false;
             gantt.render();
+            var inp = document.getElementById('resource_owner_input');
+            if (inp && inp.value.trim()) showResourceViewByOwner(inp.value);
         }
 
         function updateProjectList(tasks) {
@@ -594,9 +940,9 @@
                 currentFilter = p;
             }
             updateFilterStatus();
-            gantt.render();
-            gantt.config.start_date = new Date(2024, 10, 1);
-            gantt.config.end_date = new Date(2027, 10, 1);
+            gantt.config.start_date = new Date(GANTT_START_DATE.getTime());
+            gantt.config.end_date = new Date(GANTT_END_DATE.getTime());
+            gantt.config.fit_tasks = false;
             gantt.render();
             const allTasks = gantt.getDatastore("task").getItems().filter(t => !t.$virtual);
             updateProjectList(allTasks);
@@ -612,27 +958,27 @@
                 btn.classList.add('active');
             }
             updateFilterStatus();
-            gantt.render();
-            gantt.config.start_date = new Date(2024, 10, 1);
-            gantt.config.end_date = new Date(2027, 10, 1);
+            gantt.config.start_date = new Date(GANTT_START_DATE.getTime());
+            gantt.config.end_date = new Date(GANTT_END_DATE.getTime());
+            gantt.config.fit_tasks = false;
             gantt.render();
         }
 
         function filterByOwner(val) {
             currentOwnerFilter = val;
             updateFilterStatus();
-            gantt.render();
-            gantt.config.start_date = new Date(2024, 10, 1);
-            gantt.config.end_date = new Date(2027, 10, 1);
+            gantt.config.start_date = new Date(GANTT_START_DATE.getTime());
+            gantt.config.end_date = new Date(GANTT_END_DATE.getTime());
+            gantt.config.fit_tasks = false;
             gantt.render();
         }
 
         function filterByMachine(val) {
             currentMachineFilter = val;
             updateFilterStatus();
-            gantt.render();
-            gantt.config.start_date = new Date(2024, 10, 1);
-            gantt.config.end_date = new Date(2027, 10, 1);
+            gantt.config.start_date = new Date(GANTT_START_DATE.getTime());
+            gantt.config.end_date = new Date(GANTT_END_DATE.getTime());
+            gantt.config.fit_tasks = false;
             gantt.render();
         }
 
@@ -654,9 +1000,220 @@
             currentMachineFilter = "";
             document.getElementById('owner_search').value = "";
             document.getElementById('machine_search').value = "";
+            var inp = document.getElementById('resource_owner_input');
+            if (inp) inp.value = "";
+            showResourceView("", true);
             document.querySelectorAll('.major-filter-btn').forEach(b => b.classList.remove('active'));
             updateFilterStatus();
             fetchTasks();
+        }
+
+        // リソース画面を開く（×で閉じた後に検索した時にすぐ表示するため）
+        function openResourcePanel() {
+            var panel = document.getElementById('resource');
+            if (panel) panel.classList.remove('resource-panel-closed');
+        }
+        // リソース画面を閉じる（×ボタン用）
+        function closeResourcePanel() {
+            var panel = document.getElementById('resource');
+            if (panel) panel.classList.add('resource-panel-closed');
+            var inp = document.getElementById('resource_owner_input');
+            if (inp) { inp.value = ""; }
+        }
+
+        (function initResourceCloseButton() {
+            var btn = document.getElementById('resource_close_btn');
+            if (btn) btn.addEventListener('click', closeResourcePanel);
+        })();
+
+        // リソース画面の表示ロジック（担当者セレクトで選択した owner のタスクのみ表示）
+        function showResourceView(ownerName, fromSelect) {
+            var content = document.getElementById('resource_content');
+            var title = document.getElementById('resource_title');
+            if (!content || !title) return;
+
+            var searchName = (ownerName || "").trim().toLowerCase();
+            if (searchName) openResourcePanel();
+            if (!searchName) {
+                title.innerText = "リソース状況（担当者）";
+                content.innerHTML = '<div class="resource-placeholder">担当名を入力してください</div>';
+                return;
+            }
+
+            var rawData = [];
+            try { rawData = (gantt.serialize().data || []); } catch (e) {}
+
+            var tasks = rawData.filter(function(t) {
+                if (t.$virtual || !t.owner) return false;
+                var o = (t.owner || "").trim().toLowerCase();
+                var display = (t.owner || "").replace(/\d+/g, "").trim().toLowerCase();
+                return o.indexOf(searchName) !== -1 || display.indexOf(searchName) !== -1;
+            });
+
+            title.innerText = "【" + (ownerName || "").trim() + "】のリソース状況 (" + tasks.length + "件のタスク)";
+            content.innerHTML = "";
+
+            if (tasks.length === 0) {
+                content.innerHTML = '<div class="resource-placeholder">該当する担当者のタスクが見つかりません。</div>';
+                return;
+            }
+
+            // 下段リソースビューも上段と同じ表示期間・fit_tasks で初期化
+            gantt.config.start_date = new Date(GANTT_START_DATE.getTime());
+            gantt.config.end_date = new Date(GANTT_END_DATE.getTime());
+            gantt.config.fit_tasks = false;
+
+            var ganttStart = gantt.config.start_date.getTime();
+            var ganttEnd = gantt.config.end_date.getTime();
+
+            var isWeek = isGanttWeekZoom();
+            var cellCount;
+            var timelineStartMs = ganttStart;
+            var timelineEndMs = ganttEnd;
+            if (isWeek) {
+                var startDate = new Date(ganttStart);
+                var daysToMonday = (startDate.getDay() + 6) % 7;
+                var firstMonday = gantt.date.add(startDate, -daysToMonday, 'day');
+                timelineStartMs = firstMonday.getTime();
+                cellCount = 0;
+                for (var d = new Date(firstMonday.getTime()); d.getTime() < ganttEnd; d = gantt.date.add(d, 7, 'day')) cellCount++;
+                timelineEndMs = timelineStartMs + cellCount * 7 * 24 * 60 * 60 * 1000;
+            } else {
+                cellCount = Math.ceil((ganttEnd - ganttStart) / (24 * 60 * 60 * 1000));
+            }
+            // リソース画面のカレンダー列幅は25pxで固定
+            var resourceColWidthPx = 25;
+            var timelineMinWidth = Math.max(400, cellCount * resourceColWidthPx);
+
+            var wrapper = document.createElement('div');
+            wrapper.className = 'resource-content-inner';
+            wrapper.style.minWidth = (GRID_WIDTH + timelineMinWidth) + 'px';
+            wrapper.setAttribute('data-resource-timeline-width', timelineMinWidth);
+            var timelineRangeMs = timelineEndMs - timelineStartMs;
+            var widthPct = cellCount > 0 ? (100 / cellCount) : 0;
+            var gridCellsHtml = '';
+            for (var c = 0; c < cellCount; c++) {
+                gridCellsHtml += '<div class="resource-timeline-grid-cell" style="left:' + (c * widthPct) + '%;width:' + widthPct + '%"></div>';
+            }
+
+            for (var i = 0; i < tasks.length; i++) {
+                var t = tasks[i];
+                var item = document.createElement('div');
+                item.className = "resource-item";
+                var startDate = t.start_date instanceof Date ? t.start_date : new Date(t.start_date);
+                var endDate = gantt.calculateEndDate(startDate, t.duration);
+                var startPos = timelineRangeMs > 0 ? ((startDate.getTime() - timelineStartMs) / timelineRangeMs) * 100 : 0;
+                var endPos = timelineRangeMs > 0 ? ((endDate.getTime() - timelineStartMs) / timelineRangeMs) * 100 : 0;
+                var taskClass = getResourceTaskClass(t);
+                var isMilestone = (taskClass === "milestone-circle" || taskClass === "milestone-diamond" || taskClass === "milestone-star");
+                var width = isMilestone ? 0.8 : Math.max(0.5, endPos - startPos);
+                var safe = function(s) { return (s || "").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); };
+                var proj = safe(t.project_number);
+                var text = safe(t.text);
+                var machine = safe(t.machine);
+                var unit = safe(t.unit);
+                var owner = safe((t.owner || "").replace(/\d+/g, ""));
+                var startStr = dateToDisplay(startDate);
+                var endStr = dateToDisplay(endDate);
+                var barClasses = "resource-bar " + (taskClass || "");
+                var barStyle = "left: " + startPos + "%; width: " + width + "%";
+                if (!taskClass) {
+                    var fallbackColor = getBarColor(t.major_item) || "#ccc";
+                    barStyle += "; background-color: " + fallbackColor + "; border-color: rgba(0,0,0,0.2)";
+                }
+                var barContent = '<span class="resource-bar-text">' + text + '</span>';
+                item.innerHTML =
+                    '<div class="resource-grid-container"><div class="resource-grid">' +
+                    '<div class="resource-cell resource-cell-w75" title="' + proj + '">' + proj + '</div>' +
+                    '<div class="resource-cell resource-cell-w160" title="' + text + '">' + text + '</div>' +
+                    '<div class="resource-cell resource-cell-w60">' + machine + '</div>' +
+                    '<div class="resource-cell resource-cell-w60">' + unit + '</div>' +
+                    '<div class="resource-cell resource-cell-w100">' + owner + '</div>' +
+                    '<div class="resource-cell resource-cell-w100">' + startStr + '</div>' +
+                    '<div class="resource-cell resource-cell-w100">' + endStr + '</div>' +
+                    '<div class="resource-cell resource-cell-w44"></div>' +
+                    '</div></div>' +
+                    '<div class="resource-timeline">' +
+                    '<div class="resource-timeline-grid">' + gridCellsHtml + '</div>' +
+                    '<div class="' + barClasses + '" style="' + barStyle + '">' + barContent + '</div>' +
+                    '</div>';
+                wrapper.appendChild(item);
+            }
+            content.appendChild(wrapper);
+
+            setTimeout(function() {
+                setupResourceGanttScrollSync();
+                _syncFromGantt();
+            }, 50);
+        }
+
+        function getBarColor(major) {
+            const colors = { '設計': '#85C1E9', '製管': '#82E0AA', '品証': '#82E0AA', '組立': '#F7DC6F', '電装': '#D7BDE2', '操業': '#F1948A', '営業': '#F8C471' };
+            return colors[major] || '#ccc';
+        }
+
+        // 上段ガントの task_class と同じ分類（リソースバーの見た目用）
+        function getResourceTaskClass(task) {
+            if (task.text === "外観検査") return "milestone-circle";
+            if (task.text === "出荷確認会議") return "milestone-diamond";
+            if (task.text === "工場出荷") return "milestone-star";
+            switch (task.major_item) {
+                case '設計': return "task-blue";
+                case '製管': case '品証': return "task-green";
+                case '組立': return "task-yellow";
+                case '電装': return "task-purple";
+                case '操業': return "task-red";
+                case '営業': return "task-orange";
+                default: return "";
+            }
+        }
+
+        // 下段用：区切り用の縦線のみ（日付ラベルなし）を生成
+        function buildResourceGridLines(ganttStartMs, ganttEndMs, isWeekView) {
+            var startDate = new Date(ganttStartMs);
+            var totalMs = ganttEndMs - ganttStartMs;
+            if (totalMs <= 0) return document.createElement('div');
+
+            var cellCount;
+            if (isWeekView) {
+                var daysToMonday = (startDate.getDay() + 6) % 7;
+                var firstMonday = gantt.date.add(startDate, -daysToMonday, 'day');
+                cellCount = 0;
+                for (var d = new Date(firstMonday.getTime()); d.getTime() < ganttEndMs; d = gantt.date.add(d, 7, 'day')) cellCount++;
+            } else {
+                cellCount = Math.ceil(totalMs / (24 * 60 * 60 * 1000));
+            }
+            if (cellCount === 0) return document.createElement('div');
+
+            var widthPct = 100 / cellCount;
+
+            var row = document.createElement('div');
+            row.className = 'resource-scale-row resource-grid-lines-only';
+            var gridContainer = document.createElement('div');
+            gridContainer.className = 'resource-grid-container';
+            var label = document.createElement('div');
+            label.className = 'resource-scale-label';
+            label.textContent = '';
+            gridContainer.appendChild(label);
+            var fill = document.createElement('div');
+            fill.className = 'resource-grid-fill';
+            gridContainer.appendChild(fill);
+            row.appendChild(gridContainer);
+            var inner = document.createElement('div');
+            inner.className = 'resource-scale-inner';
+            for (var i = 0; i < cellCount; i++) {
+                var cell = document.createElement('div');
+                cell.className = 'resource-scale-cell';
+                cell.style.left = (i * widthPct) + '%';
+                cell.style.width = widthPct + '%';
+                inner.appendChild(cell);
+            }
+            row.appendChild(inner);
+
+            var wrap = document.createElement('div');
+            wrap.className = 'resource-calendar-wrap';
+            wrap.appendChild(row);
+            return wrap;
         }
 
         gantt.attachEvent("onAfterTaskUpdate", async function(id, item){
@@ -768,7 +1325,7 @@
             const { error: iError } = await supabaseClient.from('tasks').insert(newTasks);
             if (iError) alert("タスク登録エラー: " + iError.message);
             else {
-                alert(`工事番号 ${pNumber} の標準工程を一括作成しました。`);
+                alert(`工事番号 ${pNumber} の標準工程（見出し行）を一括作成しました。`);
                 document.getElementById('project_number').value = "";
                 document.getElementById('order_date').value = "";
                 document.getElementById('shipping_date').value = "";
