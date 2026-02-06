@@ -905,7 +905,23 @@
                 item.innerText = p;
                 const info = projectInfoMap[p];
                 if (info.customer || info.details) {
-                    item.onmouseenter = (e) => { tooltip.innerText = `${info.customer}\n${info.details}`.trim(); tooltip.style.display = 'block'; tooltip.style.left = (e.clientX + 15) + 'px'; tooltip.style.top = (e.clientY + 10) + 'px'; };
+                    item.onmouseenter = (e) => {
+                        tooltip.innerText = `${info.customer}\n${info.details}`.trim();
+                        tooltip.style.display = 'block';
+                        
+                        // 表示位置の計算
+                        let x = e.clientX + 15;
+                        let y = e.clientY + 10;
+                        
+                        // 画面下端で見切れる場合の調整
+                        const tooltipHeight = tooltip.offsetHeight;
+                        if (y + tooltipHeight > window.innerHeight) {
+                            y = e.clientY - tooltipHeight - 10;
+                        }
+                        
+                        tooltip.style.left = x + 'px';
+                        tooltip.style.top = y + 'px';
+                    };
                     item.onmouseleave = () => tooltip.style.display = 'none';
                 }
                 item.onclick = () => filterByProject(p);
