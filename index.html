@@ -491,9 +491,21 @@
         gantt.config.date_grid = "%Y/%m/%d";
 
         // 編集画面（ライトボックス）の設定
+        const majorItemOptions = [
+            { key: "営業", label: "営業" },
+            { key: "設計", label: "設計" },
+            { key: "製管", label: "製管" },
+            { key: "組立", label: "組立" },
+            { key: "電装", label: "電装" },
+            { key: "品証", label: "品証" },
+            { key: "操業", label: "操業" },
+            { key: "", label: "指定なし" }
+        ];
+
         gantt.config.lightbox.sections = [
             { name: "project_number", height: 30, map_to: "project_number", type: "textarea", focus: true },
             { name: "parent_name", height: 30, map_to: "parent_name", type: "textarea" },
+            { name: "major_item", height: 30, map_to: "major_item", type: "select", options: majorItemOptions },
             { name: "machine", height: 30, map_to: "machine", type: "textarea" },
             { name: "unit", height: 30, map_to: "unit", type: "textarea" },
             { name: "description", height: 50, map_to: "text", type: "textarea" },
@@ -502,6 +514,7 @@
         ];
         gantt.locale.labels.section_project_number = "工事番号";
         gantt.locale.labels.section_parent_name = "見出し名";
+        gantt.locale.labels.section_major_item = "フィルタ色分け";
         gantt.locale.labels.section_machine = "機械";
         gantt.locale.labels.section_unit = "ユニット";
         gantt.locale.labels.section_description = "タスク名";
@@ -573,34 +586,50 @@
         gantt.attachEvent("onRowDragEnd", async function(id, target) {
             // 全タスクの現在の表示順序を取得して保存
             const tasks = [];
-            gantt.eachTask(function(task) {
-                if (!task.$virtual) {
-                    tasks.push({
-                        id: task.id,
-                        sort_order: gantt.getGlobalTaskIndex(task.id)
-                    });
+            // gantt.eachTask は階層構造を辿るため、フラットな順序を取得するには getTaskByTime を検討
+            // ただし、gantt.getTaskByIndex(i) で現在のグリッド上の順序を取得するのが確実
+            const count = gantt.getTaskCount();
+            for (let i = 0; i < count; i++) {
+                const task = gantt.getTaskByIndex(i);
+                if (task && !task.$virtual) {
+                    const sortData = { id: task.id };
+                    if (currentDisplayMode === 'machine') {
+                        sortData.sort_order_machine = i;
+                    } else {
+                        sortData.sort_order = i;
+                    }
+                    tasks.push(sortData);
                 }
-            });
+            }
 
-            // Supabaseの各タスクのsort_orderを一括更新（一つずつ実行）
-            // ※大量にある場合はパフォーマンスを考慮してPromise.allなどで並列実行
-            const promises = tasks.map(t => 
-                supabaseClient
+            // Supabaseの各タスクの順序を一括更新
+            const promises = tasks.map(t => {
+                const updatePayload = {};
+                if (currentDisplayMode === 'machine') {
+                    updatePayload.sort_order_machine = t.sort_order_machine;
+                } else {
+                    updatePayload.sort_order = t.sort_order;
+                }
+                return supabaseClient
                     .from('tasks')
-                    .update({ sort_order: t.sort_order })
-                    .eq('id', t.id)
-            );
+                    .update(updatePayload)
+                    .eq('id', t.id);
+            });
 
             try {
                 await Promise.all(promises);
                 console.log("Sort order saved successfully");
-                // 内部状態を更新するために再取得
-                // fetchTasks(); // 毎回リロードすると閉じられてしまうため、ここでは呼ばないか、状態を保持する必要がある
                 
                 // window.allTasks の sort_order を更新して整合性を保つ
                 tasks.forEach(t => {
                     const task = window.allTasks.find(at => at.id === t.id);
-                    if (task) task.sort_order = t.sort_order;
+                    if (task) {
+                        if (currentDisplayMode === 'machine') {
+                            task.sort_order_machine = t.sort_order_machine;
+                        } else {
+                            task.sort_order = t.sort_order;
+                        }
+                    }
                 });
             } catch (error) {
                 console.error("Error saving sort order:", error);
@@ -620,6 +649,7 @@
                 project_number: item.project_number,
                 machine: item.machine,
                 unit: item.unit,
+                major_item: item.major_item, // 色分け項目を保存
                 parent: item.parent_name // 見出し名をparentカラムに保存
             };
 
@@ -905,7 +935,9 @@
         }
 
         async function fetchTasks() {
-            const { data, error } = await supabaseClient.from('tasks').select('*').order('sort_order', { ascending: true });
+            // 表示モードに応じてソート順のカラムを切り替え
+            const sortColumn = currentDisplayMode === 'machine' ? 'sort_order_machine' : 'sort_order';
+            const { data, error } = await supabaseClient.from('tasks').select('*').order(sortColumn, { ascending: true });
             if (error) return;
             
             const rawTasks = data.map(t => ({
@@ -913,6 +945,7 @@
                 duration: t.duration, owner: t.owner, project_number: (t.project_number || "").toString().trim(),
                 machine: t.machine, unit: t.unit, major_item: t.major_item,
                 sort_order: t.sort_order,
+                sort_order_machine: t.sort_order_machine,
                 parent_name: (t.parent || "").toString().trim(),
                 customer_name: t.customer_name || "",
                 project_details: t.project_details || ""

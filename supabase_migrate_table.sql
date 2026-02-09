@@ -170,6 +170,19 @@ CREATE INDEX IF NOT EXISTS idx_tasks_start_date ON public.tasks(start_date);
 CREATE INDEX IF NOT EXISTS idx_tasks_end_date ON public.tasks(end_date);
 CREATE INDEX IF NOT EXISTS idx_tasks_owner ON public.tasks(owner);
 
+-- 11. sort_order_machineカラムの追加（機械別表示パターンの並び順保存用）
+DO $$ 
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'tasks' 
+        AND column_name = 'sort_order_machine' 
+        AND table_schema = 'public'
+    ) THEN
+        ALTER TABLE public.tasks ADD COLUMN sort_order_machine INTEGER DEFAULT 0;
+    END IF;
+END $$;
+
 -- 9. テーブル構造の確認（実行後に確認用）
 -- SELECT column_name, data_type, is_nullable, column_default
 -- FROM information_schema.columns
