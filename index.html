@@ -382,6 +382,11 @@
                 </span>
                 <span id="save-status" style="font-size:11px; color:#999; margin-left:10px;"></span>
             </div>
+            <div class="input-row" style="border-top: 1px solid #eee; padding-top: 8px;">
+                <span style="font-size: 12px; color: #666; margin-right: 5px;">表示順：</span>
+                <button id="sort_process_btn" class="zoom-btn active" onclick="setDisplayMode('process')">工程別</button>
+                <button id="sort_machine_btn" class="zoom-btn" onclick="setDisplayMode('machine')">機械別</button>
+            </div>
         </div>
 
         <div class="toolbar">
@@ -453,6 +458,7 @@
 
         let currentFilter = null;
         let currentMajorFilter = null;
+        let currentDisplayMode = 'process'; // 'process' or 'machine'
         let currentOwnerFilter = "";
         let currentOwnerFilterNoData = false; // tasks と task_template の両方に該当がないとき true
         let currentMachineFilter = "";
@@ -483,6 +489,27 @@
         gantt.config.include_empty_scales = true; // タスクがない期間もカレンダーを表示する
         gantt.config.date_format = "%Y-%m-%d";
         gantt.config.date_grid = "%Y/%m/%d";
+
+        // 編集画面（ライトボックス）の設定
+        gantt.config.lightbox.sections = [
+            { name: "project_number", height: 30, map_to: "project_number", type: "textarea", focus: true },
+            { name: "parent_name", height: 30, map_to: "parent_name", type: "textarea" },
+            { name: "machine", height: 30, map_to: "machine", type: "textarea" },
+            { name: "unit", height: 30, map_to: "unit", type: "textarea" },
+            { name: "description", height: 50, map_to: "text", type: "textarea" },
+            { name: "owner", height: 30, map_to: "owner", type: "textarea" },
+            { name: "time", height: 72, type: "duration", map_to: "auto" }
+        ];
+        gantt.locale.labels.section_project_number = "工事番号";
+        gantt.locale.labels.section_parent_name = "見出し名";
+        gantt.locale.labels.section_machine = "機械";
+        gantt.locale.labels.section_unit = "ユニット";
+        gantt.locale.labels.section_description = "タスク名";
+        gantt.locale.labels.section_owner = "担当";
+        gantt.locale.labels.section_time = "期間";
+
+        // 見出し行（プロジェクト型）も同じ項目を表示
+        gantt.config.lightbox.project_sections = gantt.config.lightbox.sections;
 
         // Layout: 上段のみのシンプルな構成
         var layoutRows = [
@@ -541,6 +568,74 @@
         gantt.config.open_tree_initially = false;
         gantt.config.order_branch = true;
         gantt.config.order_branch_free = true;
+
+        // ドラッグによる並べ替え順序の保存
+        gantt.attachEvent("onRowDragEnd", async function(id, target) {
+            // 全タスクの現在の表示順序を取得して保存
+            const tasks = [];
+            gantt.eachTask(function(task) {
+                if (!task.$virtual) {
+                    tasks.push({
+                        id: task.id,
+                        sort_order: gantt.getGlobalTaskIndex(task.id)
+                    });
+                }
+            });
+
+            // Supabaseの各タスクのsort_orderを一括更新（一つずつ実行）
+            // ※大量にある場合はパフォーマンスを考慮してPromise.allなどで並列実行
+            const promises = tasks.map(t => 
+                supabaseClient
+                    .from('tasks')
+                    .update({ sort_order: t.sort_order })
+                    .eq('id', t.id)
+            );
+
+            try {
+                await Promise.all(promises);
+                console.log("Sort order saved successfully");
+                // 内部状態を更新するために再取得
+                // fetchTasks(); // 毎回リロードすると閉じられてしまうため、ここでは呼ばないか、状態を保持する必要がある
+                
+                // window.allTasks の sort_order を更新して整合性を保つ
+                tasks.forEach(t => {
+                    const task = window.allTasks.find(at => at.id === t.id);
+                    if (task) task.sort_order = t.sort_order;
+                });
+            } catch (error) {
+                console.error("Error saving sort order:", error);
+                alert("並び順の保存に失敗しました。");
+            }
+        });
+
+        // 編集内容をデータベースに保存
+        gantt.attachEvent("onAfterTaskUpdate", async function(id, item) {
+            if (item.$virtual) return; // 見出し行は仮想的なものなので保存対象外
+
+            const updateData = {
+                text: item.text,
+                start_date: dateToDb(item.start_date),
+                duration: item.duration,
+                owner: item.owner,
+                project_number: item.project_number,
+                machine: item.machine,
+                unit: item.unit,
+                parent: item.parent_name // 見出し名をparentカラムに保存
+            };
+
+            const { error } = await supabaseClient
+                .from('tasks')
+                .update(updateData)
+                .eq('id', id);
+
+            if (error) {
+                console.error("Update error:", error);
+                alert("保存に失敗しました。");
+            } else {
+                // 成功したらリソース画面なども更新
+                fetchTasks();
+            }
+        });
 
         // ＋ボタンの挙動をカスタマイズ（親の情報を引き継ぐ）
         gantt.attachEvent("onTaskCreated", function(task){
@@ -849,28 +944,77 @@
                     return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
                 });
 
-            projects.forEach(pNum => {
-                const projectTasks = rawTasks.filter(t => t.project_number === pNum);
-                parentOrder.forEach(pName => {
-                    const tasksInParent = projectTasks.filter(t => t.parent_name === pName);
-                    if (tasksInParent.length > 0) {
-                        const parentKey = `p_${pNum}_${pName}`;
-                        let minStart = null;
-                        let maxEnd = null;
-                        tasksInParent.forEach(t => {
-                            const start = new Date(t.start_date);
-                            const end = gantt.calculateEndDate(start, t.duration);
-                            if (!minStart || start < minStart) minStart = start;
-                            if (!maxEnd || end > maxEnd) maxEnd = end;
-                        });
-                        if (!parentsMap[parentKey]) {
-                            parentsMap[parentKey] = { id: parentKey, text: pName, project_number: pNum, machine: tasksInParent[0].machine, major_item: tasksInParent[0].major_item, customer_name: tasksInParent[0].customer_name, project_details: tasksInParent[0].project_details, start_date: minStart, end_date: maxEnd, open: false, type: "project", $virtual: true };
-                            tasksWithHierarchy.push(parentsMap[parentKey]);
+            if (currentDisplayMode === 'machine') {
+                // 機械別：工事番号 -> 機械名 でまとめる
+                projects.forEach(pNum => {
+                    const projectTasks = rawTasks.filter(t => t.project_number === pNum);
+                    // その工事に含まれる機械名を抽出
+                    const machines = [...new Set(projectTasks.map(t => t.machine || "設定なし"))].sort();
+                    
+                    machines.forEach(mName => {
+                        const tasksInMachine = projectTasks.filter(t => (t.machine || "設定なし") === mName);
+                        if (tasksInMachine.length > 0) {
+                            const parentKey = `p_${pNum}_m_${mName}`;
+                            let minStart = null;
+                            let maxEnd = null;
+                            tasksInMachine.forEach(t => {
+                                const start = new Date(t.start_date);
+                                const end = gantt.calculateEndDate(start, t.duration);
+                                if (!minStart || start < minStart) minStart = start;
+                                if (!maxEnd || end > maxEnd) maxEnd = end;
+                            });
+                            
+                            // 親行（工事番号 + 機械名）
+                            if (!parentsMap[parentKey]) {
+                                parentsMap[parentKey] = { 
+                                    id: parentKey, 
+                                    text: mName === "設定なし" ? pNum : `${pNum} - ${mName}`, 
+                                    project_number: pNum, 
+                                    machine: mName === "設定なし" ? "" : mName, 
+                                    major_item: "", 
+                                    customer_name: tasksInMachine[0].customer_name, 
+                                    project_details: tasksInMachine[0].project_details, 
+                                    start_date: minStart, 
+                                    end_date: maxEnd, 
+                                    open: false, 
+                                    type: "project", 
+                                    $virtual: true 
+                                };
+                                tasksWithHierarchy.push(parentsMap[parentKey]);
+                            }
+                            // 子タスクを追加
+                            tasksInMachine.forEach(t => { 
+                                t.parent = parentKey; 
+                                tasksWithHierarchy.push(t); 
+                            });
                         }
-                        tasksInParent.forEach(t => { t.parent = parentKey; tasksWithHierarchy.push(t); });
-                    }
+                    });
                 });
-            });
+            } else {
+                // 工程別（従来通り）：工事番号 -> 大項目（工程） でまとめる
+                projects.forEach(pNum => {
+                    const projectTasks = rawTasks.filter(t => t.project_number === pNum);
+                    parentOrder.forEach(pName => {
+                        const tasksInParent = projectTasks.filter(t => t.parent_name === pName);
+                        if (tasksInParent.length > 0) {
+                            const parentKey = `p_${pNum}_${pName}`;
+                            let minStart = null;
+                            let maxEnd = null;
+                            tasksInParent.forEach(t => {
+                                const start = new Date(t.start_date);
+                                const end = gantt.calculateEndDate(start, t.duration);
+                                if (!minStart || start < minStart) minStart = start;
+                                if (!maxEnd || end > maxEnd) maxEnd = end;
+                            });
+                            if (!parentsMap[parentKey]) {
+                                parentsMap[parentKey] = { id: parentKey, text: pName, project_number: pNum, machine: tasksInParent[0].machine, major_item: tasksInParent[0].major_item, customer_name: tasksInParent[0].customer_name, project_details: tasksInParent[0].project_details, start_date: minStart, end_date: maxEnd, open: false, type: "project", $virtual: true };
+                                tasksWithHierarchy.push(parentsMap[parentKey]);
+                            }
+                            tasksInParent.forEach(t => { t.parent = parentKey; tasksWithHierarchy.push(t); });
+                        }
+                    });
+                });
+            }
 
             updateProjectList(rawTasks);
             window.allTasks = rawTasks;
@@ -890,6 +1034,55 @@
         }
 
         function resetFilter() { location.reload(); }
+
+        function setDisplayMode(mode) {
+            currentDisplayMode = mode;
+            document.getElementById('sort_process_btn').classList.toggle('active', mode === 'process');
+            document.getElementById('sort_machine_btn').classList.toggle('active', mode === 'machine');
+            
+            // 列の更新
+            updateGanttColumns();
+            
+            // データの再読み込みと再描画
+            fetchTasks();
+        }
+
+        function updateGanttColumns() {
+            if (currentDisplayMode === 'machine') {
+                // 機械別：工事番号、機械、ユニット、タスク名、担当、開始日、終了日
+                gantt.config.columns = [
+                    { name: "project_number", label: "工事番号", width: COLUMN_WIDTHS[0], align: "center", template: function(obj) {
+                        return obj.project_number || "";
+                    }},
+                    { name: "machine", label: "機械", width: COLUMN_WIDTHS[2], align: "center", template: function(obj) {
+                        if (obj.$virtual) return "";
+                        return obj.machine || "";
+                    }},
+                    { name: "unit", label: "ユニット", width: COLUMN_WIDTHS[3], align: "center", template: function(obj) {
+                        if (obj.$virtual) return "";
+                        return obj.unit || "";
+                    }},
+                    { name: "text", label: "タスク名", width: COLUMN_WIDTHS[1], tree: true, template: function(obj) {
+                        return obj.text;
+                    }},
+                    { name: "owner", label: "担当", width: COLUMN_WIDTHS[4], align: "left", template: function(obj) {
+                        if (obj.$virtual || !obj.owner) return "";
+                        return obj.owner.replace(/\d+/g, "");
+                    }},
+                    { name: "start_date", label: "開始日", width: COLUMN_WIDTHS[5], align: "center", template: function(t) {
+                        return dateToDisplay(t.start_date);
+                    }},
+                    { name: "end_date", label: "終了日", width: COLUMN_WIDTHS[6], align: "center", template: function(t) {
+                        return dateToDisplay(gantt.calculateEndDate(t.start_date, t.duration));
+                    }},
+                    { name: "add", label: "", width: COLUMN_WIDTHS[7] }
+                ];
+            } else {
+                // 工程別（デフォルト）：工事番号、タスク名、機械、ユニット、担当、開始日、終了日
+                gantt.config.columns = SHARED_COLUMNS;
+            }
+            gantt.render();
+        }
 
         function updateProjectList(tasks) {
             const listEl = document.getElementById('project_list');
