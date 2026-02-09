@@ -909,14 +909,18 @@
                         tooltip.innerText = `${info.customer}\n${info.details}`.trim();
                         tooltip.style.display = 'block';
                         
-                        // 表示位置の計算
-                        let x = e.clientX + 15;
-                        let y = e.clientY + 10;
+                        // ボタンの位置を取得
+                        const rect = item.getBoundingClientRect();
+                        let x = rect.right + 10; // ボタンの右側に10pxの隙間
+                        let y = rect.top;        // 基本はボタンの上端に合わせる
                         
                         // 画面下端で見切れる場合の調整
                         const tooltipHeight = tooltip.offsetHeight;
-                        if (y + tooltipHeight > window.innerHeight) {
-                            y = e.clientY - tooltipHeight - 10;
+                        const windowHeight = window.innerHeight;
+                        
+                        if (y + tooltipHeight > windowHeight) {
+                            // 下に見切れる場合は、吹き出しの下端が画面下から10pxの位置に来るように上げる
+                            y = windowHeight - tooltipHeight - 10;
                         }
                         
                         tooltip.style.left = x + 'px';
