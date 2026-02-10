@@ -667,6 +667,24 @@
             }
         });
 
+        // タスクの削除をデータベースに反映
+        gantt.attachEvent("onAfterTaskDelete", async function(id, item) {
+            if (item.$virtual) return; // 仮想的な見出し行は削除対象外
+
+            const { error } = await supabaseClient
+                .from('tasks')
+                .delete()
+                .eq('id', id);
+
+            if (error) {
+                console.error("Delete error:", error);
+                alert("削除に失敗しました。");
+            } else {
+                // 成功したらデータを再取得して画面を更新
+                fetchTasks();
+            }
+        });
+
         // ＋ボタンの挙動をカスタマイズ（親の情報を引き継ぐ）
         gantt.attachEvent("onTaskCreated", function(task){
             if (task.parent) {
@@ -951,7 +969,7 @@
                 project_details: t.project_details || ""
             }));
 
-            const parentOrder = ["受注", "基本設計＆計画承認", "部品手配1", "出図＆部品手配2", "電気設計", "盤組立", "組立全体", "外観検査", "タスクリスト作成", "試運転", "客先立会", "出荷確認会議", "出荷準備", "出荷", "現地工事"];
+            const parentOrder = ["受注", "基本設計＆計画承認", "長納期品手配", "出図＆部品手配", "電気設計", "盤組立", "組立全体", "外観検査", "タスクリスト作成", "試運転", "客先立会", "出荷確認会議", "出荷準備", "出荷", "現地工事"];
             const tasksWithHierarchy = [];
             const parentsMap = {};
 

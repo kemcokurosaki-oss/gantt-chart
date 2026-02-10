@@ -1,0 +1,924 @@
+﻿
+> index.html:377:                <button class="btn-add" onclick="addProjectFromTemplate()">新規追加</button>
+  index.html:378:                <span style="margin-left: 15px; font-size: 13px; font-weight: bold; color: #333;">
+  index.html:379:                    <span style="color: #d32f2f; font-size: 20px;">●</span> 外観検査
+  index.html:380:                    <span style="margin-left: 10px; color: #1976D2; font-size: 20px;">◆</span> 出荷確認会議
+  index.html:381:                    <span style="margin-left: 10px; color: #2E7D32; font-size: 22px;">★</span> 工場出荷
+  index.html:382:                </span>
+  index.html:383:                <span id="save-status" style="font-size:11px; color:#999; margin-left:10px;"></span>
+  index.html:384:            </div>
+  index.html:385:            <div class="input-row" style="border-top: 1px solid #eee; padding-top: 8px;">
+  index.html:386:                <span style="font-size: 12px; color: #666; margin-right: 5px;">表示順：</span>
+  index.html:387:                <button id="sort_process_btn" class="zoom-btn active" onclick="setDisplayMode('process
+')">工程別</button>
+  index.html:388:                <button id="sort_machine_btn" class="zoom-btn" onclick="setDisplayMode('machine')">機械別
+</button>
+  index.html:389:            </div>
+  index.html:390:        </div>
+  index.html:391:
+  index.html:392:        <div class="toolbar">
+  index.html:393:            <div class="filter-group" style="margin-left: 0; padding-left: 0; border-left: none;">
+  index.html:394:                <span>大項目フィルタ:</span>
+  index.html:395:                <button class="zoom-btn major-filter-btn" onclick="filterByMajorItem('営業', this)">営業</
+button>
+  index.html:396:                <button class="zoom-btn major-filter-btn" onclick="filterByMajorItem('設計', this)">設計</
+button>
+  index.html:397:                <button class="zoom-btn major-filter-btn" onclick="filterByMajorItem('製管', this)">製管</
+button>
+  index.html:398:                <button class="zoom-btn major-filter-btn" onclick="filterByMajorItem('組立', this)">組立</
+button>
+  index.html:399:                <button class="zoom-btn major-filter-btn" onclick="filterByMajorItem('電装', this)">電装</
+button>
+  index.html:400:                <button class="zoom-btn major-filter-btn" onclick="filterByMajorItem('品証', this)">品証</
+button>
+  index.html:401:                <button class="zoom-btn major-filter-btn" onclick="filterByMajorItem('操業', this)">操業</
+button>
+  index.html:402:            </div>
+  index.html:403:
+  index.html:404:            <div class="filter-group">
+  index.html:405:                <span>機械検索:</span>
+  index.html:406:                <input type="text" id="machine_search" placeholder="機械名を入力..." style="width:100px; pad
+ding:3px; border:1px solid #ccc; border-radius:3px; font-size:12px;" oninput="filterByMachine(this.value)">
+  index.html:407:            </div>
+  index.html:408:
+  index.html:409:            <div class="filter-group">
+  index.html:410:                <span>担当検索:</span>
+  index.html:411:                <input type="text" id="owner_search" placeholder="名前を入力..." style="width:100px; paddin
+g:3px; border:1px solid #ccc; border-radius:3px; font-size:12px;" oninput="filterByOwner(this.value)">
+  index.html:412:            </div>
+  index.html:413:
+  index.html:414:            <div class="filter-group">
+  index.html:415:                <span>リソース（担当者）:</span>
+  index.html:416:                <input type="text" id="resource_owner_input" placeholder="担当名を入力..." style="width:120p
+x; padding:3px; border:1px solid #ccc; border-radius:3px; font-size:12px;" oninput="showResourceViewByOwner(this.value)
+">
+  index.html:417:            </div>
+  index.html:418:
+  index.html:419:            <div style="margin-left:auto; display:flex; align-items:center; gap:10px;">
+  index.html:420:                <span>表示切替:</span>
+  index.html:421:                <button class="zoom-btn" onclick="setZoom('days')">日単位</button>
+  index.html:422:                <button class="zoom-btn" onclick="setZoom('weeks')">週単位</button>
+  index.html:423:                <button class="zoom-btn" onclick="scrollToToday()" style="background-color: #ebf5ff; b
+order-color: #3498db; color: #3498db;">今日へ移動</button>
+  index.html:424:                <span id="filter_status" style="font-weight:bold; color:#3498db;">全工程を表示中</span>
+  index.html:425:                <button class="zoom-btn" onclick="resetFilter()">表示リセット</button>
+  index.html:426:            </div>
+  index.html:427:        </div>
+  index.html:428:
+  index.html:429:        <div class="content-area">
+  index.html:430:            <div class="sidebar">
+  index.html:431:                <div class="sidebar-title" onclick="resetFilter()" title="クリックして全表示にリセット">工事一覧</div>
+  index.html:432:                <div id="project_list" class="project-list"></div>
+  index.html:433:            </div>
+  index.html:434:            <div class="chart-container">
+  index.html:435:                <!-- メインガントチャート -->
+  index.html:436:                <div id="gantt_here" style="width: 100%; height: 100%;"></div>
+  index.html:437:
+  index.html:438:                <!-- 独立したリソースパネル -->
+  index.html:439:                <div id="resource_panel" style="display: none; height: 250px; border-top: 2px solid #c
+cc; background: #fff; flex-direction: column;">
+  index.html:440:                    <div id="resource_header_bar" class="resource-header-bar" style="display: none;">
+  index.html:441:                        <span id="resource_title">リソース状況（担当者で選択）</span>
+  index.html:442:                        <button type="button" class="resource-header-close" id="resource_close_btn" ti
+tle="リソース画面を閉じる" aria-label="閉じる">×</button>
+  index.html:443:                    </div>
+  index.html:444:                    <div class="resource-content" style="flex: 1; overflow: auto;">
+  index.html:445:                        <div id="resource_content_inner" class="resource-content-inner">
+  index.html:446:                            <!-- ここにJSでHTMLが挿入される -->
+  index.html:447:                        </div>
+  index.html:448:                    </div>
+  index.html:449:                </div>
+  index.html:450:            </div>
+  index.html:451:        </div>
+  index.html:452:    </div>
+  index.html:453:
+  index.html:454:    <script>
+  index.html:455:        const S_URL = "https://dgekjzkrybrswsxlcbvh.supabase.co";
+  index.html:456:        const S_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRnZWtqem
+tyeWJyc3dzeGxjYnZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg4ODQ3MjIsImV4cCI6MjA4NDQ2MDcyMn0.BsEj53lV3p76yE9fMPTaLn7ocKTNzYPTq
+IAnBafYItU";
+  index.html:457:        const supabaseClient = supabase.createClient(S_URL, S_KEY);
+  index.html:458:
+  index.html:459:        let currentFilter = null;
+  index.html:460:        let currentMajorFilter = null;
+  index.html:461:        let currentDisplayMode = 'process'; // 'process' or 'machine'
+  index.html:462:        let currentOwnerFilter = "";
+  index.html:463:        let currentOwnerFilterNoData = false; // tasks と task_template の両方に該当がないとき true
+  index.html:464:        let currentMachineFilter = "";
+  index.html:465:        const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+  index.html:466:        const dateToDb = gantt.date.date_to_str("%Y-%m-%d");
+  index.html:467:        const dateToDisplay = gantt.date.date_to_str("%Y/%m/%d");
+  index.html:468:
+  index.html:469:        // 上段・下段で完全に一致させる固定値（1ピクセルも狂いなく同期）
+  index.html:470:        const GRID_WIDTH = 699;
+  index.html:471:        const COLUMN_WIDTHS = [75, 160, 60, 60, 100, 100, 100, 44]; // 工事番号, タスク名, 機械, ユニット, 担当, 開始日, 
+終了日, add
+  index.html:472:        // 下段リソースで担当者検索時にのみフィルタする用（未選択時は下段を非表示）
+  index.html:473:        let currentResourceOwnerFilter = "";
+  index.html:474:        window.allTasks = []; // グローバルに全データを保持用
+  index.html:475:
+  index.html:476:        // 表示期間（上段・下段で同一にし、ズレを防ぐ）
+  index.html:477:        const GANTT_START_DATE = new Date(2024, 10, 1);  // 2024/11/1
+  index.html:478:        const GANTT_END_DATE = new Date(2027, 11, 0);   // 2027/11/30（11月末）
+  index.html:479:        var GANTT_CALENDAR_CONFIG = {
+  index.html:480:            start_date: new Date(GANTT_START_DATE.getTime()),
+  index.html:481:            end_date: new Date(GANTT_END_DATE.getTime())
+  index.html:482:        };
+  index.html:483:
+  index.html:484:        gantt.plugins({ marker: true, grouplist: true });
+  index.html:485:        
+  index.html:486:        gantt.config.start_date = GANTT_CALENDAR_CONFIG.start_date;
+  index.html:487:        gantt.config.end_date = GANTT_CALENDAR_CONFIG.end_date;
+  index.html:488:        gantt.config.fit_tasks = false; // タスクの有無に関わらず設定期間を維持（下段が10月で終わらないように）
+  index.html:489:        gantt.config.include_empty_scales = true; // タスクがない期間もカレンダーを表示する
+  index.html:490:        gantt.config.date_format = "%Y-%m-%d";
+  index.html:491:        gantt.config.date_grid = "%Y/%m/%d";
+  index.html:492:
+  index.html:493:        // 編集画面（ライトボックス）の設定
+  index.html:494:        const majorItemOptions = [
+  index.html:495:            { key: "営業", label: "営業" },
+  index.html:496:            { key: "設計", label: "設計" },
+  index.html:497:            { key: "製管", label: "製管" },
+  index.html:498:            { key: "組立", label: "組立" },
+  index.html:499:            { key: "電装", label: "電装" },
+  index.html:500:            { key: "品証", label: "品証" },
+  index.html:501:            { key: "操業", label: "操業" },
+  index.html:502:            { key: "", label: "指定なし" }
+  index.html:503:        ];
+  index.html:504:
+  index.html:505:        gantt.config.lightbox.sections = [
+  index.html:506:            { name: "project_number", height: 30, map_to: "project_number", type: "textarea", focus: t
+rue },
+  index.html:507:            { name: "parent_name", height: 30, map_to: "parent_name", type: "textarea" },
+  index.html:508:            { name: "major_item", height: 30, map_to: "major_item", type: "select", options: majorItem
+Options },
+  index.html:509:            { name: "machine", height: 30, map_to: "machine", type: "textarea" },
+  index.html:510:            { name: "unit", height: 30, map_to: "unit", type: "textarea" },
+  index.html:511:            { name: "description", height: 50, map_to: "text", type: "textarea" },
+  index.html:512:            { name: "owner", height: 30, map_to: "owner", type: "textarea" },
+  index.html:513:            { name: "time", height: 72, type: "duration", map_to: "auto" }
+  index.html:514:        ];
+  index.html:515:        gantt.locale.labels.section_project_number = "工事番号";
+  index.html:516:        gantt.locale.labels.section_parent_name = "見出し名";
+  index.html:517:        gantt.locale.labels.section_major_item = "フィルタ色分け";
+  index.html:518:        gantt.locale.labels.section_machine = "機械";
+  index.html:519:        gantt.locale.labels.section_unit = "ユニット";
+  index.html:520:        gantt.locale.labels.section_description = "タスク名";
+  index.html:521:        gantt.locale.labels.section_owner = "担当";
+  index.html:522:        gantt.locale.labels.section_time = "期間";
+  index.html:523:
+  index.html:524:        // 見出し行（プロジェクト型）も同じ項目を表示
+  index.html:525:        gantt.config.lightbox.project_sections = gantt.config.lightbox.sections;
+  index.html:526:
+  index.html:527:        // Layout: 上段のみのシンプルな構成
+  index.html:528:        var layoutRows = [
+  index.html:529:            {
+  index.html:530:                cols: [
+  index.html:531:                    { view: "grid", id: "grid", group: "grids", scrollX: "scrollHor", scrollY: "scroll
+Ver" },
+  index.html:532:                    { resizer: true, width: 1 },
+  index.html:533:                    { view: "timeline", id: "timeline", scrollX: "scrollHor", scrollY: "scrollVer" },
+  index.html:534:                    { view: "scrollbar", scroll: "y", id: "scrollVer" }
+  index.html:535:                ]
+  index.html:536:            },
+  index.html:537:            { view: "scrollbar", scroll: "x", id: "scrollHor", height: 20 }
+  index.html:538:        ];
+  index.html:539:        gantt.config.layout = { css: "gantt_container", rows: layoutRows };
+  index.html:540:
+  index.html:541:        // カレンダー設定の統一（上段・下段で同じ期間）
+  index.html:542:        gantt.attachEvent("onBeforeGanttRender", function(){
+  index.html:543:            gantt.config.start_date = new Date(GANTT_START_DATE.getTime());
+  index.html:544:            gantt.config.end_date = new Date(GANTT_END_DATE.getTime());
+  index.html:545:            gantt.config.fit_tasks = false;
+  index.html:546:        });
+  index.html:547:
+  index.html:548:        // 列設定の共通化：上段・下段に同じ配列を適用し列幅のズレを根絶
+  index.html:549:        var SHARED_COLUMNS = [
+  index.html:550:            { name: "project_number", label: "工事番号", width: COLUMN_WIDTHS[0], align: "center", templat
+e: function(obj) {
+  index.html:551:                return obj.project_number || "";
+  index.html:552:            }},
+  index.html:553:            { name: "text", label: "タスク名", width: COLUMN_WIDTHS[1], tree: true, template: function(obj
+) {
+  index.html:554:                return obj.text;
+  index.html:555:            }},
+  index.html:556:            { name: "machine", label: "機械", width: COLUMN_WIDTHS[2], align: "center", template: functi
+on(obj) {
+  index.html:557:                if (obj.$virtual) return "";
+  index.html:558:                return obj.machine || "";
+  index.html:559:            }},
+  index.html:560:            { name: "unit", label: "ユニット", width: COLUMN_WIDTHS[3], align: "center", template: functio
+n(obj) {
+  index.html:561:                if (obj.$virtual) return "";
+  index.html:562:                return obj.unit || "";
+  index.html:563:            }},
+  index.html:564:            { name: "owner", label: "担当", width: COLUMN_WIDTHS[4], align: "left", template: function(o
+bj) {
+  index.html:565:                if (obj.$virtual || !obj.owner) return "";
+  index.html:566:                return obj.owner.replace(/\d+/g, "");
+  index.html:567:            }},
+  index.html:568:            { name: "start_date", label: "開始日", width: COLUMN_WIDTHS[5], align: "center", template: fu
+nction(t) {
+  index.html:569:                return dateToDisplay(t.start_date);
+  index.html:570:            }},
+  index.html:571:            { name: "end_date", label: "終了日", width: COLUMN_WIDTHS[6], align: "center", template: func
+tion(t) {
+  index.html:572:                return dateToDisplay(gantt.calculateEndDate(t.start_date, t.duration));
+  index.html:573:            }},
+  index.html:574:            { name: "add", label: "", width: COLUMN_WIDTHS[7] }
+  index.html:575:        ];
+  index.html:576:        gantt.config.columns = SHARED_COLUMNS;
+  index.html:577:        gantt.config.grid_width = GRID_WIDTH;
+  index.html:578:        gantt.config.grid_resize = false;
+  index.html:579:        gantt.config.drag_resize = true;
+  index.html:580:        gantt.config.row_height = 35;
+  index.html:581:        gantt.config.open_tree_initially = false;
+  index.html:582:        gantt.config.order_branch = true;
+  index.html:583:        gantt.config.order_branch_free = true;
+  index.html:584:
+  index.html:585:        // ドラッグによる並べ替え順序の保存
+  index.html:586:        gantt.attachEvent("onRowDragEnd", async function(id, target) {
+  index.html:587:            // 全タスクの現在の表示順序を取得して保存
+  index.html:588:            const tasks = [];
+  index.html:589:            // gantt.eachTask は階層構造を辿るため、フラットな順序を取得するには getTaskByTime を検討
+  index.html:590:            // ただし、gantt.getTaskByIndex(i) で現在のグリッド上の順序を取得するのが確実
+  index.html:591:            const count = gantt.getTaskCount();
+  index.html:592:            for (let i = 0; i < count; i++) {
+  index.html:593:                const task = gantt.getTaskByIndex(i);
+  index.html:594:                if (task && !task.$virtual) {
+  index.html:595:                    const sortData = { id: task.id };
+  index.html:596:                    if (currentDisplayMode === 'machine') {
+  index.html:597:                        sortData.sort_order_machine = i;
+  index.html:598:                    } else {
+  index.html:599:                        sortData.sort_order = i;
+  index.html:600:                    }
+  index.html:601:                    tasks.push(sortData);
+  index.html:602:                }
+  index.html:603:            }
+  index.html:604:
+  index.html:605:            // Supabaseの各タスクの順序を一括更新
+  index.html:606:            const promises = tasks.map(t => {
+  index.html:607:                const updatePayload = {};
+  index.html:608:                if (currentDisplayMode === 'machine') {
+  index.html:609:                    updatePayload.sort_order_machine = t.sort_order_machine;
+  index.html:610:                } else {
+  index.html:611:                    updatePayload.sort_order = t.sort_order;
+  index.html:612:                }
+  index.html:613:                return supabaseClient
+  index.html:614:                    .from('tasks')
+  index.html:615:                    .update(updatePayload)
+  index.html:616:                    .eq('id', t.id);
+  index.html:617:            });
+  index.html:618:
+  index.html:619:            try {
+  index.html:620:                await Promise.all(promises);
+  index.html:621:                console.log("Sort order saved successfully");
+  index.html:622:                
+  index.html:623:                // window.allTasks の sort_order を更新して整合性を保つ
+  index.html:624:                tasks.forEach(t => {
+  index.html:625:                    const task = window.allTasks.find(at => at.id === t.id);
+  index.html:626:                    if (task) {
+  index.html:627:                        if (currentDisplayMode === 'machine') {
+  index.html:628:                            task.sort_order_machine = t.sort_order_machine;
+  index.html:629:                        } else {
+  index.html:630:                            task.sort_order = t.sort_order;
+  index.html:631:                        }
+  index.html:632:                    }
+  index.html:633:                });
+  index.html:634:            } catch (error) {
+  index.html:635:                console.error("Error saving sort order:", error);
+  index.html:636:                alert("並び順の保存に失敗しました。");
+  index.html:637:            }
+  index.html:638:        });
+  index.html:639:
+  index.html:640:        // 編集内容をデータベースに保存
+  index.html:641:        gantt.attachEvent("onAfterTaskUpdate", async function(id, item) {
+  index.html:642:            if (item.$virtual) return; // 見出し行は仮想的なものなので保存対象外
+  index.html:643:
+  index.html:644:            const updateData = {
+  index.html:645:                text: item.text,
+  index.html:646:                start_date: dateToDb(item.start_date),
+  index.html:647:                duration: item.duration,
+  index.html:648:                owner: item.owner,
+  index.html:649:                project_number: item.project_number,
+  index.html:650:                machine: item.machine,
+  index.html:651:                unit: item.unit,
+  index.html:652:                major_item: item.major_item, // 色分け項目を保存
+  index.html:653:                parent: item.parent_name // 見出し名をparentカラムに保存
+  index.html:654:            };
+  index.html:655:
+  index.html:656:            const { error } = await supabaseClient
+  index.html:657:                .from('tasks')
+  index.html:658:                .update(updateData)
+  index.html:659:                .eq('id', id);
+  index.html:660:
+  index.html:661:            if (error) {
+  index.html:662:                console.error("Update error:", error);
+  index.html:663:                alert("保存に失敗しました。");
+  index.html:664:            } else {
+  index.html:665:                // 成功したらリソース画面なども更新
+  index.html:666:                fetchTasks();
+  index.html:667:            }
+  index.html:668:        });
+  index.html:669:
+  index.html:670:        // ＋ボタンの挙動をカスタマイズ（親の情報を引き継ぐ）
+  index.html:671:        gantt.attachEvent("onTaskCreated", function(task){
+  index.html:672:            if (task.parent) {
+  index.html:673:                const parentTask = gantt.getTask(task.parent);
+  index.html:674:                if (parentTask.$virtual) {
+  index.html:675:                    task.project_number = parentTask.project_number;
+  index.html:676:                    task.parent_name = parentTask.text; // きれいな名前を引き継ぐ
+  index.html:677:                    task.customer_name = parentTask.customer_name;
+  index.html:678:                    task.project_details = parentTask.project_details;
+  index.html:679:                }
+  index.html:680:            }
+  index.html:681:            return true;
+  index.html:682:        });
+  index.html:683:
+  index.html:684:        gantt.templates.grid_row_class = function(start, end, task){
+  index.html:685:            if(task.$virtual) return "gantt_group_row";
+  index.html:686:            return "";
+  index.html:687:        };
+  index.html:688:
+  index.html:689:        // フィルタ設定：工事番号、大項目、担当名、機械名の絞り込み
+  index.html:690:        gantt.attachEvent("onBeforeTaskDisplay", function(id, task){
+  index.html:691:            if (task.$virtual) {
+  index.html:692:                if (currentFilter && !task.id.startsWith(`p_${currentFilter}_`)) return false;
+  index.html:693:                if (currentMajorFilter && task.major_item !== currentMajorFilter) return false;
+  index.html:694:                if (currentOwnerFilter) {
+  index.html:695:                    var childIds = gantt.getChildren ? gantt.getChildren(task.id) : [];
+  index.html:696:                    var hasMatchingChild = false;
+  index.html:697:                    for (var i = 0; i < childIds.length; i++) {
+  index.html:698:                        var child = gantt.getTask(childIds[i]);
+  index.html:699:                        if (child && child.owner && (child.owner + "").includes(currentOwnerFilter)) {
+  index.html:700:                            hasMatchingChild = true;
+  index.html:701:                            break;
+  index.html:702:                        }
+  index.html:703:                    }
+  index.html:704:                    if (!hasMatchingChild) return false;
+  index.html:705:                }
+  index.html:706:                return true;
+  index.html:707:            }
+  index.html:708:            if (currentFilter && task.project_number !== currentFilter) return false;
+  index.html:709:            if (currentMajorFilter && task.major_item !== currentMajorFilter) return false;
+  index.html:710:            if (currentOwnerFilter && (!task.owner || !task.owner.includes(currentOwnerFilter))) retur
+n false;
+  index.html:711:            if (currentMachineFilter && (!task.machine || !task.machine.includes(currentMachineFilter)
+)) return false;
+  index.html:712:            return true;
+  index.html:713:        });
+  index.html:714:
+  index.html:715:        // 今日のマーカー
+  index.html:716:        gantt.addMarker({ start_date: new Date(), css: "today-line", text: "今日" });
+  index.html:717:
+  index.html:718:        // 業務別カラー
+  index.html:719:        gantt.templates.task_class = function(start, end, task) {
+  index.html:720:            if (task.text === "外観検査") return "milestone-circle";
+  index.html:721:            if (task.text === "出荷確認会議") return "milestone-diamond";
+  index.html:722:            if (task.text === "工場出荷") return "milestone-star";
+  index.html:723:
+  index.html:724:            switch (task.major_item) {
+  index.html:725:                case '設計': return "task-blue";
+  index.html:726:                case '製管':
+  index.html:727:                case '品証': return "task-green";
+  index.html:728:                case '組立': return "task-yellow";
+  index.html:729:                case '電装': return "task-purple";
+  index.html:730:                case '操業': return "task-red";
+  index.html:731:                case '営業': return "task-orange";
+  index.html:732:                default: return "";
+  index.html:733:            }
+  index.html:734:        };
+  index.html:735:        
+  index.html:736:        gantt.templates.timeline_cell_class = (task, date) => (date.getDay() === 0 || date.getDay() ==
+= 6) ? "weekend" : "";
+  index.html:737:        
+  index.html:738:        const zoomConfig = {
+  index.html:739:            levels: [
+  index.html:740:                { name: "days", scale_height: 75, min_column_width: 25, scales: [
+  index.html:741:                    { unit: "month", step: 1, format: "%Y/%n" },
+  index.html:742:                    { unit: "day", step: 1, format: "%j" }, 
+  index.html:743:                    { unit: "day", step: 1, format: (date) => dayNames[date.getDay()] }
+  index.html:744:                ]},
+  index.html:745:                { name: "weeks", scale_height: 50, min_column_width: 25, scales: [
+  index.html:746:                    { unit: "month", step: 1, format: "%Y/%n" },
+  index.html:747:                    { unit: "week", step: 1, format: (date) => {
+  index.html:748:                        const dateToStr = gantt.date.date_to_str("%j");
+  index.html:749:                        return dateToStr(date);
+  index.html:750:                    }}
+  index.html:751:                ]}
+  index.html:752:            ]
+  index.html:753:        };
+  index.html:754:        gantt.ext.zoom.init(zoomConfig);
+  index.html:755:        gantt.init("gantt_here");
+  index.html:756:
+  index.html:757:        // 入力した担当名 or 部署名で下段のみ絞り込み
+  index.html:758:        function showResourceViewByOwner(ownerValue) {
+  index.html:759:            const val = (ownerValue || "").trim();
+  index.html:760:            const resourcePanel = document.getElementById("resource_panel");
+  index.html:761:            const ganttHere = document.getElementById("gantt_here");
+  index.html:762:
+  index.html:763:            if (val) {
+  index.html:764:                currentResourceOwnerFilter = val;
+  index.html:765:                if (resourcePanel) resourcePanel.style.display = "flex";
+  index.html:766:                if (ganttHere) ganttHere.style.height = "calc(100% - 250px)";
+  index.html:767:                renderResourceTimeline();
+  index.html:768:            } else {
+  index.html:769:                currentResourceOwnerFilter = "";
+  index.html:770:                if (resourcePanel) resourcePanel.style.display = "none";
+  index.html:771:                if (ganttHere) ganttHere.style.height = "100%";
+  index.html:772:            }
+  index.html:773:            gantt.render();
+  index.html:774:        }
+  index.html:775:
+  index.html:776:        // リソース画面を閉じる
+  index.html:777:        function closeResourcePanel() {
+  index.html:778:            const inp = document.getElementById("resource_owner_input");
+  index.html:779:            if (inp) inp.value = "";
+  index.html:780:            showResourceViewByOwner("");
+  index.html:781:        }
+  index.html:782:
+  index.html:783:        // リソース画面の描画処理
+  index.html:784:        function renderResourceTimeline() {
+  index.html:785:            const container = document.getElementById("resource_content_inner");
+  index.html:786:            if (!container) return;
+  index.html:787:
+  index.html:788:            if (!currentResourceOwnerFilter) {
+  index.html:789:                container.innerHTML = '<div class="resource-placeholder">担当者を入力してリソース状況を表示</div>';
+  index.html:790:                return;
+  index.html:791:            }
+  index.html:792:
+  index.html:793:            // window.allTasks からフィルタリング
+  index.html:794:            const filteredTasks = (window.allTasks || []).filter(t => 
+  index.html:795:                t.owner && t.owner.toLowerCase().includes(currentResourceOwnerFilter.toLowerCase())
+  index.html:796:            );
+  index.html:797:
+  index.html:798:            if (filteredTasks.length === 0) {
+  index.html:799:                container.innerHTML = '<div class="resource-placeholder">該当する担当者のタスクはありません</div>';
+  index.html:800:                return;
+  index.html:801:            }
+  index.html:802:
+  index.html:803:            // 工事番号の優先度計算
+  index.html:804:            const getPriority = (p) => {
+  index.html:805:                if (!p) return 5;
+  index.html:806:                if (p.startsWith('2')) return 1;
+  index.html:807:                if (p.startsWith('3')) return 2;
+  index.html:808:                if (p.startsWith('4')) return 3;
+  index.html:809:                if (p.startsWith('D')) return 4;
+  index.html:810:                return 5;
+  index.html:811:            };
+  index.html:812:
+  index.html:813:            // 上段の工程表と同じ条件でソート
+  index.html:814:            filteredTasks.sort((a, b) => {
+  index.html:815:                const pNumA = a.project_number || "";
+  index.html:816:                const pNumB = b.project_number || "";
+  index.html:817:                const priA = getPriority(pNumA);
+  index.html:818:                const priB = getPriority(pNumB);
+  index.html:819:                if (priA !== priB) return priA - priB;
+  index.html:820:                return pNumA.localeCompare(pNumB, undefined, { numeric: true, sensitivity: 'base' });
+  index.html:821:            });
+  index.html:822:
+  index.html:823:            // 1. 【セル幅の動的計算】
+  index.html:824:            const scale = gantt.getScale();
+  index.html:825:            const timelineWidth = scale.full_width;
+  index.html:826:            const columnWidth = scale.col_width;
+  index.html:827:            const totalWidth = GRID_WIDTH + timelineWidth;
+  index.html:828:
+  index.html:829:            // 背景の目盛り線
+  index.html:830:            const gridBackground = `repeating-linear-gradient(to right, transparent, transparent ${col
+umnWidth - 1}px, #eee ${columnWidth - 1}px, #eee ${columnWidth}px)`;
+  index.html:831:
+  index.html:832:            let html = "";
+  index.html:833:            
+  index.html:834:            // 担当者名とタスク件数を表示する固定ヘッダー行
+  index.html:835:            html += `
+  index.html:836:                <div class="resource-item resource-summary-header" style="display: flex; border-bottom
+: 1px solid #ddd; min-height: 30px; height: 30px; align-items: center; background: #f8f9fa; position: sticky; top: 0; l
+eft: 0; z-index: 10; width: ${totalWidth}px;">
+  index.html:837:                    <div style="padding: 0 15px; font-weight: bold; color: #2c3e50; font-size: 12px; p
+osition: sticky; left: 0; background: inherit; height: 100%; display: flex; align-items: center; z-index: 11; white-spa
+ce: nowrap;">
+  index.html:838:                        【${currentResourceOwnerFilter}】のタスク　${filteredTasks.length}件
+  index.html:839:                    </div>
+  index.html:840:                    <div style="position: sticky; right: 0; background: inherit; height: 100%; display
+: flex; align-items: center; padding-right: 10px; margin-left: auto; z-index: 11;">
+  index.html:841:                        <button type="button" class="resource-header-close" onclick="closeResourcePane
+l()">×</button>
+  index.html:842:                    </div>
+  index.html:843:                </div>
+  index.html:844:            `;
+  index.html:845:            
+  index.html:846:            filteredTasks.forEach(t => {
+  index.html:847:                const start = new Date(t.start_date);
+  index.html:848:                const end = gantt.calculateEndDate(start, t.duration);
+  index.html:849:                
+  index.html:850:                const left = gantt.posFromDate(start);
+  index.html:851:                const right = gantt.posFromDate(end);
+  index.html:852:                const width = Math.max(2, right - left);
+  index.html:853:                
+  index.html:854:                const colorClass = getResourceTaskClass(t);
+  index.html:855:                const title = `${t.text} (${t.project_number})`;
+  index.html:856:
+  index.html:857:                // 4. 【グリッド幅の固定】
+  index.html:858:                html += `
+  index.html:859:                    <div class="resource-item" style="display: flex; border-bottom: 1px solid #eee; mi
+n-height: 26px; height: 26px; align-items: stretch;">
+  index.html:860:                        <div class="resource-grid-container" style="width: ${GRID_WIDTH}px; min-width:
+ ${GRID_WIDTH}px; flex-shrink: 0; display: flex; border-right: 1px solid #ddd; background: #fff; position: sticky; left
+: 0; z-index: 1;">
+  index.html:861:                            <div class="resource-cell" style="width: ${COLUMN_WIDTHS[0]}px; border-rig
+ht: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; justify-content: center; font-size: 11px;">${t.
+project_number || ""}</div>
+  index.html:862:                            <div class="resource-cell" style="width: ${COLUMN_WIDTHS[1]}px; border-rig
+ht: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; font-size: 11px; overflow: hidden; text-overflo
+w: ellipsis; white-space: nowrap;">${t.text || ""}</div>
+  index.html:863:                            <div class="resource-cell" style="width: ${COLUMN_WIDTHS[2]}px; border-rig
+ht: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; justify-content: center; font-size: 11px;">${t.
+machine || ""}</div>
+  index.html:864:                            <div class="resource-cell" style="width: ${COLUMN_WIDTHS[3]}px; border-rig
+ht: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; justify-content: center; font-size: 11px;">${t.
+unit || ""}</div>
+  index.html:865:                            <div class="resource-cell" style="width: ${COLUMN_WIDTHS[4]}px; border-rig
+ht: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; font-size: 11px;">${(t.owner || "").replace(/\d
++/g, "")}</div>
+  index.html:866:                            <div class="resource-cell" style="width: ${COLUMN_WIDTHS[5]}px; border-rig
+ht: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; justify-content: center; font-size: 11px;">${da
+teToDisplay(start)}</div>
+  index.html:867:                            <div class="resource-cell" style="width: ${COLUMN_WIDTHS[6]}px; border-rig
+ht: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; justify-content: center; font-size: 11px;">${da
+teToDisplay(end)}</div>
+  index.html:868:                            <div class="resource-cell" style="width: ${COLUMN_WIDTHS[7]}px; padding: 0
+ 4px;"></div>
+  index.html:869:                        </div>
+  index.html:870:                        <div class="resource-timeline" style="width: ${timelineWidth}px; flex-shrink: 
+0; position: relative; background: #fafafa; background-image: ${gridBackground};">
+  index.html:871:                            <div class="resource-cell-bars" style="position: absolute; top: 0; left: 0
+; right: 0; bottom: 0;">
+  index.html:872:                                <div class="resource-cell-bar ${colorClass}" 
+  index.html:873:                                     style="position: absolute; top: 4px; height: 18px; left: ${left}p
+x; width: ${width}px; border-radius: 3px; opacity: 0.8; display: flex; align-items: center; justify-content: center; co
+lor: #fff; font-size: 10px; font-weight: bold; overflow: hidden; white-space: nowrap; text-shadow: 1px 1px 1px rgba(0,0
+,0,0.5);" 
+  index.html:874:                                     title="${title.replace(/"/g, "&quot;")}">
+  index.html:875:                                     ${t.project_number || ""}
+  index.html:876:                                </div>
+  index.html:877:                            </div>
+  index.html:878:                        </div>
+  index.html:879:                    </div>
+  index.html:880:                `;
+  index.html:881:            });
+  index.html:882:
+  index.html:883:            container.innerHTML = html;
+  index.html:884:            syncResourceScroll();
+  index.html:885:        }
+  index.html:886:
+  index.html:887:        // 2. 【スクロールの同期】
+  index.html:888:        gantt.attachEvent("onGanttScroll", function (left, top){
+  index.html:889:            const resourceContent = document.querySelector(".resource-content");
+  index.html:890:            if (resourceContent) {
+  index.html:891:                resourceContent.scrollLeft = left;
+  index.html:892:            }
+  index.html:893:        });
+  index.html:894:
+  index.html:895:        // 3. 【ズーム切り替え時の再描画】
+  index.html:896:        function setZoom(level) { 
+  index.html:897:            gantt.ext.zoom.setLevel(level); 
+  index.html:898:            gantt.config.start_date = new Date(GANTT_START_DATE.getTime());
+  index.html:899:            gantt.config.end_date = new Date(GANTT_END_DATE.getTime());
+  index.html:900:            gantt.config.fit_tasks = false;
+  index.html:901:            gantt.render();
+  index.html:902:            renderResourceTimeline();
+  index.html:903:        }
+  index.html:904:
+  index.html:905:        function syncResourceScroll() {
+  index.html:906:            const ganttScroll = gantt.getScrollState();
+  index.html:907:            const resourceContent = document.querySelector(".resource-content");
+  index.html:908:            if (resourceContent) resourceContent.scrollLeft = ganttScroll.x;
+  index.html:909:        }
+  index.html:910:
+  index.html:911:        document.addEventListener('DOMContentLoaded', () => {
+  index.html:912:            setTimeout(() => {
+  index.html:913:                const resourceContent = document.querySelector(".resource-content");
+  index.html:914:                if (resourceContent) {
+  index.html:915:                    resourceContent.addEventListener('scroll', function() {
+  index.html:916:                        gantt.scrollTo(this.scrollLeft, null);
+  index.html:917:                    });
+  index.html:918:                }
+  index.html:919:            }, 1000);
+  index.html:920:        });
+  index.html:921:
+  index.html:922:        function getResourceTaskClass(task) {
+  index.html:923:            if (task.text === "外観検査") return "milestone-circle";
+  index.html:924:            if (task.text === "出荷確認会議") return "milestone-diamond";
+  index.html:925:            if (task.text === "工場出荷") return "milestone-star";
+  index.html:926:            switch (task.major_item) {
+  index.html:927:                case '設計': return "task-blue";
+  index.html:928:                case '製管': case '品証': return "task-green";
+  index.html:929:                case '組立': return "task-yellow";
+  index.html:930:                case '電装': return "task-purple";
+  index.html:931:                case '操業': return "task-red";
+  index.html:932:                case '営業': return "task-orange";
+  index.html:933:                default: return "";
+  index.html:934:            }
+  index.html:935:        }
+  index.html:936:
+  index.html:937:        async function fetchTasks() {
+  index.html:938:            // 表示モードに応じてソート順のカラムを切り替え
+  index.html:939:            const sortColumn = currentDisplayMode === 'machine' ? 'sort_order_machine' : 'sort_order';
+  index.html:940:            const { data, error } = await supabaseClient.from('tasks').select('*').order(sortColumn, {
+ ascending: true });
+  index.html:941:            if (error) return;
+  index.html:942:            
+  index.html:943:            const rawTasks = data.map(t => ({
+  index.html:944:                id: t.id, text: t.text, start_date: t.start_date,
+  index.html:945:                duration: t.duration, owner: t.owner, project_number: (t.project_number || "").toStrin
+g().trim(),
+  index.html:946:                machine: t.machine, unit: t.unit, major_item: t.major_item,
+  index.html:947:                sort_order: t.sort_order,
+  index.html:948:                sort_order_machine: t.sort_order_machine,
+  index.html:949:                parent_name: (t.parent || "").toString().trim(),
+  index.html:950:                customer_name: t.customer_name || "",
+  index.html:951:                project_details: t.project_details || ""
+  index.html:952:            }));
+  index.html:953:
+  index.html:954:            const parentOrder = ["受注", "基本設計＆計画承認", "長納期品手配", "出図＆部品手配", "電気設計", "盤組立", "組立全体", "外観検査"
+, "タスクリスト作成", "試運転", "客先立会", "出荷確認会議", "出荷準備", "出荷", "現地工事"];
+  index.html:955:            const tasksWithHierarchy = [];
+  index.html:956:            const parentsMap = {};
+  index.html:957:
+  index.html:958:            const getPriority = (p) => {
+  index.html:959:                if (p.startsWith('2')) return 1;
+  index.html:960:                if (p.startsWith('3')) return 2;
+  index.html:961:                if (p.startsWith('4')) return 3;
+  index.html:962:                if (p.startsWith('D')) return 4;
+  index.html:963:                return 5;
+  index.html:964:            };
+  index.html:965:            const isPureNumeric = (s) => /^\d+$/.test(s);
+  index.html:966:
+  index.html:967:            const projects = [...new Set(rawTasks.map(t => t.project_number))]
+  index.html:968:                .filter(Boolean)
+  index.html:969:                .sort((a, b) => {
+  index.html:970:                    const priA = getPriority(a);
+  index.html:971:                    const priB = getPriority(b);
+  index.html:972:                    if (priA !== priB) return priA - priB;
+  index.html:973:                    const numA = isPureNumeric(a);
+  index.html:974:                    const numB = isPureNumeric(b);
+  index.html:975:                    if (numA && !numB) return -1;
+  index.html:976:                    if (!numA && numB) return 1;
+  index.html:977:                    return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+  index.html:978:                });
+  index.html:979:
+  index.html:980:            if (currentDisplayMode === 'machine') {
+  index.html:981:                // 機械別：工事番号 -> 機械名 でまとめる
+  index.html:982:                projects.forEach(pNum => {
+  index.html:983:                    const projectTasks = rawTasks.filter(t => t.project_number === pNum);
+  index.html:984:                    // その工事に含まれる機械名を抽出
+  index.html:985:                    const machines = [...new Set(projectTasks.map(t => t.machine || "設定なし"))].sort();
+  index.html:986:                    
+  index.html:987:                    machines.forEach(mName => {
+  index.html:988:                        const tasksInMachine = projectTasks.filter(t => (t.machine || "設定なし") === mNam
+e);
+  index.html:989:                        if (tasksInMachine.length > 0) {
+  index.html:990:                            const parentKey = `p_${pNum}_m_${mName}`;
+  index.html:991:                            let minStart = null;
+  index.html:992:                            let maxEnd = null;
+  index.html:993:                            tasksInMachine.forEach(t => {
+  index.html:994:                                const start = new Date(t.start_date);
+  index.html:995:                                const end = gantt.calculateEndDate(start, t.duration);
+  index.html:996:                                if (!minStart || start < minStart) minStart = start;
+  index.html:997:                                if (!maxEnd || end > maxEnd) maxEnd = end;
+  index.html:998:                            });
+  index.html:999:                            
+  index.html:1000:                            // 親行（工事番号 + 機械名）
+  index.html:1001:                            if (!parentsMap[parentKey]) {
+  index.html:1002:                                parentsMap[parentKey] = { 
+  index.html:1003:                                    id: parentKey, 
+  index.html:1004:                                    text: mName === "設定なし" ? pNum : `${pNum} - ${mName}`, 
+  index.html:1005:                                    project_number: pNum, 
+  index.html:1006:                                    machine: mName === "設定なし" ? "" : mName, 
+  index.html:1007:                                    major_item: "", 
+  index.html:1008:                                    customer_name: tasksInMachine[0].customer_name, 
+  index.html:1009:                                    project_details: tasksInMachine[0].project_details, 
+  index.html:1010:                                    start_date: minStart, 
+  index.html:1011:                                    end_date: maxEnd, 
+  index.html:1012:                                    open: false, 
+  index.html:1013:                                    type: "project", 
+  index.html:1014:                                    $virtual: true 
+  index.html:1015:                                };
+  index.html:1016:                                tasksWithHierarchy.push(parentsMap[parentKey]);
+  index.html:1017:                            }
+  index.html:1018:                            // 子タスクを追加
+  index.html:1019:                            tasksInMachine.forEach(t => { 
+  index.html:1020:                                t.parent = parentKey; 
+  index.html:1021:                                tasksWithHierarchy.push(t); 
+  index.html:1022:                            });
+  index.html:1023:                        }
+  index.html:1024:                    });
+  index.html:1025:                });
+  index.html:1026:            } else {
+  index.html:1027:                // 工程別（従来通り）：工事番号 -> 大項目（工程） でまとめる
+  index.html:1028:                projects.forEach(pNum => {
+  index.html:1029:                    const projectTasks = rawTasks.filter(t => t.project_number === pNum);
+  index.html:1030:                    
+  index.html:1031:                    // 定義済みの見出し（parentOrder）に含まれるタスクを処理
+  index.html:1032:                    const assignedTaskIds = new Set();
+  index.html:1033:                    parentOrder.forEach(pName => {
+  index.html:1034:                        const tasksInParent = projectTasks.filter(t => t.parent_name === pName);
+  index.html:1035:                        if (tasksInParent.length > 0) {
+  index.html:1036:                            const parentKey = `p_${pNum}_${pName}`;
+  index.html:1037:                            let minStart = null;
+  index.html:1038:                            let maxEnd = null;
+  index.html:1039:                            tasksInParent.forEach(t => {
+  index.html:1040:                                assignedTaskIds.add(t.id);
+  index.html:1041:                                const start = new Date(t.start_date);
+  index.html:1042:                                const end = gantt.calculateEndDate(start, t.duration);
+  index.html:1043:                                if (!minStart || start < minStart) minStart = start;
+  index.html:1044:                                if (!maxEnd || end > maxEnd) maxEnd = end;
+  index.html:1045:                            });
+  index.html:1046:                            if (!parentsMap[parentKey]) {
+  index.html:1047:                                parentsMap[parentKey] = { id: parentKey, text: pName, project_number:
+ pNum, machine: tasksInParent[0].machine, major_item: tasksInParent[0].major_item, customer_name: tasksInParent[0].cust
+omer_name, project_details: tasksInParent[0].project_details, start_date: minStart, end_date: maxEnd, open: false, type
+: "project", $virtual: true };
+  index.html:1048:                                tasksWithHierarchy.push(parentsMap[parentKey]);
+  index.html:1049:                            }
+  index.html:1050:                            tasksInParent.forEach(t => { t.parent = parentKey; tasksWithHierarchy.pus
+h(t); });
+  index.html:1051:                        }
+  index.html:1052:                    });
+  index.html:1053:
+  index.html:1054:                    // 見出し行がない（parentOrderに含まれない）タスクを「その他」または工事番号直下に表示
+  index.html:1055:                    const unassignedTasks = projectTasks.filter(t => !assignedTaskIds.has(t.id));
+  index.html:1056:                    if (unassignedTasks.length > 0) {
+  index.html:1057:                        const parentKey = `p_${pNum}_other`;
+  index.html:1058:                        let minStart = null;
+  index.html:1059:                        let maxEnd = null;
+  index.html:1060:                        unassignedTasks.forEach(t => {
+  index.html:1061:                            const start = new Date(t.start_date);
+  index.html:1062:                            const end = gantt.calculateEndDate(start, t.duration);
+  index.html:1063:                            if (!minStart || start < minStart) minStart = start;
+  index.html:1064:                            if (!maxEnd || end > maxEnd) maxEnd = end;
+  index.html:1065:                        });
+  index.html:1066:                        
+  index.html:1067:                        if (!parentsMap[parentKey]) {
+  index.html:1068:                            parentsMap[parentKey] = { 
+  index.html:1069:                                id: parentKey, 
+  index.html:1070:                                text: "", // タスク名（見出し名）の部分を空白に
+  index.html:1071:                                project_number: pNum, 
+  index.html:1072:                                machine: unassignedTasks[0].machine, 
+  index.html:1073:                                major_item: "", 
+  index.html:1074:                                customer_name: unassignedTasks[0].customer_name, 
+  index.html:1075:                                project_details: unassignedTasks[0].project_details, 
+  index.html:1076:                                start_date: minStart, 
+  index.html:1077:                                end_date: maxEnd, 
+  index.html:1078:                                open: false, 
+  index.html:1079:                                type: "project", 
+  index.html:1080:                                $virtual: true 
+  index.html:1081:                            };
+  index.html:1082:                            tasksWithHierarchy.push(parentsMap[parentKey]);
+  index.html:1083:                        }
+  index.html:1084:                        unassignedTasks.forEach(t => { 
+  index.html:1085:                            t.parent = parentKey; 
+  index.html:1086:                            tasksWithHierarchy.push(t); 
+  index.html:1087:                        });
+  index.html:1088:                    }
+  index.html:1089:                });
+  index.html:1090:            }
+  index.html:1091:
+  index.html:1092:            updateProjectList(rawTasks);
+  index.html:1093:            window.allTasks = rawTasks;
+  index.html:1094:            gantt.clearAll();
+  index.html:1095:            gantt.parse({ data: tasksWithHierarchy });
+  index.html:1096:            gantt.config.start_date = new Date(GANTT_START_DATE.getTime());
+  index.html:1097:            gantt.config.end_date = new Date(GANTT_END_DATE.getTime());
+  index.html:1098:            gantt.render();
+  index.html:1099:            scrollToToday();
+  index.html:1100:            var inp = document.getElementById('resource_owner_input');
+  index.html:1101:            if (inp && inp.value.trim()) showResourceViewByOwner(inp.value);
+  index.html:1102:        }
+  index.html:1103:
+  index.html:1104:        function scrollToToday() {
+  index.html:1105:            const pos = gantt.posFromDate(new Date());
+  index.html:1106:            gantt.scrollTo(pos - 200, null);
+  index.html:1107:        }
+  index.html:1108:
+  index.html:1109:        function resetFilter() { location.reload(); }
+  index.html:1110:
+  index.html:1111:        function setDisplayMode(mode) {
+  index.html:1112:            currentDisplayMode = mode;
+  index.html:1113:            document.getElementById('sort_process_btn').classList.toggle('active', mode === 'process'
+);
+  index.html:1114:            document.getElementById('sort_machine_btn').classList.toggle('active', mode === 'machine'
+);
+  index.html:1115:            
+  index.html:1116:            // 列の更新
+  index.html:1117:            updateGanttColumns();
+  index.html:1118:            
+  index.html:1119:            // データの再読み込みと再描画
+  index.html:1120:            fetchTasks();
+  index.html:1121:        }
+  index.html:1122:
+  index.html:1123:        function updateGanttColumns() {
+  index.html:1124:            if (currentDisplayMode === 'machine') {
+  index.html:1125:                // 機械別：工事番号、機械、ユニット、タスク名、担当、開始日、終了日
+  index.html:1126:                gantt.config.columns = [
+  index.html:1127:                    { name: "project_number", label: "工事番号", width: COLUMN_WIDTHS[0], align: "center"
+, template: function(obj) {
+  index.html:1128:                        return obj.project_number || "";
+  index.html:1129:                    }},
+  index.html:1130:                    { name: "machine", label: "機械", width: COLUMN_WIDTHS[2], align: "center", templat
+e: function(obj) {
+  index.html:1131:                        if (obj.$virtual) return "";
+  index.html:1132:                        return obj.machine || "";
+  index.html:1133:                    }},
+  index.html:1134:                    { name: "unit", label: "ユニット", width: COLUMN_WIDTHS[3], align: "center", template
+: function(obj) {
+  index.html:1135:                        if (obj.$virtual) return "";
+  index.html:1136:                        return obj.unit || "";
+  index.html:1137:                    }},
+  index.html:1138:                    { name: "text", label: "タスク名", width: COLUMN_WIDTHS[1], tree: true, template: fun
+ction(obj) {
+  index.html:1139:                        return obj.text;
+  index.html:1140:                    }},
+  index.html:1141:                    { name: "owner", label: "担当", width: COLUMN_WIDTHS[4], align: "left", template: f
+unction(obj) {
+  index.html:1142:                        if (obj.$virtual || !obj.owner) return "";
+  index.html:1143:                        return obj.owner.replace(/\d+/g, "");
+  index.html:1144:                    }},
+  index.html:1145:                    { name: "start_date", label: "開始日", width: COLUMN_WIDTHS[5], align: "center", tem
+plate: function(t) {
+  index.html:1146:                        return dateToDisplay(t.start_date);
+  index.html:1147:                    }},
+  index.html:1148:                    { name: "end_date", label: "終了日", width: COLUMN_WIDTHS[6], align: "center", templ
+ate: function(t) {
+  index.html:1149:                        return dateToDisplay(gantt.calculateEndDate(t.start_date, t.duration));
+  index.html:1150:                    }},
+  index.html:1151:                    { name: "add", label: "", width: COLUMN_WIDTHS[7] }
+  index.html:1152:                ];
+  index.html:1153:            } else {
+  index.html:1154:                // 工程別（デフォルト）：工事番号、タスク名、機械、ユニット、担当、開始日、終了日
+  index.html:1155:                gantt.config.columns = SHARED_COLUMNS;
+  index.html:1156:            }
+  index.html:1157:            gantt.render();
+  index.html:1158:        }
+  index.html:1159:
+  index.html:1160:        function updateProjectList(tasks) {
+  index.html:1161:            const listEl = document.getElementById('project_list');
+  index.html:1162:            const projectInfoMap = {};
+  index.html:1163:            tasks.forEach(t => { if (t.project_number && !projectInfoMap[t.project_number]) projectIn
+foMap[t.project_number] = { customer: t.customer_name || "", details: t.project_details || "" }; });
+  index.html:1164:            const projects = Object.keys(projectInfoMap).sort();
+  index.html:1165:            listEl.innerHTML = "";
+  index.html:1166:            let tooltip = document.getElementById('custom_project_tooltip') || document.createElement
+('div');
+  index.html:1167:            tooltip.id = 'custom_project_tooltip'; tooltip.className = 'custom-tooltip'; document.bod
+y.appendChild(tooltip);
+  index.html:1168:            projects.forEach(p => {
+  index.html:1169:                const item = document.createElement('div');
+  index.html:1170:                item.className = `project-item ${currentFilter === p ? 'active' : ''}`;
+  index.html:1171:                item.innerText = p;
+  index.html:1172:                const info = projectInfoMap[p];
+  index.html:1173:                if (info.customer || info.details) {
+  index.html:1174:                    item.onmouseenter = (e) => {
+  index.html:1175:                        tooltip.innerText = `${info.customer}\n${info.details}`.trim();
+  index.html:1176:                        tooltip.style.display = 'block';
+  index.html:1177:                        
+  index.html:1178:                        // ボタンの位置を取得
+  index.html:1179:                        const rect = item.getBoundingClientRect();
+  index.html:1180:                        let x = rect.right + 10; // ボタンの右側に10pxの隙間
+  index.html:1181:                        let y = rect.top;        // 基本はボタンの上端に合わせる
+  index.html:1182:                        
+  index.html:1183:                        // 画面下端で見切れる場合の調整
+  index.html:1184:                        const tooltipHeight = tooltip.offsetHeight;
+  index.html:1185:                        const windowHeight = window.innerHeight;
+  index.html:1186:                        
+  index.html:1187:                        if (y + tooltipHeight > windowHeight) {
+  index.html:1188:                            // 下に見切れる場合は、吹き出しの下端が画面下から10pxの位置に来るように上げる
+  index.html:1189:                            y = windowHeight - tooltipHeight - 10;
+  index.html:1190:                        }
+  index.html:1191:                        
+  index.html:1192:                        tooltip.style.left = x + 'px';
+  index.html:1193:                        tooltip.style.top = y + 'px';
+  index.html:1194:                    };
+  index.html:1195:                    item.onmouseleave = () => tooltip.style.display = 'none';
+  index.html:1196:                }
+  index.html:1197:                item.onclick = () => filterByProject(p);
+  index.html:1198:                listEl.appendChild(item);
+  index.html:1199:            });
+  index.html:1200:        }
+  index.html:1201:
+  index.html:1202:        function filterByProject(p) { currentFilter = (currentFilter === p) ? null : p; gantt.render(
+); updateProjectList(window.allTasks); }
+  index.html:1203:        function filterByMajorItem(major, btn) { currentMajorFilter = (currentMajorFilter === major) 
+? null : major; document.querySelectorAll('.major-filter-btn').forEach(b => b.classList.toggle('active', b.innerText ==
+= major && currentMajorFilter)); gantt.render(); }
+  index.html:1204:        async function filterByOwner(val) { currentOwnerFilter = (val || "").trim(); gantt.render(); 
+}
+  index.html:1205:        function filterByMachine(val) { currentMachineFilter = val; gantt.render(); }
+  index.html:1206:
+  index.html:1207:        document.getElementById('resource_close_btn').addEventListener('click', closeResourcePanel);
+  index.html:1208:        fetchTasks();
+  index.html:1209:    </script>
+  index.html:1210:</body>
+  index.html:1211:</html>
+
+
