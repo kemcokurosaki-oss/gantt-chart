@@ -112,8 +112,24 @@
             text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
         }
         
-        /* バー内の文字色（白文字に統一） */
-        .gantt_task_content { color: #fff !important; font-weight: bold; text-shadow: 1px 1px 2px rgba(0,0,0,0.3); }
+        /* バー内の文字色（少し薄いグレーに影付きに統一） */
+        .gantt_task_content { 
+            color: #555 !important; 
+            font-weight: bold; 
+            text-shadow: 0.5px 0.5px 1px rgba(255,255,255,0.8) !important; 
+        }
+
+        /* 2000番台以外の見出し行の文字色（白に戻す） */
+        .header-non-2000s .gantt_task_content {
+            color: #fff !important;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3) !important;
+        }
+        
+        /* 2000番台のバー内の文字色（共通設定を使用するため削除または維持） */
+        .task-2000s .gantt_task_content { 
+            color: #555 !important; 
+            text-shadow: 0.5px 0.5px 1px rgba(255,255,255,0.8) !important; 
+        }
 
         /* 開始日リサイズハンドル（バー左の三角）を表示・有効化（終了日同様に変更可能にする） */
         .gantt_task_drag[data-bind-property="start_date"] {
@@ -199,6 +215,9 @@
             border-bottom: 1px solid #e0e0e0;
         }
         .resource-item:last-child { border-bottom: none; }
+        .resource-item.clickable:hover { background-color: #ebf5ff !important; }
+        .resource-item.clickable:hover .resource-grid-container { background-color: #ebf5ff !important; }
+        .resource-item.clickable:hover .resource-timeline { background-color: #ebf5ff !important; }
         /* 下段グリッド：上段と同じ列幅（GRID_WIDTH=699）でカレンダー開始位置を一致・横スクロール時も固定 */
         .resource-grid-container {
             width: 699px;
@@ -386,6 +405,15 @@
                 <span style="font-size: 12px; color: #666; margin-right: 5px;">表示順：</span>
                 <button id="sort_process_btn" class="zoom-btn active" onclick="setDisplayMode('process')">工程別</button>
                 <button id="sort_machine_btn" class="zoom-btn" onclick="setDisplayMode('machine')">機械別</button>
+                
+                <div style="margin-left:auto; display:flex; align-items:center; gap:10px; font-size: 13px;">
+                    <span>表示切替:</span>
+                    <button class="zoom-btn" style="font-size: 13px;" onclick="setZoom('days')">日単位</button>
+                    <button class="zoom-btn" style="font-size: 13px;" onclick="setZoom('weeks')">週単位</button>
+                    <button class="zoom-btn" onclick="scrollToToday()" style="background-color: #ebf5ff; border-color: #3498db; color: #3498db; font-size: 13px;">今日へ移動</button>
+                    <span id="filter_status" style="font-weight:bold; color:#3498db; font-size: 13px;">全工程を表示中</span>
+                    <button class="zoom-btn" style="font-size: 13px;" onclick="resetFilter()">表示リセット</button>
+                </div>
             </div>
         </div>
 
@@ -414,15 +442,13 @@
             <div class="filter-group">
                 <span>リソース（担当者）:</span>
                 <input type="text" id="resource_owner_input" placeholder="担当名を入力..." style="width:120px; padding:3px; border:1px solid #ccc; border-radius:3px; font-size:12px;" oninput="showResourceViewByOwner(this.value)">
-            </div>
-
-            <div style="margin-left:auto; display:flex; align-items:center; gap:10px;">
-                <span>表示切替:</span>
-                <button class="zoom-btn" onclick="setZoom('days')">日単位</button>
-                <button class="zoom-btn" onclick="setZoom('weeks')">週単位</button>
-                <button class="zoom-btn" onclick="scrollToToday()" style="background-color: #ebf5ff; border-color: #3498db; color: #3498db;">今日へ移動</button>
-                <span id="filter_status" style="font-weight:bold; color:#3498db;">全工程を表示中</span>
-                <button class="zoom-btn" onclick="resetFilter()">表示リセット</button>
+                <button class="zoom-btn resource-dept-btn" onclick="filterByDepartment('営業', this)">営業</button>
+                <button class="zoom-btn resource-dept-btn" onclick="filterByDepartment('設計', this)">設計</button>
+                <button class="zoom-btn resource-dept-btn" onclick="filterByDepartment('製管', this)">製管</button>
+                <button class="zoom-btn resource-dept-btn" onclick="filterByDepartment('組立', this)">組立</button>
+                <button class="zoom-btn resource-dept-btn" onclick="filterByDepartment('電装', this)">電装</button>
+                <button class="zoom-btn resource-dept-btn" onclick="filterByDepartment('品証', this)">品証</button>
+                <button class="zoom-btn resource-dept-btn" onclick="filterByDepartment('操業', this)">操業</button>
             </div>
         </div>
 
@@ -459,6 +485,9 @@
         let currentFilter = null;
         let currentMajorFilter = null;
         let currentDisplayMode = 'process'; // 'process' or 'machine'
+        let currentResourceMode = 'individual'; // 'individual' か 'dept'
+        let lastDeptName = ''; 
+        let lastOwnerName = '';
         let currentOwnerFilter = "";
         let currentOwnerFilterNoData = false; // tasks と task_template の両方に該当がないとき true
         let currentMachineFilter = "";
@@ -620,17 +649,8 @@
                 await Promise.all(promises);
                 console.log("Sort order saved successfully");
                 
-                // window.allTasks の sort_order を更新して整合性を保つ
-                tasks.forEach(t => {
-                    const task = window.allTasks.find(at => at.id === t.id);
-                    if (task) {
-                        if (currentDisplayMode === 'machine') {
-                            task.sort_order_machine = t.sort_order_machine;
-                        } else {
-                            task.sort_order = t.sort_order;
-                        }
-                    }
-                });
+                // 常に最新のSupabaseデータを反映するため、データを再取得して allTasks と画面を更新
+                await fetchTasks();
             } catch (error) {
                 console.error("Error saving sort order:", error);
                 alert("並び順の保存に失敗しました。");
@@ -662,8 +682,8 @@
                 console.error("Update error:", error);
                 alert("保存に失敗しました。");
             } else {
-                // 成功したらリソース画面なども更新
-                fetchTasks();
+                // 成功したらデータを再取得して allTasks と画面を更新
+                await fetchTasks();
             }
         });
 
@@ -680,8 +700,8 @@
                 console.error("Delete error:", error);
                 alert("削除に失敗しました。");
             } else {
-                // 成功したらデータを再取得して画面を更新
-                fetchTasks();
+                // 成功したらデータを再取得して allTasks と画面を更新
+                await fetchTasks();
             }
         });
 
@@ -734,21 +754,57 @@
         gantt.addMarker({ start_date: new Date(), css: "today-line", text: "今日" });
 
         // 業務別カラー
+        gantt.templates.task_text = function(start, end, task) {
+            const projectNumber = (task.project_number || "").toString();
+            const is2000s = projectNumber.startsWith('2');
+
+            if (task.$virtual) {
+                // 見出し行
+                if (is2000s) {
+                    return task.text; // 2000番台は工程名を表示
+                } else {
+                    return projectNumber; // それ以外は工事番号を表示
+                }
+            }
+
+            // 子タスク
+            if (is2000s) {
+                // 2000番台：機械名とユニット名を表示
+                const machine = task.machine || "";
+                const unit = task.unit || "";
+                if (machine && unit) return `${machine} - ${unit}`;
+                return machine || unit || task.text;
+            } else {
+                // それ以外：タスク名を表示
+                return task.text;
+            }
+        };
+
         gantt.templates.task_class = function(start, end, task) {
-            if (task.text === "外観検査") return "milestone-circle";
-            if (task.text === "出荷確認会議") return "milestone-diamond";
-            if (task.text === "工場出荷") return "milestone-star";
+            const projectNumber = (task.project_number || "").toString();
+            const is2000s = projectNumber.startsWith('2');
+            let css = is2000s ? "task-2000s " : "";
+
+            // 2000番台以外の見出し行に特定のクラスを付与
+            if (task.$virtual && !is2000s) {
+                css += "header-non-2000s ";
+            }
+
+            if (task.text === "外観検査") return css + "milestone-circle";
+            if (task.text === "出荷確認会議") return css + "milestone-diamond";
+            if (task.text === "工場出荷") return css + "milestone-star";
 
             switch (task.major_item) {
-                case '設計': return "task-blue";
+                case '設計': css += "task-blue"; break;
                 case '製管':
-                case '品証': return "task-green";
-                case '組立': return "task-yellow";
-                case '電装': return "task-purple";
-                case '操業': return "task-red";
-                case '営業': return "task-orange";
-                default: return "";
+                case '品証': css += "task-green"; break;
+                case '組立': css += "task-yellow"; break;
+                case '電装': css += "task-purple"; break;
+                case '操業': css += "task-red"; break;
+                case '営業': css += "task-orange"; break;
+                default: break;
             }
+            return css;
         };
         
         gantt.templates.timeline_cell_class = (task, date) => (date.getDay() === 0 || date.getDay() === 6) ? "weekend" : "";
@@ -773,18 +829,157 @@
         gantt.init("gantt_here");
 
         // 入力した担当名 or 部署名で下段のみ絞り込み
-        function showResourceViewByOwner(ownerValue) {
-            const val = (ownerValue || "").trim();
+        let currentResourceDeptFilter = "";
+
+        function filterByDepartment(deptName, btn) {
+            currentResourceMode = 'dept';
+            lastDeptName = deptName;
+
+            // 1. 選択状態の管理
+            if (currentResourceDeptFilter === deptName && btn) { // btnがある場合のみトグル動作
+                currentResourceDeptFilter = "";
+                currentResourceMode = 'individual'; // 解除時はデフォルトに戻す
+            } else {
+                currentResourceDeptFilter = deptName;
+            }
+
+            // ボタンのアクティブ状態を更新
+            document.querySelectorAll('.resource-dept-btn').forEach(b => {
+                b.classList.toggle('active', b === btn && currentResourceDeptFilter !== "");
+            });
+
             const resourcePanel = document.getElementById("resource_panel");
             const ganttHere = document.getElementById("gantt_here");
 
-            if (val) {
-                currentResourceOwnerFilter = val;
+            if (!currentResourceDeptFilter) {
+                // 解除時はパネルを閉じる
+                if (resourcePanel) resourcePanel.style.display = "none";
+                if (ganttHere) ganttHere.style.height = "100%";
+                gantt.render();
+                return;
+            }
+
+            // 2. window.allTasks から major_item が deptName と一致するタスクを抽出
+            const deptTasks = (window.allTasks || []).filter(t => t.major_item === deptName);
+
+            // 3. 抽出したタスクから owner のリスト（重複なし）を生成
+            // 「・」「、」「,」で分割して個別の名前として抽出
+            const owners = [...new Set(deptTasks.flatMap(t => t.owner ? t.owner.split(/[、・,]/) : []))].filter(Boolean).sort();
+
+            // 4. リソースパネルを表示
+            if (resourcePanel) resourcePanel.style.display = "flex";
+            if (ganttHere) ganttHere.style.height = "calc(100% - 250px)";
+
+            // 5. renderDepartmentSummary(owners, deptName) を実行
+            renderDepartmentSummary(owners, deptName);
+            
+            gantt.render();
+        }
+
+        function renderDepartmentSummary(owners, deptName) {
+            const container = document.getElementById("resource_content_inner");
+            if (!container) return;
+            container.innerHTML = "";
+
+            if (owners.length === 0) {
+                container.innerHTML = `<div class="resource-placeholder">【${deptName}】に該当する担当タスクはありません</div>`;
+                return;
+            }
+
+            // スケール情報の取得
+            const scale = gantt.getScale();
+            const timelineWidth = scale.full_width;
+            const columnWidth = scale.col_width;
+            const totalWidth = GRID_WIDTH + timelineWidth;
+            const gridBackground = `repeating-linear-gradient(to right, transparent, transparent ${columnWidth - 1}px, #eee ${columnWidth - 1}px, #eee ${columnWidth}px)`;
+
+            let html = "";
+            
+            // ヘッダー行
+            html += `
+                <div class="resource-item resource-summary-header" style="display: flex; border-bottom: 1px solid #ddd; min-height: 30px; height: 30px; align-items: center; background: #f8f9fa; position: sticky; top: 0; left: 0; z-index: 10; width: ${totalWidth}px;">
+                    <div style="padding: 0 15px; font-weight: bold; color: #2c3e50; font-size: 12px; position: sticky; left: 0; background: inherit; height: 100%; display: flex; align-items: center; z-index: 11; white-space: nowrap;">
+                        部署：${deptName}（${owners.length}名）
+                    </div>
+                    <div style="position: sticky; right: 0; background: inherit; height: 100%; display: flex; align-items: center; padding-right: 10px; margin-left: auto; z-index: 11;">
+                        <button type="button" class="resource-header-close" onclick="closeResourcePanel()">×</button>
+                    </div>
+                </div>
+            `;
+
+            // 各担当者ごとの行を生成
+            owners.forEach(ownerName => {
+                // そのメンバーの名前が task.owner に「含まれている」かどうかで判定
+                const ownerTasks = window.allTasks.filter(t => t.owner && t.owner.includes(ownerName));
+                
+                html += `
+                    <div class="resource-item clickable" style="display: flex; border-bottom: 1px solid #eee; min-height: 26px; height: 26px; align-items: stretch; cursor: pointer;" onclick="showResourceViewByOwner('${ownerName.replace(/'/g, "\\'")}')">
+                        <div class="resource-grid-container" style="width: ${GRID_WIDTH}px; min-width: ${GRID_WIDTH}px; flex-shrink: 0; display: flex; border-right: 1px solid #ddd; background: #f9f9f9; position: sticky; left: 0; z-index: 1;">
+                            <div class="resource-cell" style="width: ${COLUMN_WIDTHS[0]}px; border-right: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold;">担当者</div>
+                            <div class="resource-cell" style="width: ${COLUMN_WIDTHS[1]}px; border-right: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; font-size: 11px; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${ownerName.replace(/\d+/g, "")}</div>
+                            <div class="resource-cell" style="flex: 1;"></div>
+                        </div>
+                        <div class="resource-timeline" style="width: ${timelineWidth}px; flex-shrink: 0; position: relative; background: #fff; background-image: ${gridBackground};">
+                            <div class="resource-cell-bars" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0;">
+                `;
+
+                // 担当者のタスクをタイムラインに描画
+                ownerTasks.forEach(t => {
+                    const start = new Date(t.start_date);
+                    const end = gantt.calculateEndDate(start, t.duration);
+                    const left = gantt.posFromDate(start);
+                    const right = gantt.posFromDate(end);
+                    const width = Math.max(2, right - left);
+                    const colorClass = getResourceTaskClass(t);
+
+                    html += `
+                        <div class="resource-cell-bar ${colorClass}" 
+                             style="position: absolute; top: 4px; height: 18px; left: ${left}px; width: ${width}px; border-radius: 3px; opacity: 0.8; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 10px; font-weight: bold; overflow: hidden; white-space: nowrap; text-shadow: 1px 1px 1px rgba(0,0,0,0.5);" 
+                             title="${t.text} (${t.project_number})">
+                             ${t.project_number || ""}
+                        </div>
+                    `;
+                });
+
+                html += `
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+            syncResourceScroll();
+        }
+
+        function showResourceViewByOwner(ownerValue) {
+            currentResourceMode = 'individual';
+            const finalOwner = ownerValue || document.getElementById("resource_owner_input")?.value || lastOwnerName;
+            lastOwnerName = finalOwner;
+
+            currentResourceDeptFilter = "";
+            currentResourceOwnerFilter = (finalOwner || "").trim();
+            
+            // 入力欄も更新（数字を除去して名前のみ表示）
+            const inp = document.getElementById("resource_owner_input");
+            if (inp) inp.value = currentResourceOwnerFilter.replace(/\d+/g, "");
+            
+            // 担当者入力時は部署ボタンのアクティブを解除
+            document.querySelectorAll('.resource-dept-btn').forEach(b => b.classList.remove('active'));
+            
+            updateResourceVisibility();
+        }
+
+        function updateResourceVisibility() {
+            const resourcePanel = document.getElementById("resource_panel");
+            const ganttHere = document.getElementById("gantt_here");
+            const hasFilter = currentResourceOwnerFilter || currentResourceDeptFilter;
+
+            if (hasFilter) {
                 if (resourcePanel) resourcePanel.style.display = "flex";
                 if (ganttHere) ganttHere.style.height = "calc(100% - 250px)";
                 renderResourceTimeline();
             } else {
-                currentResourceOwnerFilter = "";
                 if (resourcePanel) resourcePanel.style.display = "none";
                 if (ganttHere) ganttHere.style.height = "100%";
             }
@@ -795,7 +990,9 @@
         function closeResourcePanel() {
             const inp = document.getElementById("resource_owner_input");
             if (inp) inp.value = "";
-            showResourceViewByOwner("");
+            currentResourceOwnerFilter = "";
+            currentResourceDeptFilter = "";
+            updateResourceVisibility();
         }
 
         // リソース画面の描画処理
@@ -803,18 +1000,22 @@
             const container = document.getElementById("resource_content_inner");
             if (!container) return;
 
-            if (!currentResourceOwnerFilter) {
-                container.innerHTML = '<div class="resource-placeholder">担当者を入力してリソース状況を表示</div>';
+            if (!currentResourceOwnerFilter && !currentResourceDeptFilter) {
+                container.innerHTML = '<div class="resource-placeholder">担当者または部署を選択してリソース状況を表示</div>';
                 return;
             }
 
             // window.allTasks からフィルタリング
-            const filteredTasks = (window.allTasks || []).filter(t => 
-                t.owner && t.owner.toLowerCase().includes(currentResourceOwnerFilter.toLowerCase())
-            );
+            const filteredTasks = (window.allTasks || []).filter(t => {
+                if (currentResourceDeptFilter) {
+                    return t.major_item === currentResourceDeptFilter;
+                }
+                // 個人詳細画面を表示する際も、完全一致ではなく、その名前が含まれているタスクをすべて抽出
+                return t.owner && t.owner.toLowerCase().includes(currentResourceOwnerFilter.toLowerCase());
+            });
 
             if (filteredTasks.length === 0) {
-                container.innerHTML = '<div class="resource-placeholder">該当する担当者のタスクはありません</div>';
+                container.innerHTML = `<div class="resource-placeholder">該当する${currentResourceDeptFilter ? '部署' : '担当者'}のタスクはありません</div>`;
                 return;
             }
 
@@ -850,10 +1051,11 @@
             let html = "";
             
             // 担当者名とタスク件数を表示する固定ヘッダー行
+            const filterTitle = currentResourceDeptFilter ? `部署：${currentResourceDeptFilter}` : `担当：${currentResourceOwnerFilter}`;
             html += `
                 <div class="resource-item resource-summary-header" style="display: flex; border-bottom: 1px solid #ddd; min-height: 30px; height: 30px; align-items: center; background: #f8f9fa; position: sticky; top: 0; left: 0; z-index: 10; width: ${totalWidth}px;">
                     <div style="padding: 0 15px; font-weight: bold; color: #2c3e50; font-size: 12px; position: sticky; left: 0; background: inherit; height: 100%; display: flex; align-items: center; z-index: 11; white-space: nowrap;">
-                        【${currentResourceOwnerFilter}】のタスク　${filteredTasks.length}件
+                        【${filterTitle}】のタスク　${filteredTasks.length}件
                     </div>
                     <div style="position: sticky; right: 0; background: inherit; height: 100%; display: flex; align-items: center; padding-right: 10px; margin-left: auto; z-index: 11;">
                         <button type="button" class="resource-header-close" onclick="closeResourcePanel()">×</button>
@@ -917,7 +1119,13 @@
             gantt.config.end_date = new Date(GANTT_END_DATE.getTime());
             gantt.config.fit_tasks = false;
             gantt.render();
-            renderResourceTimeline();
+            
+            if (currentResourceMode === 'dept' && lastDeptName) {
+                filterByDepartment(lastDeptName);
+            } else {
+                const owner = document.getElementById("resource_owner_input")?.value || lastOwnerName;
+                if (owner) showResourceViewByOwner(owner);
+            }
         }
 
         function syncResourceScroll() {
@@ -968,6 +1176,9 @@
                 customer_name: t.customer_name || "",
                 project_details: t.project_details || ""
             }));
+
+            // グローバルな allTasks を常に最新のデータで更新
+            window.allTasks = rawTasks;
 
             const parentOrder = ["受注", "基本設計＆計画承認", "長納期品手配", "出図＆部品手配", "電気設計", "盤組立", "組立全体", "外観検査", "タスクリスト作成", "試運転", "客先立会", "出荷確認会議", "出荷準備", "出荷", "現地工事"];
             const tasksWithHierarchy = [];
@@ -1108,15 +1319,17 @@
             }
 
             updateProjectList(rawTasks);
-            window.allTasks = rawTasks;
             gantt.clearAll();
             gantt.parse({ data: tasksWithHierarchy });
             gantt.config.start_date = new Date(GANTT_START_DATE.getTime());
             gantt.config.end_date = new Date(GANTT_END_DATE.getTime());
             gantt.render();
             scrollToToday();
-            var inp = document.getElementById('resource_owner_input');
-            if (inp && inp.value.trim()) showResourceViewByOwner(inp.value);
+            
+            // リソース画面が表示されている場合は、最新の allTasks で再描画
+            if (currentResourceOwnerFilter || currentResourceDeptFilter) {
+                renderResourceTimeline();
+            }
         }
 
         function scrollToToday() {
