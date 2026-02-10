@@ -1027,6 +1027,9 @@
                 // 工程別（従来通り）：工事番号 -> 大項目（工程） でまとめる
                 projects.forEach(pNum => {
                     const projectTasks = rawTasks.filter(t => t.project_number === pNum);
+                    
+                    // 定義済みの見出し（parentOrder）に含まれるタスクを処理
+                    const assignedTaskIds = new Set();
                     parentOrder.forEach(pName => {
                         const tasksInParent = projectTasks.filter(t => t.parent_name === pName);
                         if (tasksInParent.length > 0) {
@@ -1034,6 +1037,7 @@
                             let minStart = null;
                             let maxEnd = null;
                             tasksInParent.forEach(t => {
+                                assignedTaskIds.add(t.id);
                                 const start = new Date(t.start_date);
                                 const end = gantt.calculateEndDate(start, t.duration);
                                 if (!minStart || start < minStart) minStart = start;
@@ -1046,6 +1050,42 @@
                             tasksInParent.forEach(t => { t.parent = parentKey; tasksWithHierarchy.push(t); });
                         }
                     });
+
+                    // 見出し行がない（parentOrderに含まれない）タスクを「その他」または工事番号直下に表示
+                    const unassignedTasks = projectTasks.filter(t => !assignedTaskIds.has(t.id));
+                    if (unassignedTasks.length > 0) {
+                        const parentKey = `p_${pNum}_other`;
+                        let minStart = null;
+                        let maxEnd = null;
+                        unassignedTasks.forEach(t => {
+                            const start = new Date(t.start_date);
+                            const end = gantt.calculateEndDate(start, t.duration);
+                            if (!minStart || start < minStart) minStart = start;
+                            if (!maxEnd || end > maxEnd) maxEnd = end;
+                        });
+                        
+                        if (!parentsMap[parentKey]) {
+                            parentsMap[parentKey] = { 
+                                id: parentKey, 
+                                text: "", // タスク名（見出し名）の部分を空白に
+                                project_number: pNum, 
+                                machine: unassignedTasks[0].machine, 
+                                major_item: "", 
+                                customer_name: unassignedTasks[0].customer_name, 
+                                project_details: unassignedTasks[0].project_details, 
+                                start_date: minStart, 
+                                end_date: maxEnd, 
+                                open: false, 
+                                type: "project", 
+                                $virtual: true 
+                            };
+                            tasksWithHierarchy.push(parentsMap[parentKey]);
+                        }
+                        unassignedTasks.forEach(t => { 
+                            t.parent = parentKey; 
+                            tasksWithHierarchy.push(t); 
+                        });
+                    }
                 });
             }
 
