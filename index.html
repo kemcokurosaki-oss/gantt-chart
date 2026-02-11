@@ -10,24 +10,25 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
-        html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: "メイリオ", sans-serif; }
+        html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: "メイリオ", sans-serif; font-size: 13px; }
         .main-container { display: flex; flex-direction: column; height: 100vh; }
-        .header-panel { background: #fff; padding: 10px 15px; border-bottom: 1px solid #ccc; display: flex; flex-direction: column; gap: 8px; }
-        .input-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-        .input-row input { padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; }
-        .btn-add { padding: 6px 15px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .header-panel { background: #fff; padding: 5px 10px; border-bottom: 1px solid #ccc; display: flex; flex-direction: column; gap: 4px; }
+        .input-row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+        .input-row input { padding: 4px 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; }
+        .btn-add { padding: 4px 12px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 12px; }
         .content-area { display: flex; flex: 1; overflow: hidden; }
         .sidebar { width: 100px; background: #2c3e50; color: #ecf0f1; display: flex; flex-direction: column; border-right: 1px solid #1a252f; }
-        .sidebar-title { padding: 10px; font-weight: bold; background: #1a252f; font-size: 13px; cursor: pointer; transition: 0.2s; }
+        .sidebar-title { padding: 8px; font-weight: bold; background: #1a252f; font-size: 12px; cursor: pointer; transition: 0.2s; }
         .sidebar-title:hover { background: #34495e; }
         .project-list { flex: 1; overflow-y: auto; }
-        .project-item { padding: 8px 10px; border-bottom: 1px solid #34495e; cursor: pointer; font-size: 14px; transition: 0.2s; font-weight: bold; }
+        .project-item { padding: 6px 8px; border-bottom: 1px solid #34495e; cursor: pointer; font-size: 12px; transition: 0.2s; font-weight: bold; }
         .project-item:hover { background: #34495e; }
         .project-item.active { background: #3498db; color: white; border-left: 5px solid #fff; }
         .chart-container { flex: 1; display: flex; flex-direction: column; background: #fff; position: relative; overflow: hidden; }
 
         /* ライトボックスの期間選択を年月日の順に並び替え */
-        .gantt_section_time { display: flex !important; flex-wrap: wrap; align-items: center; gap: 5px; }
+        .gantt_section_time { display: flex !important; flex-wrap: wrap; align-items: center; gap: 5px; font-size: 12px; }
+        .gantt_section_time select { padding: 2px; font-size: 12px; }
         .gantt_section_time select:nth-of-type(1) { order: 3; } /* 日 */
         .gantt_section_time select:nth-of-type(2) { order: 2; } /* 月 */
         .gantt_section_time select:nth-of-type(3) { order: 1; } /* 年 */
@@ -35,26 +36,26 @@
 
         .gantt-layout-container { display: flex; flex-direction: column; flex: 1; min-height: 0; width: 100%; }
         #gantt_here { flex: 1; min-height: 0; width: 100%; }
-        .resource-header-bar { background: #f8f9fa; padding: 5px 15px; font-weight: bold; font-size: 12px; color: #2c3e50; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #ddd; border-top: 1px solid #ddd; }
+        .resource-header-bar { background: #f8f9fa; padding: 4px 12px; font-weight: bold; font-size: 11px; color: #2c3e50; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #ddd; border-top: 1px solid #ddd; }
         /* リソース行の直上に配置したときの固定表示（伸縮しない） */
         .resource-header-bar-fixed { flex: 0 0 auto !important; flex-shrink: 0 !important; z-index: 10; }
-        .gantt_layout_resource_row { min-height: 120px; }
+        .gantt_layout_resource_row { min-height: 100px; }
         .gantt_layout_resource_row.gantt_layout_row_hidden { display: none !important; }
         /* 初期・閉じた時：下段とその上のリサイザーを非表示にして上段を100%に */
         .resource-panel-closed .gantt_resource_resizer_row,
         .resource-panel-closed .gantt_layout_resource_row { display: none !important; height: 0 !important; min-height: 0 !important; overflow: hidden !important; }
         /* リソース行：1行内で複数タスクをオーバーラップ表示 */
         .resource-cell-overlap { position: relative; }
-        .resource-cell-bars { position: relative; width: 100%; height: 100%; min-height: 18px; }
-        .resource-cell-bar { position: absolute; top: 1px; height: 14px; min-width: 4px; border-radius: 2px; opacity: 0.85; }
+        .resource-cell-bars { position: relative; width: 100%; height: 100%; min-height: 16px; }
+        .resource-cell-bar { position: absolute; top: 1px; height: 12px; min-width: 4px; border-radius: 2px; opacity: 0.85; }
         /* 下段リソース：左グリッド・右タイムラインのヘッダー（タイトル行）を完全非表示し、1行目からデータが同じ高さで始まるようにする */
         .gantt_layout_resource_row .gantt_grid_scale,
         .gantt_layout_resource_row .gantt_grid_head,
         .gantt_layout_resource_row .gantt_grid_head_row,
         .gantt_layout_resource_row .gantt_scale,
         .gantt_layout_resource_row .gantt_scale_line { display: none !important; height: 0 !important; min-height: 0 !important; overflow: hidden !important; }
-        .toolbar { background: #f8f9fa; padding: 5px 15px; border-bottom: 1px solid #ddd; display: flex; gap: 10px; align-items: center; font-size: 12px; }
-        .zoom-btn { padding: 3px 10px; cursor: pointer; background: #fff; border: 1px solid #ccc; border-radius: 3px; }
+        .toolbar { background: #f8f9fa; padding: 4px 12px; border-bottom: 1px solid #ddd; display: flex; gap: 8px; align-items: center; font-size: 11px; }
+        .zoom-btn { padding: 2px 8px; cursor: pointer; background: #fff; border: 1px solid #ccc; border-radius: 3px; font-size: 12px; }
         .zoom-btn.active { background-color: #3498db; color: #fff; border-color: #3498db; }
         
         .weekend { background: #f4f4f4 !important; } /* 土日：元の薄いグレー */
@@ -62,7 +63,7 @@
         .gantt_group_row { background-color: #f0f7ff !important; font-weight: bold !important; } /* 見出し行：さらに薄いスカイブルー */
         
         /* カレンダーの年月を中央揃えにする */
-        .gantt_scale_cell { text-align: center !important; }
+        .gantt_scale_cell { text-align: center !important; font-size: 12px; }
         
         /* 業務別カラー設定（中程度のパステル調） */
         .task-blue, .gantt_project.task-blue { background-color: #85C1E9 !important; border-color: #5DADE2 !important; }
@@ -78,7 +79,7 @@
         .milestone-circle::before {
             content: "●";
             color: #d32f2f; /* 濃い赤 */
-            font-size: 26px;
+            font-size: 22px;
             position: absolute;
             left: 50%;
             top: 50%;
@@ -91,7 +92,7 @@
         .milestone-diamond::before {
             content: "◆";
             color: #1976D2; /* 濃い青 */
-            font-size: 28px;
+            font-size: 24px;
             position: absolute;
             left: 50%;
             top: 50%;
@@ -104,7 +105,7 @@
         .milestone-star::before {
             content: "★";
             color: #2E7D32; /* 濃い緑 */
-            font-size: 30px;
+            font-size: 26px;
             position: absolute;
             left: 50%;
             top: 50%;
@@ -116,6 +117,7 @@
         .gantt_task_content { 
             color: #555 !important; 
             font-weight: bold; 
+            font-size: 11px;
             text-shadow: 0.5px 0.5px 1px rgba(255,255,255,0.8) !important; 
         }
 
@@ -124,11 +126,23 @@
             color: #fff !important;
             text-shadow: 1px 1px 2px rgba(0,0,0,0.3) !important;
         }
+
+        /* 2000番台の見出し行の文字色（白にする） */
+        .header-2000s .gantt_task_content {
+            color: #fff !important;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3) !important;
+        }
         
         /* 2000番台のバー内の文字色（共通設定を使用するため削除または維持） */
         .task-2000s .gantt_task_content { 
             color: #555 !important; 
             text-shadow: 0.5px 0.5px 1px rgba(255,255,255,0.8) !important; 
+        }
+
+        /* 2000番台の見出し行（header-2000s）の場合は白文字を優先 */
+        .task-2000s.header-2000s .gantt_task_content {
+            color: #fff !important;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3) !important;
         }
 
         /* 開始日リサイズハンドル（バー左の三角）を表示・有効化（終了日同様に変更可能にする） */
@@ -140,10 +154,10 @@
 
         .filter-group {
             display: flex;
-            gap: 5px;
+            gap: 4px;
             align-items: center;
-            margin-left: 10px;
-            padding-left: 10px;
+            margin-left: 8px;
+            padding-left: 8px;
             border-left: 1px solid #ccc;
         }
 
@@ -155,24 +169,24 @@
             backdrop-filter: blur(4px); /* 背景を少しぼかして文字を読みやすく */
             -webkit-backdrop-filter: blur(4px);
             color: #fff;
-            padding: 8px 12px;
-            border-radius: 8px;
-            font-size: 13px;
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 12px;
             font-weight: bold;
             z-index: 10000;
             pointer-events: none;
             box-shadow: 0 4px 12px rgba(0,0,0,0.3);
             white-space: pre-line;
-            line-height: 1.5;
+            line-height: 1.4;
             border: 1px solid rgba(255,255,255,0.2);
         }
 
         /* リソース（下段）＝全体工程表と同じデザイン・土日・今日線を一直線に */
         .resource-header {
             background: #f8f9fa;
-            padding: 5px 15px;
+            padding: 4px 12px;
             font-weight: bold;
-            font-size: 12px;
+            font-size: 11px;
             color: #2c3e50;
             display: flex;
             justify-content: space-between;
@@ -180,12 +194,12 @@
             border-bottom: 1px solid #ddd;
         }
         .resource-header-close {
-            margin-left: 8px;
-            padding: 2px 8px;
+            margin-left: 6px;
+            padding: 1px 6px;
             border: 1px solid #ccc;
             background: #fff;
             color: #666;
-            font-size: 16px;
+            font-size: 14px;
             line-height: 1;
             cursor: pointer;
             border-radius: 3px;
@@ -203,15 +217,15 @@
             flex-direction: column;
             gap: 0;
             min-width: 1px;
-            padding: 0 0 10px 0;
+            padding: 0 0 8px 0;
         }
         .resource-item {
             display: flex;
             margin-bottom: 0;
             align-items: center;
-            font-size: 12px;
+            font-size: 11px;
             min-width: min-content;
-            min-height: 24px;
+            min-height: 20px;
             border-bottom: 1px solid #e0e0e0;
         }
         .resource-item:last-child { border-bottom: none; }
@@ -243,7 +257,7 @@
             display: flex;
             align-items: center;
             padding: 0 4px;
-            font-size: 12px;
+            font-size: 11px;
             border-right: 1px solid #e0e0e0;
             box-sizing: border-box;
             overflow: hidden;
@@ -274,7 +288,7 @@
             padding: 0 4px;
             color: #333;
             font-weight: bold;
-            font-size: 12px;
+            font-size: 11px;
             position: sticky;
             left: 0;
             z-index: 2;
@@ -287,7 +301,7 @@
             min-width: 0;
             position: relative;
             z-index: 0;
-            height: 22px;
+            height: 20px;
             background: #fff;
             border-right: 1px solid #e0e0e0;
             /* 右スクロール時、グリッド範囲に入ったバーを完全に非表示にする */
@@ -320,7 +334,7 @@
             align-items: center;
             justify-content: center;
             color: #fff !important;
-            font-size: 11px;
+            font-size: 10px;
             font-weight: bold;
             text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
             box-sizing: border-box;
@@ -335,23 +349,23 @@
         /* マイルストーン：上段と同じ記号のみ表示 */
         .resource-bar.milestone-circle { background: none !important; border: none !important; }
         .resource-bar.milestone-circle .resource-bar-text { display: none; }
-        .resource-bar.milestone-circle::before { content: "●"; color: #d32f2f; font-size: 22px; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); text-shadow: 1px 1px 2px rgba(0,0,0,0.1); }
+        .resource-bar.milestone-circle::before { content: "●"; color: #d32f2f; font-size: 18px; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); text-shadow: 1px 1px 2px rgba(0,0,0,0.1); }
         .resource-bar.milestone-diamond { background: none !important; border: none !important; }
         .resource-bar.milestone-diamond .resource-bar-text { display: none; }
-        .resource-bar.milestone-diamond::before { content: "◆"; color: #1976D2; font-size: 24px; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); text-shadow: 1px 1px 2px rgba(0,0,0,0.1); }
+        .resource-bar.milestone-diamond::before { content: "◆"; color: #1976D2; font-size: 20px; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); text-shadow: 1px 1px 2px rgba(0,0,0,0.1); }
         .resource-bar.milestone-star { background: none !important; border: none !important; }
         .resource-bar.milestone-star .resource-bar-text { display: none; }
-        .resource-bar.milestone-star::before { content: "★"; color: #2E7D32; font-size: 26px; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); text-shadow: 1px 1px 2px rgba(0,0,0,0.2); }
-        .resource-scale-row { display: flex; align-items: stretch; margin-bottom: 0; font-size: 12px; }
+        .resource-bar.milestone-star::before { content: "★"; color: #2E7D32; font-size: 22px; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); text-shadow: 1px 1px 2px rgba(0,0,0,0.2); }
+        .resource-scale-row { display: flex; align-items: stretch; margin-bottom: 0; font-size: 11px; }
         .resource-scale-row:first-of-type .resource-scale-inner { border-bottom: 1px solid #e0e0e0; }
-        .resource-scale-row:last-of-type .resource-scale-inner { height: 24px; }
-        .resource-grid-lines-only .resource-scale-inner { height: 10px; min-height: 10px; }
+        .resource-scale-row:last-of-type .resource-scale-inner { height: 20px; }
+        .resource-grid-lines-only .resource-scale-inner { height: 8px; min-height: 8px; }
         .resource-grid-lines-only .resource-scale-cell { border-right: 1px solid #e0e0e0; }
         .resource-scale-inner {
             flex: 1;
             min-width: 0;
             position: relative;
-            height: 22px;
+            height: 20px;
             background: #f5f5f5;
             border: 1px solid #e0e0e0;
             border-top: none;
@@ -368,7 +382,7 @@
             border-right: 1px solid #e0e0e0;
             box-sizing: border-box;
             color: #333;
-            font-size: 12px;
+            font-size: 11px;
             text-align: center;
         }
         .resource-scale-cell:last-child { border-right: none; }
@@ -377,7 +391,7 @@
         .resource-today-line { position: absolute; top: 0; bottom: 0; width: 2px; background: #ff5252; opacity: 0.8; z-index: 10; pointer-events: none; }
         .resource-today-wrap { position: relative; }
         .resource-today-row .resource-scale-inner { background: transparent; border: none; }
-        .resource-placeholder { padding: 24px; color: #999; text-align: center; font-size: 13px; }
+        .resource-placeholder { padding: 20px; color: #999; text-align: center; font-size: 12px; }
     </style>
 </head>
 <body>
@@ -606,17 +620,22 @@
         gantt.config.grid_width = GRID_WIDTH;
         gantt.config.grid_resize = false;
         gantt.config.drag_resize = true;
-        gantt.config.row_height = 35;
+        gantt.config.row_height = 28;
+        gantt.config.scale_height = 40;
         gantt.config.open_tree_initially = false;
         gantt.config.order_branch = true;
         gantt.config.order_branch_free = true;
 
         // ドラッグによる並べ替え順序の保存
         gantt.attachEvent("onRowDragEnd", async function(id, target) {
+            // --- 現在の展開状態を記憶 ---
+            const openTaskIds = new Set();
+            gantt.eachTask(function(task) {
+                if (task.open) openTaskIds.add(task.id);
+            });
+
             // 全タスクの現在の表示順序を取得して保存
             const tasks = [];
-            // gantt.eachTask は階層構造を辿るため、フラットな順序を取得するには getTaskByTime を検討
-            // ただし、gantt.getTaskByIndex(i) で現在のグリッド上の順序を取得するのが確実
             const count = gantt.getTaskCount();
             for (let i = 0; i < count; i++) {
                 const task = gantt.getTaskByIndex(i);
@@ -650,6 +669,7 @@
                 console.log("Sort order saved successfully");
                 
                 // 常に最新のSupabaseデータを反映するため、データを再取得して allTasks と画面を更新
+                // fetchTasks側で openTaskIds を使って展開状態を復元するように修正済み
                 await fetchTasks();
             } catch (error) {
                 console.error("Error saving sort order:", error);
@@ -789,6 +809,11 @@
             if (task.$virtual && !is2000s) {
                 css += "header-non-2000s ";
             }
+            
+            // 2000番台の見出し行に特定のクラスを付与
+            if (task.$virtual && is2000s && currentDisplayMode === 'machine') {
+                css += "header-2000s ";
+            }
 
             if (task.text === "外観検査") return css + "milestone-circle";
             if (task.text === "出荷確認会議") return css + "milestone-diamond";
@@ -811,12 +836,12 @@
         
         const zoomConfig = {
             levels: [
-                { name: "days", scale_height: 75, min_column_width: 25, scales: [
+                { name: "days", scale_height: 68, min_column_width: 22, scales: [
                     { unit: "month", step: 1, format: "%Y/%n" },
                     { unit: "day", step: 1, format: "%j" }, 
                     { unit: "day", step: 1, format: (date) => dayNames[date.getDay()] }
                 ]},
-                { name: "weeks", scale_height: 50, min_column_width: 25, scales: [
+                { name: "weeks", scale_height: 45, min_column_width: 22, scales: [
                     { unit: "month", step: 1, format: "%Y/%n" },
                     { unit: "week", step: 1, format: (date) => {
                         const dateToStr = gantt.date.date_to_str("%j");
@@ -897,8 +922,8 @@
             
             // ヘッダー行
             html += `
-                <div class="resource-item resource-summary-header" style="display: flex; border-bottom: 1px solid #ddd; min-height: 30px; height: 30px; align-items: center; background: #f8f9fa; position: sticky; top: 0; left: 0; z-index: 10; width: ${totalWidth}px;">
-                    <div style="padding: 0 15px; font-weight: bold; color: #2c3e50; font-size: 12px; position: sticky; left: 0; background: inherit; height: 100%; display: flex; align-items: center; z-index: 11; white-space: nowrap;">
+                <div class="resource-item resource-summary-header" style="display: flex; border-bottom: 1px solid #ddd; min-height: 24px; height: 24px; align-items: center; background: #f8f9fa; position: sticky; top: 0; left: 0; z-index: 10; width: ${totalWidth}px;">
+                    <div style="padding: 0 15px; font-weight: bold; color: #2c3e50; font-size: 11px; position: sticky; left: 0; background: inherit; height: 100%; display: flex; align-items: center; z-index: 11; white-space: nowrap;">
                         部署：${deptName}（${owners.length}名）
                     </div>
                     <div style="position: sticky; right: 0; background: inherit; height: 100%; display: flex; align-items: center; padding-right: 10px; margin-left: auto; z-index: 11;">
@@ -913,10 +938,10 @@
                 const ownerTasks = window.allTasks.filter(t => t.owner && t.owner.includes(ownerName));
                 
                 html += `
-                    <div class="resource-item clickable" style="display: flex; border-bottom: 1px solid #eee; min-height: 26px; height: 26px; align-items: stretch; cursor: pointer;" onclick="showResourceViewByOwner('${ownerName.replace(/'/g, "\\'")}')">
+                    <div class="resource-item clickable" style="display: flex; border-bottom: 1px solid #eee; min-height: 22px; height: 22px; align-items: stretch; cursor: pointer;" onclick="showResourceViewByOwner('${ownerName.replace(/'/g, "\\'")}')">
                         <div class="resource-grid-container" style="width: ${GRID_WIDTH}px; min-width: ${GRID_WIDTH}px; flex-shrink: 0; display: flex; border-right: 1px solid #ddd; background: #f9f9f9; position: sticky; left: 0; z-index: 1;">
-                            <div class="resource-cell" style="width: ${COLUMN_WIDTHS[0]}px; border-right: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold;">担当者</div>
-                            <div class="resource-cell" style="width: ${COLUMN_WIDTHS[1]}px; border-right: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; font-size: 11px; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${ownerName.replace(/\d+/g, "")}</div>
+                            <div class="resource-cell" style="width: ${COLUMN_WIDTHS[0]}px; border-right: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold;">担当者</div>
+                            <div class="resource-cell" style="width: ${COLUMN_WIDTHS[1]}px; border-right: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; font-size: 10px; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${ownerName.replace(/\d+/g, "")}</div>
                             <div class="resource-cell" style="flex: 1;"></div>
                         </div>
                         <div class="resource-timeline" style="width: ${timelineWidth}px; flex-shrink: 0; position: relative; background: #fff; background-image: ${gridBackground};">
@@ -934,7 +959,7 @@
 
                     html += `
                         <div class="resource-cell-bar ${colorClass}" 
-                             style="position: absolute; top: 4px; height: 18px; left: ${left}px; width: ${width}px; border-radius: 3px; opacity: 0.8; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 10px; font-weight: bold; overflow: hidden; white-space: nowrap; text-shadow: 1px 1px 1px rgba(0,0,0,0.5);" 
+                             style="position: absolute; top: 3px; height: 14px; left: ${left}px; width: ${width}px; border-radius: 3px; opacity: 0.8; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 9px; font-weight: bold; overflow: hidden; white-space: nowrap; text-shadow: 1px 1px 1px rgba(0,0,0,0.5);" 
                              title="${t.text} (${t.project_number})">
                              ${t.project_number || ""}
                         </div>
@@ -1053,8 +1078,8 @@
             // 担当者名とタスク件数を表示する固定ヘッダー行
             const filterTitle = currentResourceDeptFilter ? `部署：${currentResourceDeptFilter}` : `担当：${currentResourceOwnerFilter}`;
             html += `
-                <div class="resource-item resource-summary-header" style="display: flex; border-bottom: 1px solid #ddd; min-height: 30px; height: 30px; align-items: center; background: #f8f9fa; position: sticky; top: 0; left: 0; z-index: 10; width: ${totalWidth}px;">
-                    <div style="padding: 0 15px; font-weight: bold; color: #2c3e50; font-size: 12px; position: sticky; left: 0; background: inherit; height: 100%; display: flex; align-items: center; z-index: 11; white-space: nowrap;">
+                <div class="resource-item resource-summary-header" style="display: flex; border-bottom: 1px solid #ddd; min-height: 24px; height: 24px; align-items: center; background: #f8f9fa; position: sticky; top: 0; left: 0; z-index: 10; width: ${totalWidth}px;">
+                    <div style="padding: 0 15px; font-weight: bold; color: #2c3e50; font-size: 11px; position: sticky; left: 0; background: inherit; height: 100%; display: flex; align-items: center; z-index: 11; white-space: nowrap;">
                         【${filterTitle}】のタスク　${filteredTasks.length}件
                     </div>
                     <div style="position: sticky; right: 0; background: inherit; height: 100%; display: flex; align-items: center; padding-right: 10px; margin-left: auto; z-index: 11;">
@@ -1076,21 +1101,21 @@
 
                 // 4. 【グリッド幅の固定】
                 html += `
-                    <div class="resource-item" style="display: flex; border-bottom: 1px solid #eee; min-height: 26px; height: 26px; align-items: stretch;">
+                    <div class="resource-item" style="display: flex; border-bottom: 1px solid #eee; min-height: 22px; height: 22px; align-items: stretch;">
                         <div class="resource-grid-container" style="width: ${GRID_WIDTH}px; min-width: ${GRID_WIDTH}px; flex-shrink: 0; display: flex; border-right: 1px solid #ddd; background: #fff; position: sticky; left: 0; z-index: 1;">
-                            <div class="resource-cell" style="width: ${COLUMN_WIDTHS[0]}px; border-right: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; justify-content: center; font-size: 11px;">${t.project_number || ""}</div>
-                            <div class="resource-cell" style="width: ${COLUMN_WIDTHS[1]}px; border-right: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${t.text || ""}</div>
-                            <div class="resource-cell" style="width: ${COLUMN_WIDTHS[2]}px; border-right: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; justify-content: center; font-size: 11px;">${t.machine || ""}</div>
-                            <div class="resource-cell" style="width: ${COLUMN_WIDTHS[3]}px; border-right: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; justify-content: center; font-size: 11px;">${t.unit || ""}</div>
-                            <div class="resource-cell" style="width: ${COLUMN_WIDTHS[4]}px; border-right: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; font-size: 11px;">${(t.owner || "").replace(/\d+/g, "")}</div>
-                            <div class="resource-cell" style="width: ${COLUMN_WIDTHS[5]}px; border-right: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; justify-content: center; font-size: 11px;">${dateToDisplay(start)}</div>
-                            <div class="resource-cell" style="width: ${COLUMN_WIDTHS[6]}px; border-right: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; justify-content: center; font-size: 11px;">${dateToDisplay(end)}</div>
+                            <div class="resource-cell" style="width: ${COLUMN_WIDTHS[0]}px; border-right: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; justify-content: center; font-size: 10px;">${t.project_number || ""}</div>
+                            <div class="resource-cell" style="width: ${COLUMN_WIDTHS[1]}px; border-right: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${t.text || ""}</div>
+                            <div class="resource-cell" style="width: ${COLUMN_WIDTHS[2]}px; border-right: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; justify-content: center; font-size: 10px;">${t.machine || ""}</div>
+                            <div class="resource-cell" style="width: ${COLUMN_WIDTHS[3]}px; border-right: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; justify-content: center; font-size: 10px;">${t.unit || ""}</div>
+                            <div class="resource-cell" style="width: ${COLUMN_WIDTHS[4]}px; border-right: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; font-size: 10px;">${(t.owner || "").replace(/\d+/g, "")}</div>
+                            <div class="resource-cell" style="width: ${COLUMN_WIDTHS[5]}px; border-right: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; justify-content: center; font-size: 10px;">${dateToDisplay(start)}</div>
+                            <div class="resource-cell" style="width: ${COLUMN_WIDTHS[6]}px; border-right: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; justify-content: center; font-size: 10px;">${dateToDisplay(end)}</div>
                             <div class="resource-cell" style="width: ${COLUMN_WIDTHS[7]}px; padding: 0 4px;"></div>
                         </div>
                         <div class="resource-timeline" style="width: ${timelineWidth}px; flex-shrink: 0; position: relative; background: #fafafa; background-image: ${gridBackground};">
                             <div class="resource-cell-bars" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0;">
                                 <div class="resource-cell-bar ${colorClass}" 
-                                     style="position: absolute; top: 4px; height: 18px; left: ${left}px; width: ${width}px; border-radius: 3px; opacity: 0.8; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 10px; font-weight: bold; overflow: hidden; white-space: nowrap; text-shadow: 1px 1px 1px rgba(0,0,0,0.5);" 
+                                     style="position: absolute; top: 3px; height: 14px; left: ${left}px; width: ${width}px; border-radius: 3px; opacity: 0.8; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 9px; font-weight: bold; overflow: hidden; white-space: nowrap; text-shadow: 1px 1px 1px rgba(0,0,0,0.5);" 
                                      title="${title.replace(/"/g, "&quot;")}">
                                      ${t.project_number || ""}
                                 </div>
@@ -1161,6 +1186,12 @@
         }
 
         async function fetchTasks() {
+            // --- 現在の展開状態を記憶 ---
+            const openTaskIds = new Set();
+            gantt.eachTask(function(task) {
+                if (task.open) openTaskIds.add(task.id);
+            });
+
             // 表示モードに応じてソート順のカラムを切り替え
             const sortColumn = currentDisplayMode === 'machine' ? 'sort_order_machine' : 'sort_order';
             const { data, error } = await supabaseClient.from('tasks').select('*').order(sortColumn, { ascending: true });
@@ -1238,7 +1269,7 @@
                                     project_details: tasksInMachine[0].project_details, 
                                     start_date: minStart, 
                                     end_date: maxEnd, 
-                                    open: false, 
+                                    open: openTaskIds.has(parentKey), // 記憶していた状態を反映
                                     type: "project", 
                                     $virtual: true 
                                 };
@@ -1273,7 +1304,20 @@
                                 if (!maxEnd || end > maxEnd) maxEnd = end;
                             });
                             if (!parentsMap[parentKey]) {
-                                parentsMap[parentKey] = { id: parentKey, text: pName, project_number: pNum, machine: tasksInParent[0].machine, major_item: tasksInParent[0].major_item, customer_name: tasksInParent[0].customer_name, project_details: tasksInParent[0].project_details, start_date: minStart, end_date: maxEnd, open: false, type: "project", $virtual: true };
+                                parentsMap[parentKey] = { 
+                                    id: parentKey, 
+                                    text: pName, 
+                                    project_number: pNum, 
+                                    machine: tasksInParent[0].machine, 
+                                    major_item: tasksInParent[0].major_item, 
+                                    customer_name: tasksInParent[0].customer_name, 
+                                    project_details: tasksInParent[0].project_details, 
+                                    start_date: minStart, 
+                                    end_date: maxEnd, 
+                                    open: openTaskIds.has(parentKey), // 記憶していた状態を反映
+                                    type: "project", 
+                                    $virtual: true 
+                                };
                                 tasksWithHierarchy.push(parentsMap[parentKey]);
                             }
                             tasksInParent.forEach(t => { t.parent = parentKey; tasksWithHierarchy.push(t); });
@@ -1304,7 +1348,7 @@
                                 project_details: unassignedTasks[0].project_details, 
                                 start_date: minStart, 
                                 end_date: maxEnd, 
-                                open: false, 
+                                open: openTaskIds.has(parentKey), // 記憶していた状態を反映
                                 type: "project", 
                                 $virtual: true 
                             };
