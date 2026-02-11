@@ -747,14 +747,22 @@
         // フィルタ設定：工事番号、大項目、担当名、機械名の絞り込み
         gantt.attachEvent("onBeforeTaskDisplay", function(id, task){
             if (task.$virtual) {
+                // 工事番号フィルタ
                 if (currentFilter && !task.id.startsWith(`p_${currentFilter}_`)) return false;
-                if (currentMajorFilter && task.major_item !== currentMajorFilter) return false;
-                if (currentOwnerFilter) {
+                
+                // 大項目フィルタ、担当名フィルタ、または 機械検索フィルタ がある場合、子タスクをチェック
+                if (currentMajorFilter || currentOwnerFilter || currentMachineFilter) {
                     var childIds = gantt.getChildren ? gantt.getChildren(task.id) : [];
                     var hasMatchingChild = false;
                     for (var i = 0; i < childIds.length; i++) {
                         var child = gantt.getTask(childIds[i]);
-                        if (child && child.owner && (child.owner + "").includes(currentOwnerFilter)) {
+                        if (!child) continue;
+                        
+                        var matchMajor = !currentMajorFilter || child.major_item === currentMajorFilter;
+                        var matchOwner = !currentOwnerFilter || (child.owner && (child.owner + "").includes(currentOwnerFilter));
+                        var matchMachine = !currentMachineFilter || (child.machine && (child.machine + "").includes(currentMachineFilter));
+                        
+                        if (matchMajor && matchOwner && matchMachine) {
                             hasMatchingChild = true;
                             break;
                         }
