@@ -657,7 +657,7 @@
             "営業": ["専務", "銭", "麻生", "原田", "岡本", "津村", "前川", "池田"],
             "設計": ["藤山", "田中(善)", "安岡", "川邊", "檀", "堀井", "宮﨑", "津田", "古村", "柴田", "橋本", "松本(英)"],
             "製管": ["製造管理", "資材"],
-            "組立": ["米澤", "桂", "香西", "古賀", "長谷川", "早川", "廣田", "宮本", "山下", "センティル", "増田", "千代盛"],
+            "組立": ["米澤", "桂", "香西", "古賀", "長谷川", "早川", "廣田", "宮本", "山下", "センティル", "増田", "千代盛", "外注"],
             "電装": ["木村(至)", "木村(圭)", "守時"],
             "品証": ["田中(孝)"],
             "操業": ["堀尾", "三浦", "黒見", "大西(元)", "大西(優)", "木本", "前田", "本郷", "大重", "松本(幹)", "秋藤"]
@@ -713,6 +713,36 @@
         // インラインエディタを有効化
         gantt.config.show_errors = false;
 
+        // 担当者用カスタムコントロールの登録
+        gantt.form_blocks["owner_selector"] = {
+            render: function(sns) {
+                return "<div class='owner_selector_container' style='height:100px; overflow-y:auto; border:1px solid #ccc; padding:5px; background:#fff;'></div>";
+            },
+            set_value: function(node, value, task) {
+                const majorItem = task.major_item || "";
+                const owners = ownerMaster[majorItem] || [];
+                const selected = (value || "").split(",").map(s => s.trim());
+
+                let html = "";
+                if (owners.length === 0) {
+                    html = "<span style='color:#999; font-size:12px;'>部署（フィルタ色分け）を選択してください</span>";
+                } else {
+                    owners.forEach(name => {
+                        const isChecked = selected.includes(name) ? "checked" : "";
+                        html += `<label style='display:inline-block; width:120px; margin-bottom:3px; font-size:12px; cursor:pointer;'>
+                                    <input type='checkbox' value='${name}' ${isChecked} style='vertical-align:middle;'> ${name}
+                                 </label>`;
+                    });
+                }
+                node.innerHTML = html;
+            },
+            get_value: function(node, task) {
+                const checked = Array.from(node.querySelectorAll("input:checked")).map(cb => cb.value);
+                return checked.join(", ");
+            },
+            focus: function (node) {}
+        };
+
         gantt.config.lightbox.sections = [
             { name: "project_number", height: 30, map_to: "project_number", type: "textarea", focus: true },
             { name: "parent_name", height: 30, map_to: "parent_name", type: "textarea" },
@@ -720,7 +750,7 @@
             { name: "machine", height: 30, map_to: "machine", type: "textarea" },
             { name: "unit", height: 30, map_to: "unit", type: "textarea" },
             { name: "description", height: 50, map_to: "text", type: "textarea" },
-            { name: "owner", height: 30, map_to: "owner", type: "select", options: [] },
+            { name: "owner", height: 100, map_to: "owner", type: "owner_selector" },
             { name: "locations", height: 100, map_to: "locations", type: "location_selector" },
             { name: "time", height: 72, type: "duration", map_to: "auto" }
         ];
@@ -774,15 +804,15 @@
         // major_item が変更された時に担当者リストを更新する
         gantt.attachEvent("onLightboxChange", function(id, name, value) {
             if (name === "major_item") {
-                const ownerOptions = getOwnerOptions(value);
                 const ownerSection = gantt.getLightboxSection("owner");
-                
-                let html = "<option value=''>未選択</option>";
-                ownerOptions.forEach(opt => {
-                    html += `<option value="${opt.key}">${opt.label}</option>`;
-                });
-                ownerSection.control.innerHTML = html;
-                ownerSection.setValue(""); // 部署が変わったら担当をリセット
+                if (ownerSection) {
+                    // タスクの major_item を一時的に更新して、set_value が正しいリストを表示できるようにする
+                    const task = gantt.getTask(id);
+                    task.major_item = value;
+                    
+                    // set_value を呼び出してチェックボックス一覧を再描画
+                    ownerSection.set_value(ownerSection.control, task.owner, task);
+                }
             }
         });
         gantt.locale.labels.section_project_number = "工事番号";
@@ -834,9 +864,9 @@
                 if (obj.$virtual) return "";
                 return obj.unit || "";
             }},
-            { name: "owner", label: "担当", width: COLUMN_WIDTHS[4], align: "left", editor: { type: "owner_editor", map_to: "owner" }, template: function(obj) {
+            { name: "owner", label: "担当", width: COLUMN_WIDTHS[4], align: "left", template: function(obj) {
                 if (obj.$virtual || !obj.owner) return "";
-                return obj.owner.replace(/\d+/g, "");
+                return obj.owner;
             }},
             { name: "start_date", label: "開始日", width: COLUMN_WIDTHS[5], align: "center", template: function(t) {
                 return dateToDisplay(t.start_date);
