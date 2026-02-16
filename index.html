@@ -958,6 +958,50 @@
             }
         });
 
+        // 新規タスク作成時の保存処理
+        gantt.attachEvent("onAfterTaskAdd", async function(id, item) {
+            const newTaskData = {
+                text: item.text,
+                start_date: dateToDb(item.start_date),
+                duration: item.duration,
+                owner: item.owner || "",
+                project_number: item.project_number || "",
+                machine: item.machine || "",
+                unit: item.unit || "",
+                major_item: item.major_item || "",
+                parent: item.parent_name || "" // 見出し名をparentカラムに保存
+            };
+
+            const { data, error } = await supabaseClient
+                .from('tasks')
+                .insert([newTaskData])
+                .select();
+
+            if (error) {
+                console.error("Add error:", error);
+                alert("新規タスクの保存に失敗しました。");
+                gantt.deleteTask(id); // 保存失敗時はガントから削除
+            } else if (data && data[0]) {
+                // Supabaseから発行された本当のIDに書き換える
+                const newId = data[0].id;
+                gantt.changeTaskId(id, newId);
+                console.log("New task added with ID:", newId);
+                
+                // 組立場所の保存（もしあれば）
+                if (item.locations && item.locations.length > 0) {
+                    const locationRecords = item.locations.map(loc => ({
+                        task_id: newId,
+                        area_group: loc.area_group,
+                        area_number: loc.area_number
+                    }));
+                    await supabaseClient.from('task_locations').insert(locationRecords);
+                }
+                
+                // 画面を最新状態に更新
+                await fetchTasks();
+            }
+        });
+
         // 編集内容をデータベースに保存
         gantt.attachEvent("onAfterTaskUpdate", async function(id, item) {
             if (item.$virtual) return; // 見出し行は仮想的なものなので保存対象外
