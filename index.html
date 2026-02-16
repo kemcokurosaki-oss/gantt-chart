@@ -543,14 +543,10 @@
                 return html;
             },
             set_value: function (node, value, task) {
-                // タスク名に「機械組立」または「電気艤装」が含まれるか判定
-                const text = task.text || "";
-                const isTargetTask = text.includes("機械組立") || text.includes("電気艤装");
-                
-                // コンテナ要素を取得して表示/非表示を切り替える
+                // コンテナ要素を取得して常に表示
                 const container = node.querySelector('#location_selector_container');
                 if (container) {
-                    container.style.display = isTargetTask ? "" : "none";
+                    container.style.display = "";
                 }
 
                 // 初期化：すべてのチェックボックスを外す
@@ -558,6 +554,7 @@
                 checkboxes.forEach(cb => cb.checked = false);
 
                 // タスクに紐付いている場所をチェックする
+                // gantt.showLightbox で取得したデータが task.locations に入っている前提
                 if (task.locations && Array.isArray(task.locations)) {
                     task.locations.forEach(loc => {
                         const val = `${loc.area_group}-${loc.area_number}`;
@@ -583,6 +580,39 @@
             },
             focus: function (node) {
             }
+        };
+
+        // カスタムライトボックスセクション：担当者複数選択
+        gantt.form_blocks["owner_selector"] = {
+            render: function (sns) {
+                return `<div id='owner_selector_container' class='owner_selector_container' style='padding: 5px; background: #f9f9f9; border: 1px solid #ddd; border-radius: 4px; min-height: 30px; display: flex; flex-wrap: wrap; gap: 10px;'></div>`;
+            },
+            set_value: function (node, value, task) {
+                const majorItem = task.major_item || "";
+                const options = getOwnerOptions(majorItem);
+                const container = node.querySelector('#owner_selector_container');
+                
+                let html = "";
+                if (options.length === 0) {
+                    html = "<span style='color: #999; font-size: 12px;'>フィルタ色分けを選択してください</span>";
+                } else {
+                    const selectedOwners = (value || "").split(',').map(s => s.trim());
+                    options.forEach(opt => {
+                        const isChecked = selectedOwners.includes(opt.key) ? "checked" : "";
+                        html += `<label style='display: inline-block; cursor: pointer; font-size: 12px;'>
+                                    <input type='checkbox' name='owner_checkbox' value='${opt.key}' ${isChecked} style='vertical-align: middle;'> ${opt.label}
+                                 </label>`;
+                    });
+                }
+                container.innerHTML = html;
+            },
+            get_value: function (node, task) {
+                const checkboxes = node.querySelectorAll('input[name="owner_checkbox"]:checked');
+                const selected = [];
+                checkboxes.forEach(cb => selected.push(cb.value));
+                return selected.join(', ');
+            },
+            focus: function (node) {}
         };
 
         // 上段・下段で完全に一致させる固定値（1ピクセルも狂いなく同期）
@@ -695,63 +725,47 @@
             { name: "time", height: 72, type: "duration", map_to: "auto" }
         ];
 
-        // gantt.showLightbox を async 関数に修正し、データを事前取得するように変更
+        // gantt.showLightbox を全タスク共通のシンプルな構造に書き換え
         const originalShowLightbox = gantt.showLightbox;
         gantt.showLightbox = async function(id) {
-            const task = gantt.getTask(id);
-            
-            // task_locations テーブルからデータを取得
-            const { data: locations, error } = await supabaseClient
-                .from('task_locations')
-                .select('*')
-                .eq('task_id', id);
-            
-            if (!error && locations) {
-                task.locations = locations;
-            } else {
-                task.locations = [];
-            }
+            try {
+                // ① タスクを取得
+                const task = gantt.getTask(id);
 
-            // オリジナルの showLightbox を呼び出してモーダルを表示
-            originalShowLightbox.call(this, id);
-
-            // 担当者プルダウンの更新（major_itemに連動）
-            const majorItem = task.major_item || "";
-            const ownerOptions = getOwnerOptions(majorItem);
-            const ownerSection = gantt.getLightboxSection("owner");
-            if (ownerSection) {
-                ownerSection.control.innerHTML = "";
-                let html = "<option value=''>未選択</option>";
-                ownerOptions.forEach(opt => {
-                    html += `<option value="${opt.key}">${opt.label}</option>`;
-                });
-                ownerSection.control.innerHTML = html;
-                ownerSection.setValue(task.owner || "");
-            }
-
-            // 組立場所セクションの表示・非表示切り替え
-            const text = task.text || "";
-            const isTargetTask = text.includes("組立") || text.includes("電気艤装");
-            const locSection = gantt.getLightboxSection("locations");
-            
-            if (locSection) {
-                const sectionNode = locSection.header.parentNode;
-                if (sectionNode) {
-                    sectionNode.style.display = isTargetTask ? "" : "none";
-                }
-
-                // チェックボックスのリセットと復元
-                const node = locSection.control;
-                const checkboxes = node.querySelectorAll('input[type="checkbox"]');
-                checkboxes.forEach(cb => cb.checked = false); // すべてリセット
-                
-                if (task.locations) {
-                    task.locations.forEach(loc => {
-                        const val = `${loc.area_group}-${loc.area_number}`;
-                        const cb = node.querySelector(`input[value="${val}"]`);
-                        if (cb) cb.checked = true;
+                // ② 担当者プルダウンの更新（major_itemに連動）
+                const majorItem = task.major_item || "";
+                const ownerOptions = getOwnerOptions(majorItem);
+                const ownerSection = gantt.getLightboxSection("owner");
+                if (ownerSection) {
+                    ownerSection.control.innerHTML = "";
+                    let html = "<option value=''>未選択</option>";
+                    ownerOptions.forEach(opt => {
+                        html += `<option value="${opt.key}">${opt.label}</option>`;
                     });
+                    ownerSection.control.innerHTML = html;
+                    ownerSection.setValue(task.owner || "");
                 }
+
+                // ③ Supabase から場所データを取得してタスクオブジェクトに保持させる
+                // これにより、後続の originalShowLightbox -> set_value でチェックが復元される
+                const { data: locations, error } = await supabaseClient
+                    .from('task_locations')
+                    .select('*')
+                    .eq('task_id', id);
+                
+                if (!error && locations) {
+                    task.locations = locations;
+                } else {
+                    task.locations = [];
+                }
+
+                // ④ ライトボックスを表示（内部で set_value が呼ばれる）
+                originalShowLightbox.call(gantt, id);
+
+            } catch (e) {
+                console.error("Lightbox error:", e);
+                // エラー時も最低限表示を試みる
+                originalShowLightbox.call(gantt, id);
             }
         };
 
@@ -922,44 +936,54 @@
                 return;
             }
 
-            // 2. 組立場所 (task_locations) の更新
-            // タスク名に「組立」または「電気艤装」が含まれる場合のみ処理
-            const text = item.text || "";
-            if (text.includes("組立") || text.includes("電気艤装")) {
-                try {
-                    // locations が undefined の場合は、変更なしとしてスキップする（保存エラー回避）
-                    if (item.locations !== undefined) {
-                        // 古い紐付けを削除
-                        const { error: delError } = await supabaseClient
-                            .from('task_locations')
-                            .delete()
-                            .eq('task_id', id);
-
-                        if (delError) throw delError;
-
-                        // 新しい紐付けを登録
-                        if (item.locations && item.locations.length > 0) {
-                            const locationRecords = item.locations.map(loc => ({
-                                task_id: id,
-                                area_group: loc.area_group,
-                                area_number: loc.area_number
-                            }));
-
-                            const { error: insError } = await supabaseClient
-                                .from('task_locations')
-                                .insert(locationRecords);
-                            
-                            if (insError) throw insError;
-                        }
-                    }
-                } catch (e) {
-                    console.error("Location update error:", e);
-                    alert("組立場所の保存に失敗しました。詳細: " + (e.message || e));
-                }
-            }
-
             // 成功したらデータを再取得して allTasks と画面を更新
             await fetchTasks();
+        });
+
+        // 保存ボタンが押された瞬間に実行されるイベント
+        // ※ async を付与して Supabase への保存を待機可能にする
+        gantt.attachEvent("onLightboxSave", async function(id, item) {
+            try {
+                // ① ライトボックスから最新のチェック状態を取得
+                const locSection = gantt.getLightboxSection("locations");
+                let currentLocations = [];
+                if (locSection) {
+                    currentLocations = locSection.get_value(locSection.control, item);
+                    item.locations = currentLocations;
+                }
+
+                // ② Supabase への保存処理（組立場所）
+                // 既存データを削除
+                await supabaseClient
+                    .from('task_locations')
+                    .delete()
+                    .eq('task_id', id);
+
+                // 新規データを登録
+                if (currentLocations.length > 0) {
+                    const locationRecords = currentLocations.map(loc => ({
+                        task_id: id,
+                        area_group: loc.area_group,
+                        area_number: loc.area_number
+                    }));
+
+                    await supabaseClient
+                        .from('task_locations')
+                        .insert(locationRecords);
+                }
+
+                console.log("Locations saved successfully");
+                
+                // データ保存後にガントチャートを更新して、内部データを最新にする
+                gantt.updateTask(id);
+                
+            } catch (e) {
+                console.error("Lightbox save error:", e);
+            }
+            
+            // ③ 最後に必ず true を返してライトボックスを閉じる
+            gantt.hideLightbox(); 
+            return true;
         });
 
         // タスクの削除をデータベースに反映
