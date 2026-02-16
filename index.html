@@ -392,6 +392,21 @@
         .resource-today-wrap { position: relative; }
         .resource-today-row .resource-scale-inner { background: transparent; border: none; }
         .resource-placeholder { padding: 20px; color: #999; text-align: center; font-size: 12px; }
+        .filter-btn { padding: 4px 8px; border: 1px solid #ccc; border-radius: 4px; cursor: pointer; background: #fff; font-size: 12px; }
+        .filter-btn.active { background: #ff9800; color: white; border-color: #e68a00; }
+        
+        /* 担当未定行の背景を薄い赤にする */
+        .unassigned-row {
+            background-color: #fff5f5 !important;
+        }
+        /* 警告マークの見た目調整 */
+        .unassigned-warning {
+            color: #d32f2f;
+            font-weight: bold;
+            display: flex;
+            justify-content: center;
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
@@ -451,6 +466,7 @@
             <div class="filter-group">
                 <span>担当検索:</span>
                 <input type="text" id="owner_search" placeholder="名前を入力..." style="width:100px; padding:3px; border:1px solid #ccc; border-radius:3px; font-size:12px;" oninput="filterByOwner(this.value)">
+                <button id="unassigned_filter_btn" class="filter-btn" onclick="toggleUnassignedFilter()" style="margin-left: 5px;">⚠️ 未定のみ</button>
             </div>
 
             <div class="filter-group">
@@ -512,6 +528,7 @@
         let lastDeptName = ''; 
         let lastOwnerName = '';
         let currentOwnerFilter = "";
+        let isUnassignedOnly = false; // 担当未定フィルタの状態
         let currentOwnerFilterNoData = false; // tasks と task_template の両方に該当がないとき true
         let currentMachineFilter = "";
         let currentLocationResourceMode = false; // 組立場所リソースモード
@@ -658,7 +675,7 @@
             "設計": ["藤山", "田中(善)", "安岡", "川邊", "檀", "堀井", "宮﨑", "津田", "古村", "柴田", "橋本", "松本(英)"],
             "製管": ["製造管理", "資材"],
             "組立": ["米澤", "桂", "香西", "古賀", "長谷川", "早川", "廣田", "宮本", "山下", "センティル", "増田", "千代盛", "外注"],
-            "電装": ["木村(至)", "木村(圭)", "守時"],
+            "電装": ["木村(至)", "木村(圭)", "守時", "外注"],
             "品証": ["田中(孝)"],
             "操業": ["堀尾", "三浦", "黒見", "大西(元)", "大西(優)", "木本", "前田", "本郷", "大重", "松本(幹)", "秋藤"]
         };
@@ -865,7 +882,10 @@
                 return obj.unit || "";
             }},
             { name: "owner", label: "担当", width: COLUMN_WIDTHS[4], align: "left", template: function(obj) {
-                if (obj.$virtual || !obj.owner) return "";
+                if (obj.$virtual) return "";
+                if (!obj.owner || obj.owner.trim() === "") {
+                    return "<span class='unassigned-warning'>⚠️</span>";
+                }
                 return obj.owner;
             }},
             { name: "start_date", label: "開始日", width: COLUMN_WIDTHS[5], align: "center", template: function(t) {
@@ -1049,8 +1069,13 @@
         });
 
         gantt.templates.grid_row_class = function(start, end, task){
-            if(task.$virtual) return "gantt_group_row";
-            return "";
+            let css = "";
+            if(task.$virtual) {
+                css = "gantt_group_row";
+            } else if (!task.owner || task.owner.trim() === "") {
+                css = "unassigned-row";
+            }
+            return css;
         };
 
         // フィルタ設定：工事番号、大項目、担当名、機械名の絞り込み
@@ -1059,8 +1084,8 @@
                 // 工事番号フィルタ
                 if (currentFilter && !task.id.startsWith(`p_${currentFilter}_`)) return false;
                 
-                // 大項目フィルタ、担当名フィルタ、または 機械検索フィルタ がある場合、子タスクをチェック
-                if (currentMajorFilter || currentOwnerFilter || currentMachineFilter) {
+                // 大項目フィルタ、担当名フィルタ、機械検索フィルタ、または 担当未定フィルタ がある場合、子タスクをチェック
+                if (currentMajorFilter || currentOwnerFilter || currentMachineFilter || isUnassignedOnly) {
                     var childIds = gantt.getChildren ? gantt.getChildren(task.id) : [];
                     var hasMatchingChild = false;
                     for (var i = 0; i < childIds.length; i++) {
@@ -1070,8 +1095,9 @@
                         var matchMajor = !currentMajorFilter || child.major_item === currentMajorFilter;
                         var matchOwner = !currentOwnerFilter || (child.owner && (child.owner + "").includes(currentOwnerFilter));
                         var matchMachine = !currentMachineFilter || (child.machine && (child.machine + "").includes(currentMachineFilter));
+                        var matchUnassigned = !isUnassignedOnly || (!child.owner || child.owner.trim() === "");
                         
-                        if (matchMajor && matchOwner && matchMachine) {
+                        if (matchMajor && matchOwner && matchMachine && matchUnassigned) {
                             hasMatchingChild = true;
                             break;
                         }
@@ -1084,6 +1110,7 @@
             if (currentMajorFilter && task.major_item !== currentMajorFilter) return false;
             if (currentOwnerFilter && (!task.owner || !task.owner.includes(currentOwnerFilter))) return false;
             if (currentMachineFilter && (!task.machine || !task.machine.includes(currentMachineFilter))) return false;
+            if (isUnassignedOnly && (task.owner && task.owner.trim() !== "")) return false;
             return true;
         });
 
@@ -1888,9 +1915,12 @@
                     { name: "text", label: "タスク名", width: COLUMN_WIDTHS[1], tree: true, template: function(obj) {
                         return obj.text;
                     }},
-                    { name: "owner", label: "担当", width: COLUMN_WIDTHS[4], align: "left", editor: { type: "owner_editor", map_to: "owner" }, template: function(obj) {
-                        if (obj.$virtual || !obj.owner) return "";
-                        return obj.owner.replace(/\d+/g, "");
+                    { name: "owner", label: "担当", width: COLUMN_WIDTHS[4], align: "left", template: function(obj) {
+                        if (obj.$virtual) return "";
+                        if (!obj.owner || obj.owner.trim() === "") {
+                            return "<span class='unassigned-warning'>⚠️</span>";
+                        }
+                        return obj.owner;
                     }},
                     { name: "start_date", label: "開始日", width: COLUMN_WIDTHS[5], align: "center", template: function(t) {
                         return dateToDisplay(t.start_date);
@@ -1975,6 +2005,19 @@
             currentMachineFilter = val; 
             gantt.render(); 
             gantt.scrollTo(scrollState.x, scrollState.y);
+        }
+
+        function toggleUnassignedFilter() {
+            const btn = document.getElementById("unassigned_filter_btn");
+            isUnassignedOnly = !isUnassignedOnly;
+            
+            if (isUnassignedOnly) {
+                btn.classList.add("active");
+            } else {
+                btn.classList.remove("active");
+            }
+            
+            gantt.render();
         }
 
         document.getElementById('resource_close_btn').addEventListener('click', closeResourcePanel);
