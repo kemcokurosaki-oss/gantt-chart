@@ -112,6 +112,19 @@
             transform: translate(-50%, -50%);
             text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
         }
+
+        /* 「出荷」タスク用の★マーク（右端に表示） */
+        .task-shipping-star::after {
+            content: "★";
+            color: #2E7D32;
+            font-size: 26px;
+            position: absolute;
+            right: -13px; /* バーの右端（終了日）に配置 */
+            top: 50%;
+            transform: translateY(-50%);
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+            z-index: 1;
+        }
         
         /* バー内の文字色（少し薄いグレーに影付きに統一） */
         .gantt_task_content { 
@@ -1206,6 +1219,7 @@
             if (task.text === "外観検査") return css + "milestone-circle";
             if (task.text === "出荷確認会議") return css + "milestone-diamond";
             if (task.text === "工場出荷") return css + "milestone-star";
+            if (task.text === "出荷") css += "task-shipping-star ";
 
             switch (task.major_item) {
                 case '設計': css += "task-blue"; break;
@@ -1726,14 +1740,18 @@
             if (task.text === "外観検査") return "milestone-circle";
             if (task.text === "出荷確認会議") return "milestone-diamond";
             if (task.text === "工場出荷") return "milestone-star";
+            
+            let css = "";
+            if (task.text === "出荷") css += "task-shipping-star ";
+
             switch (task.major_item) {
-                case '設計': return "task-blue";
-                case '製管': case '品証': return "task-green";
-                case '組立': return "task-yellow";
-                case '電装': return "task-purple";
-                case '操業': return "task-red";
-                case '営業': return "task-orange";
-                default: return "";
+                case '設計': return css + "task-blue";
+                case '製管': case '品証': return css + "task-green";
+                case '組立': return css + "task-yellow";
+                case '電装': return css + "task-purple";
+                case '操業': return css + "task-red";
+                case '営業': return css + "task-orange";
+                default: return css;
             }
         }
 
