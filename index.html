@@ -112,19 +112,6 @@
             transform: translate(-50%, -50%);
             text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
         }
-
-        /* 「出荷」タスク用の★マーク（右端に表示） */
-        .task-shipping-star::after {
-            content: "★";
-            color: #2E7D32;
-            font-size: 26px;
-            position: absolute;
-            right: -13px; /* バーの右端（終了日）に配置 */
-            top: 50%;
-            transform: translateY(-50%);
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
-            z-index: 1;
-        }
         
         /* バー内の文字色（少し薄いグレーに影付きに統一） */
         .gantt_task_content { 
@@ -410,7 +397,7 @@
         
         /* 担当未定行の背景を薄い赤にする */
         .unassigned-row {
-            background-color: #fff5f5 !important;
+            background-color: #ffe0e0 !important;
         }
         /* 警告マークの見た目調整 */
         .unassigned-warning {
@@ -545,13 +532,13 @@
         let currentOwnerFilterNoData = false; // tasks と task_template の両方に該当がないとき true
         let currentMachineFilter = "";
         let currentLocationResourceMode = false; // 組立場所リソースモード
-        let locationExpandedGroups = { "E1": true, "E2": true, "E3": true }; // 展開状態
+        let locationExpandedGroups = { "E1": true, "E3": true }; // 展開状態
         const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
         const dateToDb = gantt.date.date_to_str("%Y-%m-%d");
         const dateToDisplay = gantt.date.date_to_str("%Y/%m/%d");
 
         // 組立場所の選択肢
-        const LOCATION_GROUPS = ["E1", "E2", "E3"];
+        const LOCATION_GROUPS = ["E1", "E3"];
         const LOCATION_NUMBERS = ["0", "1", "2", "3", "4", "5", "6"];
 
         // カスタムライトボックスセクション：組立場所
@@ -685,12 +672,12 @@
         // 担当者のマスターデータ
         const ownerMaster = {
             "営業": ["専務", "銭", "麻生", "原田", "岡本", "津村", "前川", "池田"],
-            "設計": ["藤山", "田中(善)", "安岡", "川邊", "檀", "堀井", "宮﨑", "津田", "古村", "柴田", "橋本", "松本(英)"],
+            "設計": ["藤山", "田中(善)", "安岡", "川邊", "檀", "堀井", "宮﨑", "津田", "古村", "柴田", "橋本", "松本(英)", "外注"],
             "製管": ["製造管理", "資材"],
             "組立": ["米澤", "桂", "香西", "古賀", "長谷川", "早川", "廣田", "宮本", "山下", "センティル", "増田", "千代盛", "外注"],
             "電装": ["木村(至)", "木村(圭)", "守時", "外注"],
             "品証": ["田中(孝)"],
-            "操業": ["堀尾", "三浦", "黒見", "大西(元)", "大西(優)", "木本", "前田", "本郷", "大重", "松本(幹)", "秋藤"]
+            "操業": ["堀尾", "三浦", "黒見", "大西(元)", "大西(優)", "木本", "前田", "本郷", "大重", "松本(幹)", "秋藤", "外注"]
         };
 
         function getOwnerOptions(majorItem) {
@@ -1219,7 +1206,6 @@
             if (task.text === "外観検査") return css + "milestone-circle";
             if (task.text === "出荷確認会議") return css + "milestone-diamond";
             if (task.text === "工場出荷") return css + "milestone-star";
-            if (task.text === "出荷") css += "task-shipping-star ";
 
             switch (task.major_item) {
                 case '設計': css += "task-blue"; break;
@@ -1520,54 +1506,42 @@
             `;
 
             LOCATION_GROUPS.forEach(group => {
-                const isExpanded = locationExpandedGroups[group];
-                // グループ行
-                html += `
-                    <div class="resource-item" style="display: flex; border-bottom: 1px solid #ddd; min-height: 24px; height: 24px; align-items: center; background: #ebf5ff; cursor: pointer; width: ${totalWidth}px;" onclick="toggleLocationGroup('${group}')">
-                        <div style="padding: 0 10px; font-weight: bold; color: #3498db; font-size: 11px; position: sticky; left: 0; background: inherit; z-index: 1;">
-                            ${isExpanded ? '▼' : '▶'} ${group}
-                        </div>
-                    </div>
-                `;
-
-                if (isExpanded) {
-                    LOCATION_NUMBERS.forEach(num => {
-                        const areaTasks = locationTasks.filter(t => t.area_group === group && t.area_number === num);
+                LOCATION_NUMBERS.forEach(num => {
+                    const areaTasks = locationTasks.filter(t => t.area_group === group && t.area_number === num);
                         
-                        html += `
-                            <div class="resource-item" style="display: flex; border-bottom: 1px solid #eee; min-height: 22px; height: 22px; align-items: stretch;">
-                                <div class="resource-grid-container" style="width: ${GRID_WIDTH}px; min-width: ${GRID_WIDTH}px; flex-shrink: 0; display: flex; border-right: 1px solid #ddd; background: #fff; position: sticky; left: 0; z-index: 1;">
-                                    <div class="resource-cell" style="width: 40px; border-right: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; color: #666;">${num}</div>
-                                    <div class="resource-cell" style="flex: 1; font-size: 10px; color: #999; padding-left: 10px; display: flex; align-items: center;">${areaTasks.length > 0 ? areaTasks.length + '件のタスク' : ''}</div>
-                                </div>
-                                <div class="resource-timeline" style="width: ${timelineWidth}px; flex-shrink: 0; position: relative; background: #fff; ${backgroundStyle}">
-                                    <div class="resource-cell-bars" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0;">
-                        `;
+                    html += `
+                        <div class="resource-item" style="display: flex; border-bottom: 1px solid #eee; min-height: 22px; height: 22px; align-items: stretch;">
+                            <div class="resource-grid-container" style="width: ${GRID_WIDTH}px; min-width: ${GRID_WIDTH}px; flex-shrink: 0; display: flex; border-right: 1px solid #ddd; background: #fff; position: sticky; left: 0; z-index: 1;">
+                                <div class="resource-cell" style="flex: 1;"></div>
+                                <div class="resource-cell" style="width: 80px; border-left: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; color: #666;">${group}-${num}</div>
+                            </div>
+                            <div class="resource-timeline" style="width: ${timelineWidth}px; flex-shrink: 0; position: relative; background: #fff; ${backgroundStyle}">
+                                <div class="resource-cell-bars" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0;">
+                    `;
 
-                        areaTasks.forEach(t => {
-                            const start = new Date(t.start_date);
-                            const end = gantt.calculateEndDate(start, t.duration);
-                            const left = gantt.posFromDate(start);
-                            const right = gantt.posFromDate(end);
-                            const width = Math.max(2, right - left);
-                            const colorClass = getResourceTaskClass(t);
-
-                            html += `
-                                <div class="resource-cell-bar ${colorClass}" 
-                                     style="position: absolute; top: 3px; height: 14px; left: ${left}px; width: ${width}px; border-radius: 3px; opacity: 0.8; display: flex; align-items: center; justify-content: center; color: #555; font-size: 9px; font-weight: bold; overflow: hidden; white-space: nowrap; text-shadow: 0.5px 0.5px 1px rgba(255,255,255,0.8);" 
-                                     title="${t.project_number || ""}-${t.machine || ""}${t.unit || ""}">
-                                     ${t.project_number || ""} ${t.machine || ""}
-                                </div>
-                            `;
-                        });
+                    areaTasks.forEach(t => {
+                        const start = new Date(t.start_date);
+                        const end = gantt.calculateEndDate(start, t.duration);
+                        const left = gantt.posFromDate(start);
+                        const right = gantt.posFromDate(end);
+                        const width = Math.max(2, right - left);
+                        const colorClass = getResourceTaskClass(t);
 
                         html += `
-                                    </div>
-                                </div>
+                            <div class="resource-cell-bar ${colorClass}" 
+                                 style="position: absolute; top: 3px; height: 14px; left: ${left}px; width: ${width}px; border-radius: 3px; opacity: 0.8; display: flex; align-items: center; justify-content: center; color: #555; font-size: 9px; font-weight: bold; overflow: hidden; white-space: nowrap; text-shadow: 0.5px 0.5px 1px rgba(255,255,255,0.8);" 
+                                 title="${t.project_number || ""}-${t.machine || ""}${t.unit || ""}">
+                                 ${t.project_number || ""} ${t.machine || ""}
                             </div>
                         `;
                     });
-                }
+
+                    html += `
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
             });
 
             container.innerHTML = html;
@@ -1740,18 +1714,14 @@
             if (task.text === "外観検査") return "milestone-circle";
             if (task.text === "出荷確認会議") return "milestone-diamond";
             if (task.text === "工場出荷") return "milestone-star";
-            
-            let css = "";
-            if (task.text === "出荷") css += "task-shipping-star ";
-
             switch (task.major_item) {
-                case '設計': return css + "task-blue";
-                case '製管': case '品証': return css + "task-green";
-                case '組立': return css + "task-yellow";
-                case '電装': return css + "task-purple";
-                case '操業': return css + "task-red";
-                case '営業': return css + "task-orange";
-                default: return css;
+                case '設計': return "task-blue";
+                case '製管': case '品証': return "task-green";
+                case '組立': return "task-yellow";
+                case '電装': return "task-purple";
+                case '操業': return "task-red";
+                case '営業': return "task-orange";
+                default: return "";
             }
         }
 
