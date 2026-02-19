@@ -47,7 +47,28 @@
         /* リソース行：1行内で複数タスクをオーバーラップ表示 */
         .resource-cell-overlap { position: relative; }
         .resource-cell-bars { position: relative; width: 100%; height: 100%; min-height: 27px; }
-        .resource-cell-bar { position: absolute; top: 3px; height: 21px; min-width: 4px; border-radius: 2px; opacity: 0.85; }
+        .resource-cell-bar { 
+            position: absolute; 
+            top: 3px; 
+            height: 21px; 
+            min-width: 4px; 
+            border-radius: 2px; 
+            opacity: 0.85; 
+        }
+        /* 部署別リソースタイムライン専用のスタイル（重なり強調） */
+        .resource-dept-view .resource-cell-bar {
+            border: 1px solid rgba(255, 255, 255, 0.6); /* 白い細枠 */
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1); /* 軽い影 */
+            transition: all 0.2s ease; /* ホバー時のアニメーション */
+            z-index: 1;
+        }
+        .resource-dept-view .resource-cell-bar:hover {
+            z-index: 100 !important; /* 最前面に */
+            opacity: 1 !important; /* 不透明に */
+            transform: scaleY(1.1); /* 少し太く */
+            box-shadow: 0 3px 8px rgba(0,0,0,0.3); /* 影を強調 */
+            cursor: pointer;
+        }
         /* 下段リソース：左グリッド・右タイムラインのヘッダー（タイトル行）を完全非表示し、1行目からデータが同じ高さで始まるようにする */
         .gantt_layout_resource_row .gantt_grid_scale,
         .gantt_layout_resource_row .gantt_grid_head,
@@ -1409,7 +1430,7 @@
             
             // ヘッダー行
                 html += `
-                    <div class="resource-item resource-summary-header" style="display: flex; border-bottom: 1px solid #ddd; min-height: 27px; height: 27px; align-items: center; background: #f8f9fa; position: sticky; top: 0; left: 0; z-index: 10; width: ${totalWidth}px;">
+                    <div class="resource-item resource-summary-header resource-dept-view" style="display: flex; border-bottom: 1px solid #ddd; min-height: 27px; height: 27px; align-items: center; background: #f8f9fa; position: sticky; top: 0; left: 0; z-index: 10; width: ${totalWidth}px;">
                         <div style="padding: 0 15px; font-weight: bold; color: #2c3e50; font-size: 11px; position: sticky; left: 0; background: inherit; height: 100%; display: flex; align-items: center; z-index: 11; white-space: nowrap;">
                         部署：${deptName}（${owners.length}名）
                     </div>
@@ -1424,8 +1445,12 @@
                 // 名寄せ後の名前に基づいてタスクを抽出
                 const ownerTasks = window.allTasks.filter(t => getNormalizedOwners(t.owner).includes(ownerName));
                 
+                // タスクの重なりを判定してスタック位置を計算
+                const sortedTasks = ownerTasks.sort((a, b) => new Date(a.start_date) - new Date(b.start_date));
+                const stacks = []; // 各スタックの終了時間を保持
+
                 html += `
-                    <div class="resource-item clickable" style="display: flex; border-bottom: 1px solid #eee; min-height: 27px; height: 27px; align-items: stretch; cursor: pointer;" onclick="showResourceViewByOwner('${ownerName.replace(/'/g, "\\'")}')">
+                    <div class="resource-item clickable resource-dept-view" style="display: flex; border-bottom: 1px solid #eee; min-height: 27px; height: 27px; align-items: stretch; cursor: pointer;" onclick="showResourceViewByOwner('${ownerName.replace(/'/g, "\\'")}')">
                         <div class="resource-grid-container" style="width: ${GRID_WIDTH}px; min-width: ${GRID_WIDTH}px; flex-shrink: 0; display: flex; border-right: 1px solid #ddd; background: #f9f9f9; position: sticky; left: 0; z-index: 1;">
                             <div class="resource-cell" style="flex: 1;"></div>
                             <div class="resource-cell" style="width: ${COLUMN_WIDTHS[0]}px; border-left: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; font-size: 11px; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${ownerName.replace(/\d+/g, "")}</div>
@@ -1436,7 +1461,7 @@
                 `;
 
                 // 担当者のタスクをタイムラインに描画
-                ownerTasks.forEach(t => {
+                sortedTasks.forEach(t => {
                     const start = new Date(t.start_date);
                     const end = gantt.calculateEndDate(start, t.duration);
                     const left = gantt.posFromDate(start);
@@ -1444,9 +1469,20 @@
                     const width = Math.max(2, right - left);
                     const colorClass = getResourceTaskClass(t);
 
+                    // スタック位置の計算
+                    let stackIndex = 0;
+                    while (stacks[stackIndex] && stacks[stackIndex] > start.getTime()) {
+                        stackIndex++;
+                    }
+                    stacks[stackIndex] = end.getTime();
+                    
+                    // スタックに応じて高さをずらす
+                    const topOffset = 3 + (stackIndex * 5);
+                    const barHeight = 22 - (stackIndex > 0 ? 4 : 0);
+
                     html += `
                         <div class="resource-cell-bar ${colorClass}" 
-                             style="position: absolute; top: 3px; height: 22px; left: ${left}px; width: ${width}px; border-radius: 3px; opacity: 0.8; display: flex; align-items: center; justify-content: center; color: #222; font-size: 12px; font-weight: bold; overflow: hidden; white-space: nowrap; text-shadow: none; z-index: 5;" 
+                             style="position: absolute; top: ${topOffset}px; height: ${barHeight}px; left: ${left}px; width: ${width}px; border-radius: 3px; opacity: 0.8; display: flex; align-items: center; justify-content: center; color: #222; font-size: 12px; font-weight: bold; overflow: hidden; white-space: nowrap; text-shadow: none; z-index: ${5 + stackIndex};" 
                              title="${t.text} (${t.project_number})">
                              ${t.project_number || ""}
                         </div>
@@ -1595,9 +1631,13 @@
             LOCATION_GROUPS.forEach(group => {
                 LOCATION_NUMBERS.forEach(num => {
                     const areaTasks = locationTasks.filter(t => t.area_group === group && t.area_number === num);
-                        
+                    
+                    // 組立場所表示は常にスタックとコンフリクト強調を行う
+                    const sortedTasks = areaTasks.sort((a, b) => new Date(a.start_date) - new Date(b.start_date));
+                    const stacks = []; // 各スタックの終了時間を保持
+
                     html += `
-                        <div class="resource-item" style="display: flex; border-bottom: 1px solid #eee; min-height: 27px; height: 27px; align-items: stretch;">
+                        <div class="resource-item resource-dept-view" style="display: flex; border-bottom: 1px solid #eee; min-height: 27px; height: 27px; align-items: stretch;">
                             <div class="resource-grid-container" style="width: ${GRID_WIDTH}px; min-width: ${GRID_WIDTH}px; flex-shrink: 0; display: flex; border-right: 1px solid #ddd; background: #fff; position: sticky; left: 0; z-index: 1;">
                                 <div class="resource-cell" style="flex: 1;"></div>
                                 <div class="resource-cell" style="width: 80px; border-left: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; color: #666;">${group}-${num}</div>
@@ -1607,7 +1647,7 @@
                                 <div class="resource-cell-bars" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 2;">
                     `;
 
-                    areaTasks.forEach(t => {
+                    sortedTasks.forEach(t => {
                         const start = new Date(t.start_date);
                         const end = gantt.calculateEndDate(start, t.duration);
                         const left = gantt.posFromDate(start);
@@ -1615,9 +1655,20 @@
                         const width = Math.max(2, right - left);
                         const colorClass = getResourceTaskClass(t);
 
+                        // スタック位置の計算
+                        let stackIndex = 0;
+                        while (stacks[stackIndex] && stacks[stackIndex] > start.getTime()) {
+                            stackIndex++;
+                        }
+                        stacks[stackIndex] = end.getTime();
+                        
+                        // スタックに応じて高さをずらす (3px, 8px, 13px...)
+                        const topOffset = 3 + (stackIndex * 5);
+                        const barHeight = 22 - (stackIndex > 0 ? 4 : 0); // 重なる場合は少し細く
+
                         html += `
                             <div class="resource-cell-bar ${colorClass}" 
-                                 style="position: absolute; top: 3px; height: 22px; left: ${left}px; width: ${width}px; border-radius: 3px; opacity: 0.8; display: flex; align-items: center; justify-content: center; color: #222; font-size: 12px; font-weight: bold; overflow: hidden; white-space: nowrap; text-shadow: none; z-index: 5;" 
+                                 style="position: absolute; top: ${topOffset}px; height: ${barHeight}px; left: ${left}px; width: ${width}px; border-radius: 3px; opacity: 0.8; display: flex; align-items: center; justify-content: center; color: #222; font-size: 12px; font-weight: bold; overflow: hidden; white-space: nowrap; text-shadow: none; z-index: ${5 + stackIndex};" 
                                  title="${t.project_number || ""}-${t.machine || ""}${t.unit || ""}">
                                  ${t.project_number || ""} ${t.machine || ""}
                             </div>
@@ -1697,18 +1748,24 @@
             
             // 担当者名とタスク件数を表示する固定ヘッダー行
             const filterTitle = currentResourceDeptFilter ? `部署：${currentResourceDeptFilter}` : `担当：${currentResourceOwnerFilter}`;
-                html += `
-                    <div class="resource-item resource-summary-header" style="display: flex; border-bottom: 1px solid #ddd; min-height: 27px; height: 27px; align-items: center; background: #f8f9fa; position: sticky; top: 0; left: 0; z-index: 10; width: ${totalWidth}px;">
-                        <div style="padding: 0 15px; font-weight: bold; color: #2c3e50; font-size: 11px; position: sticky; left: 0; background: inherit; height: 100%; display: flex; align-items: center; z-index: 11; white-space: nowrap;">
-                        【${filterTitle}】のタスク　${filteredTasks.length}件
-                    </div>
-                    <div style="position: sticky; right: 0; background: inherit; height: 100%; display: flex; align-items: center; padding-right: 10px; margin-left: auto; z-index: 11;">
-                        <button type="button" class="resource-header-close" onclick="closeResourcePanel()">×</button>
-                    </div>
+            const viewClass = currentResourceDeptFilter ? "resource-dept-view" : "resource-owner-view";
+
+            // タスクの重なりを判定してスタック位置を計算
+            const sortedTasks = filteredTasks.sort((a, b) => new Date(a.start_date) - new Date(b.start_date));
+            const stacks = []; // 各スタックの終了時間を保持
+
+            html += `
+                <div class="resource-item resource-summary-header ${viewClass}" style="display: flex; border-bottom: 1px solid #ddd; min-height: 27px; height: 27px; align-items: center; background: #f8f9fa; position: sticky; top: 0; left: 0; z-index: 10; width: ${totalWidth}px;">
+                    <div style="padding: 0 15px; font-weight: bold; color: #2c3e50; font-size: 11px; position: sticky; left: 0; background: inherit; height: 100%; display: flex; align-items: center; z-index: 11; white-space: nowrap;">
+                    【${filterTitle}】のタスク　${filteredTasks.length}件
                 </div>
+                <div style="position: sticky; right: 0; background: inherit; height: 100%; display: flex; align-items: center; padding-right: 10px; margin-left: auto; z-index: 11;">
+                    <button type="button" class="resource-header-close" onclick="closeResourcePanel()">×</button>
+                </div>
+            </div>
             `;
             
-            filteredTasks.forEach(t => {
+            sortedTasks.forEach(t => {
                 const start = new Date(t.start_date);
                 const end = gantt.calculateEndDate(start, t.duration);
                 
@@ -1719,9 +1776,34 @@
                 const colorClass = getResourceTaskClass(t);
                 const title = `${t.text} (${t.project_number})`;
 
+                // 部署別表示の場合のみスタックとコンフリクト判定を行う
+                let topOffset = 3;
+                let barHeight = 22;
+                let conflictClass = "";
+                let stackIndex = 0;
+
+                if (currentResourceDeptFilter) {
+                    // スタック位置の計算
+                    while (stacks[stackIndex] && stacks[stackIndex] > start.getTime()) {
+                        stackIndex++;
+                    }
+                    stacks[stackIndex] = end.getTime();
+                    
+                    // 重なりがある場合のクラス
+                    conflictClass = filteredTasks.some(other => {
+                        if (other.id === t.id) return false;
+                        const oStart = new Date(other.start_date);
+                        const oEnd = gantt.calculateEndDate(oStart, other.duration);
+                        return (start < oEnd && end > oStart);
+                    }) ? "is-conflict" : "";
+
+                    topOffset = 3 + (stackIndex * 5);
+                    barHeight = 22 - (stackIndex > 0 ? 4 : 0);
+                }
+
                 // 4. 【グリッド幅の固定】
                 html += `
-                    <div class="resource-item" style="display: flex; border-bottom: 1px solid #eee; min-height: 27px; height: 27px; align-items: stretch;">
+                    <div class="resource-item ${viewClass}" style="display: flex; border-bottom: 1px solid #eee; min-height: 27px; height: 27px; align-items: stretch;">
                         <div class="resource-grid-container" style="width: ${GRID_WIDTH}px; min-width: ${GRID_WIDTH}px; flex-shrink: 0; display: flex; border-right: 1px solid #ddd; background: #fff; position: sticky; left: 0; z-index: 1;">
                             <div class="resource-cell" style="width: ${COLUMN_WIDTHS[0]}px; border-right: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; justify-content: center; font-size: 11px;">${t.project_number || ""}</div>
                             <div class="resource-cell" style="width: ${COLUMN_WIDTHS[1]}px; border-right: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${t.text || ""}</div>
@@ -1735,8 +1817,8 @@
                         <div class="resource-timeline" style="width: ${timelineWidth}px; flex-shrink: 0; position: relative; background: #fafafa; border-right: 1px solid #ebebeb;">
                             <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; ${backgroundStyle} z-index: 1;"></div>
                             <div class="resource-cell-bars" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 2;">
-                                <div class="resource-cell-bar ${colorClass}" 
-                                     style="position: absolute; top: 3px; height: 22px; left: ${left}px; width: ${width}px; border-radius: 3px; opacity: 0.8; display: flex; align-items: center; justify-content: center; color: #222; font-size: 12px; font-weight: bold; overflow: hidden; white-space: nowrap; text-shadow: none; z-index: 5;" 
+                                <div class="resource-cell-bar ${colorClass} ${conflictClass}" 
+                                     style="position: absolute; top: ${topOffset}px; height: ${barHeight}px; left: ${left}px; width: ${width}px; border-radius: 3px; opacity: 0.8; display: flex; align-items: center; justify-content: center; color: #222; font-size: 12px; font-weight: bold; overflow: hidden; white-space: nowrap; text-shadow: none; z-index: ${5 + stackIndex};" 
                                      title="${title.replace(/"/g, "&quot;")}">
                                      ${t.project_number || ""}
                                 </div>
