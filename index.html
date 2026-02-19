@@ -21,7 +21,7 @@
         .sidebar-title { padding: 8px; font-weight: bold; background: #1a252f; font-size: 11px; cursor: pointer; transition: 0.2s; }
         .sidebar-title:hover { background: #34495e; }
         .project-list { flex: 1; overflow-y: auto; }
-        .project-item { padding: 6px 8px; border-bottom: 1px solid #34495e; cursor: pointer; font-size: 11px; transition: 0.2s; font-weight: bold; }
+        .project-item { padding: 6px 8px; border-bottom: 1px solid #34495e; cursor: pointer; font-size: 13px; transition: 0.2s; font-weight: bold; }
         .project-item:hover { background: #34495e; }
         .project-item.active { background: #3498db; color: white; border-left: 5px solid #fff; }
         .chart-container { flex: 1; display: flex; flex-direction: column; background: #fff; position: relative; overflow: hidden; }
@@ -1410,7 +1410,7 @@
             // ヘッダー行
                 html += `
                     <div class="resource-item resource-summary-header" style="display: flex; border-bottom: 1px solid #ddd; min-height: 27px; height: 27px; align-items: center; background: #f8f9fa; position: sticky; top: 0; left: 0; z-index: 10; width: ${totalWidth}px;">
-                        <div style="padding: 0 15px; font-weight: bold; color: #2c3e50; font-size: 10px; position: sticky; left: 0; background: inherit; height: 100%; display: flex; align-items: center; z-index: 11; white-space: nowrap;">
+                        <div style="padding: 0 15px; font-weight: bold; color: #2c3e50; font-size: 11px; position: sticky; left: 0; background: inherit; height: 100%; display: flex; align-items: center; z-index: 11; white-space: nowrap;">
                         部署：${deptName}（${owners.length}名）
                     </div>
                     <div style="position: sticky; right: 0; background: inherit; height: 100%; display: flex; align-items: center; padding-right: 10px; margin-left: auto; z-index: 11;">
@@ -1428,7 +1428,7 @@
                     <div class="resource-item clickable" style="display: flex; border-bottom: 1px solid #eee; min-height: 27px; height: 27px; align-items: stretch; cursor: pointer;" onclick="showResourceViewByOwner('${ownerName.replace(/'/g, "\\'")}')">
                         <div class="resource-grid-container" style="width: ${GRID_WIDTH}px; min-width: ${GRID_WIDTH}px; flex-shrink: 0; display: flex; border-right: 1px solid #ddd; background: #f9f9f9; position: sticky; left: 0; z-index: 1;">
                             <div class="resource-cell" style="flex: 1;"></div>
-                            <div class="resource-cell" style="width: ${COLUMN_WIDTHS[0]}px; border-left: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; font-size: 10px; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${ownerName.replace(/\d+/g, "")}</div>
+                            <div class="resource-cell" style="width: ${COLUMN_WIDTHS[0]}px; border-left: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; font-size: 11px; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${ownerName.replace(/\d+/g, "")}</div>
                         </div>
                         <div class="resource-timeline" style="width: ${timelineWidth}px; flex-shrink: 0; position: relative; background: #fff; border-right: 1px solid #ebebeb;">
                             <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; ${backgroundStyle} z-index: 1;"></div>
@@ -1699,7 +1699,7 @@
             const filterTitle = currentResourceDeptFilter ? `部署：${currentResourceDeptFilter}` : `担当：${currentResourceOwnerFilter}`;
                 html += `
                     <div class="resource-item resource-summary-header" style="display: flex; border-bottom: 1px solid #ddd; min-height: 27px; height: 27px; align-items: center; background: #f8f9fa; position: sticky; top: 0; left: 0; z-index: 10; width: ${totalWidth}px;">
-                        <div style="padding: 0 15px; font-weight: bold; color: #2c3e50; font-size: 10px; position: sticky; left: 0; background: inherit; height: 100%; display: flex; align-items: center; z-index: 11; white-space: nowrap;">
+                        <div style="padding: 0 15px; font-weight: bold; color: #2c3e50; font-size: 11px; position: sticky; left: 0; background: inherit; height: 100%; display: flex; align-items: center; z-index: 11; white-space: nowrap;">
                         【${filterTitle}】のタスク　${filteredTasks.length}件
                     </div>
                     <div style="position: sticky; right: 0; background: inherit; height: 100%; display: flex; align-items: center; padding-right: 10px; margin-left: auto; z-index: 11;">
@@ -1723,13 +1723,13 @@
                 html += `
                     <div class="resource-item" style="display: flex; border-bottom: 1px solid #eee; min-height: 27px; height: 27px; align-items: stretch;">
                         <div class="resource-grid-container" style="width: ${GRID_WIDTH}px; min-width: ${GRID_WIDTH}px; flex-shrink: 0; display: flex; border-right: 1px solid #ddd; background: #fff; position: sticky; left: 0; z-index: 1;">
-                            <div class="resource-cell" style="width: ${COLUMN_WIDTHS[0]}px; border-right: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; justify-content: center; font-size: 10px;">${t.project_number || ""}</div>
-                            <div class="resource-cell" style="width: ${COLUMN_WIDTHS[1]}px; border-right: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${t.text || ""}</div>
-                            <div class="resource-cell" style="width: ${COLUMN_WIDTHS[2]}px; border-right: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; justify-content: center; font-size: 10px;">${t.machine || ""}</div>
-                            <div class="resource-cell" style="width: ${COLUMN_WIDTHS[3]}px; border-right: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; justify-content: center; font-size: 10px;">${t.unit || ""}</div>
-                            <div class="resource-cell" style="width: ${COLUMN_WIDTHS[4]}px; border-right: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; font-size: 10px;">${(t.owner || "").replace(/\d+/g, "")}</div>
-                            <div class="resource-cell" style="width: ${COLUMN_WIDTHS[5]}px; border-right: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; justify-content: center; font-size: 10px;">${dateToDisplay(start)}</div>
-                            <div class="resource-cell" style="width: ${COLUMN_WIDTHS[6]}px; border-right: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; justify-content: center; font-size: 10px;">${dateToDisplay(end)}</div>
+                            <div class="resource-cell" style="width: ${COLUMN_WIDTHS[0]}px; border-right: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; justify-content: center; font-size: 11px;">${t.project_number || ""}</div>
+                            <div class="resource-cell" style="width: ${COLUMN_WIDTHS[1]}px; border-right: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${t.text || ""}</div>
+                            <div class="resource-cell" style="width: ${COLUMN_WIDTHS[2]}px; border-right: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; justify-content: center; font-size: 11px;">${t.machine || ""}</div>
+                            <div class="resource-cell" style="width: ${COLUMN_WIDTHS[3]}px; border-right: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; justify-content: center; font-size: 11px;">${t.unit || ""}</div>
+                            <div class="resource-cell" style="width: ${COLUMN_WIDTHS[4]}px; border-right: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; font-size: 11px;">${(t.owner || "").replace(/\d+/g, "")}</div>
+                            <div class="resource-cell" style="width: ${COLUMN_WIDTHS[5]}px; border-right: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; justify-content: center; font-size: 11px;">${dateToDisplay(start)}</div>
+                            <div class="resource-cell" style="width: ${COLUMN_WIDTHS[6]}px; border-right: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; justify-content: center; font-size: 11px;">${dateToDisplay(end)}</div>
                             <div class="resource-cell" style="width: ${COLUMN_WIDTHS[7]}px; padding: 0 4px;"></div>
                         </div>
                         <div class="resource-timeline" style="width: ${timelineWidth}px; flex-shrink: 0; position: relative; background: #fafafa; border-right: 1px solid #ebebeb;">
