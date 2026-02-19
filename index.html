@@ -514,7 +514,8 @@
                 <div id="gantt_here" style="width: 100%; height: 100%;"></div>
 
                 <!-- 独立したリソースパネル -->
-                <div id="resource_panel" style="display: none; height: 250px; border-top: 2px solid #ccc; background: #fff; flex-direction: column;">
+                <div id="resource_panel" style="display: none; height: 250px; border-top: 2px solid #ccc; background: #fff; flex-direction: column; position: relative;">
+                    <div id="resource_resizer" style="height: 5px; cursor: ns-resize; background: #eee; width: 100%; position: absolute; top: -3px; z-index: 100; transition: background 0.2s;" onmouseover="this.style.background='#3498db'" onmouseout="this.style.background='#eee'"></div>
                     <div id="resource_header_bar" class="resource-header-bar" style="display: none;">
                         <span id="resource_title">リソース状況（担当者で選択）</span>
                         <button type="button" class="resource-header-close" id="resource_close_btn" title="リソース画面を閉じる" aria-label="閉じる">×</button>
@@ -663,6 +664,56 @@
         // 表示期間（上段・下段で同一にし、ズレを防ぐ）
         const GANTT_START_DATE = new Date(2024, 10, 1);  // 2024/11/1
         const GANTT_END_DATE = new Date(2027, 11, 0);   // 2027/11/30（11月末）
+        
+        // リソースパネルのリサイズ機能
+        (function() {
+            let isResizing = false;
+            let lastY = 0;
+            const minHeight = 50;
+            const maxHeight = 600;
+
+            window.addEventListener('DOMContentLoaded', () => {
+                const resizer = document.getElementById('resource_resizer');
+                const panel = document.getElementById('resource_panel');
+
+                if (!resizer || !panel) return;
+
+                resizer.addEventListener('mousedown', (e) => {
+                    isResizing = true;
+                    lastY = e.clientY;
+                    document.body.style.cursor = 'ns-resize';
+                    e.preventDefault();
+                });
+
+                window.addEventListener('mousemove', (e) => {
+                    if (!isResizing) return;
+                    
+                    const deltaY = lastY - e.clientY;
+                    const panel = document.getElementById('resource_panel');
+                    const currentHeight = parseInt(getComputedStyle(panel).height);
+                    let newHeight = currentHeight + deltaY;
+
+                    if (newHeight < minHeight) newHeight = minHeight;
+                    if (newHeight > maxHeight) newHeight = maxHeight;
+
+                    panel.style.height = newHeight + 'px';
+                    lastY = e.clientY;
+                    
+                    // ガントチャートのサイズ再計算が必要な場合
+                    if (window.gantt) {
+                        gantt.render();
+                    }
+                });
+
+                window.addEventListener('mouseup', () => {
+                    if (isResizing) {
+                        isResizing = false;
+                        document.body.style.cursor = 'default';
+                    }
+                });
+            });
+        })();
+
         var GANTT_CALENDAR_CONFIG = {
             start_date: new Date(GANTT_START_DATE.getTime()),
             end_date: new Date(GANTT_END_DATE.getTime())
