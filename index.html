@@ -10,25 +10,25 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
-        html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: "メイリオ", sans-serif; font-size: 13px; }
+        html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: "メイリオ", sans-serif; font-size: 12px; }
         .main-container { display: flex; flex-direction: column; height: 100vh; }
         .header-panel { background: #fff; padding: 5px 10px; border-bottom: 1px solid #ccc; display: flex; flex-direction: column; gap: 4px; }
         .input-row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
-        .input-row input { padding: 4px 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; }
-        .btn-add { padding: 4px 12px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 12px; }
+        .input-row input { padding: 4px 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 11px; }
+        .btn-add { padding: 4px 12px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 11px; }
         .content-area { display: flex; flex: 1; overflow: hidden; }
         .sidebar { width: 100px; background: #2c3e50; color: #ecf0f1; display: flex; flex-direction: column; border-right: 1px solid #1a252f; }
-        .sidebar-title { padding: 8px; font-weight: bold; background: #1a252f; font-size: 12px; cursor: pointer; transition: 0.2s; }
+        .sidebar-title { padding: 8px; font-weight: bold; background: #1a252f; font-size: 11px; cursor: pointer; transition: 0.2s; }
         .sidebar-title:hover { background: #34495e; }
         .project-list { flex: 1; overflow-y: auto; }
-        .project-item { padding: 6px 8px; border-bottom: 1px solid #34495e; cursor: pointer; font-size: 12px; transition: 0.2s; font-weight: bold; }
+        .project-item { padding: 6px 8px; border-bottom: 1px solid #34495e; cursor: pointer; font-size: 11px; transition: 0.2s; font-weight: bold; }
         .project-item:hover { background: #34495e; }
         .project-item.active { background: #3498db; color: white; border-left: 5px solid #fff; }
         .chart-container { flex: 1; display: flex; flex-direction: column; background: #fff; position: relative; overflow: hidden; }
 
         /* ライトボックスの期間選択を年月日の順に並び替え */
-        .gantt_section_time { display: flex !important; flex-wrap: wrap; align-items: center; gap: 5px; font-size: 12px; }
-        .gantt_section_time select { padding: 2px; font-size: 12px; }
+        .gantt_section_time { display: flex !important; flex-wrap: wrap; align-items: center; gap: 5px; font-size: 11px; }
+        .gantt_section_time select { padding: 2px; font-size: 11px; }
         .gantt_section_time select:nth-of-type(1) { order: 3; } /* 日 */
         .gantt_section_time select:nth-of-type(2) { order: 2; } /* 月 */
         .gantt_section_time select:nth-of-type(3) { order: 1; } /* 年 */
@@ -36,7 +36,7 @@
 
         .gantt-layout-container { display: flex; flex-direction: column; flex: 1; min-height: 0; width: 100%; }
         #gantt_here { flex: 1; min-height: 0; width: 100%; }
-        .resource-header-bar { background: #f8f9fa; padding: 4px 12px; font-weight: bold; font-size: 11px; color: #2c3e50; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #ddd; border-top: 1px solid #ddd; }
+        .resource-header-bar { background: #f8f9fa; padding: 4px 12px; font-weight: bold; font-size: 10px; color: #2c3e50; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #ddd; border-top: 1px solid #ddd; }
         /* リソース行の直上に配置したときの固定表示（伸縮しない） */
         .resource-header-bar-fixed { flex: 0 0 auto !important; flex-shrink: 0 !important; z-index: 10; }
         .gantt_layout_resource_row { min-height: 100px; }
@@ -46,23 +46,23 @@
         .resource-panel-closed .gantt_layout_resource_row { display: none !important; height: 0 !important; min-height: 0 !important; overflow: hidden !important; }
         /* リソース行：1行内で複数タスクをオーバーラップ表示 */
         .resource-cell-overlap { position: relative; }
-        .resource-cell-bars { position: relative; width: 100%; height: 100%; min-height: 28px; }
-        .resource-cell-bar { position: absolute; top: 5px; height: 18px; min-width: 4px; border-radius: 2px; opacity: 0.85; }
+        .resource-cell-bars { position: relative; width: 100%; height: 100%; min-height: 27px; }
+        .resource-cell-bar { position: absolute; top: 3px; height: 21px; min-width: 4px; border-radius: 2px; opacity: 0.85; }
         /* 下段リソース：左グリッド・右タイムラインのヘッダー（タイトル行）を完全非表示し、1行目からデータが同じ高さで始まるようにする */
         .gantt_layout_resource_row .gantt_grid_scale,
         .gantt_layout_resource_row .gantt_grid_head,
         .gantt_layout_resource_row .gantt_grid_head_row,
         .gantt_layout_resource_row .gantt_scale,
         .gantt_layout_resource_row .gantt_scale_line { display: none !important; height: 0 !important; min-height: 0 !important; overflow: hidden !important; }
-        .toolbar { background: #f8f9fa; padding: 4px 12px; border-bottom: 1px solid #ddd; display: flex; gap: 8px; align-items: center; font-size: 11px; }
-        .zoom-btn { padding: 2px 8px; cursor: pointer; background: #fff; border: 1px solid #ccc; border-radius: 3px; font-size: 12px; }
+        .toolbar { background: #f8f9fa; padding: 4px 12px; border-bottom: 1px solid #ddd; display: flex; gap: 8px; align-items: center; font-size: 10px; }
+        .zoom-btn { padding: 2px 8px; cursor: pointer; background: #fff; border: 1px solid #ccc; border-radius: 3px; font-size: 11px; }
         .zoom-btn.active { background-color: #3498db; color: #fff; border-color: #3498db; }
         
         /* リソース行の高さを強制し、白い余白を消す */
         .gantt_resource_view .gantt_task_row,
         .gantt_resource_view .gantt_task_cell {
-            height: 28px !important;
-            line-height: 28px !important;
+            height: 27px !important;
+            line-height: 27px !important;
             box-sizing: border-box !important;
         }
         /* 垂直罫線を一番下まで繋げる */
@@ -73,7 +73,7 @@
 
         /* バー（割り当て要素）が隠れないようにする */
         .gantt_resource_view .gantt_task_line {
-            height: 18px !important; /* 行の高さ28pxに対して適切なサイズ */
+            height: 17px !important; /* 行の高さ27pxに対して適切なサイズ */
             margin-top: 5px !important;
         }
         
@@ -82,7 +82,7 @@
         .gantt_group_row { background-color: #f0f7ff !important; font-weight: bold !important; } /* 見出し行：さらに薄いスカイブルー */
         
         /* カレンダーの年月を中央揃えにする */
-        .gantt_scale_cell { text-align: center !important; font-size: 12px; }
+        .gantt_scale_cell { text-align: center !important; font-size: 13px; }
         
         /* 業務別カラー設定（中程度のパステル調） */
         .task-blue, .gantt_project.task-blue { background-color: #85C1E9 !important; border-color: #5DADE2 !important; }
@@ -132,36 +132,36 @@
             text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
         }
         
-        /* バー内の文字色（少し薄いグレーに影付きに統一） */
+        /* バー内の文字色（濃いグレーに統一） */
         .gantt_task_content { 
-            color: #555 !important; 
+            color: #222 !important; 
             font-weight: bold; 
-            font-size: 11px;
-            text-shadow: 0.5px 0.5px 1px rgba(255,255,255,0.8) !important; 
+            font-size: 13px;
+            text-shadow: none !important; 
         }
 
         /* 2000番台以外の見出し行の文字色（白に戻す） */
         .header-non-2000s .gantt_task_content {
             color: #fff !important;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.3) !important;
+            text-shadow: none !important;
         }
 
         /* 2000番台の見出し行の文字色（白にする） */
         .header-2000s .gantt_task_content {
             color: #fff !important;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.3) !important;
+            text-shadow: none !important;
         }
         
-        /* 2000番台のバー内の文字色（共通設定を使用するため削除または維持） */
+        /* 2000番台のバー内の文字色（濃いグレーに変更） */
         .task-2000s .gantt_task_content { 
-            color: #555 !important; 
-            text-shadow: 0.5px 0.5px 1px rgba(255,255,255,0.8) !important; 
+            color: #222 !important; 
+            text-shadow: none !important; 
         }
 
         /* 2000番台の見出し行（header-2000s）の場合は白文字を優先 */
         .task-2000s.header-2000s .gantt_task_content {
             color: #fff !important;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.3) !important;
+            text-shadow: none !important;
         }
 
         /* 開始日リサイズハンドル（バー左の三角）を表示・有効化（終了日同様に変更可能にする） */
@@ -307,7 +307,7 @@
             padding: 0 4px;
             color: #333;
             font-weight: bold;
-            font-size: 11px;
+            font-size: 10px;
             position: sticky;
             left: 0;
             z-index: 2;
@@ -352,10 +352,10 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            color: #555 !important;
-            font-size: 10px;
+            color: #222 !important;
+            font-size: 11px;
             font-weight: bold;
-            text-shadow: 0.5px 0.5px 1px rgba(255,255,255,0.8) !important;
+            text-shadow: none !important;
             box-sizing: border-box;
         }
         /* 上段ガントと同じ色・枠（リソースバー用） */
@@ -375,7 +375,7 @@
         .resource-bar.milestone-star { background: none !important; border: none !important; }
         .resource-bar.milestone-star .resource-bar-text { display: none; }
         .resource-bar.milestone-star::before { content: "★"; color: #2E7D32; font-size: 22px; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); text-shadow: 1px 1px 2px rgba(0,0,0,0.2); }
-        .resource-scale-row { display: flex; align-items: stretch; margin-bottom: 0; font-size: 11px; }
+        .resource-scale-row { display: flex; align-items: stretch; margin-bottom: 0; font-size: 10px; }
         .resource-scale-row:first-of-type .resource-scale-inner { border-bottom: 1px solid #e0e0e0; }
         .resource-scale-row:last-of-type .resource-scale-inner { height: 20px; }
         .resource-grid-lines-only .resource-scale-inner { height: 8px; min-height: 8px; }
@@ -412,8 +412,8 @@
         .resource-today-row .resource-scale-inner { background: transparent; border: none; }
         .resource-timeline { border-right: 1px solid #ebebeb; }
         .resource-item { border-bottom: 1px solid #ebebeb !important; }
-        .resource-placeholder { padding: 20px; color: #999; text-align: center; font-size: 12px; }
-        .filter-btn { padding: 4px 8px; border: 1px solid #ccc; border-radius: 4px; cursor: pointer; background: #fff; font-size: 12px; }
+        .resource-placeholder { padding: 20px; color: #999; text-align: center; font-size: 11px; }
+        .filter-btn { padding: 4px 8px; border: 1px solid #ccc; border-radius: 4px; cursor: pointer; background: #fff; font-size: 11px; }
         .filter-btn.active { background: #ff9800; color: white; border-color: #e68a00; }
         
         /* 担当未定行の背景を薄い赤にする */
@@ -449,7 +449,7 @@
                     <span style="margin-left: 10px; color: #1976D2; font-size: 20px;">◆</span> 出荷確認会議
                     <span style="margin-left: 10px; color: #2E7D32; font-size: 22px;">★</span> 工場出荷
                 </span>
-                <span id="save-status" style="font-size:11px; color:#999; margin-left:10px;"></span>
+                <span id="save-status" style="font-size:10px; color:#999; margin-left:10px;"></span>
             </div>
             <div class="input-row" style="border-top: 1px solid #eee; padding-top: 8px;">
                 <span style="font-size: 12px; color: #666; margin-right: 5px;">表示順：</span>
@@ -481,18 +481,18 @@
 
             <div class="filter-group">
                 <span>機械検索:</span>
-                <input type="text" id="machine_search" placeholder="機械名を入力..." style="width:100px; padding:3px; border:1px solid #ccc; border-radius:3px; font-size:12px;" oninput="filterByMachine(this.value)">
+                <input type="text" id="machine_search" placeholder="機械名を入力..." style="width:100px; padding:3px; border:1px solid #ccc; border-radius:3px; font-size:11px;" oninput="filterByMachine(this.value)">
             </div>
 
             <div class="filter-group">
                 <span>担当検索:</span>
-                <input type="text" id="owner_search" placeholder="名前を入力..." style="width:100px; padding:3px; border:1px solid #ccc; border-radius:3px; font-size:12px;" oninput="filterByOwner(this.value)">
+                <input type="text" id="owner_search" placeholder="名前を入力..." style="width:100px; padding:3px; border:1px solid #ccc; border-radius:3px; font-size:11px;" oninput="filterByOwner(this.value)">
                 <button id="unassigned_filter_btn" class="filter-btn" onclick="toggleUnassignedFilter()" style="margin-left: 5px;">⚠️ 未定のみ</button>
             </div>
 
             <div class="filter-group">
                 <span>リソース（担当者）:</span>
-                <input type="text" id="resource_owner_input" placeholder="担当名を入力..." style="width:120px; padding:3px; border:1px solid #ccc; border-radius:3px; font-size:12px;" oninput="showResourceViewByOwner(this.value)">
+                <input type="text" id="resource_owner_input" placeholder="担当名を入力..." style="width:120px; padding:3px; border:1px solid #ccc; border-radius:3px; font-size:11px;" oninput="showResourceViewByOwner(this.value)">
                 <button class="zoom-btn resource-dept-btn" onclick="filterByDepartment('営業', this)">営業</button>
                 <button class="zoom-btn resource-dept-btn" onclick="filterByDepartment('設計', this)">設計</button>
                 <button class="zoom-btn resource-dept-btn" onclick="filterByDepartment('製管', this)">製管</button>
@@ -632,12 +632,12 @@
                 
                 let html = "";
                 if (options.length === 0) {
-                    html = "<span style='color: #999; font-size: 12px;'>フィルタ色分けを選択してください</span>";
+                    html = "<span style='color: #999; font-size: 11px;'>フィルタ色分けを選択してください</span>";
                 } else {
                     const selectedOwners = (value || "").split(',').map(s => s.trim());
                     options.forEach(opt => {
                         const isChecked = selectedOwners.includes(opt.key) ? "checked" : "";
-                        html += `<label style='display: inline-block; cursor: pointer; font-size: 12px;'>
+                        html += `<label style='display: inline-block; cursor: pointer; font-size: 11px;'>
                                     <input type='checkbox' name='owner_checkbox' value='${opt.key}' ${isChecked} style='vertical-align: middle;'> ${opt.label}
                                  </label>`;
                     });
@@ -763,11 +763,11 @@
 
                 let html = "";
                 if (owners.length === 0) {
-                    html = "<span style='color:#999; font-size:12px;'>部署（フィルタ色分け）を選択してください</span>";
+                    html = "<span style='color:#999; font-size:11px;'>部署（フィルタ色分け）を選択してください</span>";
                 } else {
                     owners.forEach(name => {
                         const isChecked = selected.includes(name) ? "checked" : "";
-                        html += `<label style='display:inline-block; width:120px; margin-bottom:3px; font-size:12px; cursor:pointer;'>
+                        html += `<label style='display:inline-block; width:120px; margin-bottom:3px; font-size:11px; cursor:pointer;'>
                                     <input type='checkbox' value='${name}' ${isChecked} style='vertical-align:middle;'> ${name}
                                  </label>`;
                     });
@@ -921,9 +921,9 @@
         gantt.config.grid_width = GRID_WIDTH;
         gantt.config.grid_resize = false;
         gantt.config.drag_resize = true;
-        gantt.config.row_height = 28;
-        gantt.config.bar_height = 18;
-        gantt.config.scale_height = 60;
+        gantt.config.row_height = 27;
+        gantt.config.bar_height = 21; // バーを太く (18 -> 21)
+        gantt.config.scale_height = 66;
         gantt.config.min_column_width = 22;
         gantt.config.open_tree_initially = false;
         gantt.config.order_branch = true;
@@ -1246,12 +1246,12 @@
         
         const zoomConfig = {
             levels: [
-                { name: "days", scale_height: 60, min_column_width: 22, scales: [
+                { name: "days", scale_height: 66, min_column_width: 22, scales: [
                     { unit: "month", step: 1, format: "%Y/%n" },
                     { unit: "day", step: 1, format: "%j" }, 
                     { unit: "day", step: 1, format: (date) => dayNames[date.getDay()] }
                 ]},
-                { name: "weeks", scale_height: 60, min_column_width: 22, scales: [
+                { name: "weeks", scale_height: 66, min_column_width: 22, scales: [
                     { unit: "month", step: 1, format: "%Y/%n" },
                     { unit: "week", step: 1, format: (date) => {
                         const dateToStr = gantt.date.date_to_str("%j");
@@ -1350,16 +1350,16 @@
             // 背景の目盛り線の開始位置を計算（週表示などでズレを防ぐ）
             const firstDate = scale.trace_x[0];
             const firstPos = gantt.posFromDate(firstDate);
-            const gridBackground = `repeating-linear-gradient(to right, transparent, transparent ${columnWidth - 1}px, #ebebeb ${columnWidth - 1}px, #ebebeb ${columnWidth}px), repeating-linear-gradient(to bottom, transparent, transparent 27px, #ebebeb 27px, #ebebeb 28px)`;
+            const gridBackground = `repeating-linear-gradient(to right, transparent, transparent ${columnWidth - 1}px, #ebebeb ${columnWidth - 1}px, #ebebeb ${columnWidth}px), repeating-linear-gradient(to bottom, transparent, transparent 26px, #ebebeb 26px, #ebebeb 27px)`;
             // background-position を調整してメイン画面のグリッド線と同期
-            const backgroundStyle = `background-image: ${gridBackground}; background-position: ${-firstPos}px 0; background-size: ${columnWidth}px 28px; height: 100%;`;
+            const backgroundStyle = `background-image: ${gridBackground}; background-position: ${-firstPos}px 0; background-size: ${columnWidth}px 27px; height: 100%;`;
 
             let html = "";
             
             // ヘッダー行
-            html += `
-                <div class="resource-item resource-summary-header" style="display: flex; border-bottom: 1px solid #ddd; min-height: 28px; height: 28px; align-items: center; background: #f8f9fa; position: sticky; top: 0; left: 0; z-index: 10; width: ${totalWidth}px;">
-                    <div style="padding: 0 15px; font-weight: bold; color: #2c3e50; font-size: 11px; position: sticky; left: 0; background: inherit; height: 100%; display: flex; align-items: center; z-index: 11; white-space: nowrap;">
+                html += `
+                    <div class="resource-item resource-summary-header" style="display: flex; border-bottom: 1px solid #ddd; min-height: 27px; height: 27px; align-items: center; background: #f8f9fa; position: sticky; top: 0; left: 0; z-index: 10; width: ${totalWidth}px;">
+                        <div style="padding: 0 15px; font-weight: bold; color: #2c3e50; font-size: 10px; position: sticky; left: 0; background: inherit; height: 100%; display: flex; align-items: center; z-index: 11; white-space: nowrap;">
                         部署：${deptName}（${owners.length}名）
                     </div>
                     <div style="position: sticky; right: 0; background: inherit; height: 100%; display: flex; align-items: center; padding-right: 10px; margin-left: auto; z-index: 11;">
@@ -1374,7 +1374,7 @@
                 const ownerTasks = window.allTasks.filter(t => getNormalizedOwners(t.owner).includes(ownerName));
                 
                 html += `
-                    <div class="resource-item clickable" style="display: flex; border-bottom: 1px solid #eee; min-height: 28px; height: 28px; align-items: stretch; cursor: pointer;" onclick="showResourceViewByOwner('${ownerName.replace(/'/g, "\\'")}')">
+                    <div class="resource-item clickable" style="display: flex; border-bottom: 1px solid #eee; min-height: 27px; height: 27px; align-items: stretch; cursor: pointer;" onclick="showResourceViewByOwner('${ownerName.replace(/'/g, "\\'")}')">
                         <div class="resource-grid-container" style="width: ${GRID_WIDTH}px; min-width: ${GRID_WIDTH}px; flex-shrink: 0; display: flex; border-right: 1px solid #ddd; background: #f9f9f9; position: sticky; left: 0; z-index: 1;">
                             <div class="resource-cell" style="flex: 1;"></div>
                             <div class="resource-cell" style="width: ${COLUMN_WIDTHS[0]}px; border-left: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; font-size: 10px; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${ownerName.replace(/\d+/g, "")}</div>
@@ -1395,7 +1395,7 @@
 
                     html += `
                         <div class="resource-cell-bar ${colorClass}" 
-                             style="position: absolute; top: 5px; height: 18px; left: ${left}px; width: ${width}px; border-radius: 3px; opacity: 0.8; display: flex; align-items: center; justify-content: center; color: #555; font-size: 9px; font-weight: bold; overflow: hidden; white-space: nowrap; text-shadow: 0.5px 0.5px 1px rgba(255,255,255,0.8); z-index: 5;" 
+                             style="position: absolute; top: 3px; height: 22px; left: ${left}px; width: ${width}px; border-radius: 3px; opacity: 0.8; display: flex; align-items: center; justify-content: center; color: #222; font-size: 12px; font-weight: bold; overflow: hidden; white-space: nowrap; text-shadow: none; z-index: 5;" 
                              title="${t.text} (${t.project_number})">
                              ${t.project_number || ""}
                         </div>
@@ -1523,16 +1523,16 @@
             // 背景の目盛り線の開始位置を計算（週表示などでズレを防ぐ）
             const firstDate = scale.trace_x[0];
             const firstPos = gantt.posFromDate(firstDate);
-            const gridBackground = `repeating-linear-gradient(to right, transparent, transparent ${columnWidth - 1}px, #ebebeb ${columnWidth - 1}px, #ebebeb ${columnWidth}px), repeating-linear-gradient(to bottom, transparent, transparent 27px, #ebebeb 27px, #ebebeb 28px)`;
+            const gridBackground = `repeating-linear-gradient(to right, transparent, transparent ${columnWidth - 1}px, #ebebeb ${columnWidth - 1}px, #ebebeb ${columnWidth}px), repeating-linear-gradient(to bottom, transparent, transparent 26px, #ebebeb 26px, #ebebeb 27px)`;
             // background-position を調整してメイン画面のグリッド線と同期
-            const backgroundStyle = `background-image: ${gridBackground}; background-position: ${-firstPos}px 0; background-size: ${columnWidth}px 28px; height: 100%;`;
+            const backgroundStyle = `background-image: ${gridBackground}; background-position: ${-firstPos}px 0; background-size: ${columnWidth}px 27px; height: 100%;`;
 
             let html = "";
             
             // ヘッダー
-            html += `
-                <div class="resource-item resource-summary-header" style="display: flex; border-bottom: 1px solid #ddd; min-height: 28px; height: 28px; align-items: center; background: #f8f9fa; position: sticky; top: 0; left: 0; z-index: 10; width: ${totalWidth}px;">
-                    <div style="padding: 0 15px; font-weight: bold; color: #2c3e50; font-size: 11px; position: sticky; left: 0; background: inherit; height: 100%; display: flex; align-items: center; z-index: 11; white-space: nowrap;">
+                html += `
+                    <div class="resource-item resource-summary-header" style="display: flex; border-bottom: 1px solid #ddd; min-height: 27px; height: 27px; align-items: center; background: #f8f9fa; position: sticky; top: 0; left: 0; z-index: 10; width: ${totalWidth}px;">
+                        <div style="padding: 0 15px; font-weight: bold; color: #2c3e50; font-size: 10px; position: sticky; left: 0; background: inherit; height: 100%; display: flex; align-items: center; z-index: 11; white-space: nowrap;">
                         組立場所別リソース状況
                     </div>
                     <div style="position: sticky; right: 0; background: inherit; height: 100%; display: flex; align-items: center; padding-right: 10px; margin-left: auto; z-index: 11;">
@@ -1546,7 +1546,7 @@
                     const areaTasks = locationTasks.filter(t => t.area_group === group && t.area_number === num);
                         
                     html += `
-                        <div class="resource-item" style="display: flex; border-bottom: 1px solid #eee; min-height: 28px; height: 28px; align-items: stretch;">
+                        <div class="resource-item" style="display: flex; border-bottom: 1px solid #eee; min-height: 27px; height: 27px; align-items: stretch;">
                             <div class="resource-grid-container" style="width: ${GRID_WIDTH}px; min-width: ${GRID_WIDTH}px; flex-shrink: 0; display: flex; border-right: 1px solid #ddd; background: #fff; position: sticky; left: 0; z-index: 1;">
                                 <div class="resource-cell" style="flex: 1;"></div>
                                 <div class="resource-cell" style="width: 80px; border-left: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; color: #666;">${group}-${num}</div>
@@ -1566,7 +1566,7 @@
 
                         html += `
                             <div class="resource-cell-bar ${colorClass}" 
-                                 style="position: absolute; top: 5px; height: 18px; left: ${left}px; width: ${width}px; border-radius: 3px; opacity: 0.8; display: flex; align-items: center; justify-content: center; color: #555; font-size: 9px; font-weight: bold; overflow: hidden; white-space: nowrap; text-shadow: 0.5px 0.5px 1px rgba(255,255,255,0.8); z-index: 5;" 
+                                 style="position: absolute; top: 3px; height: 22px; left: ${left}px; width: ${width}px; border-radius: 3px; opacity: 0.8; display: flex; align-items: center; justify-content: center; color: #222; font-size: 12px; font-weight: bold; overflow: hidden; white-space: nowrap; text-shadow: none; z-index: 5;" 
                                  title="${t.project_number || ""}-${t.machine || ""}${t.unit || ""}">
                                  ${t.project_number || ""} ${t.machine || ""}
                             </div>
@@ -1646,9 +1646,9 @@
             
             // 担当者名とタスク件数を表示する固定ヘッダー行
             const filterTitle = currentResourceDeptFilter ? `部署：${currentResourceDeptFilter}` : `担当：${currentResourceOwnerFilter}`;
-            html += `
-                <div class="resource-item resource-summary-header" style="display: flex; border-bottom: 1px solid #ddd; min-height: 28px; height: 28px; align-items: center; background: #f8f9fa; position: sticky; top: 0; left: 0; z-index: 10; width: ${totalWidth}px;">
-                    <div style="padding: 0 15px; font-weight: bold; color: #2c3e50; font-size: 11px; position: sticky; left: 0; background: inherit; height: 100%; display: flex; align-items: center; z-index: 11; white-space: nowrap;">
+                html += `
+                    <div class="resource-item resource-summary-header" style="display: flex; border-bottom: 1px solid #ddd; min-height: 27px; height: 27px; align-items: center; background: #f8f9fa; position: sticky; top: 0; left: 0; z-index: 10; width: ${totalWidth}px;">
+                        <div style="padding: 0 15px; font-weight: bold; color: #2c3e50; font-size: 10px; position: sticky; left: 0; background: inherit; height: 100%; display: flex; align-items: center; z-index: 11; white-space: nowrap;">
                         【${filterTitle}】のタスク　${filteredTasks.length}件
                     </div>
                     <div style="position: sticky; right: 0; background: inherit; height: 100%; display: flex; align-items: center; padding-right: 10px; margin-left: auto; z-index: 11;">
@@ -1670,7 +1670,7 @@
 
                 // 4. 【グリッド幅の固定】
                 html += `
-                    <div class="resource-item" style="display: flex; border-bottom: 1px solid #eee; min-height: 28px; height: 28px; align-items: stretch;">
+                    <div class="resource-item" style="display: flex; border-bottom: 1px solid #eee; min-height: 27px; height: 27px; align-items: stretch;">
                         <div class="resource-grid-container" style="width: ${GRID_WIDTH}px; min-width: ${GRID_WIDTH}px; flex-shrink: 0; display: flex; border-right: 1px solid #ddd; background: #fff; position: sticky; left: 0; z-index: 1;">
                             <div class="resource-cell" style="width: ${COLUMN_WIDTHS[0]}px; border-right: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; justify-content: center; font-size: 10px;">${t.project_number || ""}</div>
                             <div class="resource-cell" style="width: ${COLUMN_WIDTHS[1]}px; border-right: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${t.text || ""}</div>
@@ -1685,7 +1685,7 @@
                             <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; ${backgroundStyle} z-index: 1;"></div>
                             <div class="resource-cell-bars" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 2;">
                                 <div class="resource-cell-bar ${colorClass}" 
-                                     style="position: absolute; top: 5px; height: 18px; left: ${left}px; width: ${width}px; border-radius: 3px; opacity: 0.8; display: flex; align-items: center; justify-content: center; color: #555; font-size: 9px; font-weight: bold; overflow: hidden; white-space: nowrap; text-shadow: 0.5px 0.5px 1px rgba(255,255,255,0.8); z-index: 5;" 
+                                     style="position: absolute; top: 3px; height: 22px; left: ${left}px; width: ${width}px; border-radius: 3px; opacity: 0.8; display: flex; align-items: center; justify-content: center; color: #222; font-size: 12px; font-weight: bold; overflow: hidden; white-space: nowrap; text-shadow: none; z-index: 5;" 
                                      title="${title.replace(/"/g, "&quot;")}">
                                      ${t.project_number || ""}
                                 </div>
