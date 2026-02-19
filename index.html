@@ -46,8 +46,8 @@
         .resource-panel-closed .gantt_layout_resource_row { display: none !important; height: 0 !important; min-height: 0 !important; overflow: hidden !important; }
         /* リソース行：1行内で複数タスクをオーバーラップ表示 */
         .resource-cell-overlap { position: relative; }
-        .resource-cell-bars { position: relative; width: 100%; height: 100%; min-height: 16px; }
-        .resource-cell-bar { position: absolute; top: 1px; height: 12px; min-width: 4px; border-radius: 2px; opacity: 0.85; }
+        .resource-cell-bars { position: relative; width: 100%; height: 100%; min-height: 28px; }
+        .resource-cell-bar { position: absolute; top: 5px; height: 18px; min-width: 4px; border-radius: 2px; opacity: 0.85; }
         /* 下段リソース：左グリッド・右タイムラインのヘッダー（タイトル行）を完全非表示し、1行目からデータが同じ高さで始まるようにする */
         .gantt_layout_resource_row .gantt_grid_scale,
         .gantt_layout_resource_row .gantt_grid_head,
@@ -57,6 +57,25 @@
         .toolbar { background: #f8f9fa; padding: 4px 12px; border-bottom: 1px solid #ddd; display: flex; gap: 8px; align-items: center; font-size: 11px; }
         .zoom-btn { padding: 2px 8px; cursor: pointer; background: #fff; border: 1px solid #ccc; border-radius: 3px; font-size: 12px; }
         .zoom-btn.active { background-color: #3498db; color: #fff; border-color: #3498db; }
+        
+        /* リソース行の高さを強制し、白い余白を消す */
+        .gantt_resource_view .gantt_task_row,
+        .gantt_resource_view .gantt_task_cell {
+            height: 28px !important;
+            line-height: 28px !important;
+            box-sizing: border-box !important;
+        }
+        /* 垂直罫線を一番下まで繋げる */
+        .gantt_resource_view .gantt_task_cell {
+            border-right: 1px solid #ebebeb !important;
+            border-bottom: 1px solid #ebebeb !important;
+        }
+
+        /* バー（割り当て要素）が隠れないようにする */
+        .gantt_resource_view .gantt_task_line {
+            height: 18px !important; /* 行の高さ28pxに対して適切なサイズ */
+            margin-top: 5px !important;
+        }
         
         .weekend { background: #f4f4f4 !important; } /* 土日：元の薄いグレー */
         .today-line { background: #ff5252; width: 2px !important; opacity: 0.8; z-index: 1000; }
@@ -391,6 +410,8 @@
         .resource-today-line { position: absolute; top: 0; bottom: 0; width: 2px; background: #ff5252; opacity: 0.8; z-index: 10; pointer-events: none; }
         .resource-today-wrap { position: relative; }
         .resource-today-row .resource-scale-inner { background: transparent; border: none; }
+        .resource-timeline { border-right: 1px solid #ebebeb; }
+        .resource-item { border-bottom: 1px solid #ebebeb !important; }
         .resource-placeholder { padding: 20px; color: #999; text-align: center; font-size: 12px; }
         .filter-btn { padding: 4px 8px; border: 1px solid #ccc; border-radius: 4px; cursor: pointer; background: #fff; font-size: 12px; }
         .filter-btn.active { background: #ff9800; color: white; border-color: #e68a00; }
@@ -901,6 +922,7 @@
         gantt.config.grid_resize = false;
         gantt.config.drag_resize = true;
         gantt.config.row_height = 28;
+        gantt.config.bar_height = 18;
         gantt.config.scale_height = 60;
         gantt.config.min_column_width = 22;
         gantt.config.open_tree_initially = false;
@@ -1328,15 +1350,15 @@
             // 背景の目盛り線の開始位置を計算（週表示などでズレを防ぐ）
             const firstDate = scale.trace_x[0];
             const firstPos = gantt.posFromDate(firstDate);
-            const gridBackground = `repeating-linear-gradient(to right, transparent, transparent ${columnWidth - 1}px, #eee ${columnWidth - 1}px, #eee ${columnWidth}px)`;
+            const gridBackground = `repeating-linear-gradient(to right, transparent, transparent ${columnWidth - 1}px, #ebebeb ${columnWidth - 1}px, #ebebeb ${columnWidth}px), repeating-linear-gradient(to bottom, transparent, transparent 27px, #ebebeb 27px, #ebebeb 28px)`;
             // background-position を調整してメイン画面のグリッド線と同期
-            const backgroundStyle = `background-image: ${gridBackground}; background-position: ${-firstPos}px 0; background-size: ${columnWidth}px 100%;`;
+            const backgroundStyle = `background-image: ${gridBackground}; background-position: ${-firstPos}px 0; background-size: ${columnWidth}px 28px; height: 100%;`;
 
             let html = "";
             
             // ヘッダー行
             html += `
-                <div class="resource-item resource-summary-header" style="display: flex; border-bottom: 1px solid #ddd; min-height: 24px; height: 24px; align-items: center; background: #f8f9fa; position: sticky; top: 0; left: 0; z-index: 10; width: ${totalWidth}px;">
+                <div class="resource-item resource-summary-header" style="display: flex; border-bottom: 1px solid #ddd; min-height: 28px; height: 28px; align-items: center; background: #f8f9fa; position: sticky; top: 0; left: 0; z-index: 10; width: ${totalWidth}px;">
                     <div style="padding: 0 15px; font-weight: bold; color: #2c3e50; font-size: 11px; position: sticky; left: 0; background: inherit; height: 100%; display: flex; align-items: center; z-index: 11; white-space: nowrap;">
                         部署：${deptName}（${owners.length}名）
                     </div>
@@ -1352,13 +1374,14 @@
                 const ownerTasks = window.allTasks.filter(t => getNormalizedOwners(t.owner).includes(ownerName));
                 
                 html += `
-                    <div class="resource-item clickable" style="display: flex; border-bottom: 1px solid #eee; min-height: 22px; height: 22px; align-items: stretch; cursor: pointer;" onclick="showResourceViewByOwner('${ownerName.replace(/'/g, "\\'")}')">
+                    <div class="resource-item clickable" style="display: flex; border-bottom: 1px solid #eee; min-height: 28px; height: 28px; align-items: stretch; cursor: pointer;" onclick="showResourceViewByOwner('${ownerName.replace(/'/g, "\\'")}')">
                         <div class="resource-grid-container" style="width: ${GRID_WIDTH}px; min-width: ${GRID_WIDTH}px; flex-shrink: 0; display: flex; border-right: 1px solid #ddd; background: #f9f9f9; position: sticky; left: 0; z-index: 1;">
                             <div class="resource-cell" style="flex: 1;"></div>
                             <div class="resource-cell" style="width: ${COLUMN_WIDTHS[0]}px; border-left: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; font-size: 10px; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${ownerName.replace(/\d+/g, "")}</div>
                         </div>
-                        <div class="resource-timeline" style="width: ${timelineWidth}px; flex-shrink: 0; position: relative; background: #fff; ${backgroundStyle}">
-                            <div class="resource-cell-bars" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0;">
+                        <div class="resource-timeline" style="width: ${timelineWidth}px; flex-shrink: 0; position: relative; background: #fff; border-right: 1px solid #ebebeb;">
+                            <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; ${backgroundStyle} z-index: 1;"></div>
+                            <div class="resource-cell-bars" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 2;">
                 `;
 
                 // 担当者のタスクをタイムラインに描画
@@ -1372,7 +1395,7 @@
 
                     html += `
                         <div class="resource-cell-bar ${colorClass}" 
-                             style="position: absolute; top: 3px; height: 14px; left: ${left}px; width: ${width}px; border-radius: 3px; opacity: 0.8; display: flex; align-items: center; justify-content: center; color: #555; font-size: 9px; font-weight: bold; overflow: hidden; white-space: nowrap; text-shadow: 0.5px 0.5px 1px rgba(255,255,255,0.8);" 
+                             style="position: absolute; top: 5px; height: 18px; left: ${left}px; width: ${width}px; border-radius: 3px; opacity: 0.8; display: flex; align-items: center; justify-content: center; color: #555; font-size: 9px; font-weight: bold; overflow: hidden; white-space: nowrap; text-shadow: 0.5px 0.5px 1px rgba(255,255,255,0.8); z-index: 5;" 
                              title="${t.text} (${t.project_number})">
                              ${t.project_number || ""}
                         </div>
@@ -1500,15 +1523,15 @@
             // 背景の目盛り線の開始位置を計算（週表示などでズレを防ぐ）
             const firstDate = scale.trace_x[0];
             const firstPos = gantt.posFromDate(firstDate);
-            const gridBackground = `repeating-linear-gradient(to right, transparent, transparent ${columnWidth - 1}px, #eee ${columnWidth - 1}px, #eee ${columnWidth}px)`;
+            const gridBackground = `repeating-linear-gradient(to right, transparent, transparent ${columnWidth - 1}px, #ebebeb ${columnWidth - 1}px, #ebebeb ${columnWidth}px), repeating-linear-gradient(to bottom, transparent, transparent 27px, #ebebeb 27px, #ebebeb 28px)`;
             // background-position を調整してメイン画面のグリッド線と同期
-            const backgroundStyle = `background-image: ${gridBackground}; background-position: ${-firstPos}px 0; background-size: ${columnWidth}px 100%;`;
+            const backgroundStyle = `background-image: ${gridBackground}; background-position: ${-firstPos}px 0; background-size: ${columnWidth}px 28px; height: 100%;`;
 
             let html = "";
             
             // ヘッダー
             html += `
-                <div class="resource-item resource-summary-header" style="display: flex; border-bottom: 1px solid #ddd; min-height: 24px; height: 24px; align-items: center; background: #f8f9fa; position: sticky; top: 0; left: 0; z-index: 10; width: ${totalWidth}px;">
+                <div class="resource-item resource-summary-header" style="display: flex; border-bottom: 1px solid #ddd; min-height: 28px; height: 28px; align-items: center; background: #f8f9fa; position: sticky; top: 0; left: 0; z-index: 10; width: ${totalWidth}px;">
                     <div style="padding: 0 15px; font-weight: bold; color: #2c3e50; font-size: 11px; position: sticky; left: 0; background: inherit; height: 100%; display: flex; align-items: center; z-index: 11; white-space: nowrap;">
                         組立場所別リソース状況
                     </div>
@@ -1523,13 +1546,14 @@
                     const areaTasks = locationTasks.filter(t => t.area_group === group && t.area_number === num);
                         
                     html += `
-                        <div class="resource-item" style="display: flex; border-bottom: 1px solid #eee; min-height: 22px; height: 22px; align-items: stretch;">
+                        <div class="resource-item" style="display: flex; border-bottom: 1px solid #eee; min-height: 28px; height: 28px; align-items: stretch;">
                             <div class="resource-grid-container" style="width: ${GRID_WIDTH}px; min-width: ${GRID_WIDTH}px; flex-shrink: 0; display: flex; border-right: 1px solid #ddd; background: #fff; position: sticky; left: 0; z-index: 1;">
                                 <div class="resource-cell" style="flex: 1;"></div>
                                 <div class="resource-cell" style="width: 80px; border-left: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; color: #666;">${group}-${num}</div>
                             </div>
-                            <div class="resource-timeline" style="width: ${timelineWidth}px; flex-shrink: 0; position: relative; background: #fff; ${backgroundStyle}">
-                                <div class="resource-cell-bars" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0;">
+                            <div class="resource-timeline" style="width: ${timelineWidth}px; flex-shrink: 0; position: relative; background: #fff; border-right: 1px solid #ebebeb;">
+                                <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; ${backgroundStyle} z-index: 1;"></div>
+                                <div class="resource-cell-bars" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 2;">
                     `;
 
                     areaTasks.forEach(t => {
@@ -1542,7 +1566,7 @@
 
                         html += `
                             <div class="resource-cell-bar ${colorClass}" 
-                                 style="position: absolute; top: 3px; height: 14px; left: ${left}px; width: ${width}px; border-radius: 3px; opacity: 0.8; display: flex; align-items: center; justify-content: center; color: #555; font-size: 9px; font-weight: bold; overflow: hidden; white-space: nowrap; text-shadow: 0.5px 0.5px 1px rgba(255,255,255,0.8);" 
+                                 style="position: absolute; top: 5px; height: 18px; left: ${left}px; width: ${width}px; border-radius: 3px; opacity: 0.8; display: flex; align-items: center; justify-content: center; color: #555; font-size: 9px; font-weight: bold; overflow: hidden; white-space: nowrap; text-shadow: 0.5px 0.5px 1px rgba(255,255,255,0.8); z-index: 5;" 
                                  title="${t.project_number || ""}-${t.machine || ""}${t.unit || ""}">
                                  ${t.project_number || ""} ${t.machine || ""}
                             </div>
@@ -1614,16 +1638,16 @@
             // 背景の目盛り線の開始位置を計算（週表示などでズレを防ぐ）
             const firstDate = scale.trace_x[0];
             const firstPos = gantt.posFromDate(firstDate);
-            const gridBackground = `repeating-linear-gradient(to right, transparent, transparent ${columnWidth - 1}px, #eee ${columnWidth - 1}px, #eee ${columnWidth}px)`;
+            const gridBackground = `repeating-linear-gradient(to right, transparent, transparent ${columnWidth - 1}px, #ebebeb ${columnWidth - 1}px, #ebebeb ${columnWidth}px), repeating-linear-gradient(to bottom, transparent, transparent 39px, #ebebeb 39px, #ebebeb 40px)`;
             // background-position を調整してメイン画面のグリッド線と同期
-            const backgroundStyle = `background-image: ${gridBackground}; background-position: ${-firstPos}px 0; background-size: ${columnWidth}px 100%;`;
+            const backgroundStyle = `background-image: ${gridBackground}; background-position: ${-firstPos}px 0; background-size: ${columnWidth}px 28px; height: 100%;`;
 
             let html = "";
             
             // 担当者名とタスク件数を表示する固定ヘッダー行
             const filterTitle = currentResourceDeptFilter ? `部署：${currentResourceDeptFilter}` : `担当：${currentResourceOwnerFilter}`;
             html += `
-                <div class="resource-item resource-summary-header" style="display: flex; border-bottom: 1px solid #ddd; min-height: 24px; height: 24px; align-items: center; background: #f8f9fa; position: sticky; top: 0; left: 0; z-index: 10; width: ${totalWidth}px;">
+                <div class="resource-item resource-summary-header" style="display: flex; border-bottom: 1px solid #ddd; min-height: 28px; height: 28px; align-items: center; background: #f8f9fa; position: sticky; top: 0; left: 0; z-index: 10; width: ${totalWidth}px;">
                     <div style="padding: 0 15px; font-weight: bold; color: #2c3e50; font-size: 11px; position: sticky; left: 0; background: inherit; height: 100%; display: flex; align-items: center; z-index: 11; white-space: nowrap;">
                         【${filterTitle}】のタスク　${filteredTasks.length}件
                     </div>
@@ -1646,7 +1670,7 @@
 
                 // 4. 【グリッド幅の固定】
                 html += `
-                    <div class="resource-item" style="display: flex; border-bottom: 1px solid #eee; min-height: 22px; height: 22px; align-items: stretch;">
+                    <div class="resource-item" style="display: flex; border-bottom: 1px solid #eee; min-height: 28px; height: 28px; align-items: stretch;">
                         <div class="resource-grid-container" style="width: ${GRID_WIDTH}px; min-width: ${GRID_WIDTH}px; flex-shrink: 0; display: flex; border-right: 1px solid #ddd; background: #fff; position: sticky; left: 0; z-index: 1;">
                             <div class="resource-cell" style="width: ${COLUMN_WIDTHS[0]}px; border-right: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; justify-content: center; font-size: 10px;">${t.project_number || ""}</div>
                             <div class="resource-cell" style="width: ${COLUMN_WIDTHS[1]}px; border-right: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${t.text || ""}</div>
@@ -1657,10 +1681,11 @@
                             <div class="resource-cell" style="width: ${COLUMN_WIDTHS[6]}px; border-right: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; justify-content: center; font-size: 10px;">${dateToDisplay(end)}</div>
                             <div class="resource-cell" style="width: ${COLUMN_WIDTHS[7]}px; padding: 0 4px;"></div>
                         </div>
-                        <div class="resource-timeline" style="width: ${timelineWidth}px; flex-shrink: 0; position: relative; background: #fafafa; ${backgroundStyle}">
-                            <div class="resource-cell-bars" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0;">
+                        <div class="resource-timeline" style="width: ${timelineWidth}px; flex-shrink: 0; position: relative; background: #fafafa; border-right: 1px solid #ebebeb;">
+                            <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; ${backgroundStyle} z-index: 1;"></div>
+                            <div class="resource-cell-bars" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 2;">
                                 <div class="resource-cell-bar ${colorClass}" 
-                                     style="position: absolute; top: 3px; height: 14px; left: ${left}px; width: ${width}px; border-radius: 3px; opacity: 0.8; display: flex; align-items: center; justify-content: center; color: #555; font-size: 9px; font-weight: bold; overflow: hidden; white-space: nowrap; text-shadow: 0.5px 0.5px 1px rgba(255,255,255,0.8);" 
+                                     style="position: absolute; top: 5px; height: 18px; left: ${left}px; width: ${width}px; border-radius: 3px; opacity: 0.8; display: flex; align-items: center; justify-content: center; color: #555; font-size: 9px; font-weight: bold; overflow: hidden; white-space: nowrap; text-shadow: 0.5px 0.5px 1px rgba(255,255,255,0.8); z-index: 5;" 
                                      title="${title.replace(/"/g, "&quot;")}">
                                      ${t.project_number || ""}
                                 </div>
