@@ -1375,7 +1375,12 @@
 
             // 2. window.allTasks から major_item が deptName と一致するタスクを抽出
             // 外注の場合は、major_item も一致している必要がある
-            const deptTasks = (window.allTasks || []).filter(t => t.major_item === deptName);
+            // 組立リソースの場合、見出し名（text）が「出荷」のタスクは除外する
+            const deptTasks = (window.allTasks || []).filter(t => {
+                if (t.major_item !== deptName) return false;
+                if (deptName === '組立' && t.text === '出荷') return false;
+                return true;
+            });
 
             // 3. 抽出したタスクから owner のリスト（重複なし・名寄せ済み）を生成
             // 外注タスクの場合、そのタスクの major_item が現在の deptName と一致する場合のみ、その部署の外注として扱う
@@ -1454,12 +1459,18 @@
             owners.forEach(ownerName => {
                 // 名寄せ後の名前に基づいてタスクを抽出
                 // 「外注」の場合は、major_item が現在の部署 (deptName) と一致するものだけを抽出する
+                // 組立リソースの場合、見出し名（text）が「出荷」のタスクは除外する
                 const ownerTasks = window.allTasks.filter(t => {
                     const normalized = getNormalizedOwners(t.owner);
+                    let isMatch = false;
                     if (ownerName === "外注") {
-                        return normalized.includes("外注") && t.major_item === deptName;
+                        isMatch = normalized.includes("外注") && t.major_item === deptName;
+                    } else {
+                        isMatch = normalized.includes(ownerName);
                     }
-                    return normalized.includes(ownerName);
+                    if (!isMatch) return false;
+                    if (deptName === '組立' && t.text === '出荷') return false;
+                    return true;
                 });
                 
                 // タスクの重なりを判定してスタック位置を計算
@@ -1716,19 +1727,30 @@
 
             // window.allTasks からフィルタリング
             const filteredTasks = (window.allTasks || []).filter(t => {
+                let isMatch = false;
+                let currentDept = currentResourceDeptFilter || lastDeptName;
+
                 if (currentResourceDeptFilter) {
-                    return t.major_item === currentResourceDeptFilter;
+                    isMatch = t.major_item === currentResourceDeptFilter;
+                } else {
+                    // 名寄せ後の名前に基づいてフィルタリング
+                    const normalizedOwners = getNormalizedOwners(t.owner).map(o => o.toLowerCase());
+                    const searchOwner = currentResourceOwnerFilter.toLowerCase();
+                    
+                    // 「外注」で検索された場合は、そのタスクの major_item が最後に選択された部署 (lastDeptName) と一致する必要がある
+                    if (searchOwner === "外注") {
+                        isMatch = normalizedOwners.includes("外注") && (t.major_item === lastDeptName);
+                    } else {
+                        isMatch = normalizedOwners.includes(searchOwner);
+                    }
                 }
-                // 名寄せ後の名前に基づいてフィルタリング
-                const normalizedOwners = getNormalizedOwners(t.owner).map(o => o.toLowerCase());
-                const searchOwner = currentResourceOwnerFilter.toLowerCase();
-                
-                // 「外注」で検索された場合は、そのタスクの major_item が最後に選択された部署 (lastDeptName) と一致する必要がある
-                if (searchOwner === "外注") {
-                    return normalizedOwners.includes("外注") && (t.major_item === lastDeptName);
-                }
-                
-                return normalizedOwners.includes(searchOwner);
+
+                if (!isMatch) return false;
+
+                // 組立リソースの場合、見出し名（text）が「出荷」のタスクは除外する
+                if (currentDept === '組立' && t.text === '出荷') return false;
+
+                return true;
             });
 
             if (filteredTasks.length === 0) {
