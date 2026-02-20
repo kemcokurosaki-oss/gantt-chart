@@ -102,6 +102,11 @@
         .today-line { background: #ff5252; width: 2px !important; opacity: 0.8; z-index: 1000; }
         .gantt_group_row { background-color: #f0f7ff !important; font-weight: bold !important; } /* 見出し行：さらに薄いスカイブルー */
         
+        /* 工事番号の区切り線（太線） */
+        .project-border-top { border-top: 2px solid #ddd !important; }
+        .project-border-top .gantt_tree_indent, 
+        .project-border-top .gantt_cell { border-top: none !important; } /* セル内部の重なり防止 */
+
         /* カレンダーの年月を中央揃えにする */
         .gantt_scale_cell { text-align: center !important; font-size: 13px; }
         
@@ -1208,10 +1213,34 @@
 
         gantt.templates.grid_row_class = function(start, end, task){
             let css = "";
+            
+            // 工事番号の切り替わり（新しい工事番号の最初の行）を判定
+            const index = gantt.getGlobalTaskIndex(task.id);
+            if (index > 0) {
+                const prevTask = gantt.getTaskByIndex(index - 1);
+                if (prevTask && prevTask.project_number !== task.project_number) {
+                    css += " project-border-top";
+                }
+            }
+
             if(task.$virtual) {
-                css = "gantt_group_row";
+                css += " gantt_group_row";
             } else if (!task.owner || task.owner.trim() === "") {
-                css = "unassigned-row";
+                css += " unassigned-row";
+            }
+            return css;
+        };
+
+        gantt.templates.task_row_class = function(start, end, task){
+            let css = "";
+            
+            // グリッド側と同じロジックでガントチャート側にも線を引く
+            const index = gantt.getGlobalTaskIndex(task.id);
+            if (index > 0) {
+                const prevTask = gantt.getTaskByIndex(index - 1);
+                if (prevTask && prevTask.project_number !== task.project_number) {
+                    css += " project-border-top";
+                }
             }
             return css;
         };
