@@ -1407,6 +1407,8 @@
             // 組立リソースの場合、見出し名（text）が「出荷」のタスクは除外する
             const deptTasks = (window.allTasks || []).filter(t => {
                 if (t.major_item !== deptName) return false;
+                // 組立リソースの場合、見出し名（text）が「出荷」のタスクは表示しない。
+                // ただし、見出し名が「出荷」以外（例：「工場出荷」「出荷確認会議」など）は表示する。
                 if (deptName === '組立' && t.text === '出荷') return false;
                 return true;
             });
@@ -1498,6 +1500,8 @@
                         isMatch = normalized.includes(ownerName);
                     }
                     if (!isMatch) return false;
+                    // 組立リソースの場合、見出し名（text）が「出荷」のタスクは表示しない。
+                    // ただし、見出し名が「出荷」以外（例：「工場出荷」「出荷確認会議」など）は表示する。
                     if (deptName === '組立' && t.text === '出荷') return false;
                     return true;
                 });
@@ -1776,7 +1780,8 @@
 
                 if (!isMatch) return false;
 
-                // 組立リソースの場合、見出し名（text）が「出荷」のタスクは除外する
+                // 組立リソースの場合、見出し名（text）が「出荷」のタスクは表示しない。
+                // ただし、見出し名が「出荷」以外（例：「工場出荷」「出荷確認会議」など）は表示する。
                 if (currentDept === '組立' && t.text === '出荷') return false;
 
                 return true;
