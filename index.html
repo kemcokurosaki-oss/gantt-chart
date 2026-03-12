@@ -3384,7 +3384,7 @@
             const isDesignDetail = (currentDisplayMode === 'machine') || (task.text === "出図＆部品手配");
 
             if (isDesignDetail) {
-                const url = `gantt_design.html?project_no=${encodeURIComponent(projectNo)}`;
+                const url = `https://kemcokurosaki-oss.github.io/design-schedule/?project_no=${encodeURIComponent(projectNo)}`;
                 window.open(url, '_blank');
             } else {
                 alert("準備中");
