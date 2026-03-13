@@ -475,6 +475,7 @@
         }
         .inline-ms-option:hover { background: #f0f7ff; }
         .inline-ms-option input[type=checkbox] { cursor: pointer; margin: 0; }
+        .inline-ms-option input[type=radio] { cursor: pointer; margin: 0; accent-color: #1976d2; }
         #inline-edit-buttons {
             display: flex;
             gap: 6px;
@@ -874,7 +875,7 @@
             </div>
             <div class="chart-container">
                 <!-- メインガントチャート -->
-                <div id="gantt_here" style="width: 100%; height: 100%;"></div>
+                <div id="gantt_here" style="width: 100%; flex: 1; min-height: 0;"></div>
 
                 <!-- 独立したリソースパネル -->
                 <div id="resource_panel" style="display: none; height: 250px; border-top: 2px solid #ccc; background: #fff; flex-direction: column; position: relative;">
@@ -1012,15 +1013,18 @@
                 const majorItem = task.major_item || "";
                 const options = getOwnerOptions(majorItem);
                 const container = node.querySelector('#owner_selector_container');
-                
+                const mainOwner = (task.main_owner || "").trim();
+                const selectedOwners = (value || "").split(',').map(s => s.trim());
+
                 let html = "";
                 if (options.length === 0) {
                     html = "<span style='color: #999; font-size: 11px;'>フィルタ色分けを選択してください</span>";
                 } else {
-                    const selectedOwners = (value || "").split(',').map(s => s.trim());
                     options.forEach(opt => {
                         const isChecked = selectedOwners.includes(opt.key) ? "checked" : "";
-                        html += `<label style='display: inline-block; cursor: pointer; font-size: 11px;'>
+                        const isMain = mainOwner === opt.key ? "checked" : "";
+                        html += `<label style='display: inline-flex; align-items: center; gap: 3px; cursor: pointer; font-size: 11px;'>
+                                    <input type='radio' name='main_owner_radio' value='${opt.key}' ${isMain} title='メイン担当に設定' style='vertical-align: middle; cursor: pointer;'>
                                     <input type='checkbox' name='owner_checkbox' value='${opt.key}' ${isChecked} style='vertical-align: middle;'> ${opt.label}
                                  </label>`;
                     });
@@ -1031,6 +1035,8 @@
                 const checkboxes = node.querySelectorAll('input[name="owner_checkbox"]:checked');
                 const selected = [];
                 checkboxes.forEach(cb => selected.push(cb.value));
+                const mainRadio = node.querySelector('input[name="main_owner_radio"]:checked');
+                task.main_owner = mainRadio ? mainRadio.value : "";
                 return selected.join(', ');
             },
             focus: function (node) {}
@@ -1657,6 +1663,11 @@
                 if (!obj.owner || obj.owner.trim() === "") {
                     return "<span class='unassigned-warning'>⚠️</span>";
                 }
+                const owners = obj.owner.split(/[,，]/).map(function(s) { return s.trim(); }).filter(Boolean);
+                if (owners.length > 1 && obj.main_owner && obj.main_owner.trim()) {
+                    const main = obj.main_owner.trim();
+                    return owners.map(function(o) { return o === main ? "<u>" + o + "</u>" : o; }).join(', ');
+                }
                 return obj.owner;
             }},
             { name: "area_number", label: "場所", width: COLUMN_WIDTHS[7], align: "center", template: function(obj) {
@@ -1813,7 +1824,8 @@
                 area_group: item.area_group || "",
                 area_number: item.area_number || "",
                 // 出張予定フラグ（出張予定モード時は強制的にtrue、それ以外は既存値を維持）
-                is_business_trip: currentDisplayMode === 'business_trip' ? true : (item.is_business_trip || false)
+                is_business_trip: currentDisplayMode === 'business_trip' ? true : (item.is_business_trip || false),
+                main_owner: item.main_owner || ""
                 // is_new_task: false // データベースにカラムがない可能性があるため一時的にコメントアウト
             };
 
@@ -2325,7 +2337,6 @@
                     }))].sort();
 
                     if (resourcePanel) resourcePanel.style.display = "flex";
-                    if (ganttHere) ganttHere.style.height = "calc(100% - 250px)";
                     renderDepartmentSummary(owners, currentResourceDeptFilter);
                 }
             }
@@ -2355,8 +2366,7 @@
             if (!currentResourceDeptFilter) {
                 // 解除時はパネルを閉じる
                 if (resourcePanel) resourcePanel.style.display = "none";
-                if (ganttHere) ganttHere.style.height = "100%";
-                gantt.render();
+                setTimeout(function() { gantt.setSizes(); }, 0);
                 return;
             }
 
@@ -2390,13 +2400,17 @@
             }))].sort();
 
             // 4. リソースパネルを表示
+            const scrollState = gantt.getScrollState();
             if (resourcePanel) resourcePanel.style.display = "flex";
-            if (ganttHere) ganttHere.style.height = "calc(100% - 250px)";
 
             // 5. renderDepartmentSummary(owners, deptName) を実行
             renderDepartmentSummary(owners, deptName);
-            
-            gantt.render();
+
+            // DOMレイアウトが確定してからサイズ再計算（スケールヘッダーの文字消失を防ぐ）
+            setTimeout(function() {
+                gantt.setSizes();
+                gantt.scrollTo(scrollState.x, scrollState.y);
+            }, 0);
         }
 
         function renderDepartmentSummary(owners, deptName) {
@@ -2651,8 +2665,7 @@
 
             if (hasFilter) {
                 if (resourcePanel) resourcePanel.style.display = "flex";
-                if (ganttHere) ganttHere.style.height = "calc(100% - 250px)";
-                
+
                 if (currentLocationResourceMode) {
                     renderLocationResourceTimeline();
                 } else {
@@ -2660,13 +2673,14 @@
                 }
             } else {
                 if (resourcePanel) resourcePanel.style.display = "none";
-                if (ganttHere) ganttHere.style.height = "100%";
             }
-            
-            gantt.render();
-            
-            // スクロール位置を復元
-            gantt.scrollTo(scrollState.x, scrollState.y);
+
+            // gantt.render() はカレンダーヘッダーの文字が一瞬消えるため、
+            // サイズ再計算のみ行い、スクロール位置を復元する
+            setTimeout(function() {
+                gantt.setSizes();
+                gantt.scrollTo(scrollState.x, scrollState.y);
+            }, 0);
         }
 
         // リソース画面を閉じる
@@ -3367,7 +3381,8 @@
                     is_detailed: t.is_detailed,
                     is_business_trip: t.is_business_trip,
                     area_group: areaGroup,
-                    area_number: areaNumber
+                    area_number: areaNumber,
+                    main_owner: t.main_owner || ""
                     // is_new_task: t.is_new_task // データベースにカラムがない可能性があるため一時的にコメントアウト
                 };
             });
@@ -4096,7 +4111,7 @@
                 setTimeout(function() { inp.select(); }, 50);
             }
 
-            function showMsSection(options, selectedValues) {
+            function showMsSection(options, selectedValues, mainSelected) {
                 const p = getPopup();
                 p.querySelector('#inline-edit-text-section').style.display = 'none';
                 p.querySelector('#inline-edit-ms-section').style.display = 'block';
@@ -4104,6 +4119,7 @@
                 p.querySelector('#inline-edit-ms-search').value = '';
                 const container = p.querySelector('#inline-edit-ms-options');
                 container.innerHTML = '';
+                const showRadio = mainSelected !== undefined;
                 options.forEach(function(opt) {
                     if (opt.isGroup) {
                         const g = document.createElement('div');
@@ -4113,6 +4129,16 @@
                     } else {
                         const lbl = document.createElement('label');
                         lbl.className = 'inline-ms-option';
+                        if (showRadio) {
+                            const rb = document.createElement('input');
+                            rb.type = 'radio';
+                            rb.name = 'ie_main_owner_radio';
+                            rb.value = opt.value;
+                            rb.checked = opt.value === mainSelected;
+                            rb.title = 'メイン担当に設定';
+                            rb.style.cursor = 'pointer';
+                            lbl.appendChild(rb);
+                        }
                         const cb = document.createElement('input');
                         cb.type = 'checkbox';
                         cb.value = opt.value;
@@ -4200,7 +4226,7 @@
                     const sel = (task.text || '').split(/[,，]/).map(function(s) { return s.trim(); }).filter(Boolean);
                     showMsSection(buildTaskNameOpts(task.parent_name || ''), sel);
                 } else if (field === 'owner') {
-                    showMsSection(buildOwnerOpts(task.major_item || ''), getNormalizedOwners(task.owner || ''));
+                    showMsSection(buildOwnerOpts(task.major_item || ''), getNormalizedOwners(task.owner || ''), task.main_owner || '');
                 } else if (field === 'area_number') {
                     // task_locations から正確なデータを取得
                     const realId = task.original_id || taskId;
@@ -4234,6 +4260,8 @@
                 } else if (field === 'owner') {
                     const checked = Array.from(document.querySelectorAll('#inline-edit-ms-options input[type=checkbox]:checked')).map(function(cb) { return cb.value; });
                     task.owner = checked.join(',');
+                    const mainRadio = document.querySelector('#inline-edit-ms-options input[name="ie_main_owner_radio"]:checked');
+                    task.main_owner = mainRadio ? mainRadio.value : '';
 
                 } else if (field === 'area_number') {
                     const checked = Array.from(document.querySelectorAll('#inline-edit-ms-options input[type=checkbox]:checked')).map(function(cb) { return cb.value; });
