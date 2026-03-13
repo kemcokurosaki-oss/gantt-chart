@@ -353,7 +353,7 @@
             font-size: 14px;
             color: white;
             cursor: grab;
-            z-index: 99999;
+            z-index: 9000;
             box-shadow: 0 2px 4px rgba(0,0,0,0.3);
             user-select: none;
             pointer-events: auto;
@@ -387,6 +387,11 @@
         }
         .gantt_bars_area {
             overflow: visible !important; /* 描画エリア全体をはみ出させる */
+        }
+
+        /* タスク編集ダイアログを部品送りマークより上に表示 */
+        .gantt_cal_light, .gantt_cal_cover {
+            z-index: 100000 !important;
         }
 
         /* 開始日リサイズハンドル（バー左の三角）を表示・有効化（終了日同様に変更可能にする） */
