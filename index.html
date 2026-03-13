@@ -112,24 +112,9 @@
         .resource-cell-bar.is-conflict {
             border: 1px solid rgba(255, 0, 0, 0.6) !important;
         }
-        /* 背景セルへの赤斜線表示 */
+        /* 背景セルへの赤ベタ塗り表示 */
         .resource-cell-conflict-bg {
-            background-image: repeating-linear-gradient(
-                45deg,
-                rgba(255, 0, 0, 0.2),
-                rgba(255, 0, 0, 0.2) 5px,
-                rgba(255, 0, 0, 0.4) 5px,
-                rgba(255, 0, 0, 0.4) 10px
-            ) !important;
-            animation: conflict-hatch-slide 20s linear infinite;
-            background-size: 20px 20px;
-            border-left: 2px solid rgba(255, 0, 0, 0.6) !important;
-            border-right: 2px solid rgba(255, 0, 0, 0.6) !important;
-            box-sizing: border-box !important;
-        }
-        @keyframes conflict-hatch-slide {
-            from { background-position: 0 0; }
-            to { background-position: 40px 0; }
+            background-color: rgba(255, 0, 0, 0.85) !important;
         }
         /* 重なりバー内の文字を読みやすくするための調整 */
         .resource-cell-bar.is-conflict .resource-bar-text {
