@@ -394,6 +394,116 @@
             z-index: 100000 !important;
         }
 
+        /* ===== グリッド インライン編集ポップアップ ===== */
+        #inline-edit-popup {
+            position: fixed;
+            z-index: 99990;
+            background: #fff;
+            border: 1px solid #bbb;
+            border-radius: 8px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.22);
+            padding: 0;
+            min-width: 220px;
+            max-width: 280px;
+            display: none;
+            flex-direction: column;
+            font-size: 13px;
+        }
+        #inline-edit-popup.visible { display: flex; }
+        #inline-edit-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #f0f4f8;
+            border-radius: 8px 8px 0 0;
+            padding: 6px 10px;
+            border-bottom: 1px solid #ddd;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        #inline-edit-close-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            color: #888;
+            padding: 0 2px;
+            line-height: 1;
+        }
+        #inline-edit-close-btn:hover { color: #333; }
+        .inline-edit-section { padding: 8px 10px; }
+        #inline-edit-text-input, #inline-edit-date-input {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 5px 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+        #inline-edit-ms-search {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 5px 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 13px;
+            margin-bottom: 5px;
+        }
+        #inline-edit-ms-options {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #eee;
+            border-radius: 4px;
+        }
+        .inline-ms-group {
+            padding: 4px 8px;
+            font-size: 11px;
+            font-weight: bold;
+            color: #666;
+            background: #f5f5f5;
+            border-bottom: 1px solid #eee;
+            position: sticky;
+            top: 0;
+        }
+        .inline-ms-option {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            cursor: pointer;
+            user-select: none;
+        }
+        .inline-ms-option:hover { background: #f0f7ff; }
+        .inline-ms-option input[type=checkbox] { cursor: pointer; margin: 0; }
+        #inline-edit-buttons {
+            display: flex;
+            gap: 6px;
+            padding: 8px 10px;
+            border-top: 1px solid #eee;
+            justify-content: flex-end;
+        }
+        #inline-edit-save-btn {
+            background: #3498db;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            padding: 5px 14px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        #inline-edit-save-btn:hover { background: #2980b9; }
+        #inline-edit-cancel-btn {
+            background: #eee;
+            color: #333;
+            border: none;
+            border-radius: 4px;
+            padding: 5px 14px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        #inline-edit-cancel-btn:hover { background: #ddd; }
+        /* ============================================== */
+
         /* 開始日リサイズハンドル（バー左の三角）を表示・有効化（終了日同様に変更可能にする） */
         .gantt_task_drag[data-bind-property="start_date"] {
             display: block !important;
@@ -3907,6 +4017,305 @@
             // フォールバック（万が一イベントが発火しなかった場合）
             setTimeout(scrollAction, 100); 
         });
+        // ===== グリッド インライン編集 =====
+        (function() {
+            let _ie = { taskId: null, field: null };
+
+            // ポップアップを取得（初回のみ作成）
+            function getPopup() {
+                let p = document.getElementById('inline-edit-popup');
+                if (p) return p;
+                p = document.createElement('div');
+                p.id = 'inline-edit-popup';
+                p.innerHTML = `
+                    <div id="inline-edit-header">
+                        <span id="inline-edit-field-label"></span>
+                        <button id="inline-edit-close-btn" title="閉じる">×</button>
+                    </div>
+                    <div class="inline-edit-section" id="inline-edit-text-section">
+                        <input type="text" id="inline-edit-text-input" />
+                    </div>
+                    <div class="inline-edit-section" id="inline-edit-ms-section">
+                        <input type="text" id="inline-edit-ms-search" placeholder="検索..." />
+                        <div id="inline-edit-ms-options"></div>
+                    </div>
+                    <div class="inline-edit-section" id="inline-edit-date-section">
+                        <input type="date" id="inline-edit-date-input" />
+                    </div>
+                    <div id="inline-edit-buttons">
+                        <button id="inline-edit-save-btn">保存</button>
+                        <button id="inline-edit-cancel-btn">キャンセル</button>
+                    </div>`;
+                document.body.appendChild(p);
+
+                p.querySelector('#inline-edit-close-btn').addEventListener('click', closeIE);
+                p.querySelector('#inline-edit-cancel-btn').addEventListener('click', closeIE);
+                p.querySelector('#inline-edit-save-btn').addEventListener('click', saveIE);
+                p.querySelector('#inline-edit-text-input').addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter') saveIE();
+                    if (e.key === 'Escape') closeIE();
+                });
+                p.querySelector('#inline-edit-date-input').addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter') saveIE();
+                    if (e.key === 'Escape') closeIE();
+                });
+                p.querySelector('#inline-edit-ms-search').addEventListener('input', function() {
+                    const q = this.value.toLowerCase();
+                    p.querySelectorAll('.inline-ms-option').forEach(function(opt) {
+                        opt.style.display = opt.textContent.toLowerCase().includes(q) ? '' : 'none';
+                    });
+                });
+                return p;
+            }
+
+            function positionPopup(popup, cellEl) {
+                const rect = cellEl.getBoundingClientRect();
+                popup.classList.add('visible');
+                const pw = popup.offsetWidth, ph = popup.offsetHeight;
+                popup.classList.remove('visible');
+                let top = rect.bottom + 4, left = rect.left;
+                if (left + pw > window.innerWidth) left = window.innerWidth - pw - 4;
+                if (top + ph > window.innerHeight) top = rect.top - ph - 4;
+                popup.style.top = Math.max(4, top) + 'px';
+                popup.style.left = Math.max(4, left) + 'px';
+            }
+
+            function closeIE() {
+                const p = document.getElementById('inline-edit-popup');
+                if (p) p.classList.remove('visible');
+                _ie = { taskId: null, field: null };
+            }
+
+            function showTextSection(value) {
+                const p = getPopup();
+                p.querySelector('#inline-edit-text-section').style.display = 'block';
+                p.querySelector('#inline-edit-ms-section').style.display = 'none';
+                p.querySelector('#inline-edit-date-section').style.display = 'none';
+                const inp = p.querySelector('#inline-edit-text-input');
+                inp.value = value;
+                setTimeout(function() { inp.select(); }, 50);
+            }
+
+            function showMsSection(options, selectedValues) {
+                const p = getPopup();
+                p.querySelector('#inline-edit-text-section').style.display = 'none';
+                p.querySelector('#inline-edit-ms-section').style.display = 'block';
+                p.querySelector('#inline-edit-date-section').style.display = 'none';
+                p.querySelector('#inline-edit-ms-search').value = '';
+                const container = p.querySelector('#inline-edit-ms-options');
+                container.innerHTML = '';
+                options.forEach(function(opt) {
+                    if (opt.isGroup) {
+                        const g = document.createElement('div');
+                        g.className = 'inline-ms-group';
+                        g.textContent = opt.label;
+                        container.appendChild(g);
+                    } else {
+                        const lbl = document.createElement('label');
+                        lbl.className = 'inline-ms-option';
+                        const cb = document.createElement('input');
+                        cb.type = 'checkbox';
+                        cb.value = opt.value;
+                        cb.checked = selectedValues.includes(opt.value);
+                        lbl.appendChild(cb);
+                        lbl.appendChild(document.createTextNode(' ' + opt.label));
+                        container.appendChild(lbl);
+                    }
+                });
+            }
+
+            function showDateSection(dateObj) {
+                const p = getPopup();
+                p.querySelector('#inline-edit-text-section').style.display = 'none';
+                p.querySelector('#inline-edit-ms-section').style.display = 'none';
+                p.querySelector('#inline-edit-date-section').style.display = 'block';
+                if (!dateObj) return;
+                const d = new Date(dateObj);
+                const y = d.getFullYear();
+                const m = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                p.querySelector('#inline-edit-date-input').value = y + '-' + m + '-' + day;
+            }
+
+            function buildTaskNameOpts(parentName) {
+                const out = [];
+                const filtered = parentName
+                    ? taskNameOptions.filter(function(g) { return g.label === parentName; })
+                    : taskNameOptions;
+                const src = filtered.length > 0 ? filtered : taskNameOptions;
+                src.forEach(function(g) {
+                    if (src.length < taskNameOptions.length) {
+                        // フィルタ中はグループ見出しを省略
+                    } else {
+                        out.push({ isGroup: true, label: g.label });
+                    }
+                    g.options.forEach(function(n) { out.push({ value: n, label: n }); });
+                });
+                return out;
+            }
+
+            function buildOwnerOpts(majorItem) {
+                const out = [];
+                const entries = Object.entries(ownerMaster);
+                const filtered = majorItem
+                    ? entries.filter(function(e) { return e[0] === majorItem; })
+                    : entries;
+                const src = filtered.length > 0 ? filtered : entries;
+                src.forEach(function([dept, owners]) {
+                    if (src.length < entries.length) {
+                        // フィルタ中はグループ見出しを省略
+                    } else {
+                        out.push({ isGroup: true, label: dept });
+                    }
+                    owners.forEach(function(o) { out.push({ value: o, label: o }); });
+                });
+                return out;
+            }
+
+            function buildLocationOpts() {
+                const out = [];
+                LOCATION_GROUPS.forEach(function(g) {
+                    out.push({ isGroup: true, label: g });
+                    LOCATION_NUMBERS.forEach(function(n) { out.push({ value: g + '-' + n, label: g + '-' + n }); });
+                });
+                return out;
+            }
+
+            async function showIE(taskId, field, cellEl) {
+                const task = gantt.getTask(taskId);
+                if (!task || task.$virtual) return;
+                _ie = { taskId, field };
+
+                const labels = {
+                    project_number: '工事番号', text: 'タスク名', machine: '機械',
+                    unit: 'ユニット', owner: '担当', area_number: '場所',
+                    start_date: '開始日', end_date: '終了日'
+                };
+                const popup = getPopup();
+                popup.querySelector('#inline-edit-field-label').textContent = labels[field] || field;
+
+                if (field === 'project_number' || field === 'machine' || field === 'unit') {
+                    showTextSection(task[field] || '');
+                } else if (field === 'text') {
+                    const sel = (task.text || '').split(/[,，]/).map(function(s) { return s.trim(); }).filter(Boolean);
+                    showMsSection(buildTaskNameOpts(task.parent_name || ''), sel);
+                } else if (field === 'owner') {
+                    showMsSection(buildOwnerOpts(task.major_item || ''), getNormalizedOwners(task.owner || ''));
+                } else if (field === 'area_number') {
+                    // task_locations から正確なデータを取得
+                    const realId = task.original_id || taskId;
+                    const { data: locData } = await supabaseClient.from('task_locations')
+                        .select('area_group, area_number').eq('task_id', realId);
+                    const sel = (locData || []).map(function(l) { return l.area_group + '-' + l.area_number; });
+                    showMsSection(buildLocationOpts(), sel);
+                } else if (field === 'start_date') {
+                    showDateSection(task.start_date);
+                } else if (field === 'end_date') {
+                    showDateSection(gantt.calculateEndDate(task.start_date, task.duration));
+                }
+
+                positionPopup(popup, cellEl);
+                popup.classList.add('visible');
+            }
+
+            async function saveIE() {
+                const { taskId, field } = _ie;
+                if (!taskId || !field) return;
+                const task = gantt.getTask(taskId);
+                if (!task) return;
+
+                if (field === 'project_number' || field === 'machine' || field === 'unit') {
+                    task[field] = document.getElementById('inline-edit-text-input').value.trim();
+
+                } else if (field === 'text') {
+                    const checked = Array.from(document.querySelectorAll('#inline-edit-ms-options input[type=checkbox]:checked')).map(function(cb) { return cb.value; });
+                    task.text = checked.join(',');
+
+                } else if (field === 'owner') {
+                    const checked = Array.from(document.querySelectorAll('#inline-edit-ms-options input[type=checkbox]:checked')).map(function(cb) { return cb.value; });
+                    task.owner = checked.join(',');
+
+                } else if (field === 'area_number') {
+                    const checked = Array.from(document.querySelectorAll('#inline-edit-ms-options input[type=checkbox]:checked')).map(function(cb) { return cb.value; });
+                    const locs = checked.map(function(v) {
+                        const parts = v.split('-');
+                        return { group: parts[0], num: parts[1] };
+                    });
+                    task.area_group = locs.length > 0 ? locs[0].group : '';
+                    task.area_number = locs.map(function(l) { return l.num; }).join(',');
+                    task._selected_locations = locs.map(function(l) { return { group: l.group, num: l.num }; });
+                    // task_locations テーブルを直接更新
+                    const realId = task.original_id || taskId;
+                    await supabaseClient.from('task_locations').delete().eq('task_id', realId);
+                    if (locs.length > 0) {
+                        await supabaseClient.from('task_locations').insert(
+                            locs.map(function(l) { return { task_id: realId, area_group: l.group, area_number: l.num }; })
+                        );
+                    }
+
+                } else if (field === 'start_date') {
+                    const val = document.getElementById('inline-edit-date-input').value;
+                    if (val) {
+                        const newStart = new Date(val);
+                        const oldEnd = gantt.calculateEndDate(task.start_date, task.duration);
+                        task.duration = gantt.calculateDuration(newStart, oldEnd);
+                        task.start_date = newStart;
+                    }
+
+                } else if (field === 'end_date') {
+                    const val = document.getElementById('inline-edit-date-input').value;
+                    if (val) {
+                        const newEnd = new Date(val);
+                        const newDur = gantt.calculateDuration(task.start_date, newEnd);
+                        task.duration = Math.max(1, newDur);
+                    }
+                }
+
+                closeIE();
+                gantt.updateTask(taskId);
+            }
+
+            // グリッドセルクリック → インライン編集
+            gantt.attachEvent("onTaskClick", function(id, e) {
+                const cell = e.target.closest('.gantt_cell');
+                if (!cell) return true;
+                const tag = e.target.tagName;
+                if (tag === 'INPUT' || tag === 'BUTTON' ||
+                    e.target.classList.contains('gantt_tree_icon') ||
+                    e.target.classList.contains('zoom-btn')) return true;
+
+                const row = cell.parentElement;
+                const cells = Array.from(row.children).filter(function(c) { return c.classList.contains('gantt_cell'); });
+                const idx = cells.indexOf(cell);
+                const cols = gantt.config.columns;
+                if (idx < 0 || idx >= cols.length) return true;
+
+                const colName = cols[idx].name;
+                const editableFields = ['project_number', 'text', 'machine', 'unit', 'owner', 'area_number', 'start_date', 'end_date'];
+                if (!editableFields.includes(colName)) return true;
+
+                const task = gantt.getTask(id);
+                if (!task || task.$virtual) return true;
+
+                showIE(id, colName, cell);
+                return true;
+            });
+
+            // ポップアップ外クリックで閉じる
+            document.addEventListener('click', function(e) {
+                const p = document.getElementById('inline-edit-popup');
+                if (p && p.classList.contains('visible') && !p.contains(e.target) && !e.target.closest('.gantt_cell')) {
+                    closeIE();
+                }
+            });
+
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') closeIE();
+            });
+
+        })();
+        // ===== インライン編集 ここまで =====
+
     </script>
 </body>
 </html>
