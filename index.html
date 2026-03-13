@@ -329,56 +329,37 @@
             text-shadow: none !important;
         }
 
-        /* マークのコンテナ */
-        .force-display-mark {
+        /* 部品送り日マーク（ドラッグ可能） */
+        .parts-delivery-mark {
             position: absolute;
-            top: -28px; /* バーの少し上に浮かせる */
             width: 24px;
-            margin-left: -12px; /* 中央揃え調整 */
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            pointer-events: none;
-            z-index: 99999 !important;
-            overflow: visible !important;
-        }
-
-        /* ラベルの吹き出し */
-        .mark-bubble-mini {
-            background: #2980b9 !important; /* 濃い水色（青系）に変更 */
-            color: white !important;
-            width: 24px;   /* アイコンに合わせた固定幅 */
-            height: 24px;  /* 丸型にするための高さ */
-            line-height: 24px;
-            text-align: center;
-            border-radius: 50%; /* 丸いアイコン風にする */
-            font-size: 14px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-            z-index: 10000 !important;
+            height: 24px;
+            background: #2980b9;
+            border: 2px solid #2980b9;
+            border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            position: relative;
+            font-size: 14px;
+            color: white;
+            cursor: grab;
+            z-index: 99999;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            user-select: none;
             pointer-events: auto;
-            border: 2px solid #2980b9 !important; /* 枠線も同じ濃い水色に統一 */
+            transition: transform 0.15s, background 0.15s;
+            box-sizing: border-box;
         }
-
-        /* 垂直線 */
-        .mark-line {
-            width: 2px;
-            height: 38px;
-            background: #2980b9 !important; /* 線も同じ濃い水色に統一 */
-            opacity: 0.8;
-            margin-top: 0px;
-            z-index: 9998 !important;
-        }
-
-        /* マウスを乗せた時にさらに目立たせる（重なり対策） */
-        .mark-bubble-mini:hover {
-            background: #3498db !important; /* ホバー時は少し明るい水色 */
-            border-color: #3498db !important;
+        .parts-delivery-mark:hover {
+            background: #3498db;
+            border-color: #3498db;
             transform: scale(1.2);
-            transition: transform 0.2s;
+        }
+        .parts-delivery-mark--dragging {
+            cursor: grabbing;
+            opacity: 0.85;
+            transform: scale(1.1);
+            transition: none;
         }
 
         /* --- 無料版の強力な表示制限を解除するための設定 --- */
@@ -1943,17 +1924,6 @@
             }
 
             let html = `<span class="task-name-text">${taskName || ""}</span>`;
-
-            // 「機械組立」かつ「表示単位が日(day)」の時だけマークを描画
-            if (task.text && task.text.includes("機械組立") && gantt.getState().scale_unit === "day") {
-                // 1日22px設定なので 22 * 7 = 154px
-                const offset = 154;
-
-                html += `<div class="force-display-mark" style="left: -${offset}px;">
-                            <div class="mark-bubble-mini">🚚</div>
-                            <div class="mark-line"></div>
-                        </div>`;
-            }
             return html;
         };
 
@@ -2085,6 +2055,98 @@
             // 通常のタスク（子タスク）の表示判定
             return isTaskVisible(task);
         });
+
+        // ========== 部品送り日マーク（ドラッグ可能・localStorage永続化） ==========
+        const PARTS_MARK_KEY = "partsDelivery_offsets";
+        let _markDragState = null;
+
+        function getPartsOffsets() {
+            try { return JSON.parse(localStorage.getItem(PARTS_MARK_KEY) || "{}"); }
+            catch(e) { return {}; }
+        }
+        function savePartsOffset(taskId, days) {
+            const offsets = getPartsOffsets();
+            offsets[String(taskId)] = days;
+            localStorage.setItem(PARTS_MARK_KEY, JSON.stringify(offsets));
+        }
+
+        function renderPartsMarks() {
+            // 既存マークを全削除
+            document.querySelectorAll('.parts-delivery-mark').forEach(function(el) { el.remove(); });
+
+            if (gantt.getState().scale_unit !== "day") return;
+
+            const container = document.querySelector('.gantt_data_area');
+            if (!container) return;
+
+            const colWidth = gantt.config.min_column_width; // 22px
+            const offsets = getPartsOffsets();
+            const markSize = 24;
+
+            gantt.eachTask(function(task) {
+                if (!task.text || !task.text.includes("機械組立")) return;
+                try { if (!gantt.isTaskVisible(task.id)) return; } catch(e) { return; }
+
+                const offsetDays = (offsets[String(task.id)] !== undefined) ? offsets[String(task.id)] : 7;
+                const pos = gantt.getTaskPosition(task, task.start_date, task.end_date);
+
+                const markLeft = pos.left - offsetDays * colWidth - markSize / 2;
+                const markTop  = pos.top + pos.height / 2 - markSize / 2;
+
+                const el = document.createElement("div");
+                el.className = "parts-delivery-mark";
+                el.innerHTML = "🚚";
+                el.setAttribute("data-task-id", String(task.id));
+                el.style.left = markLeft + "px";
+                el.style.top  = markTop  + "px";
+
+                el.addEventListener("mousedown", function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    _markDragState = {
+                        taskId:      String(task.id),
+                        taskPosLeft: pos.left,
+                        colWidth:    colWidth,
+                        markSize:    markSize,
+                        startX:      e.clientX,
+                        startLeft:   markLeft,
+                        el:          el
+                    };
+                    el.classList.add("parts-delivery-mark--dragging");
+                });
+
+                container.appendChild(el);
+            });
+        }
+
+        // ガント再描画のたびにマークを再配置
+        gantt.attachEvent("onGanttRender", function() {
+            renderPartsMarks();
+        });
+
+        // ドラッグ移動
+        document.addEventListener("mousemove", function(e) {
+            if (!_markDragState) return;
+            const dx = e.clientX - _markDragState.startX;
+            const newLeft = _markDragState.startLeft + dx;
+            // タスク開始日の1日以上前に制限
+            const maxLeft = _markDragState.taskPosLeft - _markDragState.colWidth - _markDragState.markSize / 2;
+            _markDragState.el.style.left = Math.min(newLeft, maxLeft) + "px";
+        });
+
+        // ドラッグ終了：日数を計算して localStorage に保存
+        document.addEventListener("mouseup", function(e) {
+            if (!_markDragState) return;
+            const elLeft = parseFloat(_markDragState.el.style.left);
+            const markCenter = elLeft + _markDragState.markSize / 2;
+            const rawDays = (_markDragState.taskPosLeft - markCenter) / _markDragState.colWidth;
+            const snappedDays = Math.max(1, Math.round(rawDays));
+            savePartsOffset(_markDragState.taskId, snappedDays);
+            _markDragState.el.classList.remove("parts-delivery-mark--dragging");
+            _markDragState = null;
+            gantt.render();
+        });
+        // ========== 部品送り日マーク ここまで ==========
 
         gantt.init("gantt_here");
 
@@ -3039,18 +3101,18 @@
             }
         }
 
-        async function fetchTasks() {
-            // --- 現在の展開状態を記憶 ---
-            const openTaskIds = new Set();
-            const allTasksData = gantt.serialize().data;
-            console.log("Current tasks in gantt:", allTasksData.length);
-            allTasksData.forEach(function(task) {
-                if (task.open) {
-                    openTaskIds.add(task.id);
-                }
-            });
-            console.log("Open task IDs saved:", Array.from(openTaskIds));
+        let _ganttFirstLoad = true;          // 初回ロードフラグ
+        const _headerOpenStates = {};        // 見出し行の開閉状態 { taskId: true/false }
 
+        // ユーザー操作 or プログラム呼び出しで開閉が変わったとき即時記録
+        gantt.attachEvent("onTaskOpened", function(id) {
+            _headerOpenStates[String(id)] = true;
+        });
+        gantt.attachEvent("onTaskClosed", function(id) {
+            _headerOpenStates[String(id)] = false;
+        });
+
+        async function fetchTasks() {
             // スクロール位置を記憶
             const scrollPos = gantt.getScrollState();
 
@@ -3165,23 +3227,20 @@
                             });
                             
                             if (!parentsMap[parentKey]) {
-                                // 記憶していた状態を反映。Set.has() は厳密な比較を行うため、IDの一致を確認
-                                const isOpen = openTaskIds.has(parentKey);
-                                console.log("Restoring state for:", parentKey, "isOpen:", isOpen);
                                 
-                                parentsMap[parentKey] = { 
-                                    id: parentKey, 
-                                    text: mName === "設定なし" ? pNum : `${pNum} - ${mName}`, 
-                                    project_number: pNum, 
-                                    machine: mName === "設定なし" ? "" : mName, 
-                                    major_item: "", 
-                                    customer_name: tasksInMachine[0].customer_name, 
-                                    project_details: tasksInMachine[0].project_details, 
-                                    start_date: minStart, 
-                                    end_date: maxEnd, 
-                                    open: isOpen,
-                                    type: "project", 
-                                    $virtual: true 
+                                parentsMap[parentKey] = {
+                                    id: parentKey,
+                                    text: mName === "設定なし" ? pNum : `${pNum} - ${mName}`,
+                                    project_number: pNum,
+                                    machine: mName === "設定なし" ? "" : mName,
+                                    major_item: "",
+                                    customer_name: tasksInMachine[0].customer_name,
+                                    project_details: tasksInMachine[0].project_details,
+                                    start_date: minStart,
+                                    end_date: maxEnd,
+                                    open: false,
+                                    type: "project",
+                                    $virtual: true
                                 };
                                 tasksWithHierarchy.push(parentsMap[parentKey]);
                             }
@@ -3275,20 +3334,19 @@
                             }
 
                             if (!parentsMap[parentKey]) {
-                                const isOpen = openTaskIds.has(parentKey);
-                                parentsMap[parentKey] = { 
-                                    id: parentKey, 
-                                    text: pName, 
-                                    project_number: pNum, 
-                                    machine: tasksInParent[0].machine, 
-                                    major_item: tasksInParent[0].major_item, 
-                                    customer_name: tasksInParent[0].customer_name, 
-                                    project_details: tasksInParent[0].project_details, 
-                                    start_date: minStart, 
-                                    end_date: maxEnd, 
-                                    open: isOpen, 
-                                    type: "project", 
-                                    $virtual: true 
+                                parentsMap[parentKey] = {
+                                    id: parentKey,
+                                    text: pName,
+                                    project_number: pNum,
+                                    machine: tasksInParent[0].machine,
+                                    major_item: tasksInParent[0].major_item,
+                                    customer_name: tasksInParent[0].customer_name,
+                                    project_details: tasksInParent[0].project_details,
+                                    start_date: minStart,
+                                    end_date: maxEnd,
+                                    open: false,
+                                    type: "project",
+                                    $virtual: true
                                 };
                                 tasksWithHierarchy.push(parentsMap[parentKey]);
                             }
@@ -3309,20 +3367,19 @@
                         });
                         
                         if (!parentsMap[parentKey]) {
-                            const isOpen = openTaskIds.has(parentKey);
-                            parentsMap[parentKey] = { 
-                                id: parentKey, 
-                                text: "", 
-                                project_number: pNum, 
-                                machine: unassignedTasks[0].machine, 
-                                major_item: "", 
-                                customer_name: unassignedTasks[0].customer_name, 
-                                project_details: unassignedTasks[0].project_details, 
-                                start_date: minStart, 
-                                end_date: maxEnd, 
-                                open: isOpen, 
-                                type: "project", 
-                                $virtual: true 
+                            parentsMap[parentKey] = {
+                                id: parentKey,
+                                text: "",
+                                project_number: pNum,
+                                machine: unassignedTasks[0].machine,
+                                major_item: "",
+                                customer_name: unassignedTasks[0].customer_name,
+                                project_details: unassignedTasks[0].project_details,
+                                start_date: minStart,
+                                end_date: maxEnd,
+                                open: false,
+                                type: "project",
+                                $virtual: true
                             };
                             tasksWithHierarchy.push(parentsMap[parentKey]);
                         }
@@ -3344,12 +3401,26 @@
                 updateTodayMarker();
             }
             
-            // 明示的に展開状態を再適用（parse時に反映されない場合があるため）
-            openTaskIds.forEach(id => {
-                if (gantt.isTaskExists(id)) {
-                    gantt.open(id);
+            // 見出し行（仮想行）の展開／折りたたみ
+            gantt.eachTask(function(task) {
+                if (!task.$virtual) return;
+                const id = String(task.id);
+                const pNum = (task.project_number || "").toString();
+                const tracked = _headerOpenStates[id]; // undefined=未記録, true=開, false=閉
+                if (tracked === true) {
+                    gantt.open(task.id);
+                } else if (tracked === false) {
+                    gantt.close(task.id);
+                } else {
+                    // 未記録（初回）：2000番台は閉じる、それ以外は開く
+                    if (pNum.startsWith('2')) {
+                        gantt.close(task.id);
+                    } else {
+                        gantt.open(task.id);
+                    }
                 }
             });
+            _ganttFirstLoad = false;
 
             gantt.config.start_date = new Date(GANTT_START_DATE.getTime());
             gantt.config.end_date = new Date(GANTT_END_DATE.getTime());
