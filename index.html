@@ -112,6 +112,31 @@
         .resource-cell-bar.is-conflict {
             border: 1px solid rgba(255, 0, 0, 0.6) !important;
         }
+        /* 組立場所リソース バーカラーピッカー */
+        #location-bar-color-picker {
+            position: fixed;
+            z-index: 99999;
+            background: #fff;
+            border: 1px solid #bbb;
+            border-radius: 8px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+            padding: 8px;
+            display: none;
+            flex-wrap: wrap;
+            gap: 5px;
+            width: 175px;
+        }
+        #location-bar-color-picker.visible { display: flex; }
+        .loc-bar-color-swatch {
+            width: 30px;
+            height: 30px;
+            border-radius: 5px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            box-sizing: border-box;
+        }
+        .loc-bar-color-swatch:hover, .loc-bar-color-swatch.active { border-color: #333; }
+
         /* 背景セルへの赤ベタ塗り表示 */
         .resource-cell-conflict-bg {
             background-color: rgba(255, 0, 0, 0.85) !important;
@@ -2726,10 +2751,13 @@
                             return (start < oEnd && end > oStart);
                         });
                         const conflictClass = ""; // isOverlapping ? "is-conflict" : "";
+                        const customBarColor = localStorage.getItem('locationBarColor_' + t.id);
+                        const customColorStyle = customBarColor ? `background-color: ${customBarColor} !important;` : '';
 
                         html += `
-                            <div class="resource-cell-bar ${colorClass} ${conflictClass}" 
-                                 style="position: absolute; top: ${topOffset}px; height: ${barHeight}px; left: ${left}px; width: ${width}px; border-radius: 3px; opacity: 0.8; display: flex; align-items: center; justify-content: center; color: #222; font-size: 13px; font-weight: bold; overflow: hidden; white-space: nowrap; text-shadow: none; z-index: ${5 + stackIndex}; box-sizing: border-box; border: 1px solid rgba(0,0,0,0.15);" 
+                            <div class="resource-cell-bar ${colorClass} ${conflictClass}"
+                                 data-task-id="${t.id}"
+                                 style="position: absolute; top: ${topOffset}px; height: ${barHeight}px; left: ${left}px; width: ${width}px; border-radius: 3px; opacity: 0.8; display: flex; align-items: center; justify-content: center; color: #222; font-size: 13px; font-weight: bold; overflow: hidden; white-space: nowrap; text-shadow: none; z-index: ${5 + stackIndex}; box-sizing: border-box; border: 1px solid rgba(0,0,0,0.15); ${customColorStyle}"
                                  title="${t.project_number || ""}-${t.machine || ""}${t.unit || ""}">
                                  <span class="resource-bar-text">${t.project_number || ""} ${t.machine || ""} ${t.unit || ""}</span>
                             </div>
@@ -2745,6 +2773,7 @@
             });
 
             container.innerHTML = html;
+            initLocationBarColorPicker(container);
             syncResourceScroll();
         }
 
@@ -3069,6 +3098,88 @@
                 }
             }, 1000);
         });
+
+        // ========== 組立場所リソース バーカラーピッカー ==========
+        const LOC_BAR_COLORS = [
+            '#EF5350', // 赤
+            '#FF9800', // オレンジ
+            '#FFEE58', // 黄
+            '#8BC34A', // 黄緑
+            '#26A69A', // ティール
+            '#42A5F5', // 青
+            '#7E57C2', // 紫
+            '#EC407A', // ピンク
+            '#78909C', // グレーブルー
+            '#A1887F', // ブラウン
+        ];
+
+        function getOrCreateLocationColorPicker() {
+            let picker = document.getElementById('location-bar-color-picker');
+            if (!picker) {
+                picker = document.createElement('div');
+                picker.id = 'location-bar-color-picker';
+                LOC_BAR_COLORS.forEach(color => {
+                    const swatch = document.createElement('div');
+                    swatch.className = 'loc-bar-color-swatch';
+                    swatch.style.backgroundColor = color;
+                    swatch.dataset.color = color;
+                    picker.appendChild(swatch);
+                });
+                document.body.appendChild(picker);
+            }
+            return picker;
+        }
+
+        let _locBarPickerTarget = null;
+        let _locBarPickerHideTimer = null;
+
+        function initLocationBarColorPicker(container) {
+            const picker = getOrCreateLocationColorPicker();
+
+            container.querySelectorAll('.resource-cell-bar[data-task-id]').forEach(bar => {
+                bar.addEventListener('click', e => {
+                    e.stopPropagation();
+                    if (_locBarPickerTarget === bar && picker.classList.contains('visible')) {
+                        picker.classList.remove('visible');
+                        _locBarPickerTarget = null;
+                        return;
+                    }
+                    _locBarPickerTarget = bar;
+                    const rect = bar.getBoundingClientRect();
+                    let top = rect.bottom + 4;
+                    let left = rect.left;
+                    if (left + 180 > window.innerWidth) left = window.innerWidth - 185;
+                    picker.style.top = top + 'px';
+                    picker.style.left = left + 'px';
+                    const currentColor = localStorage.getItem('locationBarColor_' + bar.dataset.taskId);
+                    picker.querySelectorAll('.loc-bar-color-swatch').forEach(s => {
+                        s.classList.toggle('active', s.dataset.color === currentColor);
+                    });
+                    picker.classList.add('visible');
+                });
+            });
+
+            picker.addEventListener('click', e => {
+                const swatch = e.target.closest('.loc-bar-color-swatch');
+                if (!swatch || !_locBarPickerTarget) return;
+                const color = swatch.dataset.color;
+                const taskId = _locBarPickerTarget.dataset.taskId;
+                localStorage.setItem('locationBarColor_' + taskId, color);
+                _locBarPickerTarget.style.setProperty('background-color', color, 'important');
+                picker.querySelectorAll('.loc-bar-color-swatch').forEach(s => {
+                    s.classList.toggle('active', s.dataset.color === color);
+                });
+                picker.classList.remove('visible');
+                _locBarPickerTarget = null;
+            });
+
+            // ピッカー外クリックで閉じる
+            document.addEventListener('click', () => {
+                picker.classList.remove('visible');
+                _locBarPickerTarget = null;
+            });
+        }
+        // ========================================================
 
         function getResourceTaskClass(task) {
             if (task.text === "外観検査") return "milestone-circle";
