@@ -1979,10 +1979,18 @@
 
         gantt.templates.grid_row_class = function(start, end, task){
             let css = "";
-            
-            // チェックボックスの状態を確認
-            if (taskCheckboxes[task.id]) {
-                css += " task-checked";
+
+            if (task.$virtual) {
+                // 見出し行：子タスクがすべてチェック済みならグレーアウト
+                const children = gantt.getChildren(task.id);
+                if (children.length > 0 && children.every(cid => taskCheckboxes[cid])) {
+                    css += " task-checked";
+                }
+            } else {
+                // チェックボックスの状態を確認
+                if (taskCheckboxes[task.id]) {
+                    css += " task-checked";
+                }
             }
 
             // 工事番号の切り替わり（新しい工事番号の最初の行）を判定
@@ -3372,9 +3380,15 @@
                     is_business_trip: t.is_business_trip,
                     area_group: areaGroup,
                     area_number: areaNumber,
-                    main_owner: t.main_owner || ""
+                    main_owner: t.main_owner || "",
+                    is_completed: t.is_completed || false
                     // is_new_task: t.is_new_task // データベースにカラムがない可能性があるため一時的にコメントアウト
                 };
+            });
+
+            // チェックボックスの状態をDBから復元
+            rawTasks.forEach(t => {
+                taskCheckboxes[t.id] = t.is_completed || false;
             });
 
             window.allTasks = rawTasks;
@@ -3682,8 +3696,28 @@
 
         window.toggleTaskCheckbox = function(id, checked) {
             taskCheckboxes[id] = checked;
-            console.log("Task checkbox toggled:", id, checked);
-            gantt.updateTask(id); // 行の再描画をトリガーしてスタイルを反映
+            // 子タスク行を即時更新
+            const rowNode = gantt.getTaskRowNode(id);
+            if (rowNode) {
+                if (checked) rowNode.classList.add("task-checked");
+                else rowNode.classList.remove("task-checked");
+            }
+            // 親行（見出し行）の状態を更新
+            try {
+                const task = gantt.getTask(id);
+                if (task && task.parent) {
+                    const children = gantt.getChildren(task.parent);
+                    const allChecked = children.length > 0 && children.every(cid => taskCheckboxes[cid]);
+                    const parentRow = gantt.getTaskRowNode(task.parent);
+                    if (parentRow) {
+                        if (allChecked) parentRow.classList.add("task-checked");
+                        else parentRow.classList.remove("task-checked");
+                    }
+                }
+            } catch(e) {}
+            // Supabaseへの保存はバックグラウンドで実行
+            supabaseClient.from('tasks').update({ is_completed: checked }).eq('id', id)
+                .then(({ error }) => { if (error) console.error("チェックボックス保存エラー:", error); });
         };
 
         function setDisplayMode(mode) {
