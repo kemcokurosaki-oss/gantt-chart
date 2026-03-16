@@ -312,12 +312,17 @@
         }
         
         /* バー内の文字色（濃いグレーに統一） */
-        .gantt_task_content { 
-            color: #222 !important; 
-            font-weight: bold; 
+        .gantt_task_content {
+            color: #222 !important;
+            font-weight: bold;
             font-size: 13px;
             font-family: "游ゴシック", "Yu Gothic", YuGothic, sans-serif;
-            text-shadow: none !important; 
+            text-shadow: none !important;
+        }
+        .task-name-text {
+            display: inline-block;
+            white-space: nowrap;
+            vertical-align: middle;
         }
 
         /* 2000番台以外の見出し行の文字色（白に戻す） */
@@ -379,7 +384,7 @@
 
         /* --- 無料版の強力な表示制限を解除するための設定 --- */
         .gantt_task_content {
-            overflow: visible !important; /* バーの中身をはみ出させる */
+            overflow: hidden !important; /* スケールセルと同じ設定：バー端でクリップ */
             z-index: 1 !important;
         }
         .gantt_task_line {
@@ -2282,6 +2287,7 @@
         // ガント再描画のたびにマークを再配置
         gantt.attachEvent("onGanttRender", function() {
             renderPartsMarks();
+            updateStickyBarText();
         });
 
         // ドラッグ移動
@@ -3164,11 +3170,40 @@
         }
 
         // 2. 【スクロールの同期】
+        function updateStickyBarText(scrollLeft) {
+            const sl = scrollLeft !== undefined ? scrollLeft : (gantt.getScrollState().x || 0);
+            const gridEl = document.querySelector('.gantt_grid');
+            if (!gridEl) return;
+            const boundary = gridEl.getBoundingClientRect().right;
+
+            document.querySelectorAll('.gantt_task_line').forEach(bar => {
+                const textEl = bar.querySelector('.task-name-text');
+                if (!textEl) return;
+                const barLeft  = parseFloat(bar.style.left)  || 0;
+                const barWidth = parseFloat(bar.style.width) || 0;
+
+                // バーが完全に左へ消えたらリセット
+                if (sl >= barLeft + barWidth) {
+                    textEl.style.transform = '';
+                    return;
+                }
+
+                // transform をリセットして自然な位置のテキスト左端を実測
+                textEl.style.transform = '';
+                const textLeft = textEl.getBoundingClientRect().left;
+
+                // テキスト左端が境界線にぶつかった分だけずらす
+                const offset = Math.max(0, boundary - textLeft);
+                if (offset > 0) textEl.style.transform = `translateX(${offset}px)`;
+            });
+        }
+
         gantt.attachEvent("onGanttScroll", function (left, top){
             const resourceContent = document.querySelector(".resource-content");
             if (resourceContent) {
                 resourceContent.scrollLeft = left;
             }
+            updateStickyBarText(left);
         });
 
         // 3. 【ズーム切り替え時の再描画】
