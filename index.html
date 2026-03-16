@@ -4108,15 +4108,23 @@
             }
 
             function positionPopup(popup, cellEl) {
-                const rect = cellEl.getBoundingClientRect();
+                // DOM要素または事前取得済みのDOMRectどちらも受け付ける
+                const rect = (typeof cellEl.getBoundingClientRect === 'function') ? cellEl.getBoundingClientRect() : cellEl;
+                // visibility:hidden で画面外に配置してサイズを計測（フラッシュ防止）
+                popup.style.visibility = 'hidden';
+                popup.style.top = '0px';
+                popup.style.left = '0px';
                 popup.classList.add('visible');
                 const pw = popup.offsetWidth, ph = popup.offsetHeight;
                 popup.classList.remove('visible');
-                let top = rect.bottom + 4, left = rect.left;
-                if (left + pw > window.innerWidth) left = window.innerWidth - pw - 4;
-                if (top + ph > window.innerHeight) top = rect.top - ph - 4;
-                popup.style.top = Math.max(4, top) + 'px';
-                popup.style.left = Math.max(4, left) + 'px';
+                popup.style.visibility = '';
+                const margin = 8;
+                let top = rect.bottom + 4;
+                let left = rect.left;
+                if (left + pw > window.innerWidth - margin) left = window.innerWidth - pw - margin;
+                if (top + ph > window.innerHeight - margin) top = rect.top - ph - 4;
+                popup.style.top = Math.max(margin, top) + 'px';
+                popup.style.left = Math.max(margin, left) + 'px';
             }
 
             function closeIE() {
@@ -4236,6 +4244,9 @@
                 if (!task || task.$virtual) return;
                 _ie = { taskId, field };
 
+                // await より前に座標を確定させる（await 後はスクロール等で位置がズレる場合がある）
+                const cellRect = cellEl.getBoundingClientRect();
+
                 const labels = {
                     project_number: '工事番号', text: 'タスク名', machine: '機械',
                     unit: 'ユニット', owner: '担当', area_number: '場所',
@@ -4264,7 +4275,7 @@
                     showDateSection(gantt.calculateEndDate(task.start_date, task.duration));
                 }
 
-                positionPopup(popup, cellEl);
+                positionPopup(popup, cellRect);
                 popup.classList.add('visible');
             }
 
