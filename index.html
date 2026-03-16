@@ -214,11 +214,16 @@
         .weekend { background: #f4f4f4 !important; } /* 土日：元の薄いグレー */
         /* 日単位表示（zoom-days）の時のみ月ごとの縦の罫線を太くする */
         .zoom-days .gantt_scale_cell.gantt_scale_month {
-            border-right: 2px solid #666 !important;
+            border-right: 1.5px solid #666 !important;
             box-sizing: border-box !important;
         }
         .zoom-days .gantt_task_cell.gantt_last_cell {
             border-right: 1px solid #ebebeb !important;
+        }
+        /* 月末セルの右罫線を太くする（日単位表示のみ） */
+        .zoom-days .gantt_task_cell.month-end-cell,
+        .zoom-days .gantt_scale_cell.month-end-cell {
+            border-right: 1.5px solid #999 !important;
         }
         /* 下段リソースパネル内の設定を元に戻す（日ごとの線が太くなるのを防ぐ） */
         .zoom-days .resource-timeline-grid-3px {
@@ -1666,7 +1671,7 @@
                 const owners = obj.owner.split(/[,，]/).map(function(s) { return s.trim(); }).filter(Boolean);
                 if (owners.length > 1 && obj.main_owner && obj.main_owner.trim()) {
                     const main = obj.main_owner.trim();
-                    return owners.map(function(o) { return o === main ? "<u>" + o + "</u>" : o; }).join(', ');
+                    return owners.map(function(o) { return o === main ? "<span style='text-decoration: underline; text-decoration-color: red; text-decoration-thickness: 3px;'>" + o + "</span>" : o; }).join(', ');
                 }
                 return obj.owner;
             }},
@@ -2106,14 +2111,26 @@
             return css;
         };
         
-        gantt.templates.timeline_cell_class = (task, date) => (date.getDay() === 0 || date.getDay() === 6) ? "weekend" : "";
-        
+        gantt.templates.timeline_cell_class = (task, date) => {
+            const nextDay = new Date(date);
+            nextDay.setDate(nextDay.getDate() + 1);
+            const isMonthEnd = nextDay.getDate() === 1;
+            const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+            return (isWeekend ? "weekend" : "") + (isMonthEnd ? " month-end-cell" : "");
+        };
+
+        const isMonthEndDate = (date) => {
+            const nextDay = new Date(date);
+            nextDay.setDate(nextDay.getDate() + 1);
+            return nextDay.getDate() === 1;
+        };
+
         const zoomConfig = {
             levels: [
                 { name: "days", scale_height: 66, min_column_width: 22, scales: [
-                    { unit: "month", step: 1, format: "%Y/%n" },
-                    { unit: "day", step: 1, format: "%j" }, 
-                    { unit: "day", step: 1, format: (date) => dayNames[date.getDay()] }
+                    { unit: "month", step: 1, format: "%Y/%n", css: () => "month-end-cell" },
+                    { unit: "day", step: 1, format: "%j", css: (date) => isMonthEndDate(date) ? "month-end-cell" : "" },
+                    { unit: "day", step: 1, format: (date) => dayNames[date.getDay()], css: (date) => isMonthEndDate(date) ? "month-end-cell" : "" }
                 ]},
                 { name: "weeks", scale_height: 66, min_column_width: 22, scales: [
                     { unit: "month", step: 1, format: "%Y/%n" },
@@ -3677,8 +3694,8 @@
 
             // 設計詳細画面への遷移条件
             // 1. 機械別表示の場合
-            // 2. 工程別表示で、見出し名が「出図＆部品手配」の場合
-            const isDesignDetail = (currentDisplayMode === 'machine') || (task.text === "出図＆部品手配");
+            // 2. 工程別表示で、見出し名が「出図＆部品手配」または「長納期品手配」の場合
+            const isDesignDetail = (currentDisplayMode === 'machine') || (task.text === "出図＆部品手配") || (task.text === "長納期品手配");
 
             if (isDesignDetail) {
                 const url = `https://kemcokurosaki-oss.github.io/design-schedule/?project_no=${encodeURIComponent(projectNo)}`;
