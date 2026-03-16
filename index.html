@@ -883,7 +883,7 @@
                 <div id="gantt_here" style="width: 100%; flex: 1; min-height: 0;"></div>
 
                 <!-- 独立したリソースパネル -->
-                <div id="resource_panel" style="display: none; height: 250px; border-top: 2px solid #ccc; background: #fff; flex-direction: column; position: relative;">
+                <div id="resource_panel" style="display: none; height: 250px; border-top: 2px solid #ccc; background: #fff; flex-direction: column; position: absolute; bottom: 0; left: 0; right: 0; z-index: 100;">
                     <div id="resource_resizer" style="height: 5px; cursor: ns-resize; background: #eee; width: 100%; position: absolute; top: -3px; z-index: 100; transition: background 0.2s;" onmouseover="this.style.background='#3498db'" onmouseout="this.style.background='#eee'"></div>
                     <div id="resource_header_bar" class="resource-header-bar" style="display: none;">
                         <span id="resource_title">リソース状況（担当者で選択）</span>
@@ -1099,11 +1099,6 @@
 
                     panel.style.height = newHeight + 'px';
                     lastY = e.clientY;
-                    
-                    // ガントチャートのサイズ再計算が必要な場合
-                    if (window.gantt) {
-                        gantt.render();
-                    }
                 });
 
                 window.addEventListener('mouseup', () => {
@@ -2383,7 +2378,6 @@
             if (!currentResourceDeptFilter) {
                 // 解除時はパネルを閉じる
                 if (resourcePanel) resourcePanel.style.display = "none";
-                setTimeout(function() { gantt.setSizes(); }, 0);
                 return;
             }
 
@@ -2417,17 +2411,8 @@
             }))].sort();
 
             // 4. リソースパネルを表示
-            const scrollState = gantt.getScrollState();
             if (resourcePanel) resourcePanel.style.display = "flex";
-
-            // 5. renderDepartmentSummary(owners, deptName) を実行
             renderDepartmentSummary(owners, deptName);
-
-            // DOMレイアウトが確定してからサイズ再計算（スケールヘッダーの文字消失を防ぐ）
-            setTimeout(function() {
-                gantt.setSizes();
-                gantt.scrollTo(scrollState.x, scrollState.y);
-            }, 0);
         }
 
         function renderDepartmentSummary(owners, deptName) {
@@ -2674,15 +2659,10 @@
 
         function updateResourceVisibility() {
             const resourcePanel = document.getElementById("resource_panel");
-            const ganttHere = document.getElementById("gantt_here");
             const hasFilter = currentResourceOwnerFilter || currentResourceDeptFilter || currentLocationResourceMode;
-
-            // スクロール位置を保存
-            const scrollState = gantt.getScrollState();
 
             if (hasFilter) {
                 if (resourcePanel) resourcePanel.style.display = "flex";
-
                 if (currentLocationResourceMode) {
                     renderLocationResourceTimeline();
                 } else {
@@ -2691,13 +2671,6 @@
             } else {
                 if (resourcePanel) resourcePanel.style.display = "none";
             }
-
-            // gantt.render() はカレンダーヘッダーの文字が一瞬消えるため、
-            // サイズ再計算のみ行い、スクロール位置を復元する
-            setTimeout(function() {
-                gantt.setSizes();
-                gantt.scrollTo(scrollState.x, scrollState.y);
-            }, 0);
         }
 
         // リソース画面を閉じる
