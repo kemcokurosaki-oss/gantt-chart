@@ -4412,10 +4412,31 @@
                 gantt.updateTask(taskId);
             }
 
-            // グリッドセルクリック → インライン編集
+            // グリッドセルクリック → ガントチャートの横スクロール調整
             gantt.attachEvent("onTaskClick", function(id, e) {
                 const cell = e.target.closest('.gantt_cell');
-                if (!cell) return true;
+                if (!cell) return true; // バークリック：デフォルト動作
+                const tag = e.target.tagName;
+                if (tag === 'INPUT' || tag === 'BUTTON' ||
+                    e.target.classList.contains('gantt_tree_icon') ||
+                    e.target.classList.contains('zoom-btn')) return true;
+
+                // グリッドセルクリック → タスク開始日へ横スクロール
+                const task = gantt.getTask(id);
+                if (task && !task.$virtual) {
+                    const pos = gantt.posFromDate(new Date(task.start_date));
+                    gantt.scrollTo(Math.max(0, pos - 200), null);
+                }
+                return true;
+            });
+
+            // グリッドセルダブルクリック → インライン編集 / バーダブルクリック → 全項目編集画面
+            gantt.attachEvent("onTaskDblClick", function(id, e) {
+                const cell = e.target.closest('.gantt_cell');
+                if (!cell) {
+                    // バーダブルクリック：ライトボックスを表示（デフォルト動作）
+                    return true;
+                }
                 const tag = e.target.tagName;
                 if (tag === 'INPUT' || tag === 'BUTTON' ||
                     e.target.classList.contains('gantt_tree_icon') ||
@@ -4425,17 +4446,17 @@
                 const cells = Array.from(row.children).filter(function(c) { return c.classList.contains('gantt_cell'); });
                 const idx = cells.indexOf(cell);
                 const cols = gantt.config.columns;
-                if (idx < 0 || idx >= cols.length) return true;
+                if (idx < 0 || idx >= cols.length) return false;
 
                 const colName = cols[idx].name;
                 const editableFields = ['project_number', 'text', 'machine', 'unit', 'owner', 'area_number', 'start_date', 'end_date'];
-                if (!editableFields.includes(colName)) return true;
+                if (!editableFields.includes(colName)) return false;
 
                 const task = gantt.getTask(id);
-                if (!task || task.$virtual) return true;
+                if (!task || task.$virtual) return false;
 
                 showIE(id, colName, cell);
-                return true;
+                return false; // デフォルト（ライトボックス）をキャンセル
             });
 
             // ポップアップ外クリックで閉じる
