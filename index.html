@@ -404,12 +404,17 @@
             z-index: 100000 !important;
         }
 
-        /* 削除確認ダイアログを編集画面より上に表示 */
+        /* 削除確認ダイアログを編集画面より上に表示（CSS補助） */
         .gantt_popup_shadow,
         .gantt_popup_box,
+        .gantt_modal_box,
         .dhtmlx_modal_box,
-        .dhtmlx_popup_area {
-            z-index: 100010 !important;
+        .dhtmlx_popup_area,
+        .gantt_confirm_popup,
+        [class*="gantt_popup"],
+        [class*="gantt_modal"],
+        [class*="dhtmlx_modal"] {
+            z-index: 200000 !important;
         }
 
         /* ===== グリッド インライン編集ポップアップ ===== */
