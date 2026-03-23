@@ -4487,6 +4487,35 @@
         })();
         // ===== インライン編集 ここまで =====
 
+        // ===== 削除確認ダイアログ z-index 修正 =====
+        // DHTMLX Gantt の確認ダイアログが lightbox より下に表示される問題を修正
+        (function() {
+            const CONFIRM_Z = 200000;
+            const POPUP_PATTERN = /gantt_popup|gantt_modal|gantt_confirm|dhtmlx_modal|dhtmlx_popup/i;
+
+            function fixZIndex(node) {
+                if (node.nodeType !== 1) return;
+                const cls = (typeof node.className === 'string') ? node.className : '';
+                if (POPUP_PATTERN.test(cls)) {
+                    node.style.setProperty('z-index', String(CONFIRM_Z), 'important');
+                }
+                node.querySelectorAll('*').forEach(function(el) {
+                    const c = (typeof el.className === 'string') ? el.className : '';
+                    if (POPUP_PATTERN.test(c)) {
+                        el.style.setProperty('z-index', String(CONFIRM_Z), 'important');
+                    }
+                });
+            }
+
+            const observer = new MutationObserver(function(mutations) {
+                mutations.forEach(function(m) {
+                    m.addedNodes.forEach(fixZIndex);
+                });
+            });
+            observer.observe(document.body, { childList: true, subtree: true });
+        })();
+        // ===== 削除確認ダイアログ z-index 修正 ここまで =====
+
     </script>
 </body>
 </html>
