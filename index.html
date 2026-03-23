@@ -3997,9 +3997,20 @@
                 return;
             }
 
+            // 工事番号からテンプレートテーブルを決定
+            // 3000・4000番台 → task_template_a、D番 → task_template_b、それ以外(2000番台) → task_template
+            let templateTable;
+            if (/^[34]/i.test(projectNumber)) {
+                templateTable = 'task_template_a';
+            } else if (/^D/i.test(projectNumber)) {
+                templateTable = 'task_template_b';
+            } else {
+                templateTable = 'task_template';
+            }
+
             // 1. テンプレートデータを取得（ID順にソート）
             const { data: templates, error: templateError } = await supabaseClient
-                .from('task_template')
+                .from(templateTable)
                 .select('*')
                 .order('id', { ascending: true });
 
@@ -4025,7 +4036,8 @@
                     parentItems.push({
                         name: name,
                         relative_start: temp.relative_start_day || 0,
-                        duration: temp.duration || 1
+                        duration: temp.duration || 1,
+                        reference_date: temp.reference_date || 'shipping'
                     });
                 }
             });
@@ -4045,32 +4057,38 @@
                 } else if (item.name === "出荷") {
                     // 出荷はヘッダーの出荷日をそのまま反映
                     startDateStr = shippingDateValue || dateToDb(new Date());
+                } else if (item.reference_date === 'order') {
+                    // 受注日基準（task_template_a / task_template_b の order 指定項目）
+                    const calcDate = new Date(orderDate);
+                    calcDate.setDate(calcDate.getDate() + item.relative_start);
+                    startDateStr = dateToDb(calcDate);
                 } else {
-                    // それ以外は出荷日から relative_start_day を逆算
+                    // 出荷日基準（デフォルト）
                     if (shippingDate) {
                         const calcDate = new Date(shippingDate);
-                        // relative_start_day が負の値（例：-10）なら、出荷日の10日前になるように加算
                         calcDate.setDate(calcDate.getDate() + item.relative_start);
                         startDateStr = dateToDb(calcDate);
                     } else {
                         // 出荷日が未入力の場合は受注日を基準にする（フォールバック）
                         const calcDate = new Date(orderDate);
-                        calcDate.setDate(calcDate.getDate() + Math.abs(item.relative_start)); 
+                        calcDate.setDate(calcDate.getDate() + Math.abs(item.relative_start));
                         startDateStr = dateToDb(calcDate);
                     }
                 }
 
+                // パターンA・B は子タスクとして作成（text=タスク名、parent=""）
+                // 2000番台（task_template）は見出し行として作成（text=""、parent=見出し名）
+                const isChildTaskPattern = (templateTable === 'task_template_a' || templateTable === 'task_template_b');
                 newTasks.push({
                     project_number: projectNumber,
-                    text: "", // タスク名は空白
-                    parent: item.name, // 見出し名を parent カラムに設定
+                    text: isChildTaskPattern ? item.name : "",
+                    parent: isChildTaskPattern ? "" : item.name,
                     major_item: null,
                     start_date: startDateStr,
-                    duration: duration, // テンプレートの期間を反映
+                    duration: duration,
                     owner: "",
                     machine: "",
                     unit: ""
-                    // is_new_task: item.name === "基本設計＆計画承認" // データベースにカラムがない可能性があるため一時的にコメントアウト
                 });
             });
 
