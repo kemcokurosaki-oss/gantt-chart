@@ -1824,6 +1824,16 @@
             }
         });
 
+        // マイルストーンタスクのリサイズ（期間変更）を防ぐ
+        gantt.attachEvent("onBeforeTaskDrag", function(id, mode, e) {
+            const task = gantt.getTask(id);
+            const milestones = ["外観検査", "客先立会", "出荷確認会議", "工場出荷"];
+            if (milestones.includes(task.text) && mode === gantt.config.drag_mode.resize) {
+                return false; // リサイズ操作をキャンセル
+            }
+            return true;
+        });
+
         // 編集内容をデータベースに保存
         gantt.attachEvent("onAfterTaskUpdate", async function(id, item) {
             if (item.$virtual) return; // 見出し行は仮想的なものなので保存対象外
@@ -3425,18 +3435,23 @@
                 });
             }
 
+            const MILESTONE_TEXTS = ["外観検査", "客先立会", "出荷確認会議", "工場出荷"];
+
             const rawTasks = data.map(t => {
                 let areaGroup = t.area_group;
                 let areaNumber = t.area_number;
-                
+
                 if (locMap[t.id]) {
                     areaGroup = locMap[t.id].area_group;
                     areaNumber = locMap[t.id].area_numbers.join(",");
                 }
 
+                // マイルストーンタスクは常に1日に固定
+                const isMilestone = MILESTONE_TEXTS.includes(t.text);
+
                 return {
                     id: t.id, text: t.text, start_date: t.start_date,
-                    duration: t.duration, owner: t.owner, project_number: (t.project_number || "").toString().trim(),
+                    duration: isMilestone ? 1 : t.duration, owner: t.owner, project_number: (t.project_number || "").toString().trim(),
                     machine: t.machine, unit: t.unit, major_item: t.major_item,
                     sort_order: t.sort_order,
                     sort_order_machine: t.sort_order_machine,
