@@ -4050,7 +4050,8 @@
                         name: name,
                         relative_start: temp.relative_start_day || 0,
                         duration: temp.duration || 1,
-                        reference_date: temp.reference_date || 'shipping'
+                        reference_date: temp.reference_date || 'shipping',
+                        major_item: temp.major_item || ''
                     });
                 }
             });
@@ -4096,7 +4097,7 @@
                     project_number: projectNumber,
                     text: isChildTaskPattern ? item.name : "",
                     parent: isChildTaskPattern ? "" : item.name,
-                    major_item: null,
+                    major_item: item.major_item || null,
                     start_date: startDateStr,
                     duration: duration,
                     owner: "",
