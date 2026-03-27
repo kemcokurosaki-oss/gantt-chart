@@ -1368,13 +1368,17 @@
         gantt.form_blocks["task_name_selector"] = {
             render: function(sns) {
                 return `<div class='task_name_selector_container' style='padding:5px; display:flex; align-items:center; gap:5px;'>
-                            <select style='flex-grow:1; height:30px; font-size:14px; padding:4px;'></select>
+                            <div style='display:flex; flex-direction:column; gap:4px; flex-grow:1;'>
+                                <select style='width:100%; height:30px; font-size:14px; padding:4px;'></select>
+                                <input type='text' class='task_name_free_input' placeholder='タスク名を自由入力...' style='width:100%; height:30px; font-size:14px; padding:4px; border:1px solid #aaa; border-radius:4px; box-sizing:border-box; display:none;'>
+                            </div>
                             <button class='add_task_option' style='width:30px; height:30px; cursor:pointer; background:#4CAF50; color:white; border:none; border-radius:4px; font-weight:bold;'>+</button>
                             <button class='remove_task_option' style='width:30px; height:30px; cursor:pointer; background:#f44336; color:white; border:none; border-radius:4px; font-weight:bold;'>-</button>
                         </div>`;
             },
             set_value: function(node, value, task) {
                 const select = node.querySelector("select");
+                const freeInput = node.querySelector(".task_name_free_input");
                 if (!select) return;
 
                 // 出張予定モードの場合の選択肢
@@ -1446,6 +1450,12 @@
                             }
                         }
                     };
+                    select.addEventListener("change", function() {
+                        if (freeInput) {
+                            freeInput.style.display = select.value === "__free__" ? "" : "none";
+                            if (select.value === "__free__") freeInput.focus();
+                        }
+                    });
                     node._events_attached = true;
                 }
 
@@ -1477,29 +1487,35 @@
                         });
                     }
                 }
+                html += `<option value="__free__">── 自由入力 ──</option>`;
                 select.innerHTML = html;
 
-                // 既存の値が選択肢にない場合（手入力されていた場合など）も考慮
+                // 既存の値が選択肢にない場合は「自由入力」を選択して入力欄に表示
                 if (value) {
                     let exists = false;
                     for (let i = 0; i < select.options.length; i++) {
-                        if (select.options[i].value === value) {
-                            exists = true;
-                            break;
-                        }
+                        if (select.options[i].value === value) { exists = true; break; }
                     }
                     if (!exists) {
-                        const newOpt = document.createElement("option");
-                        newOpt.value = value;
-                        newOpt.text = value;
-                        select.add(newOpt);
+                        select.value = "__free__";
+                        if (freeInput) { freeInput.value = value; freeInput.style.display = ""; }
+                    } else {
+                        select.value = value;
+                        if (freeInput) freeInput.style.display = "none";
                     }
+                } else {
+                    select.value = "";
+                    if (freeInput) freeInput.style.display = "none";
                 }
-                select.value = value || "";
             },
             get_value: function(node, task) {
                 const select = node.querySelector("select");
-                return select ? select.value : "";
+                if (!select) return "";
+                if (select.value === "__free__") {
+                    const freeInput = node.querySelector(".task_name_free_input");
+                    return freeInput ? freeInput.value.trim() : "";
+                }
+                return select.value;
             },
             focus: function(node) {
                 const select = node.querySelector("select");
@@ -4217,6 +4233,10 @@
                     <div class="inline-edit-section" id="inline-edit-ms-section">
                         <input type="text" id="inline-edit-ms-search" placeholder="検索..." />
                         <div id="inline-edit-ms-options"></div>
+                        <div id="inline-edit-free-row" style="display:none; margin-top:6px; border-top:1px solid #eee; padding-top:6px;">
+                            <div style="font-size:11px; color:#666; margin-bottom:3px;">自由入力（入力した場合はリスト選択より優先）</div>
+                            <input type="text" id="inline-edit-free-text" placeholder="タスク名を自由入力..." style="width:100%; box-sizing:border-box; padding:5px 8px; border:1px solid #aaa; border-radius:4px; font-size:13px;" />
+                        </div>
                     </div>
                     <div class="inline-edit-section" id="inline-edit-date-section">
                         <input type="date" id="inline-edit-date-input" />
@@ -4395,11 +4415,25 @@
                 const popup = getPopup();
                 popup.querySelector('#inline-edit-field-label').textContent = labels[field] || field;
 
+                // タスク名以外では自由入力欄を隠す
+                const _freeRow = popup.querySelector('#inline-edit-free-row');
+                if (_freeRow) _freeRow.style.display = 'none';
+
                 if (field === 'project_number' || field === 'machine' || field === 'unit') {
                     showTextSection(task[field] || '');
                 } else if (field === 'text') {
                     const sel = (task.text || '').split(/[,，]/).map(function(s) { return s.trim(); }).filter(Boolean);
                     showMsSection(buildTaskNameOpts(task.parent_name || ''), sel);
+                    // 自由入力欄を表示し、既存値がリストにない場合はプリセット
+                    const freeRow = popup.querySelector('#inline-edit-free-row');
+                    const freeText = popup.querySelector('#inline-edit-free-text');
+                    if (freeRow && freeText) {
+                        freeRow.style.display = '';
+                        const allOpts = buildTaskNameOpts(task.parent_name || '');
+                        const allValues = allOpts.filter(function(o) { return !o.isGroup; }).map(function(o) { return o.value; });
+                        const hasUnknown = sel.some(function(s) { return !allValues.includes(s); });
+                        freeText.value = hasUnknown ? sel.filter(function(s) { return !allValues.includes(s); }).join(',') : '';
+                    }
                 } else if (field === 'owner') {
                     showMsSection(buildOwnerOpts(task.major_item || ''), getNormalizedOwners(task.owner || ''), task.main_owner || '');
                 } else if (field === 'area_number') {
@@ -4429,8 +4463,13 @@
                     task[field] = document.getElementById('inline-edit-text-input').value.trim();
 
                 } else if (field === 'text') {
-                    const checked = Array.from(document.querySelectorAll('#inline-edit-ms-options input[type=checkbox]:checked')).map(function(cb) { return cb.value; });
-                    task.text = checked.join(',');
+                    const freeVal = (document.getElementById('inline-edit-free-text')?.value || '').trim();
+                    if (freeVal) {
+                        task.text = freeVal;
+                    } else {
+                        const checked = Array.from(document.querySelectorAll('#inline-edit-ms-options input[type=checkbox]:checked')).map(function(cb) { return cb.value; });
+                        task.text = checked.join(',');
+                    }
 
                 } else if (field === 'owner') {
                     const checked = Array.from(document.querySelectorAll('#inline-edit-ms-options input[type=checkbox]:checked')).map(function(cb) { return cb.value; });
