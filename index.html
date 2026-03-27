@@ -25,6 +25,15 @@
         .project-item { padding: 6px 8px; border-bottom: 1px solid #34495e; cursor: pointer; font-size: 13px; transition: 0.2s; font-weight: bold; }
         .project-item:hover { background: #34495e; }
         .project-item.active { background: #3498db; color: white; border-left: 5px solid #fff; }
+        .sidebar-title { display: flex; align-items: center; justify-content: space-between; }
+        .project-group-filter-btn { background: none; border: none; color: #ecf0f1; cursor: pointer; font-size: 11px; padding: 2px 4px; line-height: 1; opacity: 0.7; flex-shrink: 0; }
+        .project-group-filter-btn:hover { opacity: 1; }
+        .project-group-filter-btn.filtered { opacity: 1; color: #3dd6f5; }
+        .project-group-dropdown { position: fixed; background: #2c3e50; border: 1px solid #1a252f; border-radius: 4px; z-index: 9999; min-width: 90px; box-shadow: 2px 2px 6px rgba(0,0,0,0.4); display: none; }
+        .project-group-dropdown.visible { display: block; }
+        .project-group-dropdown-item { padding: 7px 12px; color: #ecf0f1; cursor: pointer; font-size: 12px; white-space: nowrap; }
+        .project-group-dropdown-item:hover { background: #34495e; }
+        .project-group-dropdown-item.active { background: #3498db; color: #fff; }
         .chart-container { flex: 1; display: flex; flex-direction: column; background: #fff; position: relative; overflow: hidden; }
 
         /* ライトボックスの期間選択を年月日の順に並び替え */
@@ -896,7 +905,15 @@
 
         <div class="content-area">
             <div class="sidebar">
-                <div class="sidebar-title" onclick="resetFilter()" title="クリックして全表示にリセット">工事一覧</div>
+                <div class="sidebar-title">
+                    <span onclick="resetFilter()" title="クリックして全表示にリセット" style="cursor:pointer; flex:1;">工事一覧</span>
+                    <button id="project-group-filter-btn" class="project-group-filter-btn" onclick="toggleProjectGroupDropdown(event)" title="工事番号フィルター">▼</button>
+                </div>
+                <div id="project-group-dropdown" class="project-group-dropdown">
+                    <div class="project-group-dropdown-item active" onclick="setProjectGroupFilter('all', this)">すべて</div>
+                    <div class="project-group-dropdown-item" onclick="setProjectGroupFilter('2000', this)">2000番台</div>
+                    <div class="project-group-dropdown-item" onclick="setProjectGroupFilter('other', this)">その他</div>
+                </div>
                 <div id="project_list" class="project-list"></div>
             </div>
             <div class="chart-container">
@@ -947,6 +964,7 @@
         let locationExpandedGroups = { "E1": true, "E3": true }; // 展開状態
         const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
         let currentResourceDeptFilter = "";
+        let currentProjectGroupFilter = "all"; // "all" | "2000" | "other"
         let holidaySet = new Set(); // Supabaseのholidaysテーブルから取得した休日日付セット（"YYYY-MM-DD"形式）
 
         const dateToDb = gantt.date.date_to_str("%Y-%m-%d");
@@ -2229,6 +2247,13 @@
             if (currentFilter) {
                 var taskProjectNumber = task.project_number || task.project_no;
                 if (!taskProjectNumber || !taskProjectNumber.includes(currentFilter)) return false;
+            }
+
+            // 2b. 工事番号グループフィルター (AND条件)
+            if (currentProjectGroupFilter && currentProjectGroupFilter !== 'all') {
+                const pNum = (task.project_number || task.project_no || '').toString();
+                if (currentProjectGroupFilter === '2000' && !/^2/.test(pNum)) return false;
+                if (currentProjectGroupFilter === 'other' && /^2/.test(pNum)) return false;
             }
 
             // 3. 部署フィルター (AND条件)
@@ -3561,6 +3586,8 @@
             if (currentDisplayMode === 'machine') {
                 projects.forEach(pNum => {
                     if (currentFilter && pNum !== currentFilter) return;
+                    if (currentProjectGroupFilter === '2000' && !/^2/.test(pNum)) return;
+                    if (currentProjectGroupFilter === 'other' && /^2/.test(pNum)) return;
                     const projectTasks = rawTasks.filter(t => {
                         if (t.project_number !== pNum) return false;
                         const val = t.is_business_trip;
@@ -3974,11 +4001,46 @@
             gantt.scrollTo(scrollState.x, scrollState.y);
         }
 
+        function toggleProjectGroupDropdown(e) {
+            e.stopPropagation();
+            const dd = document.getElementById('project-group-dropdown');
+            const btn = document.getElementById('project-group-filter-btn');
+            const visible = dd.classList.toggle('visible');
+            if (visible) {
+                const rect = btn.getBoundingClientRect();
+                dd.style.top = rect.bottom + 'px';
+                dd.style.left = rect.left + 'px';
+            }
+        }
+        document.addEventListener('click', () => {
+            document.getElementById('project-group-dropdown')?.classList.remove('visible');
+        });
+
+        function setProjectGroupFilter(type, el) {
+            currentProjectGroupFilter = type;
+            document.querySelectorAll('.project-group-dropdown-item').forEach(d => d.classList.remove('active'));
+            el.classList.add('active');
+            document.getElementById('project-group-dropdown').classList.remove('visible');
+            const btn = document.getElementById('project-group-filter-btn');
+            btn.classList.toggle('filtered', type !== 'all');
+            if (window.allTasks) updateProjectList(window.allTasks);
+            const scrollState = gantt.getScrollState();
+            gantt.render();
+            gantt.scrollTo(scrollState.x, scrollState.y);
+        }
+
         function updateProjectList(tasks) {
             const listEl = document.getElementById('project_list');
             const projectInfoMap = {};
             tasks.forEach(t => { if (t.project_number && !projectInfoMap[t.project_number]) projectInfoMap[t.project_number] = { customer: t.customer_name || "", details: t.project_details || "" }; });
-            const projects = Object.keys(projectInfoMap).sort();
+            let projects = Object.keys(projectInfoMap).sort();
+
+            // グループフィルター適用
+            if (currentProjectGroupFilter === '2000') {
+                projects = projects.filter(p => /^2/.test(p));
+            } else if (currentProjectGroupFilter === 'other') {
+                projects = projects.filter(p => !/^2/.test(p));
+            }
             listEl.innerHTML = "";
             let tooltip = document.getElementById('custom_project_tooltip') || document.createElement('div');
             tooltip.id = 'custom_project_tooltip'; tooltip.className = 'custom-tooltip'; document.body.appendChild(tooltip);
