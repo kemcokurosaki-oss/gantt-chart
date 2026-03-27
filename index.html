@@ -944,6 +944,7 @@
         let locationExpandedGroups = { "E1": true, "E3": true }; // 展開状態
         const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
         let currentResourceDeptFilter = "";
+        let holidaySet = new Set(); // Supabaseのholidaysテーブルから取得した休日日付セット（"YYYY-MM-DD"形式）
 
         const dateToDb = gantt.date.date_to_str("%Y-%m-%d");
         const dateToDisplay = gantt.date.date_to_str("%Y/%m/%d");
@@ -2145,12 +2146,24 @@
             return css;
         };
         
+        const isWeekendOrHoliday = (date) => {
+            if (date.getDay() === 0 || date.getDay() === 6) return true;
+            const ds = date.getFullYear() + "-" + String(date.getMonth()+1).padStart(2,"0") + "-" + String(date.getDate()).padStart(2,"0");
+            return holidaySet.has(ds);
+        };
+
+        gantt.templates.scale_cell_class = (date) => {
+            const nextDay = new Date(date);
+            nextDay.setDate(nextDay.getDate() + 1);
+            const isMonthEnd = nextDay.getDate() === 1;
+            return (isWeekendOrHoliday(date) ? "weekend" : "") + (isMonthEnd ? " month-end-cell" : "");
+        };
+
         gantt.templates.timeline_cell_class = (task, date) => {
             const nextDay = new Date(date);
             nextDay.setDate(nextDay.getDate() + 1);
             const isMonthEnd = nextDay.getDate() === 1;
-            const isWeekend = date.getDay() === 0 || date.getDay() === 6;
-            return (isWeekend ? "weekend" : "") + (isMonthEnd ? " month-end-cell" : "");
+            return (isWeekendOrHoliday(date) ? "weekend" : "") + (isMonthEnd ? " month-end-cell" : "");
         };
 
         const isMonthEndDate = (date) => {
@@ -2163,8 +2176,8 @@
             levels: [
                 { name: "days", scale_height: 66, min_column_width: 22, scales: [
                     { unit: "month", step: 1, format: "%Y/%n", css: () => "month-end-cell" },
-                    { unit: "day", step: 1, format: "%j", css: (date) => isMonthEndDate(date) ? "month-end-cell" : "" },
-                    { unit: "day", step: 1, format: (date) => dayNames[date.getDay()], css: (date) => isMonthEndDate(date) ? "month-end-cell" : "" }
+                    { unit: "day", step: 1, format: "%j", css: (date) => (isWeekendOrHoliday(date) ? "weekend" : "") + (isMonthEndDate(date) ? " month-end-cell" : "") },
+                    { unit: "day", step: 1, format: (date) => dayNames[date.getDay()], css: (date) => (isWeekendOrHoliday(date) ? "weekend" : "") + (isMonthEndDate(date) ? " month-end-cell" : "") }
                 ]},
                 { name: "weeks", scale_height: 66, min_column_width: 22, scales: [
                     { unit: "month", step: 1, format: "%Y/%n" },
@@ -2498,7 +2511,8 @@
             if (currentZoom === "days") {
                 scale.trace_x.forEach((date, i) => {
                     const isWeekend = date.getDay() === 0 || date.getDay() === 6;
-                    if (isWeekend) {
+                    const ds = date.getFullYear() + "-" + String(date.getMonth()+1).padStart(2,"0") + "-" + String(date.getDate()).padStart(2,"0");
+                    if (isWeekend || holidaySet.has(ds)) {
                         weekendBackgroundHtml += `<div style="position: absolute; top: 0; bottom: 0; left: ${i * columnWidth}px; width: ${columnWidth}px; background: #f4f4f4; z-index: 0;"></div>`;
                     }
                 });
@@ -2793,7 +2807,8 @@
             if (currentZoom === "days") {
                 scale.trace_x.forEach((date, i) => {
                     const isWeekend = date.getDay() === 0 || date.getDay() === 6;
-                    if (isWeekend) {
+                    const ds = date.getFullYear() + "-" + String(date.getMonth()+1).padStart(2,"0") + "-" + String(date.getDate()).padStart(2,"0");
+                    if (isWeekend || holidaySet.has(ds)) {
                         weekendBackgroundHtml += `<div style="position: absolute; top: 0; bottom: 0; left: ${i * columnWidth}px; width: ${columnWidth}px; background: #f4f4f4; z-index: 0;"></div>`;
                     }
                 });
@@ -3026,7 +3041,8 @@
             if (currentZoom === "days") {
                 scale.trace_x.forEach((date, i) => {
                     const isWeekend = date.getDay() === 0 || date.getDay() === 6;
-                    if (isWeekend) {
+                    const ds = date.getFullYear() + "-" + String(date.getMonth()+1).padStart(2,"0") + "-" + String(date.getDate()).padStart(2,"0");
+                    if (isWeekend || holidaySet.has(ds)) {
                         weekendBackgroundHtml += `<div style="position: absolute; top: 0; bottom: 0; left: ${i * columnWidth}px; width: ${columnWidth}px; background: #f4f4f4; z-index: 0;"></div>`;
                     }
                 });
@@ -3411,6 +3427,24 @@
         gantt.attachEvent("onTaskClosed", function(id) {
             _headerOpenStates[String(id)] = false;
         });
+
+        async function loadHolidays() {
+            const { data, error } = await supabaseClient.from('holidays').select('date');
+            if (error) {
+                console.error('[loadHolidays] エラー:', error);
+                return;
+            }
+            if (data) {
+                // "YYYY/M/D" → "YYYY-MM-DD" に正規化してガント側のフォーマットに合わせる
+                holidaySet = new Set(data.map(r => {
+                    const parts = String(r.date).split('/');
+                    if (parts.length === 3) {
+                        return parts[0] + '-' + parts[1].padStart(2,'0') + '-' + parts[2].padStart(2,'0');
+                    }
+                    return String(r.date).substring(0, 10);
+                }));
+            }
+        }
 
         async function fetchTasks() {
             // スクロール位置を記憶
@@ -4139,7 +4173,7 @@
         }
 
         document.getElementById('resource_close_btn').addEventListener('click', closeResourcePanel);
-        fetchTasks().then(() => {
+        loadHolidays().then(() => fetchTasks()).then(() => {
             // 初期表示を今日の日付にスクロール
             // setTimeoutを短縮し、gantt.onRenderイベント等で補完
             const scrollAction = () => {
