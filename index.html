@@ -3851,7 +3851,12 @@
             const isDesignDetail = (currentDisplayMode === 'machine') || (task.text === "出図＆部品手配") || (task.text === "長納期品手配");
 
             if (isDesignDetail) {
-                const url = `https://kemcokurosaki-oss.github.io/design-schedule/?project_no=${encodeURIComponent(projectNo)}`;
+                let url = `https://kemcokurosaki-oss.github.io/design-schedule/?project_no=${encodeURIComponent(projectNo)}`;
+                if (task.text === "長納期品手配") {
+                    url += `&task_type=long_lead_item`;
+                } else if (task.text === "出図＆部品手配") {
+                    url += `&task_type=drawing`;
+                }
                 window.open(url, '_blank');
             } else {
                 alert("準備中");
