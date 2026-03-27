@@ -4032,7 +4032,15 @@
         function updateProjectList(tasks) {
             const listEl = document.getElementById('project_list');
             const projectInfoMap = {};
-            tasks.forEach(t => { if (t.project_number && !projectInfoMap[t.project_number]) projectInfoMap[t.project_number] = { customer: t.customer_name || "", details: t.project_details || "" }; });
+            tasks.forEach(t => {
+                if (!t.project_number) return;
+                if (!projectInfoMap[t.project_number]) {
+                    projectInfoMap[t.project_number] = { customer: t.customer_name || "", details: t.project_details || "" };
+                } else {
+                    if (!projectInfoMap[t.project_number].customer && t.customer_name) projectInfoMap[t.project_number].customer = t.customer_name;
+                    if (!projectInfoMap[t.project_number].details && t.project_details) projectInfoMap[t.project_number].details = t.project_details;
+                }
+            });
             let projects = Object.keys(projectInfoMap).sort();
 
             // グループフィルター適用
