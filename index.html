@@ -848,8 +848,8 @@
                 
                 <div style="margin-left:auto; display:flex; align-items:center; gap:10px; font-size: 13px;">
                     <span>表示切替:</span>
-                    <button class="zoom-btn" style="font-size: 12px;" onclick="setZoom('days')">日単位</button>
-                    <button class="zoom-btn" style="font-size: 12px;" onclick="setZoom('weeks')">週単位</button>
+                    <button id="zoom_days_btn" class="zoom-btn active" style="font-size: 12px;" onclick="setZoom('days')">日単位</button>
+                    <button id="zoom_weeks_btn" class="zoom-btn" style="font-size: 12px;" onclick="setZoom('weeks')">週単位</button>
                     <button class="zoom-btn" onclick="scrollToToday()" style="background-color: #ebf5ff; border-color: #3498db; color: #3498db; font-size: 12px;">今日へ移動</button>
                     <span id="filter_status" style="font-weight:bold; color:#3498db; font-size: 12px;">全工程を表示中</span>
                     <button class="zoom-btn" style="font-size: 12px;" onclick="resetFilter()">表示リセット</button>
@@ -2171,14 +2171,16 @@
             const nextDay = new Date(date);
             nextDay.setDate(nextDay.getDate() + 1);
             const isMonthEnd = nextDay.getDate() === 1;
-            return (isWeekendOrHoliday(date) ? "weekend" : "") + (isMonthEnd ? " month-end-cell" : "");
+            const isDays = (gantt.ext.zoom.getCurrentLevel() || "days") === "days";
+            return (isDays && isWeekendOrHoliday(date) ? "weekend" : "") + (isMonthEnd ? " month-end-cell" : "");
         };
 
         gantt.templates.timeline_cell_class = (task, date) => {
             const nextDay = new Date(date);
             nextDay.setDate(nextDay.getDate() + 1);
             const isMonthEnd = nextDay.getDate() === 1;
-            return (isWeekendOrHoliday(date) ? "weekend" : "") + (isMonthEnd ? " month-end-cell" : "");
+            const isDays = (gantt.ext.zoom.getCurrentLevel() || "days") === "days";
+            return (isDays && isWeekendOrHoliday(date) ? "weekend" : "") + (isMonthEnd ? " month-end-cell" : "");
         };
 
         const isMonthEndDate = (date) => {
@@ -3261,9 +3263,13 @@
         });
 
         // 3. 【ズーム切り替え時の再描画】
-        function setZoom(level) { 
+        function setZoom(level) {
             // スクロール位置を保存
             const scrollState = gantt.getScrollState();
+
+            // ボタンのアクティブ状態を切り替え
+            document.getElementById('zoom_days_btn').classList.toggle('active', level === 'days');
+            document.getElementById('zoom_weeks_btn').classList.toggle('active', level === 'weeks');
 
             gantt.ext.zoom.setLevel(level); 
 
