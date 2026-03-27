@@ -12,11 +12,13 @@
 
     <style>
         html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: "メイリオ", sans-serif; font-size: 12px; }
+        button, input, select, textarea { font-family: "メイリオ", sans-serif; }
+        .header-panel *, .toolbar * { font-size: 13px !important; }
         .main-container { display: flex; flex-direction: column; height: 100vh; }
-        .header-panel { background: #fff; padding: 5px 10px; border-bottom: 1px solid #ccc; display: flex; flex-direction: column; gap: 4px; }
-        .input-row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
-        .input-row input { padding: 4px 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; }
-        .btn-add { padding: 4px 12px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 12px; }
+        .header-panel { background: #fff; padding: 2px 10px; border-bottom: 1px solid #ccc; display: flex; flex-direction: column; gap: 2px; }
+        .input-row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; height: 28px; }
+        .input-row input { padding: 2px 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; }
+        .btn-add { padding: 0px 5px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; }
         .content-area { display: flex; flex: 1; overflow: hidden; }
         .sidebar { width: 100px; background: #2c3e50; color: #ecf0f1; display: flex; flex-direction: column; border-right: 1px solid #1a252f; }
         .sidebar-title { padding: 8px; font-weight: bold; background: #1a252f; font-size: 12px; cursor: pointer; transition: 0.2s; }
@@ -183,10 +185,14 @@
         .gantt_layout_resource_row .gantt_grid_head_row,
         .gantt_layout_resource_row .gantt_scale,
         .gantt_layout_resource_row .gantt_scale_line { display: none !important; height: 0 !important; min-height: 0 !important; overflow: hidden !important; }
-        .toolbar { background: #f8f9fa; padding: 4px 12px; border-bottom: 1px solid #ddd; display: flex; gap: 8px; align-items: center; font-size: 10px; }
-        .zoom-btn { padding: 2px 8px; cursor: pointer; background: #fff; border: 1px solid #ccc; border-radius: 3px; font-size: 12px; }
+        .toolbar { background: #f8f9fa; padding: 0 12px; height: 28px; border-bottom: 1px solid #ddd; display: flex; gap: 8px; align-items: center; font-size: 10px; }
+        .zoom-btn { padding: 0px 5px; cursor: pointer; background: #fff; border: 1px solid #ccc; border-radius: 3px; font-size: 12px; }
         .zoom-btn.active { background-color: #3498db; color: #fff; border-color: #3498db; }
         
+        /* 組立場所ボタン専用スタイル */
+        .resource-location-btn { background-color: #fdf2f2; border-color: #f1948a; color: #c0392b; font-weight: bold; }
+        .resource-location-btn.active { background-color: #c0392b; color: #fff; border-color: #c0392b; }
+
         /* 出張予定ボタン専用スタイル */
         #sort_business_trip_btn {
             margin-left: 15px;
@@ -790,7 +796,7 @@
         .resource-timeline { border-right: 1px solid #ebebeb; }
         .resource-item { border-bottom: 1px solid #ebebeb !important; }
         .resource-placeholder { padding: 20px; color: #999; text-align: center; font-size: 11px; }
-        .filter-btn { padding: 4px 8px; border: 1px solid #ccc; border-radius: 4px; cursor: pointer; background: #fff; font-size: 12px; }
+        .filter-btn { padding: 0px 5px; border: 1px solid #ccc; border-radius: 4px; cursor: pointer; background: #fff; font-size: 12px; }
         .filter-btn.active { background: #ff9800; color: white; border-color: #e68a00; }
         
         /* 担当未定行の背景を薄い赤にする */
@@ -838,7 +844,7 @@
                     <span style="font-size:12px; color:#666;">出荷日:</span>
                     <input type="date" id="shipping_date" title="出荷日">
                     <button class="btn-add" onclick="addProjectFromTemplate()">追加</button>
-                    <button onclick="toggleNewProjectForm()" style="padding:4px 10px; border:1px solid #ccc; border-radius:4px; cursor:pointer; font-size:12px; background:#fff;">キャンセル</button>
+                    <button onclick="toggleNewProjectForm()" style="padding:0px 5px; border:1px solid #ccc; border-radius:4px; cursor:pointer; font-size:12px; background:#fff;">キャンセル</button>
                 </div>
                 <span style="margin-left: auto; display:flex; align-items:center; gap:4px; font-size: 13px; font-weight: bold; color: #333;">
                     <span style="color: #d32f2f; font-size: 20px;">●</span> 外観検査
@@ -849,11 +855,10 @@
                     <span id="save-status" style="font-size:10px; color:#999; margin-left:10px;"></span>
                 </span>
             </div>
-            <div class="input-row" style="border-top: 1px solid #eee; padding-top: 8px;">
+            <div class="input-row" style="border-top: 1px solid #eee;">
                 <span style="font-size: 12px; color: #666; margin-right: 5px;">表示順：</span>
                 <button id="sort_process_btn" class="zoom-btn active" onclick="setDisplayMode('process')">工程別</button>
                 <button id="sort_machine_btn" class="zoom-btn" onclick="setDisplayMode('machine')">機械別</button>
-                <button id="sort_business_trip_btn" class="zoom-btn" onclick="handleBusinessTripBtn()">出張予定</button>
                 
                 <div style="margin-left:auto; display:flex; align-items:center; gap:10px; font-size: 13px;">
                     <span>表示切替:</span>
@@ -868,38 +873,46 @@
 
         <div class="toolbar">
             <div class="filter-group" style="margin-left: 0; padding-left: 0; border-left: none;">
-                <span>大項目フィルタ:</span>
-                <button class="zoom-btn major-filter-btn" onclick="filterByMajorItem('営業', this)">営業</button>
-                <button class="zoom-btn major-filter-btn" onclick="filterByMajorItem('設計', this)">設計</button>
-                <button class="zoom-btn major-filter-btn" onclick="filterByMajorItem('製管', this)">製管</button>
-                <button class="zoom-btn major-filter-btn" onclick="filterByMajorItem('組立', this)">組立</button>
-                <button class="zoom-btn major-filter-btn" onclick="filterByMajorItem('電装', this)">電装</button>
-                <button class="zoom-btn major-filter-btn" onclick="filterByMajorItem('品証', this)">品証</button>
-                <button class="zoom-btn major-filter-btn" onclick="filterByMajorItem('操業', this)">操業</button>
+                <span style="font-size:13px;">機械検索:</span>
+                <input type="text" id="machine_search" placeholder="機械名を入力..." style="width:100px; padding:1px 3px; border:1px solid #ccc; border-radius:3px; font-size:12px;" oninput="filterByMachine(this.value)">
             </div>
 
             <div class="filter-group">
-                <span>機械検索:</span>
-                <input type="text" id="machine_search" placeholder="機械名を入力..." style="width:100px; padding:3px; border:1px solid #ccc; border-radius:3px; font-size:12px;" oninput="filterByMachine(this.value)">
-            </div>
-
-            <div class="filter-group">
-                <span>担当検索:</span>
-                <input type="text" id="owner_search" placeholder="名前を入力..." style="width:100px; padding:3px; border:1px solid #ccc; border-radius:3px; font-size:12px;" oninput="filterByOwner(this.value)">
+                <span style="font-size:13px;">担当検索:</span>
+                <input type="text" id="owner_search" placeholder="名前を入力..." style="width:100px; padding:1px 3px; border:1px solid #ccc; border-radius:3px; font-size:12px;" oninput="filterByOwner(this.value)">
                 <button id="unassigned_filter_btn" class="filter-btn" onclick="toggleUnassignedFilter()" style="margin-left: 5px; font-size: 12px;">⚠️ 未定のみ</button>
             </div>
 
             <div class="filter-group">
-                <span>リソース（担当者）:</span>
-                <input type="text" id="resource_owner_input" placeholder="担当名を入力..." style="width:120px; padding:3px; border:1px solid #ccc; border-radius:3px; font-size:11px;" oninput="showResourceViewByOwner(this.value)">
-                <button class="zoom-btn resource-dept-btn" onclick="filterByDepartment('営業', this)">営業</button>
-                <button class="zoom-btn resource-dept-btn" onclick="filterByDepartment('設計', this)">設計</button>
-                <button class="zoom-btn resource-dept-btn" onclick="filterByDepartment('製管', this)">製管</button>
-                <button class="zoom-btn resource-dept-btn" onclick="filterByDepartment('組立', this)">組立</button>
-                <button class="zoom-btn resource-dept-btn" onclick="filterByDepartment('電装', this)">電装</button>
-                <button class="zoom-btn resource-dept-btn" onclick="filterByDepartment('品証', this)">品証</button>
-                <button class="zoom-btn resource-dept-btn" onclick="filterByDepartment('操業', this)">操業</button>
-                <button class="zoom-btn resource-location-btn" id="location_resource_btn" onclick="toggleLocationResource(this)" style="background-color: #fdf2f2; border-color: #f1948a; color: #c0392b; font-weight: bold; margin-left: 5px;">組立場所</button>
+                <button id="major-filter-toggle" class="zoom-btn" onclick="toggleMajorFilterPanel()" style="font-size:13px;">部署別フィルタ ▼</button>
+                <div id="major-filter-panel" style="display:none; gap:4px; align-items:center; flex-wrap:wrap;">
+                    <button class="zoom-btn major-filter-btn" onclick="filterByMajorItem('営業', this)">営業</button>
+                    <button class="zoom-btn major-filter-btn" onclick="filterByMajorItem('設計', this)">設計</button>
+                    <button class="zoom-btn major-filter-btn" onclick="filterByMajorItem('製管', this)">製管</button>
+                    <button class="zoom-btn major-filter-btn" onclick="filterByMajorItem('組立', this)">組立</button>
+                    <button class="zoom-btn major-filter-btn" onclick="filterByMajorItem('電装', this)">電装</button>
+                    <button class="zoom-btn major-filter-btn" onclick="filterByMajorItem('品証', this)">品証</button>
+                    <button class="zoom-btn major-filter-btn" onclick="filterByMajorItem('操業', this)">操業</button>
+                </div>
+            </div>
+
+            <div class="filter-group">
+                <button id="resource-dept-toggle" class="zoom-btn" onclick="toggleResourceDeptPanel()" style="font-size:13px;">部署別リソース ▼</button>
+                <div id="resource-dept-panel" style="display:none; gap:4px; align-items:center; flex-wrap:wrap;">
+                    <input type="text" id="resource_owner_input" placeholder="担当名を入力..." style="width:120px; padding:3px; border:1px solid #ccc; border-radius:3px; font-size:11px;" oninput="showResourceViewByOwner(this.value)">
+                    <button class="zoom-btn resource-dept-btn" onclick="filterByDepartment('営業', this)">営業</button>
+                    <button class="zoom-btn resource-dept-btn" onclick="filterByDepartment('設計', this)">設計</button>
+                    <button class="zoom-btn resource-dept-btn" onclick="filterByDepartment('製管', this)">製管</button>
+                    <button class="zoom-btn resource-dept-btn" onclick="filterByDepartment('組立', this)">組立</button>
+                    <button class="zoom-btn resource-dept-btn" onclick="filterByDepartment('電装', this)">電装</button>
+                    <button class="zoom-btn resource-dept-btn" onclick="filterByDepartment('品証', this)">品証</button>
+                    <button class="zoom-btn resource-dept-btn" onclick="filterByDepartment('操業', this)">操業</button>
+                </div>
+            </div>
+
+            <div class="filter-group">
+                <button class="zoom-btn resource-location-btn" id="location_resource_btn" onclick="toggleLocationResource(this)">組立場所</button>
+                <button id="sort_business_trip_btn" class="zoom-btn" onclick="handleBusinessTripBtn()" style="margin-left: 4px;">出張予定</button>
             </div>
         </div>
 
@@ -1389,8 +1402,8 @@
             render: function(sns) {
                 return `<div class='task_name_selector_container' style='padding:5px; display:flex; align-items:center; gap:5px;'>
                             <div style='display:flex; flex-direction:column; gap:4px; flex-grow:1;'>
-                                <select style='width:100%; height:30px; font-size:14px; padding:4px;'></select>
-                                <input type='text' class='task_name_free_input' placeholder='タスク名を自由入力...' style='width:100%; height:30px; font-size:14px; padding:4px; border:1px solid #aaa; border-radius:4px; box-sizing:border-box; display:none;'>
+                                <select style='width:100%; height:30px; font-size:13px; padding:4px;'></select>
+                                <input type='text' class='task_name_free_input' placeholder='タスク名を自由入力...' style='width:100%; height:30px; font-size:13px; padding:4px; border:1px solid #aaa; border-radius:4px; box-sizing:border-box; display:none;'>
                             </div>
                             <button class='add_task_option' style='width:30px; height:30px; cursor:pointer; background:#4CAF50; color:white; border:none; border-radius:4px; font-weight:bold;'>+</button>
                             <button class='remove_task_option' style='width:30px; height:30px; cursor:pointer; background:#f44336; color:white; border:none; border-radius:4px; font-weight:bold;'>-</button>
@@ -1546,9 +1559,9 @@
         gantt.form_blocks["datepicker"] = {
             render: function(sns) {
                 return `<div class='gantt_cal_ltext' style='height:40px;'>
-                    <input type='date' class='datepicker-input' style='width:45%; height:30px; font-size:14px;'>
+                    <input type='date' class='datepicker-input' style='width:45%; height:30px; font-size:13px;'>
                     <span style='margin:0 10px;'>～</span>
-                    <input type='date' class='datepicker-input-end' style='width:45%; height:30px; font-size:14px;'>
+                    <input type='date' class='datepicker-input-end' style='width:45%; height:30px; font-size:13px;'>
                 </div>`;
             },
             set_value: function(node, value, task) {
@@ -2401,6 +2414,26 @@
             return ownerStr.split(/[,,，、・\s]+/).map(s => s.trim()).filter(Boolean);
         }
 
+        // 部署別フィルタパネルのトグル
+        function toggleMajorFilterPanel() {
+            const panel = document.getElementById('major-filter-panel');
+            const btn = document.getElementById('major-filter-toggle');
+            const isVisible = panel.style.display !== 'none';
+            panel.style.display = isVisible ? 'none' : 'flex';
+            const arrow = isVisible ? '▼' : '▲';
+            btn.textContent = currentMajorFilter ? `部署別フィルタ: ${currentMajorFilter} ${arrow}` : `部署別フィルタ ${arrow}`;
+        }
+
+        // 部署別リソースパネルのトグル
+        function toggleResourceDeptPanel() {
+            const panel = document.getElementById('resource-dept-panel');
+            const btn = document.getElementById('resource-dept-toggle');
+            const isVisible = panel.style.display !== 'none';
+            panel.style.display = isVisible ? 'none' : 'flex';
+            const arrow = isVisible ? '▼' : '▲';
+            btn.textContent = currentResourceDeptFilter ? `部署別リソース: ${currentResourceDeptFilter} ${arrow}` : `部署別リソース ${arrow}`;
+        }
+
         // 大項目フィルタ（部署別フィルタ）
         function filterByMajorItem(majorItem, btn) {
             if (currentMajorFilter === majorItem) {
@@ -2413,6 +2446,15 @@
                 });
             }
             gantt.render();
+
+            // トグルボタンのラベル更新
+            const majorToggleBtn = document.getElementById('major-filter-toggle');
+            if (majorToggleBtn) {
+                const panel = document.getElementById('major-filter-panel');
+                const isOpen = panel && panel.style.display !== 'none';
+                const arrow = isOpen ? '▲' : '▼';
+                majorToggleBtn.textContent = currentMajorFilter ? `部署別フィルタ: ${currentMajorFilter} ${arrow}` : `部署別フィルタ ${arrow}`;
+            }
 
             // リソース画面が表示されており、かつ部署フィルタが有効な場合は再描画
             if (currentResourceMode === 'dept' && currentResourceDeptFilter) {
@@ -2466,6 +2508,15 @@
             document.querySelectorAll('.resource-dept-btn').forEach(b => {
                 b.classList.toggle('active', b === btn && currentResourceDeptFilter !== "");
             });
+
+            // トグルボタンのラベル更新
+            const resourceToggleBtn = document.getElementById('resource-dept-toggle');
+            if (resourceToggleBtn) {
+                const panel = document.getElementById('resource-dept-panel');
+                const isOpen = panel && panel.style.display !== 'none';
+                const arrow = isOpen ? '▲' : '▼';
+                resourceToggleBtn.textContent = currentResourceDeptFilter ? `部署別リソース: ${currentResourceDeptFilter} ${arrow}` : `部署別リソース ${arrow}`;
+            }
 
             const resourcePanel = document.getElementById("resource_panel");
             const ganttHere = document.getElementById("gantt_here");
