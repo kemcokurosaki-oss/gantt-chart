@@ -193,14 +193,14 @@
         .resource-location-btn { background-color: #fdf2f2; border-color: #f1948a; color: #c0392b; font-weight: bold; }
         .resource-location-btn.active { background-color: #c0392b; color: #fff; border-color: #c0392b; }
 
-        /* 出張予定ボタン専用スタイル */
-        #sort_business_trip_btn {
-            margin-left: 15px;
+        /* 出張予定・完了済みボタン共通スタイル */
+        #sort_business_trip_btn, #kanryo-btn {
             background-color: #fdf2f2;
             border-color: #f1948a;
             color: #c0392b;
             font-weight: bold;
         }
+        #sort_business_trip_btn { margin-left: 15px; }
         #sort_business_trip_btn.active {
             background-color: #c0392b;
             color: #fff;
@@ -820,6 +820,26 @@
         .hide_add_button .gantt_add {
             display: none !important;
         }
+        /* 完了済工番モーダル */
+        #kanryo-modal-overlay { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); z-index:10000; display:none; align-items:center; justify-content:center; }
+        #kanryo-modal-overlay.visible { display:flex; }
+        #kanryo-modal { background:#fff; border-radius:6px; box-shadow:0 4px 20px rgba(0,0,0,0.3); width:620px; height:60vh; display:flex; flex-direction:column; overflow:hidden; }
+        #kanryo-modal-header { background:#2c3e50; color:#fff; padding:8px 14px; display:flex; align-items:center; justify-content:space-between; }
+        #kanryo-modal-header span { font-size:14px; font-weight:bold; }
+        #kanryo-modal-tabs { display:flex; border-bottom:1px solid #ddd; background:#f8f9fa; }
+        .kanryo-tab { padding:5px 18px; cursor:pointer; font-size:13px; border-bottom:2px solid transparent; }
+        .kanryo-tab.active { border-bottom:2px solid #2c3e50; font-weight:bold; background:#fff; }
+        #kanryo-modal-body { overflow-y:auto; flex:1; padding:8px; }
+        .kanryo-table { width:100%; border-collapse:collapse; font-size:12px; }
+        .kanryo-table th { background:#f0f0f0; padding:5px 8px; text-align:left; border-bottom:2px solid #ccc; position:sticky; top:0; }
+        .kanryo-table td { padding:5px 8px; border-bottom:1px solid #eee; vertical-align:middle; }
+        .kanryo-table tr:hover td { background:#f5f9ff; }
+        .kanryo-move-btn { padding:1px 8px; background:#e74c3c; color:#fff; border:none; border-radius:3px; cursor:pointer; font-size:12px; white-space:nowrap; }
+        .kanryo-move-btn:hover { background:#c0392b; }
+        .kanryo-restore-btn { padding:1px 8px; background:#27ae60; color:#fff; border:none; border-radius:3px; cursor:pointer; font-size:12px; }
+        .kanryo-restore-btn:hover { background:#219a52; }
+        #kanryo-close-btn { background:none; border:none; color:#fff; font-size:18px; cursor:pointer; line-height:1; padding:0 4px; }
+
         /* チェックされた行のグレーアウト（グリッドのみ） */
         .task-checked {
             background-color: #f0f0f0 !important;
@@ -913,6 +933,7 @@
             <div class="filter-group">
                 <button class="zoom-btn resource-location-btn" id="location_resource_btn" onclick="toggleLocationResource(this)">組立場所</button>
                 <button id="sort_business_trip_btn" class="zoom-btn" onclick="handleBusinessTripBtn()" style="margin-left: 4px;">出張予定</button>
+                <button id="kanryo-btn" class="zoom-btn" onclick="openKanryoModal('kanri')" style="margin-left: 4px;">完了済み</button>
             </div>
         </div>
 
@@ -978,6 +999,8 @@
         const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
         let currentResourceDeptFilter = "";
         let currentProjectGroupFilter = "all"; // "all" | "2000" | "other"
+        let completedProjects = JSON.parse(localStorage.getItem('completedProjects_zentai') || '[]');
+        // 各エントリ: { project_number, customer_name, project_details, completed_date }
         let holidaySet = new Set(); // Supabaseのholidaysテーブルから取得した休日日付セット（"YYYY-MM-DD"形式）
 
         const dateToDb = gantt.date.date_to_str("%Y-%m-%d");
@@ -2254,6 +2277,10 @@
             if (task.is_detailed === true || isDetailed === "true" || isDetailed === "t" || isDetailed === "1") {
                 return false;
             }
+
+            // 1b. 完了済工番フィルター
+            const taskPNum = (task.project_number || task.project_no || '').trim();
+            if (completedProjects.some(cp => cp.project_number === taskPNum)) return false;
 
             // 2. 工事番号フィルター (AND条件)
             // 左側リスト選択 (currentFilter) のみ有効（入力欄フィルターは削除）
@@ -4099,6 +4126,10 @@
             });
             let projects = Object.keys(projectInfoMap).sort();
 
+            // 完了済工番をサイドバーから除外
+            const completedNums = new Set(completedProjects.map(cp => cp.project_number));
+            projects = projects.filter(p => !completedNums.has(p));
+
             // グループフィルター適用
             if (currentProjectGroupFilter === '2000') {
                 projects = projects.filter(p => /^2/.test(p));
@@ -4758,6 +4789,138 @@
         })();
         // ===== 削除確認ダイアログ z-index 修正 ここまで =====
 
+        // ===== 完了済工番 =====
+        let currentKanryoTab = 'kanri';
+
+        function openKanryoModal(tab) {
+            currentKanryoTab = tab || 'kanri';
+            document.getElementById('kanryo-modal-overlay').classList.add('visible');
+            renderKanryoTab(currentKanryoTab);
+        }
+
+        function closeKanryoModal(e) {
+            if (e && e.target !== document.getElementById('kanryo-modal-overlay') && e.target !== document.getElementById('kanryo-close-btn')) return;
+            document.getElementById('kanryo-modal-overlay').classList.remove('visible');
+        }
+
+        function switchKanryoTab(tab) {
+            currentKanryoTab = tab;
+            document.querySelectorAll('.kanryo-tab').forEach(t => t.classList.remove('active'));
+            document.getElementById('kanryo-tab-' + tab).classList.add('active');
+            renderKanryoTab(tab);
+        }
+
+        function renderKanryoTab(tab) {
+            const body = document.getElementById('kanryo-modal-body');
+            if (tab === 'kanri') {
+                renderKanryoKanri(body);
+            } else {
+                renderKanryoIchiran(body);
+            }
+        }
+
+        function renderKanryoKanri(body) {
+            // allTasks から完了済でないユニークな工事番号を収集
+            const completedNums = new Set(completedProjects.map(cp => cp.project_number));
+            const projectMap = {};
+            (window.allTasks || []).forEach(t => {
+                const pNum = (t.project_number || '').trim();
+                if (!pNum || completedNums.has(pNum)) return;
+                if (!projectMap[pNum]) {
+                    projectMap[pNum] = { customer_name: t.customer_name || '', project_details: t.project_details || '' };
+                } else {
+                    if (!projectMap[pNum].customer_name && t.customer_name) projectMap[pNum].customer_name = t.customer_name;
+                    if (!projectMap[pNum].project_details && t.project_details) projectMap[pNum].project_details = t.project_details;
+                }
+            });
+            const projects = Object.keys(projectMap).sort();
+            if (projects.length === 0) {
+                body.innerHTML = '<div style="padding:20px;color:#999;text-align:center;">工程表に表示中の工事番号はありません</div>';
+                return;
+            }
+            let html = '<table class="kanryo-table"><thead><tr><th>工事番号</th><th>客先名</th><th>工事名</th><th></th></tr></thead><tbody>';
+            projects.forEach(pNum => {
+                const info = projectMap[pNum];
+                html += `<tr>
+                    <td>${pNum}</td>
+                    <td>${info.customer_name}</td>
+                    <td>${info.project_details}</td>
+                    <td><button class="kanryo-move-btn" onclick="moveToCompleted('${pNum}')">完了済へ移動</button></td>
+                </tr>`;
+            });
+            html += '</tbody></table>';
+            body.innerHTML = html;
+        }
+
+        function renderKanryoIchiran(body) {
+            if (completedProjects.length === 0) {
+                body.innerHTML = '<div style="padding:20px;color:#999;text-align:center;">完了済の工事番号はありません</div>';
+                return;
+            }
+            let html = '<table class="kanryo-table"><thead><tr><th>工事番号</th><th>客先名</th><th>工事名</th><th>完了日</th><th></th></tr></thead><tbody>';
+            completedProjects.slice().sort((a, b) => a.project_number.localeCompare(b.project_number, 'ja')).forEach(cp => {
+                html += `<tr>
+                    <td>${cp.project_number}</td>
+                    <td>${cp.customer_name || ''}</td>
+                    <td>${cp.project_details || ''}</td>
+                    <td>${cp.completed_date || ''}</td>
+                    <td><button class="kanryo-restore-btn" onclick="restoreFromCompleted('${cp.project_number}')">戻す</button></td>
+                </tr>`;
+            });
+            html += '</tbody></table>';
+            body.innerHTML = html;
+        }
+
+        function moveToCompleted(pNum) {
+            if (!confirm(`「${pNum}」を完了済工番に移動しますか？\nガントチャートと工事一覧から非表示になります。`)) return;
+            const projectMap = {};
+            (window.allTasks || []).forEach(t => {
+                const p = (t.project_number || '').trim();
+                if (p !== pNum) return;
+                if (!projectMap[p]) projectMap[p] = { customer_name: t.customer_name || '', project_details: t.project_details || '' };
+                else {
+                    if (!projectMap[p].customer_name && t.customer_name) projectMap[p].customer_name = t.customer_name;
+                    if (!projectMap[p].project_details && t.project_details) projectMap[p].project_details = t.project_details;
+                }
+            });
+            const info = projectMap[pNum] || {};
+            completedProjects.push({
+                project_number: pNum,
+                customer_name: info.customer_name || '',
+                project_details: info.project_details || '',
+                completed_date: new Date().toLocaleDateString('ja-JP')
+            });
+            localStorage.setItem('completedProjects_zentai', JSON.stringify(completedProjects));
+            gantt.render();
+            updateProjectList(window.allTasks || []);
+            renderKanryoKanri(document.getElementById('kanryo-modal-body'));
+        }
+
+        function restoreFromCompleted(pNum) {
+            if (!confirm(`「${pNum}」を工程表に戻しますか？`)) return;
+            completedProjects = completedProjects.filter(cp => cp.project_number !== pNum);
+            localStorage.setItem('completedProjects_zentai', JSON.stringify(completedProjects));
+            gantt.render();
+            updateProjectList(window.allTasks || []);
+            renderKanryoIchiran(document.getElementById('kanryo-modal-body'));
+        }
+        // ===== 完了済工番 ここまで =====
+
     </script>
+
+    <!-- 完了済工番モーダル -->
+    <div id="kanryo-modal-overlay" onclick="closeKanryoModal(event)">
+        <div id="kanryo-modal">
+            <div id="kanryo-modal-header">
+                <span>完了済み工事番号</span>
+                <button id="kanryo-close-btn" onclick="closeKanryoModal()">✕</button>
+            </div>
+            <div id="kanryo-modal-tabs">
+                <div class="kanryo-tab active" id="kanryo-tab-kanri" onclick="switchKanryoTab('kanri')">管理</div>
+                <div class="kanryo-tab" id="kanryo-tab-ichiran" onclick="switchKanryoTab('ichiran')">一覧</div>
+            </div>
+            <div id="kanryo-modal-body"></div>
+        </div>
+    </div>
 </body>
 </html>
