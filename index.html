@@ -257,6 +257,10 @@
         .gantt_marker.today-line { background: #ff5252 !important; width: 2px !important; opacity: 0.8; z-index: 1000 !important; }
         .gantt_group_row { background-color: #f0f7ff !important; font-weight: bold !important; } /* 見出し行：さらに薄いスカイブルー */
         
+        /* 白の子タスク行のインデント・ツリーアイコンを非表示（水色の見出し行は除外） */
+        .gantt_row_task:not(.gantt_group_row) .gantt_tree_indent,
+        .gantt_row_task:not(.gantt_group_row) .gantt_tree_icon { width: 0 !important; min-width: 0 !important; overflow: hidden !important; }
+
         /* 工事番号の区切り線（太線） */
         .project-border-top { border-top: 2px solid #999 !important; }
         .project-border-top .gantt_tree_indent, 
