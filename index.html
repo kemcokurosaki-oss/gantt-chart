@@ -819,24 +819,26 @@
     <div class="main-container">
         <div class="header-panel">
             <div class="input-row">
-                <input type="text" id="project_number" placeholder="工事番号" style="width:100px">
-                <div style="display: flex; align-items: center; gap: 5px;">
-                    <span style="font-size: 12px; color: #666;">受注日:</span>
+                <button class="btn-add" onclick="toggleNewProjectForm()">新規受注</button>
+                <div id="new-project-form" style="display:none; display:flex; align-items:center; gap:6px; flex-wrap:wrap; display:none;">
+                    <input type="text" id="project_number" placeholder="工事番号" style="width:90px">
+                    <input type="text" id="customer_name_input" placeholder="客先名" style="width:100px">
+                    <input type="text" id="project_details_input" placeholder="工事名" style="width:130px">
+                    <span style="font-size:12px; color:#666;">受注日:</span>
                     <input type="date" id="order_date" title="受注日">
-                </div>
-                <div style="display: flex; align-items: center; gap: 5px;">
-                    <span style="font-size: 12px; color: #666;">出荷日:</span>
+                    <span style="font-size:12px; color:#666;">出荷日:</span>
                     <input type="date" id="shipping_date" title="出荷日">
+                    <button class="btn-add" onclick="addProjectFromTemplate()">追加</button>
+                    <button onclick="toggleNewProjectForm()" style="padding:4px 10px; border:1px solid #ccc; border-radius:4px; cursor:pointer; font-size:12px; background:#fff;">キャンセル</button>
                 </div>
-                <button class="btn-add" onclick="addProjectFromTemplate()">新規追加</button>
-                <span style="margin-left: 15px; font-size: 13px; font-weight: bold; color: #333;">
+                <span style="margin-left: auto; display:flex; align-items:center; gap:4px; font-size: 13px; font-weight: bold; color: #333;">
                     <span style="color: #d32f2f; font-size: 20px;">●</span> 外観検査
                     <span style="margin-left: 10px; color: #FBAD4F; font-size: 22px;">▲</span> 客先立会
                     <span style="margin-left: 10px; color: #1976D2; font-size: 20px;">◆</span> 出荷確認会議
                     <span style="margin-left: 10px; color: #2E7D32; font-size: 22px;">★</span> 工場出荷
                     <span style="margin-left: 10px;">🚚</span> 部品送り開始日
+                    <span id="save-status" style="font-size:10px; color:#999; margin-left:10px;"></span>
                 </span>
-                <span id="save-status" style="font-size:10px; color:#999; margin-left:10px;"></span>
             </div>
             <div class="input-row" style="border-top: 1px solid #eee; padding-top: 8px;">
                 <span style="font-size: 12px; color: #666; margin-right: 5px;">表示順：</span>
@@ -1562,8 +1564,6 @@
 
         gantt.config.lightbox.sections = [
             { name: "project_number", height: 30, map_to: "project_number", type: "textarea", focus: true },
-            { name: "customer_name", height: 30, map_to: "customer_name", type: "textarea" },
-            { name: "project_details", height: 30, map_to: "project_details", type: "textarea" },
             { name: "parent_name", height: 30, map_to: "parent_name", type: "textarea" },
             { name: "major_item", height: 30, map_to: "major_item", type: "select", options: majorItemOptions },
             { name: "machine", height: 30, map_to: "machine", type: "textarea" },
@@ -1635,8 +1635,6 @@
             }
         });
         gantt.locale.labels.section_project_number = "工事番号";
-        gantt.locale.labels.section_customer_name = "客先名";
-        gantt.locale.labels.section_project_details = "工事名";
         gantt.locale.labels.section_parent_name = "見出し名";
         gantt.locale.labels.section_major_item = "フィルタ色分け";
         gantt.locale.labels.section_machine = "機械";
@@ -4066,8 +4064,19 @@
             gantt.render();
         }
 
+        function toggleNewProjectForm() {
+            const form = document.getElementById('new-project-form');
+            if (form.style.display === 'none' || form.style.display === '') {
+                form.style.display = 'flex';
+            } else {
+                form.style.display = 'none';
+            }
+        }
+
         async function addProjectFromTemplate() {
             const projectNumber = document.getElementById('project_number').value.trim();
+            const customerName = document.getElementById('customer_name_input').value.trim();
+            const projectDetails = document.getElementById('project_details_input').value.trim();
             const orderDateValue = document.getElementById('order_date').value;
             const shippingDateValue = document.getElementById('shipping_date').value;
 
@@ -4163,6 +4172,8 @@
                 const isChildTaskPattern = (templateTable === 'task_template_a' || templateTable === 'task_template_b');
                 newTasks.push({
                     project_number: projectNumber,
+                    customer_name: customerName || "",
+                    project_details: projectDetails || "",
                     text: isChildTaskPattern ? item.name : "",
                     parent: isChildTaskPattern ? "" : item.name,
                     major_item: item.major_item || null,
@@ -4184,6 +4195,13 @@
                 alert("プロジェクトの作成に失敗しました");
             } else {
                 alert(`工事番号 ${projectNumber} を作成しました`);
+                // フォームをリセット・非表示
+                document.getElementById('project_number').value = '';
+                document.getElementById('customer_name_input').value = '';
+                document.getElementById('project_details_input').value = '';
+                document.getElementById('order_date').value = '';
+                document.getElementById('shipping_date').value = '';
+                document.getElementById('new-project-form').style.display = 'none';
                 // 画面更新
                 fetchTasks();
             }
