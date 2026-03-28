@@ -13,7 +13,12 @@
     <style>
         html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: "メイリオ", sans-serif; font-size: 12px; }
         button, input, select, textarea { font-family: "メイリオ", sans-serif; }
-        #gantt_here .gantt_grid_head_cell { font-size: 13px !important; font-weight: bold !important; }
+        #gantt_here .gantt_grid_head_cell { font-size: 14px !important; font-weight: bold !important; font-family: "メイリオ", sans-serif !important; background-color: #b0bec5 !important; color: #555555 !important; }
+        #gantt_here .gantt_scale_cell { font-family: "メイリオ", sans-serif !important; background-color: #b0bec5 !important; color: #555555 !important; }
+        #gantt_here .gantt_scale_cell.scale_saturday { color: #5577aa !important; }
+        #gantt_here .gantt_scale_cell.scale_sunday { color: #aa5555 !important; }
+        #gantt_here .gantt_grid_scale { background-color: #b0bec5 !important; }
+        #gantt_here .gantt_scale_line { background-color: #b0bec5 !important; }
         .header-panel *, .toolbar * { font-size: 13px !important; }
         .main-container { display: flex; flex-direction: column; height: 100vh; }
         .header-panel { background: #fff; padding: 2px 10px; border-bottom: 1px solid #ccc; display: flex; flex-direction: column; gap: 2px; }
@@ -256,7 +261,7 @@
             border-right: 1px solid #ebebeb;
         }
         .gantt_marker.today-line { background: #ff5252 !important; width: 2px !important; opacity: 0.8; z-index: 1000 !important; }
-        .gantt_group_row { background-color: #f0f7ff !important; font-weight: bold !important; } /* 見出し行：さらに薄いスカイブルー */
+        .gantt_group_row { background-color: #dce8ef !important; font-weight: bold !important; } /* 見出し行 */
         
         /* 白の子タスク行のインデント・ツリーアイコンを非表示（水色の見出し行は除外） */
         .gantt_row_task:not(.gantt_group_row) .gantt_tree_indent,
@@ -268,9 +273,16 @@
         .project-border-top { border-top: 2px solid #999 !important; }
         .project-border-top .gantt_tree_indent, 
         .project-border-top .gantt_cell { border-top: none !important; } /* セル内部の重なり防止 */
+        @font-face {
+            font-family: "GridFont";
+            src: local("Meiryo"), local("メイリオ");
+            unicode-range: U+0030-0039; /* 数字 0-9 はメイリオ */
+        }
+        #gantt_here .gantt_cell { font-family: "GridFont", sans-serif !important; }
+        .resource-cell { font-family: "GridFont", sans-serif !important; }
 
         /* カレンダーの年月を中央揃えにする */
-        .gantt_scale_cell { text-align: center !important; font-size: 13px; font-weight: bold !important; }
+        .gantt_scale_cell { text-align: center !important; font-size: 12px; font-weight: bold !important; }
         
         /* 業務別カラー設定（中程度のパステル調） */
         .task-blue, .gantt_project.task-blue { background-color: #85C1E9 !important; border-color: #5DADE2 !important; }
@@ -2418,7 +2430,9 @@
             nextDay.setDate(nextDay.getDate() + 1);
             const isMonthEnd = nextDay.getDate() === 1;
             const isDays = (gantt.ext.zoom.getCurrentLevel() || "days") === "days";
-            return (isDays && isWeekendOrHoliday(date) ? "weekend" : "") + (isMonthEnd ? " month-end-cell" : "");
+            const day = date.getDay();
+            const dayClass = day === 6 ? " scale_saturday" : day === 0 ? " scale_sunday" : "";
+            return (isDays && isWeekendOrHoliday(date) ? "weekend" : "") + (isMonthEnd ? " month-end-cell" : "") + dayClass;
         };
 
         gantt.templates.timeline_cell_class = (task, date) => {
@@ -2439,8 +2453,8 @@
             levels: [
                 { name: "days", scale_height: 66, min_column_width: 22, scales: [
                     { unit: "month", step: 1, format: "%Y/%n", css: () => "month-end-cell" },
-                    { unit: "day", step: 1, format: "%j", css: (date) => (isWeekendOrHoliday(date) ? "weekend" : "") + (isMonthEndDate(date) ? " month-end-cell" : "") },
-                    { unit: "day", step: 1, format: (date) => dayNames[date.getDay()], css: (date) => (isWeekendOrHoliday(date) ? "weekend" : "") + (isMonthEndDate(date) ? " month-end-cell" : "") }
+                    { unit: "day", step: 1, format: "%j", css: (date) => (isWeekendOrHoliday(date) ? "weekend" : "") + (isMonthEndDate(date) ? " month-end-cell" : "") + (date.getDay() === 6 ? " scale_saturday" : date.getDay() === 0 ? " scale_sunday" : "") },
+                    { unit: "day", step: 1, format: (date) => dayNames[date.getDay()], css: (date) => (isWeekendOrHoliday(date) ? "weekend" : "") + (isMonthEndDate(date) ? " month-end-cell" : "") + (date.getDay() === 6 ? " scale_saturday" : date.getDay() === 0 ? " scale_sunday" : "") }
                 ]},
                 { name: "weeks", scale_height: 66, min_column_width: 22, scales: [
                     { unit: "month", step: 1, format: "%Y/%n" },
@@ -3558,7 +3572,7 @@
                         <div class="resource-cell" style="width: ${COLUMN_WIDTHS[3]}px; border-right: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${t.text || ""}</div>
                         <div class="resource-cell" style="width: ${COLUMN_WIDTHS[4]}px; border-right: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; justify-content: center; font-size: 13px;">${t.machine || ""}</div>
                         <div class="resource-cell" style="width: ${COLUMN_WIDTHS[5]}px; border-right: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; justify-content: center; font-size: 13px;">${t.unit || ""}</div>
-                        <div class="resource-cell" style="width: ${COLUMN_WIDTHS[6]}px; border-right: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; font-size: 13px;">${(t.owner || "").replace(/\d+/g, "")}</div>
+                        <div class="resource-cell" style="width: ${COLUMN_WIDTHS[6]}px; border-right: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; font-size: 12px;">${(t.owner || "").replace(/\d+/g, "")}</div>
                         <div class="resource-cell" style="width: ${COLUMN_WIDTHS[7]}px; border-right: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; justify-content: center; font-size: 13px;">${t.area_group || ""}${t.area_number ? "-" + t.area_number : ""}</div>
                         <div class="resource-cell" style="width: ${COLUMN_WIDTHS[8]}px; border-right: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; justify-content: center; font-size: 13px;">${dateToDisplay(start)}</div>
                         <div class="resource-cell" style="width: ${COLUMN_WIDTHS[9]}px; border-right: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; justify-content: center; font-size: 13px;">${dateToDisplay(end)}</div>
