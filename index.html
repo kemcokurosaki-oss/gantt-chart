@@ -2438,7 +2438,7 @@
             const isMonthEnd = nextDay.getDate() === 1;
             const isDays = (gantt.ext.zoom.getCurrentLevel() || "days") === "days";
             const day = date.getDay();
-            const dayClass = day === 6 ? " scale_saturday" : day === 0 ? " scale_sunday" : "";
+            const dayClass = isDays ? (day === 6 ? " scale_saturday" : day === 0 ? " scale_sunday" : "") : "";
             return (isDays && isWeekendOrHoliday(date) ? "weekend" : "") + (isMonthEnd ? " month-end-cell" : "") + dayClass;
         };
 
