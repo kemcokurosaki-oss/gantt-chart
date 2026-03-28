@@ -1865,11 +1865,15 @@
         // major_item が変更された時に担当者リストを更新する
         // 未ログイン・編集権限なしの場合はライトボックスを開かない
         gantt.attachEvent("onBeforeLightbox", function(id) {
+            const task = gantt.getTask(id);
+            if (task && task.$virtual) return false; // 見出し行はライトボックスを開かない
             return _isEditor;
         });
 
         // ダブルクリックによるライトボックス表示もブロック
         gantt.attachEvent("onTaskDblClick", function(id, e) {
+            const task = gantt.getTask(id);
+            if (task && task.$virtual) return false; // 見出し行はブロック
             return _isEditor;
         });
 
