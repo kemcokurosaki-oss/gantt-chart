@@ -1934,8 +1934,8 @@
         // 列設定の共通化：上段・下段に同じ配列を適用し列幅のズレを根絶
         var SHARED_COLUMNS = [
             { name: "detail", label: "", width: COLUMN_WIDTHS[0], align: "left", template: function(obj) {
-                // 見出し行 ($virtual) すべてに表示
-                if (obj.$virtual) {
+                // リンク設定済みの見出し行のみ表示
+                if (obj.$virtual && (obj.text === "長納期品手配" || obj.text === "出図＆部品手配")) {
                     return `<button class='zoom-btn' style='padding: 2px 5px; font-size: 12px; cursor: pointer;' onclick='openDetail("${obj.id}")'>🔍</button>`;
                 }
                 return "";
@@ -4347,8 +4347,8 @@
                 // 機械別：詳細、工事番号、チェック、機械、ユニット、タスク名、担当、開始日、終了日
                 gantt.config.columns = [
                     { name: "detail", label: "", width: COLUMN_WIDTHS[0], align: "center", template: function(obj) {
-                        // 機械別表示では見出し行に詳細ボタンを表示（工事番号単位）
-                        if (obj.$virtual) {
+                        // リンク設定済みの見出し行のみ表示
+                        if (obj.$virtual && (obj.text === "長納期品手配" || obj.text === "出図＆部品手配")) {
                             return `<button class='zoom-btn' style='padding: 2px 5px; font-size: 12px; cursor: pointer;' onclick='openDetail("${obj.id}")'>🔍</button>`;
                         }
                         return "";
