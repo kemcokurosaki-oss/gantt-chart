@@ -1829,6 +1829,14 @@
             return _isEditor;
         });
 
+        // ネイティブイベントレベルでダブルクリックをキャプチャしてブロック（最優先）
+        document.getElementById('gantt_here').addEventListener('dblclick', function(e) {
+            if (!_isEditor) {
+                e.stopImmediatePropagation();
+                e.preventDefault();
+            }
+        }, true);
+
         gantt.attachEvent("onLightboxChange", function(id, name, value) {
             if (name === "major_item") {
                 const ownerSection = gantt.getLightboxSection("owner");
