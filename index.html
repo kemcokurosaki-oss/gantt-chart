@@ -1819,6 +1819,11 @@
         gantt.locale.labels.section_locations = "組立場所";
 
         // major_item が変更された時に担当者リストを更新する
+        // 未ログイン・編集権限なしの場合はライトボックスを開かない
+        gantt.attachEvent("onBeforeLightbox", function(id) {
+            return _isEditor;
+        });
+
         gantt.attachEvent("onLightboxChange", function(id, name, value) {
             if (name === "major_item") {
                 const ownerSection = gantt.getLightboxSection("owner");
@@ -4089,6 +4094,7 @@
         function resetFilter() { location.reload(); }
 
         window.toggleTaskCheckbox = function(id, checked) {
+            if (!_isEditor) return;
             taskCheckboxes[id] = checked;
             // 子タスク行を即時更新
             const rowNode = gantt.getTaskRowNode(id);
