@@ -2647,6 +2647,17 @@
             document.head.appendChild(style);
         })();
 
+        // ツリー展開・折り畳み後にカレンダーヘッダーが消える問題を修正
+        function fixScaleAfterTreeToggle() {
+            setTimeout(function() {
+                const scroll = gantt.getScrollState();
+                gantt.scrollTo(scroll.x + 1, scroll.y);
+                gantt.scrollTo(scroll.x, scroll.y);
+            }, 30);
+        }
+        gantt.attachEvent("onTaskOpened", fixScaleAfterTreeToggle);
+        gantt.attachEvent("onTaskClosed", fixScaleAfterTreeToggle);
+
         // 🔍・チェックボックス列の左寄せをレンダリング後に強制適用
         gantt.attachEvent("onGanttRender", function() {
             document.querySelectorAll('.gantt_row .gantt_cell:nth-child(1), .gantt_row_project .gantt_cell:nth-child(1), .gantt_row .gantt_cell:nth-child(2), .gantt_row_project .gantt_cell:nth-child(2), .gantt_row .gantt_cell:nth-child(3), .gantt_row_project .gantt_cell:nth-child(3)').forEach(function(cell) {
