@@ -1824,6 +1824,11 @@
             return _isEditor;
         });
 
+        // ダブルクリックによるライトボックス表示もブロック
+        gantt.attachEvent("onTaskDblClick", function(id, e) {
+            return _isEditor;
+        });
+
         gantt.attachEvent("onLightboxChange", function(id, name, value) {
             if (name === "major_item") {
                 const ownerSection = gantt.getLightboxSection("owner");
@@ -1885,7 +1890,7 @@
             { name: "checkbox", label: "", width: COLUMN_WIDTHS[2], align: "center", template: function(obj) {
                 if (obj.$virtual) return "";
                 const isChecked = taskCheckboxes[obj.id] ? "checked" : "";
-                return `<input type='checkbox' ${isChecked} onchange='toggleTaskCheckbox("${obj.id}", this.checked)'>`;
+                return `<input type='checkbox' ${isChecked} ${_isEditor ? '' : 'disabled'} onchange='toggleTaskCheckbox("${obj.id}", this.checked)'>`;
             }},
             { name: "text", label: "タスク名", width: COLUMN_WIDTHS[3], tree: true, template: function(obj) {
                 return obj.text;
@@ -4199,7 +4204,7 @@
                     { name: "checkbox", label: "", width: COLUMN_WIDTHS[2], align: "center", template: function(obj) {
                         if (obj.$virtual) return "";
                         const isChecked = taskCheckboxes[obj.id] ? "checked" : "";
-                        return `<input type='checkbox' ${isChecked} onchange='toggleTaskCheckbox("${obj.id}", this.checked)'>`;
+                        return `<input type='checkbox' ${isChecked} ${_isEditor ? '' : 'disabled'} onchange='toggleTaskCheckbox("${obj.id}", this.checked)'>`;
                     }},
                     { name: "machine", label: "機械", width: COLUMN_WIDTHS[4], align: "center", template: function(obj) {
                         if (obj.$virtual) return "";
