@@ -943,7 +943,7 @@
 
             <div class="filter-group">
                 <span style="font-size:13px;">担当検索:</span>
-                <input type="text" id="owner_search" placeholder="名前を入力..." style="width:100px; padding:1px 3px; border:1px solid #ccc; border-radius:3px; font-size:12px;" oninput="filterByOwner(this.value)">
+                <input type="text" id="owner_search" placeholder="名前を入力..." autocomplete="new-password" readonly style="width:100px; padding:1px 3px; border:1px solid #ccc; border-radius:3px; font-size:12px;" oninput="filterByOwner(this.value)">
                 <button id="unassigned_filter_btn" class="filter-btn" onclick="toggleUnassignedFilter()" style="margin-left: 5px; font-size: 12px;">⚠️ 未定のみ</button>
             </div>
 
@@ -3576,6 +3576,15 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
+            // 担当検索欄のブラウザ自動入力をreadonly→解除で完全ブロック
+            const ownerSearch = document.getElementById('owner_search');
+            if (ownerSearch) {
+                setTimeout(() => {
+                    ownerSearch.value = '';
+                    ownerSearch.removeAttribute('readonly');
+                }, 300);
+            }
+
             setTimeout(() => {
                 const resourceContent = document.querySelector(".resource-content");
                 if (resourceContent) {
