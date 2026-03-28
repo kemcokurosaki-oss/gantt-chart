@@ -13,6 +13,7 @@
     <style>
         html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: "メイリオ", sans-serif; font-size: 12px; }
         button, input, select, textarea { font-family: "メイリオ", sans-serif; }
+        #gantt_here .gantt_grid_head_cell { font-size: 13px !important; font-weight: bold !important; }
         .header-panel *, .toolbar * { font-size: 13px !important; }
         .main-container { display: flex; flex-direction: column; height: 100vh; }
         .header-panel { background: #fff; padding: 2px 10px; border-bottom: 1px solid #ccc; display: flex; flex-direction: column; gap: 2px; }
@@ -20,7 +21,7 @@
         .input-row input { padding: 2px 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; }
         .btn-add { padding: 0px 5px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; }
         .content-area { display: flex; flex: 1; overflow: hidden; }
-        .sidebar { width: 100px; background: #2c3e50; color: #ecf0f1; display: flex; flex-direction: column; border-right: 1px solid #1a252f; }
+        .sidebar { width: 90px; background: #2c3e50; color: #ecf0f1; display: flex; flex-direction: column; border-right: 1px solid #1a252f; }
         .sidebar-title { padding: 8px; font-weight: bold; background: #1a252f; font-size: 12px; cursor: pointer; transition: 0.2s; }
         .sidebar-title:hover { background: #34495e; }
         .project-list { flex: 1; overflow-y: auto; }
@@ -260,6 +261,8 @@
         /* 白の子タスク行のインデント・ツリーアイコンを非表示（水色の見出し行は除外） */
         .gantt_row_task:not(.gantt_group_row) .gantt_tree_indent,
         .gantt_row_task:not(.gantt_group_row) .gantt_tree_icon { width: 0 !important; min-width: 0 !important; overflow: hidden !important; }
+        /* タスク名列の▶左余白を縮小 */
+        .gantt_tree_indent { width: 6px !important; }
 
         /* 工事番号の区切り線（太線） */
         .project-border-top { border-top: 2px solid #999 !important; }
@@ -267,7 +270,7 @@
         .project-border-top .gantt_cell { border-top: none !important; } /* セル内部の重なり防止 */
 
         /* カレンダーの年月を中央揃えにする */
-        .gantt_scale_cell { text-align: center !important; font-size: 13px; }
+        .gantt_scale_cell { text-align: center !important; font-size: 13px; font-weight: bold !important; }
         
         /* 業務別カラー設定（中程度のパステル調） */
         .task-blue, .gantt_project.task-blue { background-color: #85C1E9 !important; border-color: #5DADE2 !important; }
@@ -634,10 +637,10 @@
         .resource-item.clickable:hover { background-color: #ebf5ff !important; }
         .resource-item.clickable:hover .resource-grid-container { background-color: #ebf5ff !important; }
         .resource-item.clickable:hover .resource-timeline { background-color: #ebf5ff !important; }
-        /* 下段グリッド：上段と同じ列幅（GRID_WIDTH=840）でカレンダー開始位置を一致・横スクロール時も固定 */
+        /* 下段グリッド：上段と同じ列幅（GRID_WIDTH=400）でカレンダー開始位置を一致・横スクロール時も固定 */
         .resource-grid-container {
-            width: 840px;
-            min-width: 840px;
+            width: 400px;
+            min-width: 400px;
             flex-shrink: 0;
             position: sticky;
             left: 0;
@@ -647,8 +650,8 @@
         }
         .resource-item .resource-grid-container { background: #fff; }
         .resource-grid {
-            width: 840px;
-            min-width: 840px;
+            width: 400px;
+            min-width: 400px;
             display: flex;
             flex-shrink: 0;
             background: inherit;
@@ -820,6 +823,32 @@
         .gantt_grid_head_add {
             display: none !important;
         }
+        /* 🔍・チェックボックス列（1・3列目）を左罫線にぴったり寄せ */
+        .gantt_row .gantt_cell:nth-child(1),
+        .gantt_row .gantt_cell:nth-child(3),
+        .gantt_row_project .gantt_cell:nth-child(1),
+        .gantt_row_project .gantt_cell:nth-child(3) {
+            text-align: left !important;
+            justify-content: flex-start !important;
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+        }
+        /* タスク名列（4列目）の▶を左罫線にぴったり寄せ */
+        .gantt_row .gantt_cell:nth-child(4),
+        .gantt_row_project .gantt_cell:nth-child(4) {
+            padding-left: 0 !important;
+        }
+        /* ▶と見出し名の間の空白をなくす */
+        .gantt_tree_content {
+            margin-left: 0 !important;
+            padding-left: 0 !important;
+        }
+        .gantt_tree_icon {
+            width: 12px !important;
+            min-width: 12px !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
         /* 親タスク（見出し行）の＋ボタンを非表示 */
         .hide_add_button .gantt_add {
             display: none !important;
@@ -943,7 +972,7 @@
 
             <div class="filter-group">
                 <span style="font-size:13px;">担当検索:</span>
-                <input type="text" id="owner_search" placeholder="名前を入力..." autocomplete="new-password" readonly style="width:100px; padding:1px 3px; border:1px solid #ccc; border-radius:3px; font-size:12px;" oninput="filterByOwner(this.value)">
+                <input type="text" id="owner_search" placeholder="名前を入力..." autocomplete="off" readonly onfocus="this.removeAttribute('readonly')" style="width:100px; padding:1px 3px; border:1px solid #ccc; border-radius:3px; font-size:12px;" oninput="if(!this.value.includes('@'))filterByOwner(this.value)">
                 <button id="unassigned_filter_btn" class="filter-btn" onclick="toggleUnassignedFilter()" style="margin-left: 5px; font-size: 12px;">⚠️ 未定のみ</button>
             </div>
 
@@ -963,7 +992,7 @@
             <div class="filter-group">
                 <button id="resource-dept-toggle" class="zoom-btn" onclick="toggleResourceDeptPanel()" style="font-size:13px;">部署別リソース ▼</button>
                 <div id="resource-dept-panel" style="display:none; gap:4px; align-items:center; flex-wrap:wrap;">
-                    <input type="text" id="resource_owner_input" placeholder="担当名を入力..." style="width:120px; padding:3px; border:1px solid #ccc; border-radius:3px; font-size:11px;" oninput="showResourceViewByOwner(this.value)">
+                    <input type="text" id="resource_owner_input" placeholder="担当名を入力..." autocomplete="off" readonly onfocus="this.removeAttribute('readonly')" style="width:120px; padding:3px; border:1px solid #ccc; border-radius:3px; font-size:11px;" oninput="if(!this.value.includes('@'))showResourceViewByOwner(this.value)">
                     <button class="zoom-btn resource-dept-btn" onclick="filterByDepartment('営業', this)">営業</button>
                     <button class="zoom-btn resource-dept-btn" onclick="filterByDepartment('設計', this)">設計</button>
                     <button class="zoom-btn resource-dept-btn" onclick="filterByDepartment('製管', this)">製管</button>
@@ -1148,7 +1177,7 @@
         let holidaySet = new Set(); // Supabaseのholidaysテーブルから取得した休日日付セット（"YYYY-MM-DD"形式）
 
         const dateToDb = gantt.date.date_to_str("%Y-%m-%d");
-        const dateToDisplay = gantt.date.date_to_str("%Y/%m/%d");
+        const dateToDisplay = gantt.date.date_to_str("%y/%m/%d");
 
         // 組立場所の選択肢
         const LOCATION_GROUPS = ["E1", "E3"];
@@ -1268,8 +1297,8 @@
         };
 
         // 上段・下段で完全に一致させる固定値（1ピクセルも狂いなく同期）
-        const GRID_WIDTH = 840;
-        const COLUMN_WIDTHS = [45, 75, 40, 160, 60, 60, 100, 60, 100, 100, 40]; // 詳細, 工事番号, チェック, タスク名, 機械, ユニット, 担当, 場所, 開始日, 終了日, add(担当者名)
+        let GRID_WIDTH = 600;
+        const COLUMN_WIDTHS = [30, 50, 22, 129, 37, 37, 50, 60, 80, 80, 25]; // 詳細, 工事番号, チェック, タスク名, 機械, ユニット, 担当, 場所, 開始日, 終了日, add(担当者名)
         
         // 1列目を固定
         gantt.config.grid_elastic_columns = false;
@@ -1866,7 +1895,7 @@
         var layoutRows = [
             {
                 cols: [
-                    { view: "grid", id: "grid", group: "grids", scrollX: "scrollHor", scrollY: "scrollVer" },
+                    { view: "grid", id: "grid", width: 600, scrollX: "scrollHor", scrollY: "scrollVer" },
                     { resizer: true, width: 1 },
                     { view: "timeline", id: "timeline", scrollX: "scrollHor", scrollY: "scrollVer" },
                     { view: "scrollbar", scroll: "y", id: "scrollVer" }
@@ -1885,17 +1914,17 @@
 
         // 列設定の共通化：上段・下段に同じ配列を適用し列幅のズレを根絶
         var SHARED_COLUMNS = [
-            { name: "detail", label: "", width: COLUMN_WIDTHS[0], align: "center", template: function(obj) {
+            { name: "detail", label: "", width: COLUMN_WIDTHS[0], align: "left", template: function(obj) {
                 // 見出し行 ($virtual) すべてに表示
                 if (obj.$virtual) {
                     return `<button class='zoom-btn' style='padding: 2px 5px; font-size: 12px; cursor: pointer;' onclick='openDetail("${obj.id}")'>🔍</button>`;
                 }
                 return "";
             }},
-            { name: "project_number", label: "工事番号", width: COLUMN_WIDTHS[1], align: "center", template: function(obj) {
+            { name: "project_number", label: "工番", width: COLUMN_WIDTHS[1], align: "left", template: function(obj) {
                 return obj.project_number || "";
             }},
-            { name: "checkbox", label: "", width: COLUMN_WIDTHS[2], align: "center", template: function(obj) {
+            { name: "checkbox", label: "", width: COLUMN_WIDTHS[2], align: "left", template: function(obj) {
                 if (obj.$virtual) return "";
                 const isChecked = taskCheckboxes[obj.id] ? "checked" : "";
                 return `<input type='checkbox' ${isChecked} ${_isEditor ? '' : 'disabled'} onchange='toggleTaskCheckbox("${obj.id}", this.checked)'>`;
@@ -1903,11 +1932,11 @@
             { name: "text", label: "タスク名", width: COLUMN_WIDTHS[3], tree: true, template: function(obj) {
                 return obj.text;
             }},
-            { name: "machine", label: "機械", width: COLUMN_WIDTHS[4], align: "center", template: function(obj) {
+            { name: "machine", label: "機械", width: COLUMN_WIDTHS[4], align: "left", template: function(obj) {
                 if (obj.$virtual) return "";
                 return obj.machine || "";
             }},
-            { name: "unit", label: "ユニット", width: COLUMN_WIDTHS[5], align: "center", template: function(obj) {
+            { name: "unit", label: "ユニ", width: COLUMN_WIDTHS[5], align: "left", template: function(obj) {
                 if (obj.$virtual) return "";
                 return obj.unit || "";
             }},
@@ -1936,10 +1965,11 @@
             { name: "end_date", label: "終了日", width: COLUMN_WIDTHS[9], align: "center", template: function(t) {
                 return dateToDisplay(gantt.calculateEndDate(t.start_date, t.duration));
             }},
-            { name: "add", label: "", width: COLUMN_WIDTHS[10] }
+            { name: "add", label: "", width: COLUMN_WIDTHS[10], align: "left" }
         ];
         gantt.config.columns = SHARED_COLUMNS;
-        gantt.config.grid_width = 840;
+        gantt.config.indent = 6;
+        gantt.config.grid_width = 600;
         gantt.config.grid_resize = false;
         gantt.config.drag_resize = true;
         gantt.config.row_height = 27;
@@ -2596,6 +2626,59 @@
 
         gantt.config.readonly = true; // デフォルトは読み取り専用、ログイン後に解除
         gantt.init("gantt_here");
+
+        // ガントグリッド幅をGRID_WIDTHに強制設定し、リソース下段に同期
+        (function syncGridWidth() {
+            const TARGET = GRID_WIDTH;
+            // DHTMLX Ganttのgridビューに幅を強制適用してre-render
+            try {
+                const gridView = gantt.$ui.getView("grid");
+                if (gridView) {
+                    gridView.$config.width = TARGET;
+                }
+            } catch(e) {}
+            gantt.config.grid_width = TARGET;
+            gantt.render();
+            // render後に実幅を読み取りリソース下段に同期
+            const actualWidth = (document.querySelector('.gantt_grid') || {}).offsetWidth || TARGET;
+            GRID_WIDTH = actualWidth;
+            const style = document.createElement('style');
+            style.textContent = `.resource-grid-container { width: ${actualWidth}px !important; min-width: ${actualWidth}px !important; } .resource-grid { width: ${actualWidth}px !important; min-width: ${actualWidth}px !important; }`;
+            document.head.appendChild(style);
+        })();
+
+        // 🔍・チェックボックス列の左寄せをレンダリング後に強制適用
+        gantt.attachEvent("onGanttRender", function() {
+            document.querySelectorAll('.gantt_row .gantt_cell:nth-child(1), .gantt_row_project .gantt_cell:nth-child(1), .gantt_row .gantt_cell:nth-child(2), .gantt_row_project .gantt_cell:nth-child(2), .gantt_row .gantt_cell:nth-child(3), .gantt_row_project .gantt_cell:nth-child(3)').forEach(function(cell) {
+                cell.style.textAlign = 'left';
+                cell.style.justifyContent = 'flex-start';
+            });
+            // タスク名列の▶左インデント余白を縮小
+            document.querySelectorAll('.gantt_row_project .gantt_tree_indent').forEach(function(el) {
+                el.style.width = '6px';
+                el.style.minWidth = '6px';
+            });
+            // 🔍・チェックボックスを左罫線にぴったり寄せる
+            document.querySelectorAll('.gantt_row .gantt_cell:nth-child(1), .gantt_row_project .gantt_cell:nth-child(1), .gantt_row .gantt_cell:nth-child(3), .gantt_row_project .gantt_cell:nth-child(3)').forEach(function(cell) {
+                cell.style.paddingLeft = '0px';
+                cell.style.paddingRight = '0px';
+            });
+            // タスク名列の▶を左罫線にぴったり寄せる
+            document.querySelectorAll('.gantt_row .gantt_cell:nth-child(4), .gantt_row_project .gantt_cell:nth-child(4)').forEach(function(cell) {
+                cell.style.paddingLeft = '0px';
+            });
+            // ▶と見出し名の間の空白をなくす
+            document.querySelectorAll('.gantt_tree_content').forEach(function(el) {
+                el.style.marginLeft = '0px';
+                el.style.paddingLeft = '0px';
+            });
+            document.querySelectorAll('.gantt_tree_icon').forEach(function(el) {
+                el.style.width = '12px';
+                el.style.minWidth = '12px';
+                el.style.margin = '0';
+                el.style.padding = '0';
+            });
+        });
 
         // 担当者名の名寄せ（正規化）処理
         function getNormalizedOwners(ownerStr) {
@@ -3576,14 +3659,19 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            // 担当検索欄のブラウザ自動入力をreadonly→解除で完全ブロック
+            // 担当検索欄・リソース担当検索欄の自動入力を監視してクリア
             const ownerSearch = document.getElementById('owner_search');
-            if (ownerSearch) {
-                setTimeout(() => {
-                    ownerSearch.value = '';
-                    ownerSearch.removeAttribute('readonly');
-                }, 300);
-            }
+            const resourceOwnerInput = document.getElementById('resource_owner_input');
+            [ownerSearch, resourceOwnerInput].forEach(el => {
+                if (!el) return;
+                const clear = () => {
+                    if (el.value.includes('@') || el.value.includes('.com') || el.value.includes('.jp')) {
+                        el.value = '';
+                    }
+                };
+                el.addEventListener('input', clear);
+                el.addEventListener('change', clear);
+            });
 
             setTimeout(() => {
                 const resourceContent = document.querySelector(".resource-content");
