@@ -434,9 +434,31 @@
         }
 
         /* タスク編集ダイアログを部品送りマークより上に表示 */
-        .gantt_cal_light, .gantt_cal_cover {
-            z-index: 100000 !important;
+        .gantt_cal_cover { z-index: 100000 !important; }
+        .gantt_cal_light { z-index: 100001 !important; }
+        /* ライトボックス縦1列レイアウト */
+        .gantt_cal_light {
+            position: fixed !important;
+            top: 50% !important;
+            left: 50% !important;
+            transform: translate(-50%, -50%) !important;
+            width: 600px !important;
+            min-width: 600px !important;
+            height: auto !important;
         }
+        .gantt_cal_larea {
+            display: block !important;
+            height: auto !important;
+            overflow: visible !important;
+            padding: 4px 8px !important;
+            box-sizing: border-box !important;
+        }
+        .gantt_cal_light .gantt_cal_lsection { border: none !important; padding: 4px 0 1px !important; margin: 0 !important; font-size: 11px !important; font-weight: normal !important; line-height: 1.3 !important; color: #333 !important; font-family: "メイリオ", Meiryo, sans-serif !important; }
+        .gantt_cal_light .gantt_cal_ltext { margin: 0 !important; padding: 0 !important; height: auto !important; overflow: visible !important; font-family: "メイリオ", Meiryo, sans-serif !important; }
+        .gantt_cal_ltext textarea { height: 22px !important; box-sizing: border-box !important; margin: 0 !important; padding: 1px 4px !important; width: 100% !important; font-family: "メイリオ", Meiryo, sans-serif !important; }
+        .gantt_cal_ltext select  { height: 32px !important; box-sizing: border-box !important; margin: 0 !important; width: 100% !important; font-family: "メイリオ", Meiryo, sans-serif !important; }
+        .gantt_cal_ltext input[type="date"] { font-family: "メイリオ", Meiryo, sans-serif !important; }
+        .gantt_cal_light .gantt_cal_title, .gantt_cal_light .gantt_cal_lcontrols { font-family: "メイリオ", Meiryo, sans-serif !important; }
 
         /* 削除確認ダイアログを編集画面より上に表示（CSS補助） */
         .gantt_popup_shadow,
@@ -1769,16 +1791,17 @@
 
         gantt.form_blocks["datepicker"] = {
             render: function(sns) {
-                return `<div class='gantt_cal_ltext' style='height:40px;'>
-                    <input type='date' class='datepicker-input' style='width:45%; height:30px; font-size:13px;'>
-                    <span style='margin:0 10px;'>～</span>
-                    <input type='date' class='datepicker-input-end' style='width:45%; height:30px; font-size:13px;'>
+                // 単一ルート要素で包む（DHTMLX edge は section.node = ltext.firstChild のため必須）
+                return `<div class="datepicker-wrap" style="display:flex; align-items:center; gap:4px; padding:2px 0;">
+                    <input type='date' class='datepicker-input' style='flex:1; height:26px; font-size:13px;'>
+                    <span style='flex-shrink:0;'>～</span>
+                    <input type='date' class='datepicker-input-end' style='flex:1; height:26px; font-size:13px;'>
                 </div>`;
             },
             set_value: function(node, value, task) {
-                const startInput = node.querySelector(".datepicker-input");
-                const endInput = node.querySelector(".datepicker-input-end");
-                
+                const startInput = node ? node.querySelector(".datepicker-input") : null;
+                const endInput = node ? node.querySelector(".datepicker-input-end") : null;
+                if (!startInput || !endInput) return;
                 if (task.start_date) {
                     startInput.value = gantt.date.date_to_str("%Y-%m-%d")(task.start_date);
                 }
@@ -1787,9 +1810,9 @@
                 }
             },
             get_value: function(node, task) {
-                const startInput = node.querySelector(".datepicker-input");
-                const endInput = node.querySelector(".datepicker-input-end");
-                
+                const startInput = node ? node.querySelector(".datepicker-input") : null;
+                const endInput = node ? node.querySelector(".datepicker-input-end") : null;
+                if (!startInput || !endInput) return task.start_date;
                 if (startInput.value) {
                     task.start_date = gantt.date.str_to_date("%Y-%m-%d")(startInput.value);
                 }
@@ -1799,21 +1822,21 @@
                 return task.start_date;
             },
             focus: function(node) {
-                const startInput = node.querySelector(".datepicker-input");
+                const startInput = node ? node.querySelector(".datepicker-input") : null;
                 if (startInput) startInput.focus();
             }
         };
 
         gantt.config.lightbox.sections = [
-            { name: "project_number", height: 30, map_to: "project_number", type: "textarea", focus: true },
-            { name: "parent_name", height: 30, map_to: "parent_name", type: "textarea" },
-            { name: "major_item", height: 30, map_to: "major_item", type: "select", options: majorItemOptions },
-            { name: "machine", height: 30, map_to: "machine", type: "textarea" },
-            { name: "unit", height: 30, map_to: "unit", type: "textarea" },
-            { name: "description", height: 40, map_to: "text", type: "task_name_selector" },
-            { name: "owner", height: 100, map_to: "owner", type: "owner_selector" },
-            { name: "locations", height: 100, map_to: "locations", type: "location_selector" },
-            { name: "time", height: 40, type: "datepicker", map_to: "auto" }
+            { name: "project_number", height: 24, map_to: "project_number", type: "textarea", focus: true },
+            { name: "parent_name", height: 24, map_to: "parent_name", type: "textarea" },
+            { name: "major_item", height: 24, map_to: "major_item", type: "select", options: majorItemOptions },
+            { name: "machine", height: 24, map_to: "machine", type: "textarea" },
+            { name: "unit", height: 24, map_to: "unit", type: "textarea" },
+            { name: "description", height: 34, map_to: "text", type: "task_name_selector" },
+            { name: "owner", height: 80, map_to: "owner", type: "owner_selector" },
+            { name: "locations", height: 80, map_to: "locations", type: "location_selector" },
+            { name: "time", height: 30, type: "datepicker", map_to: "auto" }
         ];
 
         // gantt.showLightbox を全タスク共通のシンプルな構造に書き換え
@@ -1853,6 +1876,56 @@
                 // ④ ライトボックスを表示（内部で set_value が呼ばれる）
                 originalShowLightbox.call(gantt, id);
 
+                // ⑤ ダイアログが描画された直後にドラッグを設定
+                setTimeout(function() {
+                    const dialog = document.querySelector(".gantt_cal_light");
+                    if (!dialog) return;
+
+                    // html/body の overflow:hidden を解除（fixed要素が画面外で切れないよう）
+                    document.documentElement.style.overflow = "visible";
+                    document.body.style.overflow = "visible";
+
+                    // ダイアログが閉じたら overflow を復元
+                    const overflowObserver = new MutationObserver(function() {
+                        if (!document.querySelector(".gantt_cal_light") ||
+                            document.querySelector(".gantt_cal_light").style.display === "none") {
+                            document.documentElement.style.overflow = "hidden";
+                            document.body.style.overflow = "hidden";
+                            overflowObserver.disconnect();
+                        }
+                    });
+                    overflowObserver.observe(document.body, { childList: true, subtree: false });
+
+                    if (dialog._dragAttached) return;
+                    dialog._dragAttached = true;
+                    const titleBar = dialog.querySelector(".gantt_cal_title") || dialog.querySelector(".gantt_cal_header");
+                    const handle = titleBar || dialog;
+                    handle.style.cursor = "move";
+                    handle.addEventListener("mousedown", function(e) {
+                        if (e.target.closest(".gantt_cal_x, input, select, textarea, button, label")) return;
+                        // 現在の位置を取得してtransformを解除し left/top で管理
+                        const rect = dialog.getBoundingClientRect();
+                        let curLeft = rect.left;
+                        let curTop  = rect.top;
+                        dialog.style.setProperty("transform", "none", "important");
+                        dialog.style.setProperty("left", curLeft + "px", "important");
+                        dialog.style.setProperty("top",  curTop  + "px", "important");
+                        function onMove(ev) {
+                            curLeft += ev.movementX;
+                            curTop  += ev.movementY;
+                            dialog.style.setProperty("left", curLeft + "px", "important");
+                            dialog.style.setProperty("top",  curTop  + "px", "important");
+                        }
+                        function onUp() {
+                            document.removeEventListener("mousemove", onMove);
+                            document.removeEventListener("mouseup",  onUp);
+                        }
+                        document.addEventListener("mousemove", onMove);
+                        document.addEventListener("mouseup",  onUp);
+                        e.preventDefault();
+                    });
+                }, 50);
+
             } catch (e) {
                 console.error("Lightbox error:", e);
                 // エラー時も最低限表示を試みる
@@ -1884,6 +1957,58 @@
                 e.preventDefault();
             }
         }, true);
+
+        // ライトボックスをドラッグで移動できるようにする
+        gantt.attachEvent("onLightboxReady", function() {
+            const dialog = document.querySelector(".gantt_cal_light");
+            if (!dialog) return;
+            const titleBar = dialog.querySelector(".gantt_cal_title") || dialog.querySelector(".gantt_cal_header") || dialog;
+            titleBar.style.cursor = "move";
+            titleBar.addEventListener("mousedown", function(e) {
+                if (e.target.closest(".gantt_cal_x, input, select, textarea, button, label, input[type=checkbox]")) return;
+                const rect = dialog.getBoundingClientRect();
+                const offsetX = e.clientX - rect.left;
+                const offsetY = e.clientY - rect.top;
+                dialog.style.setProperty("transform", "none", "important");
+                dialog.style.setProperty("left", rect.left + "px", "important");
+                dialog.style.setProperty("top",  rect.top  + "px", "important");
+                function onMouseMove(ev) {
+                    dialog.style.setProperty("left", (ev.clientX - offsetX) + "px", "important");
+                    dialog.style.setProperty("top",  (ev.clientY - offsetY) + "px", "important");
+                }
+                function onMouseUp() {
+                    document.removeEventListener("mousemove", onMouseMove);
+                    document.removeEventListener("mouseup",  onMouseUp);
+                }
+                document.addEventListener("mousemove", onMouseMove);
+                document.addEventListener("mouseup",  onMouseUp);
+                e.preventDefault();
+            });
+        });
+
+        // ライトボックス表示後にDHHTMLXのインライン height/padding を強制リセット（縦1列）
+        gantt.attachEvent("onLightboxReady", function() {
+            const larea = document.querySelector(".gantt_cal_larea");
+            if (!larea) return;
+            Array.from(larea.children).forEach(function(el) {
+                if (el.classList.contains("gantt_cal_lsection")) {
+                    el.style.cssText = "border:none; margin:0; padding:4px 0 1px; font-size:11px; font-weight:normal; line-height:1.3; color:#333; display:block;";
+                } else if (el.classList.contains("gantt_cal_ltext")) {
+                    el.style.margin = "0";
+                    el.style.padding = "0";
+                    el.style.setProperty("height", "auto", "important");
+                    el.style.setProperty("overflow", "visible", "important");
+                    // textarea/select を含む場合は高さを制限
+                    const ta = el.querySelector("textarea");
+                    const sel = el.querySelector("select");
+                    if ((ta || sel) && !el.querySelector(".datepicker-input") && !el.querySelector("input[type=checkbox]") && !el.querySelector("button")) {
+                        const h = sel ? "32px" : "24px";
+                        el.style.setProperty("height", h, "important");
+                        el.style.setProperty("overflow", "hidden", "important");
+                    }
+                }
+            });
+        });
 
         gantt.attachEvent("onLightboxChange", function(id, name, value) {
             if (name === "major_item") {
