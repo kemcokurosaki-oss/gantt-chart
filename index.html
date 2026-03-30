@@ -905,7 +905,7 @@
         .kanryo-table tr:hover td { background:#f5f9ff; }
         .kanryo-move-btn { padding:1px 8px; background:#e74c3c; color:#fff; border:none; border-radius:3px; cursor:pointer; font-size:12px; white-space:nowrap; }
         .kanryo-move-btn:hover { background:#c0392b; }
-        .kanryo-restore-btn { padding:1px 8px; background:#27ae60; color:#fff; border:none; border-radius:3px; cursor:pointer; font-size:12px; }
+        .kanryo-restore-btn { padding:1px 8px; background:#27ae60; color:#fff; border:none; border-radius:3px; cursor:pointer; font-size:12px; white-space:nowrap; }
         .kanryo-restore-btn:hover { background:#219a52; }
         #kanryo-close-btn { background:none; border:none; color:#fff; font-size:18px; cursor:pointer; line-height:1; padding:0 4px; }
 
@@ -1209,7 +1209,7 @@
         const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
         let currentResourceDeptFilter = "";
         let currentProjectGroupFilter = "all"; // "all" | "2000" | "other"
-        let completedProjects = JSON.parse(localStorage.getItem('completedProjects_zentai') || '[]');
+        let completedProjects = [];
         // 各エントリ: { project_number, customer_name, project_details, completed_date }
         let holidaySet = new Set(); // Supabaseのholidaysテーブルから取得した休日日付セット（"YYYY-MM-DD"形式）
 
@@ -3987,6 +3987,12 @@
             _headerOpenStates[String(id)] = false;
         });
 
+        async function loadCompletedProjects() {
+            const { data, error } = await supabaseClient.from('completed_projects').select('*');
+            if (error) { console.error('[loadCompletedProjects] エラー:', error); return; }
+            completedProjects = data || [];
+        }
+
         async function loadHolidays() {
             const { data, error } = await supabaseClient.from('holidays').select('date');
             if (error) {
@@ -4807,7 +4813,7 @@
         }
 
         document.getElementById('resource_close_btn').addEventListener('click', closeResourcePanel);
-        loadHolidays().then(() => fetchTasks()).then(() => {
+        loadCompletedProjects().then(() => loadHolidays()).then(() => fetchTasks()).then(() => {
             // 初期表示を今日の日付にスクロール
             // setTimeoutを短縮し、gantt.onRenderイベント等で補完
             const scrollAction = () => {
@@ -5307,7 +5313,7 @@
             body.innerHTML = html;
         }
 
-        function moveToCompleted(pNum) {
+        async function moveToCompleted(pNum) {
             if (!confirm(`「${pNum}」を完了済工番に移動しますか？\nガントチャートと工事一覧から非表示になります。`)) return;
             const projectMap = {};
             (window.allTasks || []).forEach(t => {
@@ -5320,22 +5326,25 @@
                 }
             });
             const info = projectMap[pNum] || {};
-            completedProjects.push({
+            const newEntry = {
                 project_number: pNum,
                 customer_name: info.customer_name || '',
                 project_details: info.project_details || '',
                 completed_date: new Date().toLocaleDateString('ja-JP')
-            });
-            localStorage.setItem('completedProjects_zentai', JSON.stringify(completedProjects));
+            };
+            const { error } = await supabaseClient.from('completed_projects').insert(newEntry);
+            if (error) { alert('保存に失敗しました: ' + error.message); return; }
+            completedProjects.push(newEntry);
             gantt.render();
             updateProjectList(window.allTasks || []);
             renderKanryoKanri(document.getElementById('kanryo-modal-body'));
         }
 
-        function restoreFromCompleted(pNum) {
+        async function restoreFromCompleted(pNum) {
             if (!confirm(`「${pNum}」を工程表に戻しますか？`)) return;
+            const { error } = await supabaseClient.from('completed_projects').delete().eq('project_number', pNum);
+            if (error) { alert('削除に失敗しました: ' + error.message); return; }
             completedProjects = completedProjects.filter(cp => cp.project_number !== pNum);
-            localStorage.setItem('completedProjects_zentai', JSON.stringify(completedProjects));
             gantt.render();
             updateProjectList(window.allTasks || []);
             renderKanryoIchiran(document.getElementById('kanryo-modal-body'));
