@@ -4310,12 +4310,8 @@
                 } else if (tracked === false) {
                     gantt.close(task.id);
                 } else {
-                    // 未記録（初回）：2000番台は閉じる、それ以外は開く
-                    if (pNum.startsWith('2')) {
-                        gantt.close(task.id);
-                    } else {
-                        gantt.open(task.id);
-                    }
+                    // 未記録（初回）：すべて閉じる
+                    gantt.close(task.id);
                 }
             });
             _ganttFirstLoad = false;
