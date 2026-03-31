@@ -890,6 +890,15 @@
             display: none !important;
         }
         /* 完了済工番モーダル */
+        #new-project-modal-overlay { position:fixed; top:0; left:0; width:100%; height:100%; background:transparent; z-index:10000; display:none; }
+        #new-project-modal-overlay.visible { display:block; }
+        #new-project-modal { position:fixed; background:#fff; border-radius:6px; box-shadow:0 4px 20px rgba(0,0,0,0.3); width:280px; display:flex; flex-direction:column; overflow:hidden; }
+        #new-project-modal-header { background:#2c3e50; color:#fff; padding:8px 14px; display:flex; align-items:center; justify-content:space-between; }
+        #new-project-modal-header span { font-size:14px; font-weight:bold; }
+        #new-project-modal-body { padding:18px 18px 14px; display:flex; flex-direction:column; gap:10px; }
+        #new-project-modal-body label { font-size:12px; color:#555; margin-bottom:2px; display:block; }
+        #new-project-modal-body input { width:100%; padding:5px 8px; border:1px solid #ccc; border-radius:4px; font-size:13px; box-sizing:border-box; }
+        #new-project-modal-footer { padding:10px 18px 14px; display:flex; gap:8px; justify-content:flex-end; }
         #kanryo-modal-overlay { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); z-index:10000; display:none; align-items:center; justify-content:center; }
         #kanryo-modal-overlay.visible { display:flex; }
         #kanryo-modal { background:#fff; border-radius:6px; box-shadow:0 4px 20px rgba(0,0,0,0.3); width:620px; height:60vh; display:flex; flex-direction:column; overflow:hidden; }
@@ -963,17 +972,6 @@
         <div class="header-panel">
             <div class="input-row">
                 <button class="btn-add" id="new_project_btn" onclick="toggleNewProjectForm()" style="display:none;">新規受注</button>
-                <div id="new-project-form" style="display:none; display:flex; align-items:center; gap:6px; flex-wrap:wrap; display:none;">
-                    <input type="text" id="project_number" placeholder="工事番号" style="width:90px">
-                    <input type="text" id="customer_name_input" placeholder="客先名" style="width:100px">
-                    <input type="text" id="project_details_input" placeholder="工事名" style="width:130px">
-                    <span style="font-size:12px; color:#666;">受注日:</span>
-                    <input type="date" id="order_date" title="受注日">
-                    <span style="font-size:12px; color:#666;">出荷日:</span>
-                    <input type="date" id="shipping_date" title="出荷日">
-                    <button class="btn-add" onclick="addProjectFromTemplate()">追加</button>
-                    <button onclick="toggleNewProjectForm()" style="padding:0px 5px; border:1px solid #ccc; border-radius:4px; cursor:pointer; font-size:12px; background:#fff;">キャンセル</button>
-                </div>
                 <span style="margin-left: auto; display:flex; align-items:center; gap:4px; font-size: 13px; font-weight: bold; color: #333;">
                     <span style="color: #d32f2f; font-size: 20px;">●</span> 外観検査
                     <span style="margin-left: 10px; color: #FBAD4F; font-size: 22px;">▲</span> 客先立会
@@ -4649,12 +4647,29 @@
         }
 
         function toggleNewProjectForm() {
-            const form = document.getElementById('new-project-form');
-            if (form.style.display === 'none' || form.style.display === '') {
-                form.style.display = 'flex';
-            } else {
-                form.style.display = 'none';
+            const btn = document.getElementById('new_project_btn');
+            const rect = btn.getBoundingClientRect();
+            const modal = document.getElementById('new-project-modal');
+            // ボタンの左下から4px下に表示（画面右端にはみ出す場合は左にずらす）
+            let left = rect.left;
+            const modalWidth = 280;
+            if (left + modalWidth > window.innerWidth - 8) {
+                left = window.innerWidth - modalWidth - 8;
             }
+            modal.style.top = (rect.bottom + 4) + 'px';
+            modal.style.left = left + 'px';
+            document.getElementById('new-project-modal-overlay').classList.add('visible');
+            document.getElementById('project_number').focus();
+        }
+
+        function closeNewProjectModal(e) {
+            if (e && e.target !== document.getElementById('new-project-modal-overlay')) return;
+            document.getElementById('new-project-modal-overlay').classList.remove('visible');
+            document.getElementById('project_number').value = '';
+            document.getElementById('customer_name_input').value = '';
+            document.getElementById('project_details_input').value = '';
+            document.getElementById('order_date').value = '';
+            document.getElementById('shipping_date').value = '';
         }
 
         async function addProjectFromTemplate() {
@@ -4780,12 +4795,12 @@
             } else {
                 alert(`工事番号 ${projectNumber} を作成しました`);
                 // フォームをリセット・非表示
+                document.getElementById('new-project-modal-overlay').classList.remove('visible');
                 document.getElementById('project_number').value = '';
                 document.getElementById('customer_name_input').value = '';
                 document.getElementById('project_details_input').value = '';
                 document.getElementById('order_date').value = '';
                 document.getElementById('shipping_date').value = '';
-                document.getElementById('new-project-form').style.display = 'none';
                 // 画面更新
                 fetchTasks();
             }
@@ -5333,6 +5348,42 @@
     </script>
 
     <!-- 完了済工番モーダル -->
+    <!-- ===== 新規受注モーダル ===== -->
+    <div id="new-project-modal-overlay" onclick="closeNewProjectModal(event)">
+        <div id="new-project-modal">
+            <div id="new-project-modal-header">
+                <span>新規受注</span>
+                <button onclick="closeNewProjectModal()" style="background:none; border:none; color:#fff; font-size:16px; cursor:pointer; line-height:1;">✕</button>
+            </div>
+            <div id="new-project-modal-body">
+                <div>
+                    <label>工事番号</label>
+                    <input type="text" id="project_number" placeholder="例: 3001">
+                </div>
+                <div>
+                    <label>客先名</label>
+                    <input type="text" id="customer_name_input" placeholder="客先名">
+                </div>
+                <div>
+                    <label>工事名</label>
+                    <input type="text" id="project_details_input" placeholder="工事名">
+                </div>
+                <div>
+                    <label>受注日</label>
+                    <input type="date" id="order_date">
+                </div>
+                <div>
+                    <label>出荷日</label>
+                    <input type="date" id="shipping_date">
+                </div>
+            </div>
+            <div id="new-project-modal-footer">
+                <button onclick="closeNewProjectModal()" style="padding:5px 14px; border:1px solid #ccc; border-radius:4px; cursor:pointer; font-size:12px; background:#fff;">キャンセル</button>
+                <button class="btn-add" onclick="addProjectFromTemplate()">追加</button>
+            </div>
+        </div>
+    </div>
+
     <div id="kanryo-modal-overlay" onclick="closeKanryoModal(event)">
         <div id="kanryo-modal">
             <div id="kanryo-modal-header">
