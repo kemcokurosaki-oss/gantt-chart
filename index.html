@@ -1012,30 +1012,32 @@
                 <button id="unassigned_filter_btn" class="filter-btn" onclick="toggleUnassignedFilter()" style="margin-left: 5px; font-size: 12px;">⚠️ 担当未定</button>
             </div>
 
-            <div class="filter-group">
-                <button id="major-filter-toggle" class="zoom-btn" onclick="toggleMajorFilterPanel()" style="font-size:13px;">部署別フィルタ ▼</button>
-                <div id="major-filter-panel" style="display:none; gap:4px; align-items:center; flex-wrap:wrap;">
-                    <button class="zoom-btn major-filter-btn" onclick="filterByMajorItem('営業', this)">営業</button>
-                    <button class="zoom-btn major-filter-btn" onclick="filterByMajorItem('設計', this)">設計</button>
-                    <button class="zoom-btn major-filter-btn" onclick="filterByMajorItem('製管', this)">製管</button>
-                    <button class="zoom-btn major-filter-btn" onclick="filterByMajorItem('組立', this)">組立</button>
-                    <button class="zoom-btn major-filter-btn" onclick="filterByMajorItem('電装', this)">電装</button>
-                    <button class="zoom-btn major-filter-btn" onclick="filterByMajorItem('品証', this)">品証</button>
-                    <button class="zoom-btn major-filter-btn" onclick="filterByMajorItem('操業', this)">操業</button>
-                </div>
+            <div class="filter-group" style="align-items:center;">
+                <label style="font-size:13px; white-space:nowrap;">部署別フィルタ</label>
+                <select id="major-filter-select" onchange="filterByMajorItem(this.value)" style="font-size:12px; padding:2px 4px; border:1px solid #ccc; border-radius:3px; margin-left:4px;">
+                    <option value="">全部署</option>
+                    <option value="営業">営業</option>
+                    <option value="設計">設計</option>
+                    <option value="製管">製管</option>
+                    <option value="組立">組立</option>
+                    <option value="電装">電装</option>
+                    <option value="品証">品証</option>
+                    <option value="操業">操業</option>
+                </select>
             </div>
 
-            <div class="filter-group">
-                <button id="resource-dept-toggle" class="zoom-btn" onclick="toggleResourceDeptPanel()" style="font-size:13px;">部署別リソース ▼</button>
-                <div id="resource-dept-panel" style="display:none; gap:4px; align-items:center; flex-wrap:wrap;">
-                    <button class="zoom-btn resource-dept-btn" onclick="filterByDepartment('営業', this)">営業</button>
-                    <button class="zoom-btn resource-dept-btn" onclick="filterByDepartment('設計', this)">設計</button>
-                    <button class="zoom-btn resource-dept-btn" onclick="filterByDepartment('製管', this)">製管</button>
-                    <button class="zoom-btn resource-dept-btn" onclick="filterByDepartment('組立', this)">組立</button>
-                    <button class="zoom-btn resource-dept-btn" onclick="filterByDepartment('電装', this)">電装</button>
-                    <button class="zoom-btn resource-dept-btn" onclick="filterByDepartment('品証', this)">品証</button>
-                    <button class="zoom-btn resource-dept-btn" onclick="filterByDepartment('操業', this)">操業</button>
-                </div>
+            <div class="filter-group" style="align-items:center;">
+                <label style="font-size:13px; white-space:nowrap;">部署別リソース</label>
+                <select id="resource-dept-select" onchange="filterByDepartmentSelect(this.value)" style="font-size:12px; padding:2px 4px; border:1px solid #ccc; border-radius:3px; margin-left:4px;">
+                    <option value="">-</option>
+                    <option value="営業">営業</option>
+                    <option value="設計">設計</option>
+                    <option value="製管">製管</option>
+                    <option value="組立">組立</option>
+                    <option value="電装">電装</option>
+                    <option value="品証">品証</option>
+                    <option value="操業">操業</option>
+                </select>
             </div>
 
             <div class="filter-group">
@@ -2846,47 +2848,13 @@
             return ownerStr.split(/[,,，、・\s]+/).map(s => s.trim()).filter(Boolean);
         }
 
-        // 部署別フィルタパネルのトグル
-        function toggleMajorFilterPanel() {
-            const panel = document.getElementById('major-filter-panel');
-            const btn = document.getElementById('major-filter-toggle');
-            const isVisible = panel.style.display !== 'none';
-            panel.style.display = isVisible ? 'none' : 'flex';
-            const arrow = isVisible ? '▼' : '▲';
-            btn.textContent = currentMajorFilter ? `部署別フィルタ: ${currentMajorFilter} ${arrow}` : `部署別フィルタ ${arrow}`;
-        }
-
-        // 部署別リソースパネルのトグル
-        function toggleResourceDeptPanel() {
-            const panel = document.getElementById('resource-dept-panel');
-            const btn = document.getElementById('resource-dept-toggle');
-            const isVisible = panel.style.display !== 'none';
-            panel.style.display = isVisible ? 'none' : 'flex';
-            const arrow = isVisible ? '▼' : '▲';
-            btn.textContent = currentResourceDeptFilter ? `部署別リソース: ${currentResourceDeptFilter} ${arrow}` : `部署別リソース ${arrow}`;
-        }
-
         // 大項目フィルタ（部署別フィルタ）
-        function filterByMajorItem(majorItem, btn) {
-            if (currentMajorFilter === majorItem) {
-                currentMajorFilter = null;
-                document.querySelectorAll('.major-filter-btn').forEach(b => b.classList.remove('active'));
-            } else {
-                currentMajorFilter = majorItem;
-                document.querySelectorAll('.major-filter-btn').forEach(b => {
-                    b.classList.toggle('active', b === btn);
-                });
-            }
+        function filterByMajorItem(majorItem) {
+            currentMajorFilter = majorItem || null;
+            // セレクトの値を同期
+            const sel = document.getElementById('major-filter-select');
+            if (sel) sel.value = currentMajorFilter || '';
             gantt.render();
-
-            // トグルボタンのラベル更新
-            const majorToggleBtn = document.getElementById('major-filter-toggle');
-            if (majorToggleBtn) {
-                const panel = document.getElementById('major-filter-panel');
-                const isOpen = panel && panel.style.display !== 'none';
-                const arrow = isOpen ? '▲' : '▼';
-                majorToggleBtn.textContent = currentMajorFilter ? `部署別フィルタ: ${currentMajorFilter} ${arrow}` : `部署別フィルタ ${arrow}`;
-            }
 
             // リソース画面が表示されており、かつ部署フィルタが有効な場合は再描画
             if (currentResourceMode === 'dept' && currentResourceDeptFilter) {
@@ -2943,14 +2911,9 @@
                 b.classList.toggle('active', b === btn && currentResourceDeptFilter !== "");
             });
 
-            // トグルボタンのラベル更新
-            const resourceToggleBtn = document.getElementById('resource-dept-toggle');
-            if (resourceToggleBtn) {
-                const panel = document.getElementById('resource-dept-panel');
-                const isOpen = panel && panel.style.display !== 'none';
-                const arrow = isOpen ? '▲' : '▼';
-                resourceToggleBtn.textContent = currentResourceDeptFilter ? `部署別リソース: ${currentResourceDeptFilter} ${arrow}` : `部署別リソース ${arrow}`;
-            }
+            // セレクトの値を同期
+            const resourceDeptSel = document.getElementById('resource-dept-select');
+            if (resourceDeptSel) resourceDeptSel.value = currentResourceDeptFilter || '';
 
             const resourcePanel = document.getElementById("resource_panel");
             const ganttHere = document.getElementById("gantt_here");
@@ -3265,6 +3228,22 @@
             }
         }
 
+        // 部署別リソースのセレクト変更ハンドラ
+        function filterByDepartmentSelect(value) {
+            if (!value) {
+                currentResourceDeptFilter = "";
+                currentResourceMode = 'individual';
+                const backBar = document.getElementById("resource_back_bar");
+                if (backBar) backBar.style.display = "none";
+                const resourcePanel = document.getElementById("resource_panel");
+                if (resourcePanel) resourcePanel.style.display = "none";
+                const sel = document.getElementById('resource-dept-select');
+                if (sel) sel.value = '';
+                return;
+            }
+            filterByDepartment(value, null);
+        }
+
         // リソース画面を閉じる
         function closeResourcePanel() {
             const inp = document.getElementById("resource_owner_input");
@@ -3273,6 +3252,8 @@
             currentResourceDeptFilter = "";
             currentLocationResourceMode = false;
             document.getElementById('location_resource_btn')?.classList.remove('active');
+            const resourceDeptSel = document.getElementById('resource-dept-select');
+            if (resourceDeptSel) resourceDeptSel.value = '';
             updateResourceVisibility();
         }
 
