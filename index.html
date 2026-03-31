@@ -199,8 +199,8 @@
         .resource-location-btn { background-color: #fdf2f2; border-color: #f1948a; color: #c0392b; font-weight: bold; }
         .resource-location-btn.active { background-color: #c0392b; color: #fff; border-color: #c0392b; }
 
-        /* 出張予定・完了済みボタン共通スタイル */
-        #sort_business_trip_btn, #kanryo-btn {
+        /* 出張予定ボタンスタイル */
+        #sort_business_trip_btn {
             background-color: #fdf2f2;
             border-color: #f1948a;
             color: #c0392b;
@@ -899,9 +899,9 @@
         #new-project-modal-body label { font-size:12px; color:#555; margin-bottom:2px; display:block; }
         #new-project-modal-body input { width:100%; padding:5px 8px; border:1px solid #ccc; border-radius:4px; font-size:13px; box-sizing:border-box; }
         #new-project-modal-footer { padding:10px 18px 14px; display:flex; gap:8px; justify-content:flex-end; }
-        #kanryo-modal-overlay { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); z-index:10000; display:none; align-items:center; justify-content:center; }
-        #kanryo-modal-overlay.visible { display:flex; }
-        #kanryo-modal { background:#fff; border-radius:6px; box-shadow:0 4px 20px rgba(0,0,0,0.3); width:620px; height:60vh; display:flex; flex-direction:column; overflow:hidden; }
+        #kanryo-modal-overlay { position:fixed; top:0; left:0; width:100%; height:100%; background:transparent; z-index:10000; display:none; }
+        #kanryo-modal-overlay.visible { display:block; }
+        #kanryo-modal { position:fixed; background:#fff; border-radius:6px; box-shadow:0 4px 20px rgba(0,0,0,0.3); width:620px; height:60vh; display:flex; flex-direction:column; overflow:hidden; }
         #kanryo-modal-header { background:#2c3e50; color:#fff; padding:8px 14px; display:flex; align-items:center; justify-content:space-between; }
         #kanryo-modal-header span { font-size:14px; font-weight:bold; }
         #kanryo-modal-tabs { display:flex; border-bottom:1px solid #ddd; background:#f8f9fa; }
@@ -972,6 +972,7 @@
         <div class="header-panel">
             <div class="input-row">
                 <button class="btn-add" id="new_project_btn" onclick="toggleNewProjectForm()" style="display:none;">新規受注</button>
+                <button id="kanryo-btn" class="btn-add" onclick="openKanryoModal('kanri')" style="display:none; margin-left:4px;">完了済み</button>
                 <span style="margin-left: auto; display:flex; align-items:center; gap:4px; font-size: 13px; font-weight: bold; color: #333;">
                     <span style="color: #d32f2f; font-size: 20px;">●</span> 外観検査
                     <span style="margin-left: 10px; color: #FBAD4F; font-size: 22px;">▲</span> 客先立会
@@ -1041,7 +1042,6 @@
             <div class="filter-group">
                 <button class="zoom-btn resource-location-btn" id="location_resource_btn" onclick="toggleLocationResource(this)">組立場所</button>
                 <button id="sort_business_trip_btn" class="zoom-btn" onclick="handleBusinessTripBtn()" style="margin-left: 4px;">出張予定</button>
-                <button id="kanryo-btn" class="zoom-btn" onclick="openKanryoModal('kanri')" style="margin-left: 4px;">完了済み</button>
             </div>
         </div>
 
@@ -1110,6 +1110,7 @@
             _isEditor = isEditor;
             gantt.config.readonly = !isEditor;
             document.getElementById('new_project_btn').style.display = isEditor ? '' : 'none';
+            document.getElementById('kanryo-btn').style.display = isEditor ? '' : 'none';
             const authBtn = document.getElementById('auth_btn');
             if (authBtn) {
                 authBtn.textContent = isEditor ? 'ログアウト' : 'ログイン';
@@ -5230,6 +5231,21 @@
 
         function openKanryoModal(tab) {
             currentKanryoTab = tab || 'kanri';
+            const btn = document.getElementById('kanryo-btn');
+            const rect = btn.getBoundingClientRect();
+            const modal = document.getElementById('kanryo-modal');
+            const modalWidth = 620;
+            let left = rect.left;
+            if (left + modalWidth > window.innerWidth - 8) {
+                left = window.innerWidth - modalWidth - 8;
+            }
+            const modalHeightApprox = window.innerHeight * 0.6;
+            let top = rect.bottom + 4;
+            if (top + modalHeightApprox > window.innerHeight - 8) {
+                top = rect.top - modalHeightApprox - 4;
+            }
+            modal.style.top = top + 'px';
+            modal.style.left = left + 'px';
             document.getElementById('kanryo-modal-overlay').classList.add('visible');
             renderKanryoTab(currentKanryoTab);
         }
