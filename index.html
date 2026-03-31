@@ -973,14 +973,16 @@
             <div class="input-row">
                 <button class="btn-add" id="new_project_btn" onclick="toggleNewProjectForm()" style="display:none;">新規受注</button>
                 <button id="kanryo-btn" class="btn-add" onclick="openKanryoModal('kanri')" style="display:none; margin-left:4px;">完了済み</button>
-                <span style="margin-left: auto; display:flex; align-items:center; gap:4px; font-size: 13px; font-weight: bold; color: #333;">
-                    <span style="color: #d32f2f; font-size: 20px;">●</span> 外観検査
+                <span id="mark-legend" style="display:flex; align-items:center; gap:4px; font-size: 13px; font-weight: bold; color: #333;">
+                    <span>🚚</span> 部品送り開始日
+                    <span style="margin-left: 10px; color: #d32f2f; font-size: 20px;">●</span> 外観検査
                     <span style="margin-left: 10px; color: #FBAD4F; font-size: 22px;">▲</span> 客先立会
                     <span style="margin-left: 10px; color: #1976D2; font-size: 20px;">◆</span> 出荷確認会議
                     <span style="margin-left: 10px; color: #2E7D32; font-size: 22px;">★</span> 工場出荷
-                    <span style="margin-left: 10px;">🚚</span> 部品送り開始日
-                    <span id="save-status" style="font-size:10px; color:#999; margin-left:10px;"></span>
-                    <button id="auth_btn" onclick="handleAuthBtn()" style="margin-left:10px;">ログイン</button>
+                </span>
+                <span style="margin-left:auto; display:flex; align-items:center; gap:4px;">
+                    <span id="save-status" style="font-size:10px; color:#999;"></span>
+                    <button id="auth_btn" onclick="handleAuthBtn()" style="margin-left:4px;">ログイン</button>
                 </span>
             </div>
             <div class="input-row" style="border-top: 1px solid #eee;">
@@ -2795,6 +2797,9 @@
             const style = document.createElement('style');
             style.textContent = `.resource-grid-container { width: ${actualWidth}px !important; min-width: ${actualWidth}px !important; } .resource-grid { width: ${actualWidth}px !important; min-width: ${actualWidth}px !important; }`;
             document.head.appendChild(style);
+            // マーク一覧の開始位置をグリッド幅に合わせる
+            const legend = document.getElementById('mark-legend');
+            if (legend) legend.style.marginLeft = (actualWidth - 80) + 'px';
         })();
 
         // ツリー展開・折り畳み後にカレンダーヘッダーが消える問題を修正
