@@ -17,6 +17,7 @@
         #gantt_here .gantt_scale_cell { font-family: "メイリオ", sans-serif !important; background-color: #90a4ae !important; color: #555555 !important; border-right: 1px solid rgba(255,255,255,0.4) !important; }
         #gantt_here .gantt_scale_cell.scale_saturday { color: #5577aa !important; }
         #gantt_here .gantt_scale_cell.scale_sunday { color: #aa5555 !important; }
+        #gantt_here .gantt_scale_cell.scale_holiday { color: #aa5555 !important; }
         #gantt_here .gantt_grid_scale { background-color: #90a4ae !important; }
         #gantt_here .gantt_scale_line { background-color: #90a4ae !important; }
         .header-panel *, .toolbar * { font-size: 13px !important; }
@@ -2595,8 +2596,8 @@
             levels: [
                 { name: "days", scale_height: 66, min_column_width: 22, scales: [
                     { unit: "month", step: 1, format: "%Y/%n", css: () => "month-end-cell" },
-                    { unit: "day", step: 1, format: "%j", css: (date) => (isWeekendOrHoliday(date) ? "weekend" : "") + (isMonthEndDate(date) ? " month-end-cell" : "") + (date.getDay() === 6 ? " scale_saturday" : date.getDay() === 0 ? " scale_sunday" : "") },
-                    { unit: "day", step: 1, format: (date) => dayNames[date.getDay()], css: (date) => (isWeekendOrHoliday(date) ? "weekend" : "") + (isMonthEndDate(date) ? " month-end-cell" : "") + (date.getDay() === 6 ? " scale_saturday" : date.getDay() === 0 ? " scale_sunday" : "") }
+                    { unit: "day", step: 1, format: "%j", css: (date) => { const ds = date.getFullYear()+"-"+String(date.getMonth()+1).padStart(2,"0")+"-"+String(date.getDate()).padStart(2,"0"); const isHol = holidaySet.has(ds) && date.getDay()!==0; return (isWeekendOrHoliday(date) ? "weekend" : "") + (isMonthEndDate(date) ? " month-end-cell" : "") + (date.getDay() === 0 ? " scale_sunday" : isHol ? " scale_holiday" : date.getDay() === 6 ? " scale_saturday" : ""); } },
+                    { unit: "day", step: 1, format: (date) => dayNames[date.getDay()], css: (date) => { const ds = date.getFullYear()+"-"+String(date.getMonth()+1).padStart(2,"0")+"-"+String(date.getDate()).padStart(2,"0"); const isHol = holidaySet.has(ds) && date.getDay()!==0; return (isWeekendOrHoliday(date) ? "weekend" : "") + (isMonthEndDate(date) ? " month-end-cell" : "") + (date.getDay() === 0 ? " scale_sunday" : isHol ? " scale_holiday" : date.getDay() === 6 ? " scale_saturday" : ""); } }
                 ]},
                 { name: "weeks", scale_height: 66, min_column_width: 22, scales: [
                     { unit: "month", step: 1, format: "%Y/%n" },
