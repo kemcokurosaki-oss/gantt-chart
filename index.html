@@ -1028,7 +1028,6 @@
             <div class="filter-group">
                 <button id="resource-dept-toggle" class="zoom-btn" onclick="toggleResourceDeptPanel()" style="font-size:13px;">部署別リソース ▼</button>
                 <div id="resource-dept-panel" style="display:none; gap:4px; align-items:center; flex-wrap:wrap;">
-                    <input type="text" id="resource_owner_input" placeholder="担当名を入力..." autocomplete="off" readonly onfocus="this.removeAttribute('readonly')" style="width:120px; padding:3px; border:1px solid #ccc; border-radius:3px; font-size:11px;" oninput="if(!this.value.includes('@'))showResourceViewByOwner(this.value)">
                     <button class="zoom-btn resource-dept-btn" onclick="filterByDepartment('営業', this)">営業</button>
                     <button class="zoom-btn resource-dept-btn" onclick="filterByDepartment('設計', this)">設計</button>
                     <button class="zoom-btn resource-dept-btn" onclick="filterByDepartment('製管', this)">製管</button>
@@ -3147,7 +3146,7 @@
                             <div class="resource-cell" style="width: ${COLUMN_WIDTHS[6]}px; border-right: 1px solid #eee;"></div>
                             <div class="resource-cell" style="width: ${COLUMN_WIDTHS[7]}px; border-right: 1px solid #eee;"></div>
                             <div class="resource-cell" style="width: ${COLUMN_WIDTHS[8]}px; border-right: 1px solid #eee;"></div>
-                            <div class="resource-cell owner-name-cell" style="width: ${COLUMN_WIDTHS[9]}px; padding: 0 4px; display: flex; align-items: center; font-size: 14px; font-weight: normal; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer;" onclick="showResourceViewByOwner('${ownerName.replace(/'/g, "\\'")}')">
+                            <div class="resource-cell owner-name-cell" style="width: ${COLUMN_WIDTHS[9]}px; padding: 0 4px; display: flex; align-items: center; font-size: 14px; font-weight: normal; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                                 <span class="${dotColorClass}" style="margin-right: 4px; font-size: 14px; display: ${dotDisplay};">●</span>${ownerName.replace(/\d+/g, "")}
                             </div>
                         </div>
