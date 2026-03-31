@@ -987,7 +987,7 @@
             </div>
             <div class="input-row" style="border-top: 1px solid #eee;">
                 <button class="zoom-btn" style="font-size: 12px; background-color:#e67e22; border-color:#d35400; color:#fff; font-weight:bold; margin-right:10px;" onclick="resetFilter()">表示リセット</button>
-                <span style="font-size: 13px; margin-right: 5px;">表示順：</span>
+                <span style="font-size: 13px;">表示順：</span>
                 <button id="sort_process_btn" class="zoom-btn active" onclick="setDisplayMode('process')">工程別</button>
                 <button id="sort_machine_btn" class="zoom-btn" onclick="setDisplayMode('machine')">機械別</button>
                 <div style="display:flex; align-items:center; gap:6px; margin-left:16px;">
@@ -2035,7 +2035,7 @@
         });
         gantt.locale.labels.section_project_number = "工事番号";
         gantt.locale.labels.section_parent_name = "見出し名";
-        gantt.locale.labels.section_major_item = "フィルタ色分け";
+        gantt.locale.labels.section_major_item = "部署";
         gantt.locale.labels.section_machine = "機械";
         gantt.locale.labels.section_unit = "ユニット";
         gantt.locale.labels.section_description = "タスク名";
