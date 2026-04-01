@@ -4634,23 +4634,53 @@
             document.querySelectorAll('.major-filter-btn').forEach(b => b.classList.toggle('active', b.innerText === major && currentMajorFilter)); 
             gantt.scrollTo(scrollState.x, scrollState.y);
         }
-        async function filterByOwner(val) { 
-            const scrollState = gantt.getScrollState();
-            currentOwnerFilter = (val || "").trim(); 
-            gantt.render(); 
-            gantt.scrollTo(scrollState.x, scrollState.y);
+        function _expandAllVirtual() {
+            gantt.eachTask(function(task) {
+                if (task.$virtual) gantt.open(task.id);
+            });
+        }
+        function _collapseAllVirtual() {
+            gantt.eachTask(function(task) {
+                if (task.$virtual) gantt.close(task.id);
+            });
+        }
+        function _hasActiveSearchFilter() {
+            return !!(currentOwnerFilter || currentMachineFilter || currentTaskFilter);
+        }
+
+        let _filterDebounceTimer = null;
+        function _applyFilterDebounced(setFn, expandIfActive) {
+            setFn();
+            clearTimeout(_filterDebounceTimer);
+            _filterDebounceTimer = setTimeout(function() {
+                const scrollState = gantt.getScrollState();
+                gantt.render();
+                if (expandIfActive()) {
+                    _expandAllVirtual();
+                } else if (!_hasActiveSearchFilter()) {
+                    _collapseAllVirtual();
+                }
+                gantt.scrollTo(scrollState.x, scrollState.y);
+            }, 100);
+        }
+
+        async function filterByOwner(val) {
+            _applyFilterDebounced(
+                () => { currentOwnerFilter = (val || "").trim(); },
+                () => !!currentOwnerFilter
+            );
         }
         function filterByMachine(val) {
-            const scrollState = gantt.getScrollState();
-            currentMachineFilter = val;
-            gantt.render();
-            gantt.scrollTo(scrollState.x, scrollState.y);
+            _applyFilterDebounced(
+                () => { currentMachineFilter = (val || "").trim(); },
+                () => !!currentMachineFilter
+            );
         }
         function filterByTaskName(val) {
-            const scrollState = gantt.getScrollState();
-            currentTaskFilter = (val || "").trim();
-            gantt.render();
-            gantt.scrollTo(scrollState.x, scrollState.y);
+            _applyFilterDebounced(
+                () => { currentTaskFilter = (val || "").trim(); },
+                () => !!currentTaskFilter
+            );
         }
 
         function toggleSearchFilterPanel() {
