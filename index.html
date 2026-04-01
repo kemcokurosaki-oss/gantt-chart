@@ -2017,18 +2017,57 @@
             });
         });
 
+        // 部署プルダウン変更時に担当チェックボックスをリアルタイム更新
+        function _refreshOwnerCheckboxes(majorItem) {
+            const container = document.querySelector('.owner_selector_container');
+            if (!container) return;
+            const options = getOwnerOptions(majorItem || "");
+            // 現在チェック済みの担当者を保持
+            const checked = Array.from(container.querySelectorAll('input[name="owner_checkbox"]:checked')).map(el => el.value);
+            const mainChecked = (container.querySelector('input[name="main_owner_radio"]:checked') || {}).value || "";
+            let html = "";
+            if (options.length === 0) {
+                html = "<span style='color: #999; font-size: 11px;'>部署を選択してください</span>";
+            } else {
+                options.forEach(opt => {
+                    const isChecked = checked.includes(opt.key) ? "checked" : "";
+                    const isMain = mainChecked === opt.key ? "checked" : "";
+                    html += `<label style='display: inline-flex; align-items: center; gap: 3px; cursor: pointer; font-size: 11px;'>
+                                <input type='radio' name='main_owner_radio' value='${opt.key}' ${isMain} title='メイン担当に設定' style='vertical-align: middle; cursor: pointer;'>
+                                <input type='checkbox' name='owner_checkbox' value='${opt.key}' ${isChecked} style='vertical-align: middle;'> ${opt.label}
+                             </label>`;
+                });
+            }
+            container.innerHTML = html;
+        }
+
         gantt.attachEvent("onLightboxChange", function(id, name, value) {
             if (name === "major_item") {
-                const ownerSection = gantt.getLightboxSection("owner");
-                if (ownerSection) {
-                    // タスクの major_item を一時的に更新して、set_value が正しいリストを表示できるようにする
-                    const task = gantt.getTask(id);
-                    task.major_item = value;
-                    
-                    // set_value を呼び出してチェックボックス一覧を再描画
-                    ownerSection.set_value(ownerSection.control, task.owner, task);
-                }
+                const task = gantt.getTask(id);
+                task.major_item = value;
+                _refreshOwnerCheckboxes(value);
             }
+        });
+
+        // onLightboxReady で部署 select に直接 change リスナーを付ける（onLightboxChange が発火しない場合の保険）
+        gantt.attachEvent("onLightboxReady", function() {
+            setTimeout(function() {
+                const lightbox = document.querySelector(".gantt_cal_light");
+                if (!lightbox) return;
+                // 部署プルダウンは majorItemOptions の値（"営業"等）を持つ select
+                const selects = lightbox.querySelectorAll("select");
+                let majorSelect = null;
+                selects.forEach(function(sel) {
+                    const vals = Array.from(sel.options).map(function(o) { return o.value; });
+                    if (vals.includes("営業") || vals.includes("設計") || vals.includes("組立")) {
+                        majorSelect = sel;
+                    }
+                });
+                if (!majorSelect) return;
+                majorSelect.addEventListener("change", function() {
+                    _refreshOwnerCheckboxes(this.value);
+                });
+            }, 80);
         });
         gantt.locale.labels.section_project_number = "工事番号";
         gantt.locale.labels.section_parent_name = "見出し名";
