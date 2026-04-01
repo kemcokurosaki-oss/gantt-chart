@@ -972,8 +972,8 @@
     <div class="main-container">
         <div class="header-panel">
             <div class="input-row">
-                <button class="btn-add" id="new_project_btn" onclick="toggleNewProjectForm()" style="display:none;">新規受注</button>
-                <button id="kanryo-btn" class="btn-add" onclick="openKanryoModal('kanri')" style="display:none; margin-left:4px;">完了済み</button>
+                <button class="btn-add" id="new_project_btn" onclick="toggleNewProjectForm()" disabled>新規受注</button>
+                <button id="kanryo-btn" class="btn-add" onclick="openKanryoModal('kanri')" disabled style="margin-left:4px;">完了済み</button>
                 <span id="mark-legend" style="display:flex; align-items:center; gap:4px; font-size: 13px; font-weight: bold; color: #333;">
                     <span>🚚</span> 部品送り開始日
                     <span style="margin-left: 10px; color: #d32f2f; font-size: 20px;">●</span> 外観検査
@@ -1005,14 +1005,7 @@
 
         <div class="toolbar">
             <div class="filter-group" style="margin-left: 0; padding-left: 0; border-left: none;">
-                <span style="font-size:13px;">機械検索:</span>
-                <input type="text" id="machine_search" placeholder="機械名を入力..." style="width:100px; padding:1px 3px; border:1px solid #ccc; border-radius:3px; font-size:12px;" oninput="filterByMachine(this.value)">
-            </div>
-
-            <div class="filter-group">
-                <span style="font-size:13px;">担当検索:</span>
-                <input type="text" id="owner_search" placeholder="名前を入力..." autocomplete="off" readonly onfocus="this.removeAttribute('readonly')" style="width:100px; padding:1px 3px; border:1px solid #ccc; border-radius:3px; font-size:12px;" oninput="if(!this.value.includes('@'))filterByOwner(this.value)">
-                <button id="unassigned_filter_btn" class="filter-btn" onclick="toggleUnassignedFilter()" style="margin-left: 5px; font-size: 12px;">⚠️ 担当未定</button>
+                <button id="search-filter-toggle" class="zoom-btn" onclick="toggleSearchFilterPanel()" style="font-size:13px; display:flex; align-items:center; gap:3px;"><svg width="13" height="13" viewBox="0 0 14 14" style="display:block;"><path d="M1 2 Q1 1 2 1 L12 1 Q13 1 13 2 Q13 2.5 11 5 L9 7.5 L9 12 Q9 13 8 12.5 L6 11.5 Q5 11 5 10 L5 7.5 L3 5 Q1 2.5 1 2 Z" fill="currentColor" opacity="0.85"/><rect x="3.5" y="2.5" width="7" height="1.2" rx="0.6" fill="white" opacity="0.5"/></svg> 検索</button>
             </div>
 
             <div class="filter-group" style="align-items:center;">
@@ -1113,8 +1106,10 @@
         function _updateUIForAuth(isEditor) {
             _isEditor = isEditor;
             gantt.config.readonly = !isEditor;
-            document.getElementById('new_project_btn').style.display = isEditor ? '' : 'none';
-            document.getElementById('kanryo-btn').style.display = isEditor ? '' : 'none';
+            document.getElementById('new_project_btn').style.display = '';
+            document.getElementById('new_project_btn').disabled = !isEditor;
+            document.getElementById('kanryo-btn').style.display = '';
+            document.getElementById('kanryo-btn').disabled = !isEditor;
             const authBtn = document.getElementById('auth_btn');
             if (authBtn) {
                 authBtn.textContent = isEditor ? 'ログアウト' : 'ログイン';
@@ -1215,6 +1210,7 @@
         let isUnassignedOnly = false; // 担当未定フィルタの状態
         let currentOwnerFilterNoData = false; // tasks と task_template の両方に該当がないとき true
         let currentMachineFilter = "";
+        let currentTaskFilter = "";
         let currentLocationResourceMode = false; // 組立場所リソースモード
         let locationExpandedGroups = { "E1": true, "E3": true }; // 展開状態
         const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
@@ -2658,6 +2654,12 @@
             // 5. 機械フィルター (AND条件)
             if (currentMachineFilter) {
                 if (!task.machine || !task.machine.includes(currentMachineFilter)) return false;
+            }
+
+            // 5.5 タスク名フィルター（子タスクのみ）
+            if (currentTaskFilter) {
+                if (task.$virtual) return true; // 見出し行は後で子タスクチェック
+                if (!task.text || !task.text.includes(currentTaskFilter)) return false;
             }
 
             // 6. 未割当フィルター (AND条件)
@@ -4638,12 +4640,49 @@
             gantt.render(); 
             gantt.scrollTo(scrollState.x, scrollState.y);
         }
-        function filterByMachine(val) { 
+        function filterByMachine(val) {
             const scrollState = gantt.getScrollState();
-            currentMachineFilter = val; 
-            gantt.render(); 
+            currentMachineFilter = val;
+            gantt.render();
             gantt.scrollTo(scrollState.x, scrollState.y);
         }
+        function filterByTaskName(val) {
+            const scrollState = gantt.getScrollState();
+            currentTaskFilter = (val || "").trim();
+            gantt.render();
+            gantt.scrollTo(scrollState.x, scrollState.y);
+        }
+
+        function toggleSearchFilterPanel() {
+            const popup = document.getElementById('search-filter-popup');
+            const btn = document.getElementById('search-filter-toggle');
+            const isVisible = popup.style.display !== 'none';
+            if (isVisible) {
+                popup.style.display = 'none';
+                btn.classList.remove('active');
+            } else {
+                const rect = btn.getBoundingClientRect();
+                let left = rect.left;
+                const popupWidth = 220;
+                if (left + popupWidth > window.innerWidth - 8) left = window.innerWidth - popupWidth - 8;
+                popup.style.left = left + 'px';
+                popup.style.top = (rect.bottom + 4) + 'px';
+                popup.style.display = 'block';
+                btn.classList.add('active');
+                const ownerInput = document.getElementById('owner_search');
+                if (ownerInput) ownerInput.removeAttribute('readonly');
+            }
+        }
+
+        // ポップアップ外クリックで閉じる
+        document.addEventListener('click', function(e) {
+            const popup = document.getElementById('search-filter-popup');
+            const btn = document.getElementById('search-filter-toggle');
+            if (popup && popup.style.display !== 'none' && !popup.contains(e.target) && e.target !== btn && !btn.contains(e.target)) {
+                popup.style.display = 'none';
+                btn.classList.remove('active');
+            }
+        });
 
         function toggleUnassignedFilter() {
             const btn = document.getElementById("unassigned_filter_btn");
@@ -5375,6 +5414,26 @@
     </script>
 
     <!-- 完了済工番モーダル -->
+    <!-- ===== 検索フィルターポップアップ ===== -->
+    <div id="search-filter-popup" style="position:fixed; display:none; background:#fff; border-radius:6px; box-shadow:0 4px 16px rgba(0,0,0,0.2); border:1px solid #ddd; z-index:10000; padding:12px 14px; min-width:200px;">
+        <div style="font-size:12px; font-weight:bold; color:#555; margin-bottom:8px; border-bottom:1px solid #eee; padding-bottom:6px;">検索フィルター</div>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+            <div>
+                <label style="font-size:11px; color:#777; display:block; margin-bottom:2px;">機械検索</label>
+                <input type="text" id="machine_search" placeholder="機械名を入力..." style="width:100%; padding:3px 6px; border:1px solid #ccc; border-radius:3px; font-size:12px; box-sizing:border-box;" oninput="filterByMachine(this.value)">
+            </div>
+            <div>
+                <label style="font-size:11px; color:#777; display:block; margin-bottom:2px;">タスク検索</label>
+                <input type="text" id="task_search" placeholder="タスク名を入力..." style="width:100%; padding:3px 6px; border:1px solid #ccc; border-radius:3px; font-size:12px; box-sizing:border-box;" oninput="filterByTaskName(this.value)">
+            </div>
+            <div>
+                <label style="font-size:11px; color:#777; display:block; margin-bottom:2px;">担当検索</label>
+                <input type="text" id="owner_search" placeholder="名前を入力..." autocomplete="off" style="width:100%; padding:3px 6px; border:1px solid #ccc; border-radius:3px; font-size:12px; box-sizing:border-box;" oninput="if(!this.value.includes('@'))filterByOwner(this.value)">
+                <button id="unassigned_filter_btn" class="filter-btn" onclick="toggleUnassignedFilter()" style="margin-top:5px; font-size:12px; width:100%;">⚠️ 担当未定</button>
+            </div>
+        </div>
+    </div>
+
     <!-- ===== 新規受注モーダル ===== -->
     <div id="new-project-modal-overlay" onclick="closeNewProjectModal(event)">
         <div id="new-project-modal">
