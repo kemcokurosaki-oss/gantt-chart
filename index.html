@@ -2753,18 +2753,20 @@
             return isTaskVisible(task);
         });
 
-        // ========== 部品送り日マーク（ドラッグ可能・localStorage永続化） ==========
-        const PARTS_MARK_KEY = "partsDelivery_offsets";
+        // ========== 部品送り日マーク（ドラッグ可能・Supabase永続化） ==========
+        let _partsOffsets = {}; // { taskId(string): days(number) }
         let _markDragState = null;
 
         function getPartsOffsets() {
-            try { return JSON.parse(localStorage.getItem(PARTS_MARK_KEY) || "{}"); }
-            catch(e) { return {}; }
+            return _partsOffsets;
         }
-        function savePartsOffset(taskId, days) {
-            const offsets = getPartsOffsets();
-            offsets[String(taskId)] = days;
-            localStorage.setItem(PARTS_MARK_KEY, JSON.stringify(offsets));
+        async function savePartsOffset(taskId, days) {
+            _partsOffsets[String(taskId)] = days;
+            const { error } = await supabaseClient
+                .from('tasks')
+                .update({ parts_delivery_offset: days })
+                .eq('id', taskId);
+            if (error) console.error('部品送り日保存エラー:', error);
         }
 
         function renderPartsMarks() {
@@ -2832,7 +2834,7 @@
             _markDragState.el.style.left = Math.min(newLeft, maxLeft) + "px";
         });
 
-        // ドラッグ終了：日数を計算して localStorage に保存
+        // ドラッグ終了：日数を計算して Supabase に保存
         document.addEventListener("mouseup", function(e) {
             if (!_markDragState) return;
             const elLeft = parseFloat(_markDragState.el.style.left);
@@ -4094,6 +4096,14 @@
             }
 
             const MILESTONE_TEXTS = ["外観検査", "客先立会", "出荷確認会議", "工場出荷"];
+
+            // 部品送り日オフセットをSupabaseデータから初期化
+            _partsOffsets = {};
+            data.forEach(t => {
+                if (t.parts_delivery_offset != null) {
+                    _partsOffsets[String(t.id)] = t.parts_delivery_offset;
+                }
+            });
 
             const rawTasks = data.map(t => {
                 let areaGroup = t.area_group;
