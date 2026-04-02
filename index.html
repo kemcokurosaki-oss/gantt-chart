@@ -292,6 +292,7 @@
         .task-red, .gantt_project.task-red { background-color: #F1948A !important; border-color: #EC7063 !important; }
         .task-orange, .gantt_project.task-orange { background-color: #FBAD4F !important; border-color: #F8941D !important; }
         .task-purple, .gantt_project.task-purple { background-color: #D7BDE2 !important; border-color: #AF7AC5 !important; }
+        .task-teal, .gantt_project.task-teal { background-color: #F8A5C2 !important; border-color: #F46B8A !important; }
         
         /* 特殊タスク（マイルストーン）のスタイル - 非常に目立つ濃い色を設定 */
         .milestone-circle .gantt_task_content { display: none; }
@@ -789,6 +790,7 @@
         .resource-bar.task-red { background-color: #F1948A !important; border-color: #EC7063 !important; }
         .resource-bar.task-orange { background-color: #FBAD4F !important; border-color: #F8941D !important; }
         .resource-bar.task-purple { background-color: #D7BDE2 !important; border-color: #AF7AC5 !important; }
+        .resource-bar.task-teal { background-color: #F8A5C2 !important; border-color: #F46B8A !important; }
         /* マイルストーン：上段と同じ記号のみ表示 */
         .resource-bar.milestone-circle { background: none !important; border: none !important; }
         .resource-bar.milestone-circle .resource-bar-text { display: none; }
@@ -1019,6 +1021,7 @@
                     <option value="電装">電装</option>
                     <option value="品証">品証</option>
                     <option value="操業">操業</option>
+                    <option value="電技">電技</option>
                 </select>
             </div>
 
@@ -1033,6 +1036,7 @@
                     <option value="電装">電装</option>
                     <option value="品証">品証</option>
                     <option value="操業">操業</option>
+                    <option value="電技">電技</option>
                 </select>
             </div>
 
@@ -1430,6 +1434,7 @@
             { key: "電装", label: "電装" },
             { key: "品証", label: "品証" },
             { key: "操業", label: "操業" },
+            { key: "電技", label: "電技" },
             { key: "", label: "指定なし" }
         ];
 
@@ -1441,7 +1446,8 @@
             "組立": ["米澤", "桂", "香西", "古賀", "長谷川", "早川", "廣田", "宮本", "山下", "センティル", "増田", "千代盛", "外注"],
             "電装": ["木村(至)", "木村(圭)", "守時", "外注"],
             "品証": ["田中(孝)"],
-            "操業": ["堀尾", "三浦", "黒見", "大西(元)", "大西(優)", "木本", "前田", "本郷", "大重", "松本(幹)", "秋藤", "外注"]
+            "操業": ["堀尾", "三浦", "黒見", "大西(元)", "大西(優)", "木本", "前田", "本郷", "大重", "外注"],
+            "電技": ["松本(幹)", "秋藤"]
         };
 
         // 担当者ごとの色を決定する共通ロジック
@@ -2591,6 +2597,7 @@
                 case '組立': css += "task-yellow"; break;
                 case '電装': css += "task-purple"; break;
                 case '操業': css += "task-red"; break;
+                case '電技': css += "task-teal"; break;
                 case '営業': css += "task-orange"; break;
                 default: break;
             }
@@ -4005,6 +4012,7 @@
                 case '組立': return "task-yellow";
                 case '電装': return "task-purple";
                 case '操業': return "task-red";
+                case '電技': return "task-teal";
                 case '営業': return "task-orange";
                 default: return "";
             }
