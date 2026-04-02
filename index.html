@@ -2800,6 +2800,7 @@
                 el.style.top  = markTop  + "px";
 
                 el.addEventListener("mousedown", function(e) {
+                    if (!_isEditor) return;
                     e.preventDefault();
                     e.stopPropagation();
                     _markDragState = {
