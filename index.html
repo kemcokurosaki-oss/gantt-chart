@@ -2803,6 +2803,7 @@
                     if (!_isEditor) return;
                     e.preventDefault();
                     e.stopPropagation();
+                    e.stopImmediatePropagation();
                     _markDragState = {
                         taskId:      String(task.id),
                         taskPosLeft: pos.left,
@@ -2828,6 +2829,8 @@
         // ドラッグ移動
         document.addEventListener("mousemove", function(e) {
             if (!_markDragState) return;
+            e.stopPropagation();
+            e.preventDefault();
             const dx = e.clientX - _markDragState.startX;
             const newLeft = _markDragState.startLeft + dx;
             // タスク開始日の1日以上前に制限
@@ -2838,6 +2841,7 @@
         // ドラッグ終了：日数を計算して Supabase に保存
         document.addEventListener("mouseup", function(e) {
             if (!_markDragState) return;
+            e.stopPropagation();
             const elLeft = parseFloat(_markDragState.el.style.left);
             const markCenter = elLeft + _markDragState.markSize / 2;
             const rawDays = (_markDragState.taskPosLeft - markCenter) / _markDragState.colWidth;
@@ -2845,7 +2849,7 @@
             savePartsOffset(_markDragState.taskId, snappedDays);
             _markDragState.el.classList.remove("parts-delivery-mark--dragging");
             _markDragState = null;
-            gantt.render();
+            renderPartsMarks(); // gantt.render()の代わりにマークのみ再描画
         });
         // ========== 部品送り日マーク ここまで ==========
 
