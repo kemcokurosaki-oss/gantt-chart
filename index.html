@@ -968,6 +968,22 @@
         #auth_btn { font-size: 12px; padding: 1px 8px; cursor: pointer;
             border: 1px solid #ccc; border-radius: 4px; background: #f0f0f0; }
         #auth_btn.logged-in { background: #e8f5e9; color: #2e7d32; border-color: #a5d6a7; }
+
+        /* ===== ヘルプモード ===== */
+        #help_btn { font-size: 13px; padding: 1px 8px; font-weight: bold; color: #555; cursor: pointer; border: 1px solid #ccc; border-radius: 4px; background: #f0f0f0; }
+        #help_btn.help-active { background: #1565c0; color: #fff; border-color: #1565c0; }
+        #help_tips_container { display: none; position: fixed; inset: 0; z-index: 200000; pointer-events: none; }
+        #help_tips_container.open { display: block; }
+        #help_overlay_bg { position: absolute; inset: 0; background: rgba(0,0,0,0.52); pointer-events: all; cursor: default; }
+        .help-highlight { position: fixed; z-index: 200001; pointer-events: all; cursor: help; border-radius: 4px; box-shadow: 0 0 0 2px rgba(255,255,255,0.55), 0 0 8px 2px rgba(100,170,255,0.45); transition: box-shadow 0.18s; }
+        .help-highlight:hover { box-shadow: 0 0 0 3px #fff, 0 0 18px 6px rgba(80,160,255,0.9); }
+        .help-tip { position: fixed; z-index: 200002; pointer-events: none; background: #fff; border: 2px solid #1565c0; border-radius: 6px; padding: 7px 10px; min-width: 150px; max-width: 240px; box-shadow: 0 3px 14px rgba(0,0,0,0.35); font-size: 11px; font-family: 'メイリオ', Meiryo, sans-serif; line-height: 1.5; color: #333; opacity: 0; visibility: hidden; transition: opacity 0.15s; }
+        .help-tip.tip-visible { opacity: 1; visibility: visible; }
+        .help-tip-title { font-weight: bold; font-size: 12px; color: #1565c0; margin-bottom: 3px; }
+        .help-tip::before { content: ''; position: absolute; top: -8px; left: 12px; width: 0; height: 0; border-left: 7px solid transparent; border-right: 7px solid transparent; border-bottom: 8px solid #1565c0; }
+        .help-tip::after { content: ''; position: absolute; top: -5px; left: 13px; width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 6px solid #fff; }
+        .help-tip.tip-above::before { top: auto; bottom: -8px; border-bottom: none; border-top: 8px solid #1565c0; }
+        .help-tip.tip-above::after { top: auto; bottom: -5px; border-bottom: none; border-top: 6px solid #fff; }
     </style>
 </head>
 <body>
@@ -985,11 +1001,12 @@
                 </span>
                 <span style="margin-left:auto; display:flex; align-items:center; gap:4px;">
                     <span id="save-status" style="font-size:10px; color:#999;"></span>
+                    <button id="help_btn" onclick="openHelp()" title="使い方ガイド">？</button>
                     <button id="auth_btn" onclick="handleAuthBtn()" style="margin-left:4px;">ログイン</button>
                 </span>
             </div>
             <div class="input-row" style="border-top: 1px solid #eee;">
-                <button class="zoom-btn" style="font-size: 12px; background-color:#e67e22; border-color:#d35400; color:#fff; font-weight:bold; margin-right:10px;" onclick="resetFilter()">表示リセット</button>
+                <button id="reset_filter_btn" class="zoom-btn" style="font-size: 12px; background-color:#e67e22; border-color:#d35400; color:#fff; font-weight:bold; margin-right:10px;" onclick="resetFilter()">表示リセット</button>
                 <span style="font-size: 13px;">表示順：</span>
                 <button id="sort_process_btn" class="zoom-btn active" onclick="setDisplayMode('process')">工程別</button>
                 <button id="sort_machine_btn" class="zoom-btn" onclick="setDisplayMode('machine')">機械別</button>
@@ -997,7 +1014,7 @@
                     <span style="font-size: 13px;">表示切替:</span>
                     <button id="zoom_days_btn" class="zoom-btn active" style="font-size: 12px;" onclick="setZoom('days')">日単位</button>
                     <button id="zoom_weeks_btn" class="zoom-btn" style="font-size: 12px;" onclick="setZoom('weeks')">週単位</button>
-                    <button class="zoom-btn" onclick="scrollToToday()" style="background-color: #ebf5ff; border-color: #3498db; color: #3498db; font-size: 12px;">今日へ移動</button>
+                    <button id="scroll_today_btn" class="zoom-btn" onclick="scrollToToday()" style="background-color: #ebf5ff; border-color: #3498db; color: #3498db; font-size: 12px;">今日へ移動</button>
                 </div>
                 <div style="margin-left:auto; display:flex; align-items:center; gap:6px;">
                     <span id="filter_status" style="font-weight:bold; color:#3498db; font-size: 12px; display:none;"></span>
@@ -5488,6 +5505,108 @@
         }
         // ===== 完了済工番 ここまで =====
 
+        // ===== ヘルプモード =====
+        var HELP_TIPS = [
+            { id: 'new_project_btn',       title: '新規受注',         text: '新しい工事番号を登録します\n（要ログイン）' },
+            { id: 'reset_filter_btn',      title: '表示リセット',     text: '部署フィルタ・担当者フィルタ・工事番号フィルタを\nすべて解除して全表示に戻します' },
+            { id: 'kanryo-btn',            title: '完了済み',         text: '完了済み工番の一覧を表示\n過去の工事を参照できます\n（要ログイン）' },
+            { id: 'help_btn',              title: 'ヘルプ',           text: 'このヘルプを表示します\nもう一度クリックで閉じます' },
+            { id: 'auth_btn',              title: 'ログイン',         text: '編集者としてログイン\nログイン後は追加・編集・削除が可能になります' },
+            { id: 'sort_process_btn',      title: '工程別表示',       text: '部署の工程順にタスクを並べて表示\nデフォルトの表示モードです' },
+            { id: 'sort_machine_btn',      title: '機械別表示',       text: '機械番号ごとにタスクをまとめて表示\n機械単位の進捗確認に便利です' },
+            { id: 'zoom_days_btn',         title: '日単位',           text: '1日単位でガントチャートを表示\n詳細なスケジュールの確認に' },
+            { id: 'zoom_weeks_btn',        title: '週単位',           text: '1週単位で広い範囲を一覧表示\n全体スケジュールの把握に' },
+            { id: 'scroll_today_btn',      title: '今日へ移動',       text: 'ガントチャートを今日の日付へスクロール' },
+            { id: 'search-filter-toggle',  title: '検索フィルター',   text: '機械番号やタスク名で絞り込み\nクリックで検索パネルを開閉' },
+            { id: 'major-filter-select',   title: '部署別フィルタ',   text: '選択した部署のタスクだけを表示\nバーの色も部署ごとに色分けされます' },
+            { id: 'resource-dept-select',  title: '部署別リソース',   text: '選択した部署の担当者ごとの\nリソース状況を下部パネルに表示' },
+            { id: 'location_resource_btn', title: '組立場所',         text: '組立エリアの場所別リソースを表示\nE1/E2などのエリアで確認できます' },
+            { id: 'sort_business_trip_btn',title: '出張予定',         text: '出張タスクの一覧と\n担当者ごとのスケジュールを表示' },
+        ];
+
+        function openHelp() {
+            var helpBtn = document.getElementById('help_btn');
+            if (helpBtn.classList.contains('help-active')) { closeHelp(); return; }
+            helpBtn.classList.add('help-active');
+            var container = document.getElementById('help_tips_container');
+            container.innerHTML = '<div id="help_overlay_bg"></div>';
+            document.getElementById('help_overlay_bg').addEventListener('click', closeHelp);
+            container.classList.add('open');
+
+            HELP_TIPS.forEach(function(tipDef) {
+                var el = document.getElementById(tipDef.id);
+                if (!el) return;
+                var rect = el.getBoundingClientRect();
+                if (rect.width === 0 || rect.height === 0) return;
+                var cs = window.getComputedStyle(el);
+                if (cs.display === 'none' || cs.visibility === 'hidden') return;
+                addHelpItem(container, tipDef, rect);
+            });
+
+            // 工事一覧サイドバー
+            var sidebarEl = document.querySelector('.sidebar');
+            if (sidebarEl) {
+                var sr = sidebarEl.getBoundingClientRect();
+                if (sr.width > 0 && sr.height > 0) {
+                    addHelpItem(container, { title: '工事一覧', text: 'クリックで工事を選択・フィルタ\n工事番号と状態が一覧表示されます\n▼ボタンで2000番台などに絞り込み可' }, sr);
+                }
+            }
+
+            // ガントチャートエリア
+            var ganttEl = document.getElementById('gantt_here');
+            if (ganttEl) {
+                var gr = ganttEl.getBoundingClientRect();
+                if (gr.width > 0 && gr.height > 0) {
+                    addHelpItem(container, { title: 'ガントチャート', text: 'タスクバーをクリック → 詳細編集\nバーをドラッグ → 日程変更\nダブルクリック → 担当者・詳細編集\nバーの色 → 部署ごとに色分け' }, gr);
+                }
+            }
+        }
+
+        function addHelpItem(container, tip, rect) {
+            var hl = document.createElement('div');
+            hl.className = 'help-highlight';
+            hl.style.top    = rect.top  + 'px';
+            hl.style.left   = rect.left + 'px';
+            hl.style.width  = (rect.right - rect.left) + 'px';
+            hl.style.height = (rect.bottom - rect.top) + 'px';
+            container.appendChild(hl);
+
+            var tipDiv = document.createElement('div');
+            tipDiv.className = 'help-tip';
+            tipDiv.innerHTML = '<div class="help-tip-title">' + (tip.title || '') + '</div>' + tip.text.replace(/\n/g, '<br>');
+            container.appendChild(tipDiv);
+
+            requestAnimationFrame(function() {
+                var vw = window.innerWidth;
+                var vh = window.innerHeight;
+                var tw = tipDiv.offsetWidth;
+                var th = tipDiv.offsetHeight;
+                var top  = rect.bottom + 8;
+                var left = rect.left;
+                if (left + tw > vw - 8) left = vw - tw - 8;
+                if (left < 4) left = 4;
+                if (top + th > vh - 8) {
+                    top = rect.top - th - 8;
+                    if (top < 4) top = 4;
+                    tipDiv.classList.add('tip-above');
+                }
+                tipDiv.style.top  = top  + 'px';
+                tipDiv.style.left = left + 'px';
+            });
+
+            hl.addEventListener('mouseenter', function() { tipDiv.classList.add('tip-visible'); });
+            hl.addEventListener('mouseleave', function() { tipDiv.classList.remove('tip-visible'); });
+        }
+
+        function closeHelp() {
+            document.getElementById('help_btn').classList.remove('help-active');
+            var container = document.getElementById('help_tips_container');
+            container.classList.remove('open');
+            container.innerHTML = '';
+        }
+        document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeHelp(); });
+        // ===== ヘルプモード ここまで =====
+
     </script>
 
     <!-- 完了済工番モーダル -->
@@ -5586,6 +5705,9 @@
         <button id="login_btn_cancel" onclick="closeLoginDialog()">キャンセル</button>
     </div>
 </div>
+
+<!-- ヘルプモード コンテナ -->
+<div id="help_tips_container"></div>
 
 </body>
 </html>
