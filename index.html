@@ -4283,25 +4283,19 @@
                             let maxEnd = null;
 
                             if (pName === "基本設計＆計画承認") {
-                                // 編集されたタスク（textが空でない、またはdurationがテンプレートと異なるなど）は自動計算しない
-                                // ここでは暫定的に、textが空（新規作成直後の状態）の場合のみ自動計算を適用する
-                                const isInitialTask = tasksInParent.every(t => !t.text || t.text.trim() === "");
-                                
-                                if (isInitialTask) {
-                                    const orderTasks = taskByParent["受注"];
-                                    const drawingTasks = taskByParent["出図＆部品手配"];
-    
-                                    if (orderTasks && orderTasks.length > 0 && drawingTasks && drawingTasks.length > 0) {
-                                        const orderStart = new Date(orderTasks[0].start_date);
-                                        minStart = gantt.calculateEndDate(orderStart, orderTasks[0].duration);
-                                        maxEnd = new Date(drawingTasks[0].start_date);
-                                        const diffTime = maxEnd.getTime() - minStart.getTime();
-                                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                                        tasksInParent.forEach(t => {
-                                            t.start_date = minStart;
-                                            t.duration = diffDays > 0 ? diffDays : 1;
-                                        });
-                                    }
+                                const orderTasks = taskByParent["受注"];
+                                const drawingTasks = taskByParent["出図＆部品手配"];
+
+                                if (orderTasks && orderTasks.length > 0 && drawingTasks && drawingTasks.length > 0) {
+                                    const orderStart = new Date(orderTasks[0].start_date);
+                                    minStart = gantt.calculateEndDate(orderStart, orderTasks[0].duration);
+                                    maxEnd = new Date(drawingTasks[0].start_date);
+                                    const diffTime = maxEnd.getTime() - minStart.getTime();
+                                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                                    tasksInParent.forEach(t => {
+                                        t.start_date = minStart;
+                                        t.duration = diffDays > 0 ? diffDays : 1;
+                                    });
                                 }
                             }
 
