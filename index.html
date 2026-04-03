@@ -1646,7 +1646,7 @@
 
         // タスク名のプルダウン選択肢
         const taskNameOptions = [
-            { label: "受注", options: ["受注説明会"] },
+            { label: "受注", options: ["受注日", "受注説明会"] },
             { label: "基本設計＆計画承認", options: ["計画設計", "計画図客先提出", "客先承認", "操作盤外形図検討", "外形図客先提出", "電気図面設計", "電気図面客先提出", "客先承認"] },
             { label: "長納期品手配", options: ["長納期製作品", "長納期購入品", "長納期電気品"] },
             { label: "出図＆部品手配", options: ["出図", "製作品納期", "購入品納期", "組立図", "神戸送り開始日"] },
@@ -1654,7 +1654,7 @@
             { label: "盤製作", options: ["盤組立"] },
             { label: "組立全体", options: ["機械組立", "電気艤装"] },
             { label: "外観検査", options: ["外観検査"] },
-            { label: "試運転", options: ["IOチェック", "単体動作確認", "全体動作確認", "プログラム調整", "機械調整", "サイクルタイム確認"] },
+            { label: "試運転", options: ["試運転"] },
             { label: "客先立会", options: ["客先立会"] },
             { label: "出荷確認会議", options: ["出荷確認会議"] },
             { label: "出荷", options: ["出荷準備", "工場出荷"] }
@@ -4044,6 +4044,7 @@
 
         let _ganttFirstLoad = true;          // 初回ロードフラグ
         const _headerOpenStates = {};        // 見出し行の開閉状態 { taskId: true/false }
+        let _newlyCreatedProject = null;     // 新規作成直後の工番（fetchTasks後に見出し行を開く）
 
         // ユーザー操作 or プログラム呼び出しで開閉が変わったとき即時記録
         gantt.attachEvent("onTaskOpened", function(id) {
@@ -4401,10 +4402,16 @@
                 } else if (tracked === false) {
                     gantt.close(task.id);
                 } else {
-                    // 未記録（初回）：すべて閉じる
-                    gantt.close(task.id);
+                    // 未記録（初回）：新規作成直後の工番は開く、それ以外は閉じる
+                    if (_newlyCreatedProject && pNum === String(_newlyCreatedProject)) {
+                        gantt.open(task.id);
+                        _headerOpenStates[id] = true;
+                    } else {
+                        gantt.close(task.id);
+                    }
                 }
             });
+            _newlyCreatedProject = null; // リセット
             _ganttFirstLoad = false;
 
             gantt.config.start_date = new Date(GANTT_START_DATE.getTime());
@@ -4927,21 +4934,57 @@
                 }
 
                 // パターンA・B は子タスクとして作成（text=タスク名、parent=""）
-                // 2000番台（task_template）は見出し行として作成（text=""、parent=見出し名）
+                // 2000番台（task_template）は taskNameOptions の選択肢をすべて子タスクとして作成
                 const isChildTaskPattern = (templateTable === 'task_template_a' || templateTable === 'task_template_b');
-                newTasks.push({
-                    project_number: projectNumber,
-                    customer_name: customerName || "",
-                    project_details: projectDetails || "",
-                    text: isChildTaskPattern ? item.name : "",
-                    parent: isChildTaskPattern ? "" : item.name,
-                    major_item: item.major_item || null,
-                    start_date: startDateStr,
-                    duration: duration,
-                    owner: "",
-                    machine: "",
-                    unit: ""
-                });
+                if (isChildTaskPattern) {
+                    newTasks.push({
+                        project_number: projectNumber,
+                        customer_name: customerName || "",
+                        project_details: projectDetails || "",
+                        text: item.name,
+                        parent: "",
+                        major_item: item.major_item || null,
+                        start_date: startDateStr,
+                        duration: duration,
+                        owner: "",
+                        machine: "",
+                        unit: ""
+                    });
+                } else {
+                    const taskNameGroup = taskNameOptions.find(g => g.label === item.name);
+                    if (taskNameGroup && taskNameGroup.options.length > 0) {
+                        taskNameGroup.options.forEach(optName => {
+                            newTasks.push({
+                                project_number: projectNumber,
+                                customer_name: customerName || "",
+                                project_details: projectDetails || "",
+                                text: optName,
+                                parent: item.name,
+                                major_item: item.major_item || null,
+                                start_date: startDateStr,
+                                duration: duration,
+                                owner: "",
+                                machine: "",
+                                unit: ""
+                            });
+                        });
+                    } else {
+                        // taskNameOptions に定義のない見出しは空タスク1つ
+                        newTasks.push({
+                            project_number: projectNumber,
+                            customer_name: customerName || "",
+                            project_details: projectDetails || "",
+                            text: "",
+                            parent: item.name,
+                            major_item: item.major_item || null,
+                            start_date: startDateStr,
+                            duration: duration,
+                            owner: "",
+                            machine: "",
+                            unit: ""
+                        });
+                    }
+                }
             });
 
             // 4. Supabaseに一括挿入
@@ -4961,6 +5004,10 @@
                 document.getElementById('project_details_input').value = '';
                 document.getElementById('order_date').value = '';
                 document.getElementById('shipping_date').value = '';
+                // 2000番台の場合は新規作成工番をセット（fetchTasks内で見出し行を展開）
+                if (templateTable === 'task_template') {
+                    _newlyCreatedProject = projectNumber;
+                }
                 // 画面更新
                 fetchTasks();
             }
