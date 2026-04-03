@@ -285,6 +285,16 @@
         /* カレンダーの年月を中央揃えにする */
         .gantt_scale_cell { text-align: center !important; font-size: 12px; font-weight: bold !important; }
         
+        /* 見出し行（プロジェクトタイプ）のバーを通常の矩形バーと同じ形状にする */
+        .gantt_project::before,
+        .gantt_project::after { display: none !important; }
+        .gantt_project {
+            border-radius: 2px !important;
+            border-width: 1px !important;
+            border-style: solid !important;
+            margin-top: 0 !important;
+        }
+
         /* 業務別カラー設定（中程度のパステル調） */
         .task-blue, .gantt_project.task-blue { background-color: #85C1E9 !important; border-color: #5DADE2 !important; }
         .task-green, .gantt_project.task-green { background-color: #82E0AA !important; border-color: #58D68D !important; }
@@ -296,57 +306,38 @@
         .task-brown, .gantt_project.task-brown { background-color: #BCAAA4 !important; border-color: #8D6E63 !important; }
         
         /* 特殊タスク（マイルストーン）のスタイル - 非常に目立つ濃い色を設定 */
-        .milestone-circle .gantt_task_content { display: none; }
-        .milestone-circle { background: none !important; border: none !important; }
-        .milestone-circle::before {
-            content: "●";
-            color: #d32f2f; /* 濃い赤 */
-            font-size: 22px;
-            position: absolute;
-            left: 50%;
-            top: 50%;
-            transform: translate(-50%, -50%);
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
-        }
-
-        .milestone-diamond .gantt_task_content { display: none; }
-        .milestone-diamond { background: none !important; border: none !important; }
-        .milestone-diamond::before {
-            content: "◆";
-            color: #1976D2; /* 濃い青 */
-            font-size: 24px;
-            position: absolute;
-            left: 50%;
-            top: 50%;
-            transform: translate(-50%, -50%);
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
-        }
-
-        .milestone-star .gantt_task_content { display: none; }
-        .milestone-star { background: none !important; border: none !important; }
-        .milestone-star::before {
-            content: "★";
-            color: #2E7D32; /* 濃い緑 */
-            font-size: 26px;
-            position: absolute;
-            left: 50%;
-            top: 50%;
-            transform: translate(-50%, -50%);
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
-        }
-
+        /* マイルストーンマーク共通：::before をバー全体に広げてflexで中央寄せ */
+        .milestone-circle .gantt_task_content,
+        .milestone-diamond .gantt_task_content,
+        .milestone-star .gantt_task_content,
         .milestone-square .gantt_task_content { display: none; }
-        .milestone-square { background: none !important; border: none !important; }
-        .milestone-square::before {
-            content: "▲";
-            color: #FBAD4F; /* オレンジ */
-            font-size: 24px;
-            position: absolute;
-            left: 50%;
-            top: 50%;
-            transform: translate(-50%, -50%);
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+
+        .milestone-circle,
+        .milestone-diamond,
+        .milestone-star,
+        .milestone-square {
+            background: none !important;
+            border: none !important;
+            overflow: visible !important;
         }
+
+        .milestone-circle::before,
+        .milestone-diamond::before,
+        .milestone-star::before,
+        .milestone-square::before {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            pointer-events: none;
+        }
+
+        .milestone-circle::before  { content: "●"; color: #d32f2f; text-shadow: 1px 1px 2px rgba(0,0,0,0.1); }
+        .milestone-diamond::before { content: "◆"; color: #1976D2; text-shadow: 1px 1px 2px rgba(0,0,0,0.1); }
+        .milestone-star::before    { content: "★"; color: #2E7D32; text-shadow: 1px 1px 2px rgba(0,0,0,0.2); }
+        .milestone-square::before  { content: "▲"; color: #FBAD4F; text-shadow: 1px 1px 2px rgba(0,0,0,0.1); }
         
         /* バー内の文字色（濃いグレーに統一） */
         .gantt_task_content {
@@ -2185,7 +2176,9 @@
                 return dateToDisplay(t.start_date);
             }},
             { name: "end_date", label: "終了日", width: COLUMN_WIDTHS[9], align: "center", template: function(t) {
-                return dateToDisplay(gantt.calculateEndDate(t.start_date, t.duration));
+                const d = gantt.calculateEndDate(t.start_date, t.duration);
+                d.setDate(d.getDate() - 1);
+                return dateToDisplay(d);
             }},
             { name: "add", label: "", width: COLUMN_WIDTHS[10], align: "left" }
         ];
@@ -4556,7 +4549,9 @@
                         return dateToDisplay(t.start_date);
                     }},
                     { name: "end_date", label: "終了日", width: 110, align: "center", template: function(t) {
-                        return dateToDisplay(gantt.calculateEndDate(t.start_date, t.duration));
+                        const d = gantt.calculateEndDate(t.start_date, t.duration);
+                        d.setDate(d.getDate() - 1);
+                        return dateToDisplay(d);
                     }},
                     { name: "add", label: "", width: 44 }
                 ];
@@ -4600,7 +4595,9 @@
                         return dateToDisplay(t.start_date);
                     }},
                     { name: "end_date", label: "終了日", width: COLUMN_WIDTHS[9], align: "center", template: function(t) {
-                        return dateToDisplay(gantt.calculateEndDate(t.start_date, t.duration));
+                        const d = gantt.calculateEndDate(t.start_date, t.duration);
+                        d.setDate(d.getDate() - 1);
+                        return dateToDisplay(d);
                     }},
                     { name: "add", label: "", width: COLUMN_WIDTHS[10] }
                 ];
@@ -5289,7 +5286,9 @@
                 } else if (field === 'start_date') {
                     showDateSection(task.start_date);
                 } else if (field === 'end_date') {
-                    showDateSection(gantt.calculateEndDate(task.start_date, task.duration));
+                    const d = gantt.calculateEndDate(task.start_date, task.duration);
+                    d.setDate(d.getDate() - 1);
+                    showDateSection(d);
                 }
 
                 positionPopup(popup, cellRect);
@@ -5350,7 +5349,9 @@
                 } else if (field === 'end_date') {
                     const val = document.getElementById('inline-edit-date-input').value;
                     if (val) {
+                        // 表示は inclusive end（最終日）なので+1日して exclusive end に変換
                         const newEnd = new Date(val);
+                        newEnd.setDate(newEnd.getDate() + 1);
                         const newDur = gantt.calculateDuration(task.start_date, newEnd);
                         task.duration = Math.max(1, newDur);
                     }
