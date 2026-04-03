@@ -293,6 +293,7 @@
         .task-orange, .gantt_project.task-orange { background-color: #FBAD4F !important; border-color: #F8941D !important; }
         .task-purple, .gantt_project.task-purple { background-color: #D7BDE2 !important; border-color: #AF7AC5 !important; }
         .task-teal, .gantt_project.task-teal { background-color: #F8A5C2 !important; border-color: #F46B8A !important; }
+        .task-brown, .gantt_project.task-brown { background-color: #BCAAA4 !important; border-color: #8D6E63 !important; }
         
         /* 特殊タスク（マイルストーン）のスタイル - 非常に目立つ濃い色を設定 */
         .milestone-circle .gantt_task_content { display: none; }
@@ -385,18 +386,21 @@
             text-shadow: none !important;
         }
 
-        /* 部品送り日マーク（ドラッグ可能） */
+        /* 神戸送り開始日バー非表示 */
+        .gantt_task_line.hidden_bar { display: none !important; }
+
+        /* 神戸送り開始日マーク（ドラッグ可能） */
         .parts-delivery-mark {
             position: absolute;
-            width: 24px;
-            height: 24px;
-            background: #2980b9;
-            border: 2px solid #2980b9;
+            width: 20px;
+            height: 20px;
+            background: rgba(109, 76, 65, 0.85);
+            border: none;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 14px;
+            font-size: 12px;
             color: white;
             cursor: grab;
             z-index: 50;
@@ -407,8 +411,8 @@
             box-sizing: border-box;
         }
         .parts-delivery-mark:hover {
-            background: #3498db;
-            border-color: #3498db;
+            background: rgba(78, 52, 46, 0.95);
+            border-color: rgba(78, 52, 46, 0.95);
             transform: scale(1.2);
         }
         .parts-delivery-mark--dragging {
@@ -791,6 +795,7 @@
         .resource-bar.task-orange { background-color: #FBAD4F !important; border-color: #F8941D !important; }
         .resource-bar.task-purple { background-color: #D7BDE2 !important; border-color: #AF7AC5 !important; }
         .resource-bar.task-teal { background-color: #F8A5C2 !important; border-color: #F46B8A !important; }
+        .resource-bar.task-brown { background-color: #BCAAA4 !important; border-color: #8D6E63 !important; }
         /* マイルストーン：上段と同じ記号のみ表示 */
         .resource-bar.milestone-circle { background: none !important; border: none !important; }
         .resource-bar.milestone-circle .resource-bar-text { display: none; }
@@ -1039,6 +1044,7 @@
                     <option value="品証">品証</option>
                     <option value="操業">操業</option>
                     <option value="電技">電技</option>
+                    <option value="明石">明石</option>
                 </select>
             </div>
 
@@ -1054,6 +1060,7 @@
                     <option value="品証">品証</option>
                     <option value="操業">操業</option>
                     <option value="電技">電技</option>
+                    <option value="明石">明石</option>
                 </select>
             </div>
 
@@ -1452,6 +1459,7 @@
             { key: "品証", label: "品証" },
             { key: "操業", label: "操業" },
             { key: "電技", label: "電技" },
+            { key: "明石", label: "明石" },
             { key: "", label: "指定なし" }
         ];
 
@@ -1464,7 +1472,8 @@
             "電装": ["木村(至)", "木村(圭)", "守時", "外注"],
             "品証": ["田中(孝)"],
             "操業": ["堀尾", "三浦", "黒見", "大西(元)", "大西(優)", "木本", "前田", "本郷", "大重", "外注"],
-            "電技": ["松本(幹)", "秋藤"]
+            "電技": ["松本(幹)", "秋藤"],
+            "明石": ["明石工場"]
         };
 
         // 担当者ごとの色を決定する共通ロジック
@@ -2593,6 +2602,7 @@
                 css += "header-2000s ";
             }
 
+            if (task.text === "神戸送り開始日") return css + "hidden_bar";
             if (task.text === "外観検査") return css + "milestone-circle";
             if (task.text === "出荷確認会議") return css + "milestone-diamond";
             if (task.text === "工場出荷") return css + "milestone-star";
@@ -2615,6 +2625,7 @@
                 case '電装': css += "task-purple"; break;
                 case '操業': css += "task-red"; break;
                 case '電技': css += "task-teal"; break;
+                case '明石': css += "task-brown"; break;
                 case '営業': css += "task-orange"; break;
                 default: break;
             }
@@ -2753,43 +2764,22 @@
             return isTaskVisible(task);
         });
 
-        // ========== 部品送り日マーク（ドラッグ可能・Supabase永続化） ==========
-        let _partsOffsets = {}; // { taskId(string): days(number) }
+        // ========== 神戸送り開始日マーク（ドラッグ可能・Supabase永続化） ==========
         let _markDragState = null;
 
-        function getPartsOffsets() {
-            return _partsOffsets;
-        }
-        async function savePartsOffset(taskId, days) {
-            _partsOffsets[String(taskId)] = days;
-            const { error } = await supabaseClient
-                .from('tasks')
-                .update({ parts_delivery_offset: days })
-                .eq('id', taskId);
-            if (error) console.error('部品送り日保存エラー:', error);
-        }
-
         function renderPartsMarks() {
-            // 既存マークを全削除
             document.querySelectorAll('.parts-delivery-mark').forEach(function(el) { el.remove(); });
-
-            if (gantt.getState().scale_unit !== "day") return;
-
             const container = document.querySelector('.gantt_data_area');
             if (!container) return;
-
-            const colWidth = gantt.config.min_column_width; // 22px
-            const offsets = getPartsOffsets();
-            const markSize = 24;
+            const markSize = 20;
 
             gantt.eachTask(function(task) {
-                if (!task.text || !task.text.includes("機械組立")) return;
+                if (task.text !== "神戸送り開始日") return;
                 try { if (!gantt.isTaskVisible(task.id)) return; } catch(e) { return; }
+                if (!task.start_date) return;
 
-                const offsetDays = (offsets[String(task.id)] !== undefined) ? offsets[String(task.id)] : 7;
                 const pos = gantt.getTaskPosition(task, task.start_date, task.end_date);
-
-                const markLeft = pos.left - offsetDays * colWidth - markSize / 2;
+                const markLeft = pos.left - markSize / 2;
                 const markTop  = pos.top + pos.height / 2 - markSize / 2;
 
                 const el = document.createElement("div");
@@ -2799,19 +2789,34 @@
                 el.style.left = markLeft + "px";
                 el.style.top  = markTop  + "px";
 
+                // ダブルクリックで編集ライトボックスを開く
+                el.addEventListener("dblclick", function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    e.stopImmediatePropagation();
+                    if (_markDragState) {
+                        _markDragState.el.classList.remove("parts-delivery-mark--dragging");
+                        _markDragState = null;
+                    }
+                    if (_isEditor) {
+                        gantt.showLightbox(String(task.id));
+                    }
+                });
+
                 el.addEventListener("mousedown", function(e) {
                     if (!_isEditor) return;
+                    // ダブルクリックの2回目mousedownを無視
+                    if (e.detail >= 2) return;
                     e.preventDefault();
                     e.stopPropagation();
                     e.stopImmediatePropagation();
                     _markDragState = {
-                        taskId:      String(task.id),
-                        taskPosLeft: pos.left,
-                        colWidth:    colWidth,
-                        markSize:    markSize,
-                        startX:      e.clientX,
-                        startLeft:   markLeft,
-                        el:          el
+                        taskId:    String(task.id),
+                        startX:    e.clientX,
+                        startLeft: markLeft,
+                        markSize:  markSize,
+                        el:        el,
+                        dragged:   false
                     };
                     el.classList.add("parts-delivery-mark--dragging");
                 });
@@ -2832,26 +2837,43 @@
             e.stopPropagation();
             e.preventDefault();
             const dx = e.clientX - _markDragState.startX;
-            const newLeft = _markDragState.startLeft + dx;
-            // タスク開始日の1日以上前に制限
-            const maxLeft = _markDragState.taskPosLeft - _markDragState.colWidth - _markDragState.markSize / 2;
-            _markDragState.el.style.left = Math.min(newLeft, maxLeft) + "px";
+            if (Math.abs(dx) > 3) _markDragState.dragged = true;
+            _markDragState.el.style.left = (_markDragState.startLeft + dx) + "px";
         });
 
-        // ドラッグ終了：日数を計算して Supabase に保存
-        document.addEventListener("mouseup", function(e) {
+        // ドラッグ終了：実際にドラッグした場合のみ日付を計算してSupabaseに保存
+        document.addEventListener("mouseup", async function(e) {
             if (!_markDragState) return;
             e.stopPropagation();
-            const elLeft = parseFloat(_markDragState.el.style.left);
-            const markCenter = elLeft + _markDragState.markSize / 2;
-            const rawDays = (_markDragState.taskPosLeft - markCenter) / _markDragState.colWidth;
-            const snappedDays = Math.max(1, Math.round(rawDays));
-            savePartsOffset(_markDragState.taskId, snappedDays);
-            _markDragState.el.classList.remove("parts-delivery-mark--dragging");
+            const wasDragged = _markDragState.dragged;
+            const state = _markDragState;
+            state.el.classList.remove("parts-delivery-mark--dragging");
             _markDragState = null;
-            renderPartsMarks(); // gantt.render()の代わりにマークのみ再描画
+            if (!wasDragged) {
+                renderPartsMarks();
+                return;
+            }
+            const elLeft = parseFloat(state.el.style.left);
+            const markCenter = elLeft + state.markSize / 2;
+            const newDate = gantt.dateFromPos(markCenter);
+            if (newDate) {
+                const dateStr = newDate.getFullYear() + '-' +
+                    String(newDate.getMonth() + 1).padStart(2, '0') + '-' +
+                    String(newDate.getDate()).padStart(2, '0');
+                // タスクオブジェクトを更新
+                const task = gantt.getTask(state.taskId);
+                if (task) {
+                    task.start_date = newDate;
+                    gantt.updateTask(state.taskId);
+                }
+                // Supabaseに保存
+                await supabaseClient.from('tasks')
+                    .update({ start_date: dateStr })
+                    .eq('id', state.taskId);
+            }
+            renderPartsMarks();
         });
-        // ========== 部品送り日マーク ここまで ==========
+        // ========== 神戸送り開始日マーク ここまで ==========
 
         gantt.config.readonly = true; // デフォルトは読み取り専用、ログイン後に解除
         gantt.init("gantt_here");
@@ -4037,6 +4059,7 @@
                 case '電装': return "task-purple";
                 case '操業': return "task-red";
                 case '電技': return "task-teal";
+                case '明石': return "task-brown";
                 case '営業': return "task-orange";
                 default: return "";
             }
@@ -4102,14 +4125,6 @@
             }
 
             const MILESTONE_TEXTS = ["外観検査", "客先立会", "出荷確認会議", "工場出荷"];
-
-            // 部品送り日オフセットをSupabaseデータから初期化
-            _partsOffsets = {};
-            data.forEach(t => {
-                if (t.parts_delivery_offset != null) {
-                    _partsOffsets[String(t.id)] = t.parts_delivery_offset;
-                }
-            });
 
             const rawTasks = data.map(t => {
                 let areaGroup = t.area_group;
@@ -4948,6 +4963,16 @@
                     const taskNameGroup = taskNameOptions.find(g => g.label === item.name);
                     if (taskNameGroup && taskNameGroup.options.length > 0) {
                         taskNameGroup.options.forEach(optName => {
+                            // 神戸送り開始日は機械組立の開始日-7日
+                            let taskStartDateStr = startDateStr;
+                            if (optName === "神戸送り開始日") {
+                                const kikaieDate = newTasks.find(t => t.text === "機械組立");
+                                if (kikaieDate && kikaieDate.start_date) {
+                                    const d = new Date(kikaieDate.start_date);
+                                    d.setDate(d.getDate() - 7);
+                                    taskStartDateStr = dateToDb(d);
+                                }
+                            }
                             newTasks.push({
                                 project_number: projectNumber,
                                 customer_name: customerName || "",
@@ -4955,7 +4980,7 @@
                                 text: optName,
                                 parent: item.name,
                                 major_item: item.major_item || null,
-                                start_date: startDateStr,
+                                start_date: taskStartDateStr,
                                 duration: duration,
                                 owner: "",
                                 machine: "",
