@@ -1,0 +1,969 @@
+        html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: "メイリオ", sans-serif; font-size: 12px; }
+        button, input, select, textarea { font-family: "メイリオ", sans-serif; }
+        #gantt_here .gantt_grid_head_cell { font-size: 14px !important; font-weight: bold !important; font-family: "メイリオ", sans-serif !important; background-color: #b0bec5 !important; color: #37474f !important; border-right: 1px solid rgba(255,255,255,0.4) !important; }
+        #gantt_here .gantt_scale_cell { font-family: "メイリオ", sans-serif !important; background-color: #b0bec5 !important; color: #37474f !important; border-right: 1px solid rgba(255,255,255,0.4) !important; }
+        #gantt_here .gantt_scale_cell.scale_saturday { color: #5577aa !important; }
+        #gantt_here .gantt_scale_cell.scale_sunday { color: #aa5555 !important; }
+        #gantt_here .gantt_scale_cell.scale_holiday { color: #aa5555 !important; }
+        #gantt_here .gantt_grid_scale { background-color: #b0bec5 !important; }
+        #gantt_here .gantt_scale_line { background-color: #b0bec5 !important; }
+        .header-panel *, .toolbar * { font-size: 13px !important; }
+        .main-container { display: flex; flex-direction: column; height: 100vh; }
+        .header-panel { background: #fff; padding: 2px 10px; border-bottom: 1px solid #ccc; display: flex; flex-direction: column; gap: 2px; }
+        .input-row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; height: 28px; }
+        .input-row input { padding: 2px 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; }
+        .btn-add { padding: 0px 5px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; }
+        .content-area { display: flex; flex: 1; overflow: hidden; }
+        .sidebar { width: 90px; background: #2c3e50; color: #ecf0f1; display: flex; flex-direction: column; border-right: 1px solid #1a252f; }
+        .sidebar-title { padding: 8px; font-weight: bold; background: #1a252f; font-size: 12px; cursor: pointer; transition: 0.2s; }
+        .sidebar-title:hover { background: #34495e; }
+        .project-list { flex: 1; overflow-y: auto; }
+        .project-item { padding: 6px 8px; border-bottom: 1px solid #34495e; cursor: pointer; font-size: 13px; transition: 0.2s; font-weight: bold; }
+        .project-item:hover { background: #34495e; }
+        .project-item.active { background: #3498db; color: white; border-left: 5px solid #fff; }
+        .sidebar-title { display: flex; align-items: center; justify-content: space-between; }
+        .project-group-filter-btn { background: none; border: none; color: #ecf0f1; cursor: pointer; font-size: 11px; padding: 2px 4px; line-height: 1; opacity: 0.7; flex-shrink: 0; }
+        .project-group-filter-btn:hover { opacity: 1; }
+        .project-group-filter-btn.filtered { opacity: 1; color: #3dd6f5; }
+        .project-group-dropdown { position: fixed; background: #2c3e50; border: 1px solid #1a252f; border-radius: 4px; z-index: 9999; min-width: 90px; box-shadow: 2px 2px 6px rgba(0,0,0,0.4); display: none; }
+        .project-group-dropdown.visible { display: block; }
+        .project-group-dropdown-item { padding: 7px 12px; color: #ecf0f1; cursor: pointer; font-size: 12px; white-space: nowrap; }
+        .project-group-dropdown-item:hover { background: #34495e; }
+        .project-group-dropdown-item.active { background: #3498db; color: #fff; }
+        .chart-container { flex: 1; display: flex; flex-direction: column; background: #fff; position: relative; overflow: hidden; }
+
+        /* ライトボックスの期間選択を年月日の順に並び替え */
+        .gantt_section_time { display: flex !important; flex-wrap: wrap; align-items: center; gap: 5px; font-size: 11px; }
+        .gantt_section_time select { padding: 2px; font-size: 11px; }
+        .gantt_section_time select:nth-of-type(1) { order: 3; } /* 日 */
+        .gantt_section_time select:nth-of-type(2) { order: 2; } /* 月 */
+        .gantt_section_time select:nth-of-type(3) { order: 1; } /* 年 */
+        .gantt_section_time input, .gantt_section_time span { order: 4; }
+
+        .gantt-layout-container { display: flex; flex-direction: column; flex: 1; min-height: 0; width: 100%; }
+        #gantt_here { flex: 1; min-height: 0; width: 100%; }
+        .resource-header-bar { background: #f8f9fa; padding: 4px 12px; font-weight: bold; font-size: 10px; color: #2c3e50; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #ddd; border-top: 1px solid #ddd; }
+        /* リソース行の直上に配置したときの固定表示（伸縮しない） */
+        .resource-header-bar-fixed { flex: 0 0 auto !important; flex-shrink: 0 !important; z-index: 10; }
+        .gantt_layout_resource_row { min-height: 100px; }
+        .gantt_layout_resource_row.gantt_layout_row_hidden { display: none !important; }
+        /* 初期・閉じた時：下段とその上のリサイザーを非表示にして上段を100%に */
+        .resource-panel-closed .gantt_resource_resizer_row,
+        .resource-panel-closed .gantt_layout_resource_row { display: none !important; height: 0 !important; min-height: 0 !important; overflow: hidden !important; }
+        /* リソース行：1行内で複数タスクをオーバーラップ表示 */
+        .resource-cell-overlap { position: relative; }
+        .resource-cell-bars { position: relative; width: 100%; height: 100%; min-height: 27px; }
+        .resource-cell-bar { 
+            position: absolute; 
+            top: 3px; 
+            height: 21px; 
+            min-width: 4px; 
+            border-radius: 2px; 
+            opacity: 0.85; 
+            box-sizing: border-box;
+        }
+        /* 部署別リソースタイムライン専用のスタイル（重なり強調） */
+        .resource-dept-view .resource-cell-bar {
+            border: 1px solid rgba(255, 255, 255, 0.6); /* 白い細枠 */
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1); /* 軽い影 */
+            transition: all 0.2s ease; /* ホバー時のアニメーション */
+            z-index: 1;
+        }
+        /* 1人1人違う色のためのクラス定義 */
+        .resource-bar-color-0 { background-color: #FF8A80 !important; border-color: #FF5252 !important; }
+        .resource-bar-color-1 { background-color: #FFD180 !important; border-color: #FFAB40 !important; }
+        .resource-bar-color-2 { background-color: #FFFF8D !important; border-color: #FFFF00 !important; }
+        .resource-bar-color-3 { background-color: #CCFF90 !important; border-color: #B2FF59 !important; }
+        .resource-bar-color-4 { background-color: #A7FFEB !important; border-color: #64FFDA !important; }
+        .resource-bar-color-5 { background-color: #80D8FF !important; border-color: #40C4FF !important; }
+        .resource-bar-color-6 { background-color: #82B1FF !important; border-color: #448AFF !important; }
+        .resource-bar-color-7 { background-color: #B388FF !important; border-color: #7C4DFF !important; }
+        .resource-bar-color-8 { background-color: #F8BBD0 !important; border-color: #F06292 !important; }
+        .resource-bar-color-9 { background-color: #D7CCC8 !important; border-color: #A1887F !important; }
+        .resource-bar-color-10 { background-color: #CFD8DC !important; border-color: #90A4AE !important; }
+        .resource-bar-color-11 { background-color: #FFE0B2 !important; border-color: #FFB74D !important; }
+        .resource-bar-color-12 { background-color: #E1BEE7 !important; border-color: #BA68C8 !important; }
+        .resource-bar-color-13 { background-color: #C8E6C9 !important; border-color: #81C784 !important; }
+        .resource-bar-color-14 { background-color: #FFF9C4 !important; border-color: #FFF176 !important; }
+        .resource-bar-color-15 { background-color: #B2EBF2 !important; border-color: #4DD0E1 !important; }
+        .resource-bar-color-16 { background-color: #D1C4E9 !important; border-color: #9575CD !important; }
+        .resource-bar-color-17 { background-color: #F0F4C3 !important; border-color: #DCE775 !important; }
+        .resource-bar-color-18 { background-color: #FFCCBC !important; border-color: #FF8A65 !important; }
+        .resource-bar-color-19 { background-color: #DCEDC8 !important; border-color: #AED581 !important; }
+        
+        /* 担当者名横の●用カラー */
+        .owner-dot-color-0 { color: #FF5252 !important; }
+        .owner-dot-color-1 { color: #FFAB40 !important; }
+        .owner-dot-color-2 { color: #FFFF00 !important; }
+        .owner-dot-color-3 { color: #B2FF59 !important; }
+        .owner-dot-color-4 { color: #64FFDA !important; }
+        .owner-dot-color-5 { color: #40C4FF !important; }
+        .owner-dot-color-6 { color: #448AFF !important; }
+        .owner-dot-color-7 { color: #7C4DFF !important; }
+        .owner-dot-color-8 { color: #F06292 !important; }
+        .owner-dot-color-9 { color: #A1887F !important; }
+        .owner-dot-color-10 { color: #90A4AE !important; }
+        .owner-dot-color-11 { color: #FFB74D !important; }
+        .owner-dot-color-12 { color: #BA68C8 !important; }
+        .owner-dot-color-13 { color: #81C784 !important; }
+        .owner-dot-color-14 { color: #FFF176 !important; }
+        .owner-dot-color-15 { color: #4DD0E1 !important; }
+        .owner-dot-color-16 { color: #9575CD !important; }
+        .owner-dot-color-17 { color: #DCE775 !important; }
+        .owner-dot-color-18 { color: #FF8A65 !important; }
+        .owner-dot-color-19 { color: #AED581 !important; }
+        
+        /* 重なりがある場合の赤斜線背景 */
+        .resource-cell-bar.is-conflict {
+            border: 1px solid rgba(255, 0, 0, 0.6) !important;
+        }
+        /* 組立場所リソース バーカラーピッカー */
+        #location-bar-color-picker {
+            position: fixed;
+            z-index: 99999;
+            background: #fff;
+            border: 1px solid #bbb;
+            border-radius: 8px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+            padding: 8px;
+            display: none;
+            flex-wrap: wrap;
+            gap: 5px;
+            width: 175px;
+        }
+        #location-bar-color-picker.visible { display: flex; }
+        .loc-bar-color-swatch {
+            width: 30px;
+            height: 30px;
+            border-radius: 5px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            box-sizing: border-box;
+        }
+        .loc-bar-color-swatch:hover, .loc-bar-color-swatch.active { border-color: #333; }
+
+        /* 背景セルへの赤ベタ塗り表示 */
+        .resource-cell-conflict-bg {
+            background-color: rgba(255, 0, 0, 0.85) !important;
+        }
+        /* 重なりバー内の文字を読みやすくするための調整 */
+        .resource-cell-bar.is-conflict .resource-bar-text {
+            background: rgba(255, 255, 255, 0.4);
+            padding: 0 2px;
+            border-radius: 2px;
+        }
+        .resource-dept-view .resource-cell-bar:hover {
+            z-index: 100 !important; /* 最前面に */
+            opacity: 1 !important; /* 不透明に */
+            transform: scaleY(1.1); /* 少し太く */
+            box-shadow: 0 3px 8px rgba(0,0,0,0.3); /* 影を強調 */
+            cursor: pointer;
+        }
+        /* 部署別リソースの背景を白に固定 */
+        .resource-dept-view {
+            background-color: #fff !important;
+        }
+        /* ヘッダー行はグレーにする */
+        .resource-dept-view.resource-summary-header {
+            background-color: #f8f9fa !important;
+        }
+        .resource-dept-view .resource-grid-container {
+            background-color: #fff !important;
+        }
+        .resource-dept-view .resource-timeline {
+            background-color: transparent !important;
+        }
+        /* 下段リソース：左グリッド・右タイムラインのヘッダー（タイトル行）を完全非表示し、1行目からデータが同じ高さで始まるようにする */
+        .gantt_layout_resource_row .gantt_grid_scale,
+        .gantt_layout_resource_row .gantt_grid_head,
+        .gantt_layout_resource_row .gantt_grid_head_row,
+        .gantt_layout_resource_row .gantt_scale,
+        .gantt_layout_resource_row .gantt_scale_line { display: none !important; height: 0 !important; min-height: 0 !important; overflow: hidden !important; }
+        .toolbar { background: #f8f9fa; padding: 0 12px; height: 28px; border-bottom: 1px solid #ddd; display: flex; gap: 8px; align-items: center; font-size: 10px; }
+        .zoom-btn { padding: 0px 5px; cursor: pointer; background: #fff; border: 1px solid #ccc; border-radius: 3px; font-size: 12px; }
+        .zoom-btn.active { background-color: #3498db; color: #fff; border-color: #3498db; }
+        
+        /* 組立場所ボタン専用スタイル */
+        .resource-location-btn { background-color: #fdf2f2; border-color: #f1948a; color: #c0392b; font-weight: bold; }
+        .resource-location-btn.active { background-color: #c0392b; color: #fff; border-color: #c0392b; }
+
+        /* 出張予定ボタンスタイル */
+        #sort_business_trip_btn {
+            background-color: #fdf2f2;
+            border-color: #f1948a;
+            color: #c0392b;
+            font-weight: bold;
+        }
+        #sort_business_trip_btn { margin-left: 15px; }
+        #sort_business_trip_btn.active {
+            background-color: #c0392b;
+            color: #fff;
+            border-color: #c0392b;
+        }
+        
+        /* リソース行の高さを強制し、白い余白を消す */
+        .gantt_resource_view .gantt_task_row,
+        .gantt_resource_view .gantt_task_cell {
+            height: 27px !important;
+            line-height: 27px !important;
+            box-sizing: border-box !important;
+        }
+        /* 垂直罫線を一番下まで繋げる */
+        .gantt_resource_view .gantt_task_cell {
+            border-right: 1px solid #ebebeb !important;
+            border-bottom: 1px solid #ebebeb !important;
+        }
+
+        /* バー（割り当て要素）が隠れないようにする */
+        .gantt_resource_view .gantt_task_line {
+            height: 17px !important; /* 行の高さ27pxに対して適切なサイズ */
+            margin-top: 5px !important;
+        }
+        
+        .weekend { background: #f4f4f4 !important; } /* 土日：元の薄いグレー */
+        /* 日単位表示（zoom-days）の時のみ月ごとの縦の罫線を太くする */
+        .zoom-days .gantt_scale_cell.gantt_scale_month {
+            border-right: 1.5px solid #666 !important;
+            box-sizing: border-box !important;
+        }
+        .zoom-days .gantt_task_cell.gantt_last_cell {
+            border-right: 1px solid #ebebeb !important;
+        }
+        /* 月末セルの右罫線を太くする（日単位表示のみ） */
+        .zoom-days .gantt_task_cell.month-end-cell,
+        .zoom-days .gantt_scale_cell.month-end-cell {
+            border-right: 1.5px solid #999 !important;
+        }
+        /* 下段リソースパネル内の設定を元に戻す（日ごとの線が太くなるのを防ぐ） */
+        .zoom-days .resource-timeline-grid-3px {
+            border-right: 1px solid #ebebeb !important;
+        }
+        /* DHTMLXのデフォルトの境界線を消して、上記の設定を優先させる */
+        .zoom-days .gantt_scale_line,
+        .zoom-days .gantt_task_row {
+            border-right: none !important;
+        }
+        /* 1pxのデフォルト線を上書き */
+        .zoom-days .gantt_scale_cell,
+        .zoom-days .gantt_task_cell {
+            border-right: 1px solid #ebebeb;
+        }
+        .gantt_marker.today-line { background: #cc0000 !important; width: 2px !important; opacity: 0.8; z-index: 1000 !important; }
+        .gantt_group_row { background-color: #dce8ef !important; font-weight: bold !important; } /* 見出し行 */
+        
+        /* 白の子タスク行のインデント・ツリーアイコンを非表示（水色の見出し行は除外） */
+        .gantt_row_task:not(.gantt_group_row) .gantt_tree_indent,
+        .gantt_row_task:not(.gantt_group_row) .gantt_tree_icon { width: 0 !important; min-width: 0 !important; overflow: hidden !important; }
+        /* タスク名列の▶左余白を縮小 */
+        .gantt_tree_indent { width: 6px !important; }
+
+        /* 工事番号の区切り線（太線） */
+        .project-border-top { border-top: 2px solid #999 !important; }
+        .project-border-top .gantt_tree_indent, 
+        .project-border-top .gantt_cell { border-top: none !important; } /* セル内部の重なり防止 */
+        @font-face {
+            font-family: "GridFont";
+            src: local("Meiryo"), local("メイリオ");
+            unicode-range: U+0030-0039; /* 数字 0-9 はメイリオ */
+        }
+        #gantt_here .gantt_cell { font-family: "GridFont", sans-serif !important; }
+        .resource-cell { font-family: "GridFont", sans-serif !important; }
+
+        /* カレンダーの年月を中央揃えにする */
+        .gantt_scale_cell { text-align: center !important; font-size: 12px; font-weight: bold !important; }
+        
+        /* 見出し行（プロジェクトタイプ）のバーを通常の矩形バーと同じ形状にする */
+        .gantt_project::before,
+        .gantt_project::after { display: none !important; }
+        .gantt_project {
+            border-radius: 2px !important;
+            border-width: 1px !important;
+            border-style: solid !important;
+            margin-top: 0 !important;
+        }
+
+        /* 業務別カラー設定（中程度のパステル調） */
+        .task-blue, .gantt_project.task-blue { background-color: #85C1E9 !important; border-color: #5DADE2 !important; }
+        .task-green, .gantt_project.task-green { background-color: #82E0AA !important; border-color: #58D68D !important; }
+        .task-yellow, .gantt_project.task-yellow { background-color: #F7DC6F !important; border-color: #F4D03F !important; }
+        .task-red, .gantt_project.task-red { background-color: #F1948A !important; border-color: #EC7063 !important; }
+        .task-orange, .gantt_project.task-orange { background-color: #FBAD4F !important; border-color: #F8941D !important; }
+        .task-purple, .gantt_project.task-purple { background-color: #D7BDE2 !important; border-color: #AF7AC5 !important; }
+        .task-teal, .gantt_project.task-teal { background-color: #F8A5C2 !important; border-color: #F46B8A !important; }
+        .task-brown, .gantt_project.task-brown { background-color: #BCAAA4 !important; border-color: #8D6E63 !important; }
+        
+        /* 特殊タスク（マイルストーン）のスタイル - 非常に目立つ濃い色を設定 */
+        /* マイルストーンマーク共通：::before をバー全体に広げてflexで中央寄せ */
+        .milestone-circle .gantt_task_content,
+        .milestone-diamond .gantt_task_content,
+        .milestone-star .gantt_task_content,
+        .milestone-square .gantt_task_content { display: none; }
+
+        .milestone-circle,
+        .milestone-diamond,
+        .milestone-star,
+        .milestone-square {
+            background: none !important;
+            border: none !important;
+            overflow: visible !important;
+        }
+
+        .milestone-circle::before,
+        .milestone-diamond::before,
+        .milestone-star::before,
+        .milestone-square::before {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            pointer-events: none;
+        }
+
+        .milestone-circle::before  { content: "●"; color: #d32f2f; text-shadow: 1px 1px 2px rgba(0,0,0,0.1); }
+        .milestone-diamond::before { content: "◆"; color: #1976D2; text-shadow: 1px 1px 2px rgba(0,0,0,0.1); }
+        .milestone-star::before    { content: "★"; color: #2E7D32; text-shadow: 1px 1px 2px rgba(0,0,0,0.2); }
+        .milestone-square::before  { content: "▲"; color: #FBAD4F; text-shadow: 1px 1px 2px rgba(0,0,0,0.1); }
+        
+        /* バー内の文字色（濃いグレーに統一） */
+        .gantt_task_content {
+            color: #222 !important;
+            font-weight: bold;
+            font-size: 13px;
+            font-family: "游ゴシック", "Yu Gothic", YuGothic, sans-serif;
+            text-shadow: none !important;
+        }
+        .task-name-text {
+            display: inline-block;
+            white-space: nowrap;
+            vertical-align: middle;
+        }
+
+        /* 2000番台以外の見出し行の文字色（白に戻す） */
+        .header-non-2000s .gantt_task_content {
+            color: #fff !important;
+            text-shadow: none !important;
+        }
+
+        /* 2000番台の見出し行の文字色（白にする） */
+        .header-2000s .gantt_task_content {
+            color: #fff !important;
+            text-shadow: none !important;
+        }
+        
+        /* 2000番台のバー内の文字色（濃いグレーに変更） */
+        .task-2000s .gantt_task_content { 
+            color: #222 !important; 
+            text-shadow: none !important; 
+        }
+
+        /* 2000番台の見出し行（header-2000s）の場合は白文字を優先 */
+        .task-2000s.header-2000s .gantt_task_content {
+            color: #fff !important;
+            text-shadow: none !important;
+        }
+
+        /* 神戸送り開始日バー非表示 */
+        .gantt_task_line.hidden_bar { display: none !important; }
+
+        /* 神戸送り開始日マーク（ドラッグ可能） */
+        .parts-delivery-mark {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: rgba(109, 76, 65, 0.85);
+            border: none;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: white;
+            cursor: grab;
+            z-index: 50;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            user-select: none;
+            pointer-events: auto;
+            transition: transform 0.15s, background 0.15s;
+            box-sizing: border-box;
+        }
+        .parts-delivery-mark:hover {
+            background: rgba(78, 52, 46, 0.95);
+            border-color: rgba(78, 52, 46, 0.95);
+            transform: scale(1.2);
+        }
+        .parts-delivery-mark--dragging {
+            cursor: grabbing;
+            opacity: 0.85;
+            transform: scale(1.1);
+            transition: none;
+        }
+
+        /* --- 無料版の強力な表示制限を解除するための設定 --- */
+        .gantt_task_content {
+            overflow: hidden !important; /* スケールセルと同じ設定：バー端でクリップ */
+            z-index: 1 !important;
+        }
+        .gantt_task_line {
+            overflow: visible !important; /* バー自体をはみ出させる */
+            z-index: 10 !important;
+        }
+        /* 🚚マークの親であるバー自体の重なり順序を調整 */
+        .gantt_task_line.machine-prep-task {
+            z-index: 100 !important;
+        }
+        .gantt_bars_area {
+            overflow: visible !important; /* 描画エリア全体をはみ出させる */
+        }
+
+        /* タスク編集ダイアログを部品送りマークより上に表示 */
+        .gantt_cal_cover { z-index: 100000 !important; }
+        .gantt_cal_light { z-index: 100001 !important; }
+        /* ライトボックス縦1列レイアウト */
+        .gantt_cal_light {
+            position: fixed !important;
+            top: 50% !important;
+            left: 50% !important;
+            transform: translate(-50%, -50%) !important;
+            width: 600px !important;
+            min-width: 600px !important;
+            height: auto !important;
+        }
+        .gantt_cal_larea {
+            display: block !important;
+            height: auto !important;
+            overflow: visible !important;
+            padding: 4px 8px !important;
+            box-sizing: border-box !important;
+        }
+        .gantt_cal_light .gantt_cal_lsection { border: none !important; padding: 4px 0 1px !important; margin: 0 !important; font-size: 11px !important; font-weight: normal !important; line-height: 1.3 !important; color: #333 !important; font-family: "メイリオ", Meiryo, sans-serif !important; }
+        .gantt_cal_light .gantt_cal_ltext { margin: 0 !important; padding: 0 !important; height: auto !important; overflow: visible !important; font-family: "メイリオ", Meiryo, sans-serif !important; }
+        .gantt_cal_ltext textarea { height: 22px !important; box-sizing: border-box !important; margin: 0 !important; padding: 1px 4px !important; width: 100% !important; font-family: "メイリオ", Meiryo, sans-serif !important; }
+        .gantt_cal_ltext select  { height: 32px !important; box-sizing: border-box !important; margin: 0 !important; width: 100% !important; font-family: "メイリオ", Meiryo, sans-serif !important; }
+        .gantt_cal_ltext input[type="date"] { font-family: "メイリオ", Meiryo, sans-serif !important; }
+        .gantt_cal_light .gantt_cal_title, .gantt_cal_light .gantt_cal_lcontrols { font-family: "メイリオ", Meiryo, sans-serif !important; }
+
+        /* 削除確認ダイアログを編集画面より上に表示（CSS補助） */
+        .gantt_popup_shadow,
+        .gantt_popup_box,
+        .gantt_modal_box,
+        .dhtmlx_modal_box,
+        .dhtmlx_popup_area,
+        .gantt_confirm_popup,
+        [class*="gantt_popup"],
+        [class*="gantt_modal"],
+        [class*="dhtmlx_modal"] {
+            z-index: 200000 !important;
+        }
+
+        /* ===== グリッド インライン編集ポップアップ ===== */
+        #inline-edit-popup {
+            position: fixed;
+            z-index: 99990;
+            background: #fff;
+            border: 1px solid #bbb;
+            border-radius: 8px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.22);
+            padding: 0;
+            min-width: 220px;
+            max-width: 280px;
+            display: none;
+            flex-direction: column;
+            font-size: 13px;
+        }
+        #inline-edit-popup.visible { display: flex; }
+        #inline-edit-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #f0f4f8;
+            border-radius: 8px 8px 0 0;
+            padding: 6px 10px;
+            border-bottom: 1px solid #ddd;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        #inline-edit-close-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            color: #888;
+            padding: 0 2px;
+            line-height: 1;
+        }
+        #inline-edit-close-btn:hover { color: #333; }
+        .inline-edit-section { padding: 8px 10px; }
+        #inline-edit-text-input, #inline-edit-date-input {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 5px 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+        #inline-edit-ms-search {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 5px 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 13px;
+            margin-bottom: 5px;
+        }
+        #inline-edit-ms-options {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #eee;
+            border-radius: 4px;
+        }
+        .inline-ms-group {
+            padding: 4px 8px;
+            font-size: 11px;
+            font-weight: bold;
+            color: #666;
+            background: #f5f5f5;
+            border-bottom: 1px solid #eee;
+            position: sticky;
+            top: 0;
+        }
+        .inline-ms-option {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            cursor: pointer;
+            user-select: none;
+        }
+        .inline-ms-option:hover { background: #f0f7ff; }
+        .inline-ms-option input[type=checkbox] { cursor: pointer; margin: 0; }
+        .inline-ms-option input[type=radio] { cursor: pointer; margin: 0; accent-color: #1976d2; }
+        #inline-edit-buttons {
+            display: flex;
+            gap: 6px;
+            padding: 8px 10px;
+            border-top: 1px solid #eee;
+            justify-content: flex-end;
+        }
+        #inline-edit-save-btn {
+            background: #3498db;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            padding: 5px 14px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        #inline-edit-save-btn:hover { background: #2980b9; }
+        #inline-edit-cancel-btn {
+            background: #eee;
+            color: #333;
+            border: none;
+            border-radius: 4px;
+            padding: 5px 14px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        #inline-edit-cancel-btn:hover { background: #ddd; }
+        /* ============================================== */
+
+        /* 開始日リサイズハンドル（バー左の三角）を表示・有効化（終了日同様に変更可能にする） */
+        .gantt_task_drag[data-bind-property="start_date"] {
+            display: block !important;
+            visibility: visible !important;
+            pointer-events: auto !important;
+        }
+
+        .filter-group {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+            margin-left: 8px;
+            padding-left: 8px;
+            border-left: 1px solid #ccc;
+        }
+
+        /* カスタムツールチップのスタイル */
+        .custom-tooltip {
+            position: fixed;
+            display: none;
+            background: rgba(33, 33, 33, 0.75); /* 透明度をアップ (0.95 -> 0.75) */
+            backdrop-filter: blur(4px); /* 背景を少しぼかして文字を読みやすく */
+            -webkit-backdrop-filter: blur(4px);
+            color: #fff;
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: bold;
+            z-index: 10000;
+            pointer-events: none;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            white-space: pre-line;
+            line-height: 1.4;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        /* リソース（下段）＝全体工程表と同じデザイン・土日・今日線を一直線に */
+        .resource-header {
+            background: #f8f9fa;
+            padding: 4px 12px;
+            font-weight: bold;
+            font-size: 11px;
+            color: #2c3e50;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #ddd;
+        }
+        .resource-header-close {
+            margin-left: 6px;
+            padding: 1px 6px;
+            border: 1px solid #ccc;
+            background: #fff;
+            color: #666;
+            font-size: 14px;
+            line-height: 1;
+            cursor: pointer;
+            border-radius: 3px;
+        }
+        .resource-header-close:hover { background: #f0f0f0; color: #333; }
+        .resource-content {
+            flex: 1;
+            overflow: auto;
+            padding: 0;
+            min-height: 0;
+            background: #fff;
+        }
+        .resource-content-inner {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            min-width: 1px;
+            padding: 0 0 8px 0;
+        }
+        .resource-item {
+            display: flex;
+            margin-bottom: 0;
+            align-items: center;
+            font-size: 13px;
+            min-width: min-content;
+            min-height: 27px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .resource-item:last-child { border-bottom: none; }
+        .resource-item.clickable:hover { background-color: #ebf5ff !important; }
+        .resource-item.clickable:hover .resource-grid-container { background-color: #ebf5ff !important; }
+        .resource-item.clickable:hover .resource-timeline { background-color: #ebf5ff !important; }
+        .owner-name-cell:hover { background-color: #2980b9 !important; color: #fff !important; border-radius: 3px; }
+        .owner-name-cell:active { background-color: #1a5f8a !important; color: #fff !important; border-radius: 3px; }
+        /* 下段グリッド：上段と同じ列幅（GRID_WIDTH=400）でカレンダー開始位置を一致・横スクロール時も固定 */
+        .resource-grid-container {
+            width: 400px;
+            min-width: 400px;
+            flex-shrink: 0;
+            position: sticky;
+            left: 0;
+            z-index: 2;
+            display: flex;
+            background: #f5f5f5;
+        }
+        .resource-item .resource-grid-container { background: #fff; }
+        .resource-grid {
+            width: 400px;
+            min-width: 400px;
+            display: flex;
+            flex-shrink: 0;
+            background: inherit;
+            border-right: 1px solid #e0e0e0;
+        }
+        .resource-grid .resource-cell {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            padding: 0 4px;
+            font-size: 13px;
+            border-right: 1px solid #e0e0e0;
+            box-sizing: border-box;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .resource-grid .resource-cell:last-child { border-right: none; }
+        .resource-scale-row .resource-grid { background: #f5f5f5; }
+        .resource-item .resource-grid { background: #fff; }
+        .resource-cell-w75 { width: 75px; min-width: 75px; justify-content: center; }
+        .resource-cell-w160 { width: 160px; min-width: 160px; }
+        .resource-cell-w60 { width: 60px; min-width: 60px; justify-content: center; }
+        .resource-cell-w100 { width: 100px; min-width: 100px; }
+        .resource-cell-w44 { width: 44px; min-width: 44px; }
+        .resource-grid-fill {
+            width: 624px;
+            min-width: 624px;
+            flex-shrink: 0;
+            background: #f5f5f5;
+            border-right: 1px solid #e0e0e0;
+        }
+        .resource-scale-label {
+            width: 75px;
+            min-width: 75px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            padding: 0 4px;
+            color: #333;
+            font-weight: bold;
+            font-size: 10px;
+            position: sticky;
+            left: 0;
+            z-index: 2;
+            background: #f5f5f5;
+            border-right: 1px solid #e0e0e0;
+            box-sizing: border-box;
+        }
+        .resource-timeline {
+            flex: 1;
+            min-width: 0;
+            position: relative;
+            z-index: 0;
+            height: 100%;
+            background: #fff;
+            border-right: 1px solid #e0e0e0;
+            /* 右スクロール時、グリッド範囲に入ったバーを完全に非表示にする */
+            clip-path: inset(0 0 0 var(--resource-clip-left, 0px));
+        }
+        .resource-timeline-grid {
+            position: absolute;
+            left: 0;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            z-index: 0;
+        }
+        .resource-timeline-grid-cell {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            border-right: 1px solid #e0e0e0;
+            box-sizing: border-box;
+        }
+        .resource-timeline-grid-cell:last-child { border-right: none; }
+        .resource-bar {
+            position: absolute;
+            z-index: 1;
+            height: 21px;
+            top: 3px;
+            border-radius: 2px;
+            border: 1px solid rgba(0,0,0,0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #222 !important;
+            font-size: 13px;
+            font-weight: bold;
+            text-shadow: none !important;
+            box-sizing: border-box;
+        }
+        /* 上段ガントと同じ色・枠（リソースバー用） */
+        .resource-bar.task-blue { background-color: #85C1E9 !important; border-color: #5DADE2 !important; }
+        .resource-bar.task-green { background-color: #82E0AA !important; border-color: #58D68D !important; }
+        .resource-bar.task-yellow { background-color: #F7DC6F !important; border-color: #F4D03F !important; }
+        .resource-bar.task-red { background-color: #F1948A !important; border-color: #EC7063 !important; }
+        .resource-bar.task-orange { background-color: #FBAD4F !important; border-color: #F8941D !important; }
+        .resource-bar.task-purple { background-color: #D7BDE2 !important; border-color: #AF7AC5 !important; }
+        .resource-bar.task-teal { background-color: #F8A5C2 !important; border-color: #F46B8A !important; }
+        .resource-bar.task-brown { background-color: #BCAAA4 !important; border-color: #8D6E63 !important; }
+        /* マイルストーン：上段と同じ記号のみ表示 */
+        .resource-bar.milestone-circle { background: none !important; border: none !important; }
+        .resource-bar.milestone-circle .resource-bar-text { display: none; }
+        .resource-bar.milestone-circle::before { content: "●"; color: #d32f2f; font-size: 18px; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); text-shadow: 1px 1px 2px rgba(0,0,0,0.1); }
+        .resource-bar.milestone-diamond { background: none !important; border: none !important; }
+        .resource-bar.milestone-diamond .resource-bar-text { display: none; }
+        .resource-bar.milestone-diamond::before { content: "◆"; color: #1976D2; font-size: 20px; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); text-shadow: 1px 1px 2px rgba(0,0,0,0.1); }
+        .resource-bar.milestone-star { background: none !important; border: none !important; }
+        .resource-bar.milestone-star .resource-bar-text { display: none; }
+        .resource-bar.milestone-star::before { content: "★"; color: #2E7D32; font-size: 22px; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); text-shadow: 1px 1px 2px rgba(0,0,0,0.2); }
+        .resource-bar.milestone-square { background: none !important; border: none !important; }
+        .resource-bar.milestone-square .resource-bar-text { display: none; }
+        .resource-bar.milestone-square::before { content: "▲"; color: #FBAD4F; font-size: 20px; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); text-shadow: 1px 1px 2px rgba(0,0,0,0.1); }
+        .resource-scale-row { display: flex; align-items: stretch; margin-bottom: 0; font-size: 10px; }
+        .resource-scale-row:first-of-type .resource-scale-inner { border-bottom: 1px solid #e0e0e0; }
+        .resource-scale-row:last-of-type .resource-scale-inner { height: 20px; }
+        .resource-grid-lines-only .resource-scale-inner { height: 8px; min-height: 8px; }
+        .resource-grid-lines-only .resource-scale-cell { border-right: 1px solid #e0e0e0; }
+        .resource-scale-inner {
+            flex: 1;
+            min-width: 0;
+            position: relative;
+            height: 20px;
+            background: #f5f5f5;
+            border: 1px solid #e0e0e0;
+            border-top: none;
+            box-sizing: border-box;
+        }
+        .resource-scale-row:first-of-type .resource-scale-inner { border-top: 1px solid #e0e0e0; }
+        .resource-scale-cell {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-right: 1px solid #e0e0e0;
+            box-sizing: border-box;
+            color: #333;
+            font-size: 11px;
+            text-align: center;
+        }
+        .resource-scale-cell:last-child { border-right: none; }
+        .resource-scale-cell.weekend { background: #f4f4f4 !important; }
+        .resource-calendar-wrap { margin-bottom: 4px; }
+        .resource-today-line { position: absolute; top: 0; bottom: 0; width: 2px; background: #cc0000 !important; opacity: 0.8; z-index: 1000 !important; pointer-events: none; }
+        .resource-today-wrap { position: relative; }
+        .resource-today-row .resource-scale-inner { background: transparent; border: none; }
+        .resource-timeline { border-right: 1px solid #ebebeb; }
+        .resource-item { border-bottom: 1px solid #ebebeb !important; }
+        .resource-placeholder { padding: 20px; color: #999; text-align: center; font-size: 11px; }
+        .filter-btn { padding: 0px 5px; border: 1px solid #ccc; border-radius: 4px; cursor: pointer; background: #fff; font-size: 12px; }
+        .filter-btn.active { background: #ff9800; color: white; border-color: #e68a00; }
+        
+        /* 担当未定行の背景を薄い赤にする */
+        .unassigned-row {
+            background-color: #ffe0e0 !important;
+        }
+        /* 警告マークの見た目調整 */
+        .unassigned-warning {
+            color: #d32f2f;
+            font-weight: bold;
+            display: flex;
+            justify-content: center;
+            font-size: 14px;
+        }
+        /* グリッドの＋ボタン制御 */
+        /* ヘッダーの＋ボタンを非表示 */
+        .gantt_grid_head_add {
+            display: none !important;
+        }
+        /* 🔍・チェックボックス列（1・3列目）を左罫線にぴったり寄せ */
+        .gantt_row .gantt_cell:nth-child(1),
+        .gantt_row .gantt_cell:nth-child(3),
+        .gantt_row_project .gantt_cell:nth-child(1),
+        .gantt_row_project .gantt_cell:nth-child(3) {
+            text-align: left !important;
+            justify-content: flex-start !important;
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+        }
+        /* タスク名列（4列目）の▶を左罫線にぴったり寄せ */
+        .gantt_row .gantt_cell:nth-child(4),
+        .gantt_row_project .gantt_cell:nth-child(4) {
+            padding-left: 0 !important;
+        }
+        /* ▶と見出し名の間の空白をなくす */
+        .gantt_tree_content {
+            margin-left: 0 !important;
+            padding-left: 0 !important;
+        }
+        .gantt_tree_icon {
+            width: 12px !important;
+            min-width: 12px !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+        /* 親タスク（見出し行）の＋ボタンを非表示 */
+        .hide_add_button .gantt_add {
+            display: none !important;
+        }
+        /* 完了済工番モーダル */
+        #new-project-modal-overlay { position:fixed; top:0; left:0; width:100%; height:100%; background:transparent; z-index:10000; display:none; }
+        #new-project-modal-overlay.visible { display:block; }
+        #new-project-modal { position:fixed; background:#fff; border-radius:6px; box-shadow:0 4px 20px rgba(0,0,0,0.3); width:280px; display:flex; flex-direction:column; overflow:hidden; }
+        #new-project-modal-header { background:#2c3e50; color:#fff; padding:8px 14px; display:flex; align-items:center; justify-content:space-between; }
+        #new-project-modal-header span { font-size:14px; font-weight:bold; }
+        #new-project-modal-body { padding:18px 18px 14px; display:flex; flex-direction:column; gap:10px; }
+        #new-project-modal-body label { font-size:12px; color:#555; margin-bottom:2px; display:block; }
+        #new-project-modal-body input { width:100%; padding:5px 8px; border:1px solid #ccc; border-radius:4px; font-size:13px; box-sizing:border-box; }
+        #new-project-modal-footer { padding:10px 18px 14px; display:flex; gap:8px; justify-content:flex-end; }
+        #kanryo-modal-overlay { position:fixed; top:0; left:0; width:100%; height:100%; background:transparent; z-index:10000; display:none; }
+        #kanryo-modal-overlay.visible { display:block; }
+        #kanryo-modal { position:fixed; background:#fff; border-radius:6px; box-shadow:0 4px 20px rgba(0,0,0,0.3); width:620px; height:60vh; display:flex; flex-direction:column; overflow:hidden; }
+        #kanryo-modal-header { background:#2c3e50; color:#fff; padding:8px 14px; display:flex; align-items:center; justify-content:space-between; }
+        #kanryo-modal-header span { font-size:14px; font-weight:bold; }
+        #kanryo-modal-tabs { display:flex; border-bottom:1px solid #ddd; background:#f8f9fa; }
+        .kanryo-tab { padding:5px 18px; cursor:pointer; font-size:13px; border-bottom:2px solid transparent; }
+        .kanryo-tab.active { border-bottom:2px solid #2c3e50; font-weight:bold; background:#fff; }
+        #kanryo-modal-body { overflow-y:auto; flex:1; padding:8px; }
+        .kanryo-table { width:100%; border-collapse:collapse; font-size:12px; }
+        .kanryo-table th { background:#f0f0f0; padding:5px 8px; text-align:left; border-bottom:2px solid #ccc; position:sticky; top:0; }
+        .kanryo-table td { padding:5px 8px; border-bottom:1px solid #eee; vertical-align:middle; }
+        .kanryo-table tr:hover td { background:#f5f9ff; }
+        .kanryo-move-btn { padding:1px 8px; background:#e74c3c; color:#fff; border:none; border-radius:3px; cursor:pointer; font-size:12px; white-space:nowrap; }
+        .kanryo-move-btn:hover { background:#c0392b; }
+        .kanryo-restore-btn { padding:1px 8px; background:#27ae60; color:#fff; border:none; border-radius:3px; cursor:pointer; font-size:12px; white-space:nowrap; }
+        .kanryo-restore-btn:hover { background:#219a52; }
+        #kanryo-close-btn { background:none; border:none; color:#fff; font-size:18px; cursor:pointer; line-height:1; padding:0 4px; }
+
+        /* チェックされた行のグレーアウト（グリッドのみ） */
+        .task-checked {
+            background-color: #f0f0f0 !important;
+            color: #999 !important;
+        }
+        .task-checked .gantt_tree_content {
+            color: #999 !important;
+        }
+
+        /* ===== ログイン・パスワード設定 ===== */
+        #login_overlay, #setpw_overlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55); z-index: 200000;
+            align-items: center; justify-content: center;
+        }
+        #login_overlay.open, #setpw_overlay.open { display: flex; }
+        #setpw_overlay { z-index: 200001; }
+        #login_dialog, #setpw_dialog {
+            background: #fff; border-radius: 8px; padding: 32px 28px;
+            width: 300px; box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+        }
+        #login_dialog h2, #setpw_dialog h2 { margin: 0 0 20px; font-size: 15px; text-align: center; color: #333; }
+        #setpw_dialog p { margin: -12px 0 20px; font-size: 12px; text-align: center; color: #888; }
+        #login_dialog input, #setpw_dialog input {
+            width: 100%; padding: 8px 10px; margin-bottom: 12px;
+            border: 1px solid #ccc; border-radius: 4px;
+            font-size: 13px; font-family: 'メイリオ', Meiryo, sans-serif;
+            box-sizing: border-box;
+        }
+        #login_error, #setpw_error { color: #e74c3c; font-size: 12px; margin-bottom: 10px; display: none; }
+        #login_btn_submit, #setpw_btn_submit {
+            width: 100%; padding: 9px; color: #fff; border: none;
+            border-radius: 4px; font-size: 13px; cursor: pointer;
+            font-family: 'メイリオ', Meiryo, sans-serif;
+        }
+        #login_btn_submit { background: #3498db; }
+        #login_btn_submit:hover { background: #2980b9; }
+        #setpw_btn_submit { background: #2ecc71; }
+        #setpw_btn_submit:hover { background: #27ae60; }
+        #login_btn_cancel {
+            width: 100%; padding: 7px; background: none; border: none;
+            color: #999; font-size: 12px; cursor: pointer; margin-top: 8px;
+            font-family: 'メイリオ', Meiryo, sans-serif;
+        }
+        #auth_btn { font-size: 12px; padding: 1px 8px; cursor: pointer;
+            border: 1px solid #ccc; border-radius: 4px; background: #f0f0f0; }
+        #auth_btn.logged-in { background: #e8f5e9; color: #2e7d32; border-color: #a5d6a7; }
+
+        /* ===== ヘルプモード ===== */
+        #help_btn { font-size: 13px; padding: 1px 8px; font-weight: bold; color: #555; cursor: pointer; border: 1px solid #ccc; border-radius: 4px; background: #f0f0f0; }
+        #help_btn.help-active { background: #1565c0; color: #fff; border-color: #1565c0; }
+        #help_tips_container { display: none; position: fixed; inset: 0; z-index: 200000; pointer-events: none; }
+        #help_tips_container.open { display: block; }
+        #help_overlay_bg { position: absolute; inset: 0; background: rgba(0,0,0,0.52); pointer-events: all; cursor: default; }
+        .help-highlight { position: fixed; z-index: 200001; pointer-events: all; cursor: help; border-radius: 4px; box-shadow: 0 0 0 2px rgba(255,255,255,0.55), 0 0 8px 2px rgba(100,170,255,0.45); transition: box-shadow 0.18s; }
+        .help-highlight:hover { box-shadow: 0 0 0 3px #fff, 0 0 18px 6px rgba(80,160,255,0.9); }
+        .help-tip { position: fixed; z-index: 200002; pointer-events: none; background: #fff; border: 2px solid #1565c0; border-radius: 6px; padding: 7px 10px; min-width: 150px; max-width: 240px; box-shadow: 0 3px 14px rgba(0,0,0,0.35); font-size: 11px; font-family: 'メイリオ', Meiryo, sans-serif; line-height: 1.5; color: #333; opacity: 0; visibility: hidden; transition: opacity 0.15s; }
+        .help-tip.tip-visible { opacity: 1; visibility: visible; }
+        .help-tip-title { font-weight: bold; font-size: 12px; color: #1565c0; margin-bottom: 3px; }
+        .help-tip::before { content: ''; position: absolute; top: -8px; left: 12px; width: 0; height: 0; border-left: 7px solid transparent; border-right: 7px solid transparent; border-bottom: 8px solid #1565c0; }
+        .help-tip::after { content: ''; position: absolute; top: -5px; left: 13px; width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 6px solid #fff; }
+        .help-tip.tip-above::before { top: auto; bottom: -8px; border-bottom: none; border-top: 8px solid #1565c0; }
+        .help-tip.tip-above::after { top: auto; bottom: -5px; border-bottom: none; border-top: 6px solid #fff; }
