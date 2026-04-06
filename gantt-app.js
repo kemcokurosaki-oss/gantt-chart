@@ -1202,23 +1202,25 @@
         // ===== 設計工程表との出図日付同期 ここまで =====
 
         // ===== 同期変更バナー（編集者向け） =====
+        const _syncBannerMessages = new Map(); // source → count
+
         function showSyncChangeBanner(source, count) {
             if (!_isEditor) return;
+            _syncBannerMessages.set(source, count);
+            _renderSyncChangeBanner();
+        }
+
+        function _renderSyncChangeBanner() {
             const banner = document.getElementById('sync-change-banner');
             const msgs   = document.getElementById('sync-change-banner-msgs');
-
-            // 同じ連携元のメッセージがあれば更新、なければ追加
-            let el = msgs.querySelector(`[data-source="${source}"]`);
-            if (!el) {
-                el = document.createElement('span');
-                el.dataset.source = source;
-                msgs.appendChild(el);
-            }
-            el.textContent = `🔄 ${source}との同期で ${count}件 の日付が更新されました`;
+            msgs.innerHTML = Array.from(_syncBannerMessages.entries())
+                .map(([src, cnt]) => `<span>🔄 ${src}との同期で ${cnt}件 の日付が更新されました</span>`)
+                .join('<span style="opacity:0.5;">｜</span>');
             banner.style.display = 'flex';
         }
 
         function closeSyncChangeBanner() {
+            _syncBannerMessages.clear();
             document.getElementById('sync-change-banner').style.display = 'none';
             document.getElementById('sync-change-banner-msgs').innerHTML = '';
         }
