@@ -883,14 +883,15 @@
             { id: 'new_project_btn',       title: '新規受注',         text: '新しい工事番号を登録します\n（要ログイン）' },
             { id: 'reset_filter_btn',      title: '表示リセット',     text: '部署フィルタ・担当者フィルタ・工事番号フィルタを\nすべて解除して全表示に戻します' },
             { id: 'kanryo-btn',            title: '完了済み',         text: '完了済み工番の一覧を表示\n過去の工事を参照できます\n（要ログイン）' },
-            { id: 'help_btn',              title: 'ヘルプ',           text: 'このヘルプを表示します\nもう一度クリックで閉じます' },
+            { id: 'mark-legend',           title: 'マーク凡例',       text: '🚚 部品送り開始日\n● 外観検査\n▲ 客先立会\n◆ 出荷確認会議\n★ 工場出荷\nガントチャート上に表示されるマークの意味' },
+            { id: 'help_btn',              title: '使い方ガイド',     text: 'このヘルプを表示します\nもう一度クリックで閉じます', closeOnClick: true },
             { id: 'auth_btn',              title: 'ログイン',         text: '編集者としてログイン\nログイン後は追加・編集・削除が可能になります' },
             { id: 'sort_process_btn',      title: '工程別表示',       text: '部署の工程順にタスクを並べて表示\nデフォルトの表示モードです' },
             { id: 'sort_machine_btn',      title: '機械別表示',       text: '機械番号ごとにタスクをまとめて表示\n機械単位の進捗確認に便利です' },
             { id: 'zoom_days_btn',         title: '日単位',           text: '1日単位でガントチャートを表示\n詳細なスケジュールの確認に' },
             { id: 'zoom_weeks_btn',        title: '週単位',           text: '1週単位で広い範囲を一覧表示\n全体スケジュールの把握に' },
             { id: 'scroll_today_btn',      title: '今日へ移動',       text: 'ガントチャートを今日の日付へスクロール' },
-            { id: 'search-filter-toggle',  title: '検索フィルター',   text: '機械番号やタスク名で絞り込み\nクリックで検索パネルを開閉' },
+            { id: 'search-filter-toggle',  title: '検索フィルター',   text: '機械番号・タスク名・担当者で絞り込み\nクリックで検索パネルを開閉\n⚠️担当未定ボタンで未割当タスクを一覧表示' },
             { id: 'major-filter-select',   title: '部署別フィルタ',   text: '選択した部署のタスクだけを表示\nバーの色も部署ごとに色分けされます' },
             { id: 'resource-dept-select',  title: '部署別リソース',   text: '選択した部署の担当者ごとの\nリソース状況を下部パネルに表示' },
             { id: 'location_resource_btn', title: '組立場所',         text: '組立エリアの場所別リソースを表示\nE1/E2などのエリアで確認できます' },
@@ -899,7 +900,7 @@
 
         function openHelp() {
             var helpBtn = document.getElementById('help_btn');
-            if (helpBtn.classList.contains('help-active')) { closeHelp(); return; }
+            if (helpBtn.classList.contains('help-active')) return;
             helpBtn.classList.add('help-active');
             var container = document.getElementById('help_tips_container');
             container.innerHTML = '<div id="help_overlay_bg"></div>';
@@ -925,12 +926,30 @@
                 }
             }
 
-            // ガントチャートエリア
-            var ganttEl = document.getElementById('gantt_here');
-            if (ganttEl) {
-                var gr = ganttEl.getBoundingClientRect();
-                if (gr.width > 0 && gr.height > 0) {
-                    addHelpItem(container, { title: 'ガントチャート', text: 'タスクバーをクリック → 詳細編集\nバーをドラッグ → 日程変更\nダブルクリック → 担当者・詳細編集\nバーの色 → 部署ごとに色分け' }, gr);
+            // タイムラインエリア
+            var timelineEl = document.querySelector('.gantt_task');
+            if (timelineEl) {
+                var tr = timelineEl.getBoundingClientRect();
+                if (tr.width > 0 && tr.height > 0) {
+                    addHelpItem(container, { title: 'ガントチャート（タイムライン）', text: 'バーをドラッグ → 日程変更\nバー右端をドラッグ → 期間変更\nバーをダブルクリック → 全項目編集画面\nバーの色 → 部署ごとに色分け' }, tr);
+                }
+            }
+
+            // グリッド列エリア
+            var gridEl = document.querySelector('.gantt_grid');
+            if (gridEl) {
+                var gridR = gridEl.getBoundingClientRect();
+                if (gridR.width > 0 && gridR.height > 0) {
+                    addHelpItem(container, { title: 'グリッド（左側の表）', text: 'セルをクリック\n　→ タスク開始日へ自動スクロール\nセルをダブルクリック\n　→ 項目をその場で編集\nCtrl+クリック / Shift+クリック\n　→ 複数行を選択\n右クリック\n　→ コピー・削除メニュー' }, gridR);
+                }
+            }
+
+            // 🔍ボタン（詳細工程表リンク）— グリッド内の最初の1件を代表として表示
+            var detailBtn = document.querySelector('.gantt_grid .zoom-btn');
+            if (detailBtn) {
+                var dbr = detailBtn.getBoundingClientRect();
+                if (dbr.width > 0 && dbr.height > 0) {
+                    addHelpItem(container, { title: '🔍 詳細工程表を開く', text: '見出し行（長納期品手配・出図＆部品手配）に\n表示されるボタン\nクリックで詳細工程表を別タブで開きます' }, dbr);
                 }
             }
         }
@@ -942,6 +961,10 @@
             hl.style.left   = rect.left + 'px';
             hl.style.width  = (rect.right - rect.left) + 'px';
             hl.style.height = (rect.bottom - rect.top) + 'px';
+            if (tip.closeOnClick) {
+                hl.style.cursor = 'pointer';
+                hl.addEventListener('click', closeHelp);
+            }
             container.appendChild(hl);
 
             var tipDiv = document.createElement('div');
