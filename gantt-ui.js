@@ -286,20 +286,33 @@
                 } else if (field === 'start_date') {
                     const val = document.getElementById('inline-edit-date-input').value;
                     if (val) {
-                        const newStart = new Date(val);
+                        const [y, m, d] = val.split('-').map(Number);
+                        const newStart = new Date(y, m - 1, d); // ローカル時刻で生成
                         const oldEnd = gantt.calculateEndDate(task.start_date, task.duration);
-                        task.duration = gantt.calculateDuration(newStart, oldEnd);
+                        task.duration = Math.max(1, Math.round(gantt.calculateDuration(newStart, oldEnd)));
                         task.start_date = newStart;
                     }
 
                 } else if (field === 'end_date') {
                     const val = document.getElementById('inline-edit-date-input').value;
                     if (val) {
-                        // 表示は inclusive end（最終日）なので+1日して exclusive end に変換
-                        const newEnd = new Date(val);
-                        newEnd.setDate(newEnd.getDate() + 1);
-                        const newDur = gantt.calculateDuration(task.start_date, newEnd);
+                        const [y, m, d] = val.split('-').map(Number);
+                        // ローカル時刻でstart_dateを正規化してカレンダー日数で算出
+                        const startNorm = new Date(task.start_date);
+                        startNorm.setHours(0, 0, 0, 0);
+                        const endInclusive = new Date(y, m - 1, d);
+                        const newDur = Math.round((endInclusive - startNorm) / (1000 * 60 * 60 * 24)) + 1;
                         task.duration = Math.max(1, newDur);
+                        // end_dateはduration変更のみのため直接Supabaseに保存
+                        const realId = task.original_id || taskId;
+                        await supabaseClient.from('tasks').update({ duration: task.duration }).eq('id', realId);
+                        // 変更履歴を記録
+                        if (typeof window.logChange === 'function') {
+                            window.logChange(task.project_number || '', task.machine || '', task.unit || '', task.text || '', '終了日を変更しました');
+                        }
+                        closeIE();
+                        await fetchTasks();
+                        return;
                     }
                 }
 
