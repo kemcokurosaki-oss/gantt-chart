@@ -219,7 +219,7 @@
                 const newId = data[0].id;
                 gantt.changeTaskId(id, newId);
                 console.log("New task added with ID:", newId);
-                
+
                 // 組立場所の保存（もしあれば）
                 if (item.locations && item.locations.length > 0) {
                     const locationRecords = item.locations.map(loc => ({
@@ -229,7 +229,12 @@
                     }));
                     await supabaseClient.from('task_locations').insert(locationRecords);
                 }
-                
+
+                // 変更履歴を記録
+                if (typeof window.logChange === 'function') {
+                    window.logChange(item.project_number || '', item.machine || '', item.unit || '', item.text || '', 'タスクを追加しました');
+                }
+
                 // 画面を最新状態に更新
                 await fetchTasks();
             }
@@ -250,6 +255,10 @@
             if (item.$virtual) return; // 見出し行は仮想的なものなので保存対象外
 
             const realId = item.original_id || id;
+
+            // 変更前のデータを取得（fetchTasks前なのでallTasksはまだ旧データ）
+            const oldTask = (window.allTasks || []).find(t => String(t.id) === String(realId));
+
             const updateData = {
                 text: item.text,
                 start_date: dateToDb(item.start_date),
@@ -284,6 +293,27 @@
                 console.error("Update error:", taskError);
                 alert("保存に失敗しました。");
                 return;
+            }
+
+            // 変更履歴を記録
+            if (oldTask && typeof window.logChange === 'function') {
+                const newStartDb = dateToDb(item.start_date);
+                const oldStartDb = (oldTask.start_date instanceof Date)
+                    ? dateToDb(oldTask.start_date)
+                    : (oldTask.start_date || '').substring(0, 10);
+                const changes = [];
+                if ((oldTask.text || '') !== (item.text || '')) changes.push('タスク名を変更しました');
+                const startChanged = oldStartDb !== newStartDb;
+                const durChanged = Number(oldTask.duration) !== Number(item.duration);
+                if (startChanged && durChanged) changes.push('開始日・終了日を変更しました');
+                else if (startChanged) changes.push('開始日を変更しました');
+                else if (durChanged) changes.push('終了日を変更しました');
+                if ((oldTask.owner || '') !== (item.owner || '')) changes.push('担当者を変更しました');
+                if ((oldTask.machine || '') !== (item.machine || '')) changes.push('機械を変更しました');
+                if ((oldTask.unit || '') !== (item.unit || '')) changes.push('ユニットを変更しました');
+                if (changes.length > 0) {
+                    window.logChange(item.project_number, item.machine, item.unit, item.text, changes.join('・'));
+                }
             }
 
             // 成功したらデータを再取得して allTasks と画面を更新
@@ -393,6 +423,10 @@
                 console.error("Delete error:", error);
                 alert("削除に失敗しました。");
             } else {
+                // 変更履歴を記録
+                if (typeof window.logChange === 'function') {
+                    window.logChange(item.project_number || '', item.machine || '', item.unit || '', item.text || '', 'タスクを削除しました');
+                }
                 // 成功したらデータを再取得して allTasks と画面を更新
                 await fetchTasks();
             }

@@ -636,6 +636,13 @@
                     }
                 }
 
+                // 変更履歴を記録
+                if (typeof window.logChange === 'function') {
+                    await Promise.all(tasks.map(function(t) {
+                        return window.logChange(t.project_number || '', t.machine || '', t.unit || '', t.text || '', 'タスクをコピーしました');
+                    }));
+                }
+
                 clearSelection();
                 await fetchTasks();
             }

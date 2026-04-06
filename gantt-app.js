@@ -420,7 +420,16 @@
             } catch(e) {}
             // Supabaseへの保存はバックグラウンドで実行
             supabaseClient.from('tasks').update({ is_completed: checked }).eq('id', id)
-                .then(({ error }) => { if (error) console.error("チェックボックス保存エラー:", error); });
+                .then(({ error }) => {
+                    if (error) { console.error("チェックボックス保存エラー:", error); return; }
+                    try {
+                        const task = gantt.getTask(id);
+                        if (task && typeof window.logChange === 'function') {
+                            window.logChange(task.project_number, task.machine, task.unit, task.text,
+                                checked ? '完了済みにしました' : '未完了に戻しました');
+                        }
+                    } catch(e) {}
+                });
         };
 
         function setDisplayMode(mode) {
@@ -957,6 +966,8 @@
                 if (templateTable === 'task_template') {
                     _newlyCreatedProject = projectNumber;
                 }
+                // 変更履歴を記録
+                logChange(projectNumber, '', '', '', '新規受注を追加しました');
                 // 画面更新
                 fetchTasks();
             }
@@ -1095,6 +1106,24 @@
         };
         // ===== 公開・更新通知 ここまで =====
 
+        // ===== 変更履歴ログ =====
+        async function logChange(projectNumber, machine, unit, taskText, description) {
+            if (!_isEditor) return;
+            try {
+                await supabaseClient.from('change_log').insert({
+                    project_number: projectNumber || '',
+                    machine:        machine       || '',
+                    unit:           unit          || '',
+                    task_text:      taskText      || '',
+                    description:    description   || ''
+                });
+            } catch(e) {
+                console.warn('変更履歴保存エラー:', e);
+            }
+        }
+        window.logChange = logChange;
+        // ===== 変更履歴ログ ここまで =====
+
         // ===== 設計工程表との出図日付同期 =====
         async function syncDesignDrawingDates() {
             if (!_isEditor) return; // ログイン済みの場合のみ実行
@@ -1178,16 +1207,13 @@
 
                 // 変更履歴を保存
                 const logRows = dbUpdates.map(u => ({
-                    source:         '設計工程表',
                     project_number: u.project_number,
                     machine:        u.machine,
                     unit:           u.unit,
-                    old_start_date: u.old_start_date || null,
-                    old_duration:   u.old_duration,
-                    new_start_date: u.start_date,
-                    new_duration:   u.duration
+                    task_text:      '出図',
+                    description:    '設計工程表との同期で開始日・終了日を変更しました'
                 }));
-                await supabaseClient.from('sync_log').insert(logRows);
+                await supabaseClient.from('change_log').insert(logRows);
 
                 const syncCount = dbUpdates.length;
                 console.log(`出図タスク ${syncCount} 件の日付を設計工程表と同期しました`);
@@ -1226,9 +1252,8 @@
         }
         // ===== 同期変更バナー ここまで =====
 
-        // ===== 同期履歴モーダル =====
-        let _syncLogData = [];   // 取得した全データをキャッシュ
-        let _syncLogFilter = ''; // 現在のフィルター（''=すべて）
+        // ===== 更新履歴モーダル =====
+        let _syncLogData = []; // 取得した全データをキャッシュ
 
         async function openSyncLogModal() {
             document.getElementById('sync-log-overlay').style.display = 'block';
@@ -1239,30 +1264,27 @@
             oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
 
             const { data, error } = await supabaseClient
-                .from('sync_log')
+                .from('change_log')
                 .select('*')
-                .gte('synced_at', oneMonthAgo.toISOString())
-                .order('synced_at', { ascending: false })
+                .gte('changed_at', oneMonthAgo.toISOString())
+                .order('changed_at', { ascending: false })
                 .limit(500);
 
-            if (error || !data || data.length === 0) {
-                content.innerHTML = '<div style="color:#999; text-align:center; padding:20px;">過去1ヶ月の同期履歴はありません</div>';
+            if (error) {
+                content.innerHTML = '<div style="color:#f44; text-align:center; padding:20px;">テーブルが未作成です。Supabase で create_change_log.sql を実行してください。</div>';
+                return;
+            }
+            if (!data || data.length === 0) {
+                content.innerHTML = '<div style="color:#999; text-align:center; padding:20px;">過去1ヶ月の更新履歴はありません</div>';
                 return;
             }
 
             _syncLogData = data;
-            _syncLogFilter = '';
             _renderSyncLog();
         }
 
         function _renderSyncLog() {
             const content = document.getElementById('sync-log-content');
-
-            const fmt = (dateStr) => {
-                if (!dateStr) return '—';
-                const [y, m, d] = dateStr.substring(0, 10).split('-').map(Number);
-                return `${String(y).slice(-2)}/${m}/${d}`;
-            };
             const fmtDt = (iso) => {
                 if (!iso) return '';
                 const d = new Date(iso);
@@ -1270,78 +1292,41 @@
                     String(d.getHours()).padStart(2,'0') + ':' +
                     String(d.getMinutes()).padStart(2,'0');
             };
-            const endDate = (startStr, dur) => {
-                if (!startStr || !dur) return '—';
-                const [y,m,d] = startStr.substring(0,10).split('-').map(Number);
-                const end = new Date(y, m-1, d + dur - 1);
-                return fmt(`${end.getFullYear()}-${String(end.getMonth()+1).padStart(2,'0')}-${String(end.getDate()).padStart(2,'0')}`);
-            };
-
-            // 連携元の一覧を取得
-            const sources = [...new Set(_syncLogData.map(r => r.source || '').filter(Boolean))].sort();
-
-            // フィルターボタン
-            let filterHtml = `<div style="margin-bottom:10px; display:flex; gap:6px; flex-wrap:wrap;">
-                <button onclick="_setSyncLogFilter('')" style="font-size:12px; padding:3px 10px; cursor:pointer; border-radius:3px; border:1px solid #ccc; background:${_syncLogFilter==='' ? '#1565c0' : '#fff'}; color:${_syncLogFilter==='' ? '#fff' : '#333'};">すべて</button>`;
-            sources.forEach(s => {
-                const active = _syncLogFilter === s;
-                filterHtml += `<button onclick="_setSyncLogFilter('${s}')" style="font-size:12px; padding:3px 10px; cursor:pointer; border-radius:3px; border:1px solid #ccc; background:${active ? '#1565c0' : '#fff'}; color:${active ? '#fff' : '#333'};">${s}</button>`;
-            });
-            filterHtml += '</div>';
-
-            // テーブルデータをフィルタリング
-            const rows = _syncLogFilter
-                ? _syncLogData.filter(r => r.source === _syncLogFilter)
-                : _syncLogData;
-
-            if (rows.length === 0) {
-                content.innerHTML = filterHtml + '<div style="color:#999; text-align:center; padding:20px;">該当する履歴はありません</div>';
-                return;
-            }
 
             let tableHtml = `<table style="width:100%; border-collapse:collapse; font-size:12px;">
                 <thead>
                     <tr style="background:#f5f5f5;">
-                        <th style="padding:6px 8px; text-align:left; border-bottom:2px solid #ddd; white-space:nowrap;">同期日時</th>
-                        <th style="padding:6px 8px; text-align:left; border-bottom:2px solid #ddd; white-space:nowrap;">連携元</th>
+                        <th style="padding:6px 8px; text-align:left; border-bottom:2px solid #ddd; white-space:nowrap;">更新日時</th>
                         <th style="padding:6px 8px; text-align:left; border-bottom:2px solid #ddd;">工事番号</th>
                         <th style="padding:6px 8px; text-align:left; border-bottom:2px solid #ddd;">機械</th>
                         <th style="padding:6px 8px; text-align:left; border-bottom:2px solid #ddd;">ユニット</th>
-                        <th style="padding:6px 8px; text-align:left; border-bottom:2px solid #ddd;">変更前</th>
-                        <th style="padding:6px 8px; text-align:left; border-bottom:2px solid #ddd;">変更後</th>
+                        <th style="padding:6px 8px; text-align:left; border-bottom:2px solid #ddd;">タスク名</th>
+                        <th style="padding:6px 8px; text-align:left; border-bottom:2px solid #ddd;">変更箇所</th>
                     </tr>
                 </thead>
                 <tbody>`;
 
-            rows.forEach((row, i) => {
+            _syncLogData.forEach((row, i) => {
                 const bg = i % 2 === 0 ? '#fff' : '#fafafa';
-                const oldEnd = endDate(row.old_start_date, row.old_duration);
-                const newEnd = endDate(row.new_start_date, row.new_duration);
                 tableHtml += `<tr style="background:${bg};">
-                    <td style="padding:5px 8px; border-bottom:1px solid #eee; white-space:nowrap; color:#666;">${fmtDt(row.synced_at)}</td>
-                    <td style="padding:5px 8px; border-bottom:1px solid #eee; color:#555;">${row.source || ''}</td>
+                    <td style="padding:5px 8px; border-bottom:1px solid #eee; white-space:nowrap; color:#666;">${fmtDt(row.changed_at)}</td>
                     <td style="padding:5px 8px; border-bottom:1px solid #eee; font-weight:bold;">${row.project_number || ''}</td>
                     <td style="padding:5px 8px; border-bottom:1px solid #eee;">${row.machine || ''}</td>
                     <td style="padding:5px 8px; border-bottom:1px solid #eee;">${row.unit || ''}</td>
-                    <td style="padding:5px 8px; border-bottom:1px solid #eee; color:#999;">${fmt(row.old_start_date)} 〜 ${oldEnd}</td>
-                    <td style="padding:5px 8px; border-bottom:1px solid #eee; color:#1565c0; font-weight:bold;">${fmt(row.new_start_date)} 〜 ${newEnd}</td>
+                    <td style="padding:5px 8px; border-bottom:1px solid #eee;">${row.task_text || ''}</td>
+                    <td style="padding:5px 8px; border-bottom:1px solid #eee; color:#1565c0;">${row.description || ''}</td>
                 </tr>`;
             });
 
             tableHtml += '</tbody></table>';
-            content.innerHTML = filterHtml + tableHtml;
-        }
-
-        function _setSyncLogFilter(source) {
-            _syncLogFilter = source;
-            _renderSyncLog();
+            content.innerHTML = tableHtml;
         }
 
         function closeSyncLogModal(e) {
             if (e && e.target !== document.getElementById('sync-log-overlay')) return;
             document.getElementById('sync-log-overlay').style.display = 'none';
         }
-        // ===== 同期履歴モーダル ここまで =====
+        // ===== 更新履歴モーダル ここまで =====
 
         document.getElementById('resource_close_btn').addEventListener('click', closeResourcePanel);
         loadCompletedProjects().then(() => loadHolidays()).then(() => fetchTasks()).then(() => {
