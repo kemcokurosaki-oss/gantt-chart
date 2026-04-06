@@ -933,6 +933,128 @@
             }
         }
 
+        // ===== 公開・更新通知 =====
+        let _knownPublishedAt = null;   // 閲覧者が最後に読み込んだ公開日時
+        let _pollTimer = null;
+
+        // app_settings から published_at を取得
+        async function getPublishedAt() {
+            const { data, error } = await supabaseClient
+                .from('app_settings')
+                .select('value')
+                .eq('key', 'published_at')
+                .maybeSingle();
+            if (error || !data) return null;
+            return data.value;
+        }
+
+        // 編集者：公開ボタン押下
+        async function publishNow() {
+            const btn = document.getElementById('publish_btn');
+            btn.classList.add('publishing');
+            btn.textContent = '公開中...';
+            const now = new Date().toISOString();
+            const { error } = await supabaseClient
+                .from('app_settings')
+                .upsert({ key: 'published_at', value: now });
+            btn.classList.remove('publishing');
+            btn.textContent = '📢 公開';
+            if (error) {
+                alert('公開に失敗しました: ' + error.message);
+            } else {
+                _knownPublishedAt = now;
+                hideBanner();
+                // 公開時刻を表示
+                const d = new Date(now);
+                const label = d.getFullYear() + '/' + String(d.getMonth()+1).padStart(2,'0') + '/' +
+                    String(d.getDate()).padStart(2,'0') + ' ' +
+                    String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+                const status = document.getElementById('save-status');
+                if (status) { status.textContent = '公開済 ' + label; }
+            }
+        }
+
+        // 閲覧者：バナーを表示
+        function showBanner(publishedAt) {
+            const d = new Date(publishedAt);
+            const label = d.getFullYear() + '/' + String(d.getMonth()+1).padStart(2,'0') + '/' +
+                String(d.getDate()).padStart(2,'0') + ' ' +
+                String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+            const msg = document.getElementById('update-banner-msg');
+            if (msg) msg.textContent = '🔔 工程表が更新されました（' + label + ' 公開）';
+            const banner = document.getElementById('update-banner');
+            if (banner) banner.style.display = 'flex';
+        }
+
+        function hideBanner() {
+            const banner = document.getElementById('update-banner');
+            if (banner) banner.style.display = 'none';
+        }
+
+        // 閲覧者：バナーの「最新データを取得」
+        async function applyUpdate() {
+            hideBanner();
+            const latest = await getPublishedAt();
+            if (latest) _knownPublishedAt = latest;
+            await fetchTasks();
+        }
+
+        // Realtime：app_settings の変更をリアルタイムで受信
+        let _realtimeChannel = null;
+
+        function startPolling() {
+            stopPolling();
+            _realtimeChannel = supabaseClient
+                .channel('app_settings_changes')
+                .on('postgres_changes', {
+                    event: 'UPDATE',
+                    schema: 'public',
+                    table: 'app_settings',
+                    filter: 'key=eq.published_at'
+                }, function(payload) {
+                    if (_isEditor) return;
+                    const latest = payload.new && payload.new.value;
+                    if (latest && latest !== _knownPublishedAt) {
+                        showBanner(latest);
+                    }
+                })
+                .on('postgres_changes', {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'app_settings',
+                    filter: 'key=eq.published_at'
+                }, function(payload) {
+                    if (_isEditor) return;
+                    const latest = payload.new && payload.new.value;
+                    if (latest && latest !== _knownPublishedAt) {
+                        showBanner(latest);
+                    }
+                })
+                .subscribe();
+        }
+
+        function stopPolling() {
+            if (_realtimeChannel) {
+                supabaseClient.removeChannel(_realtimeChannel);
+                _realtimeChannel = null;
+            }
+        }
+
+        // 認証状態変化時に公開ボタン表示/非表示を切り替え
+        const _origUpdateUIForAuth = _updateUIForAuth;
+        // gantt-setup.js の _updateUIForAuth をラップ（上書き）
+        window._onAuthChanged = function(isEditor) {
+            const publishBtn = document.getElementById('publish_btn');
+            if (publishBtn) publishBtn.style.display = isEditor ? '' : 'none';
+            if (isEditor) {
+                stopPolling();
+                hideBanner();
+            } else {
+                startPolling();
+            }
+        };
+        // ===== 公開・更新通知 ここまで =====
+
         document.getElementById('resource_close_btn').addEventListener('click', closeResourcePanel);
         loadCompletedProjects().then(() => loadHolidays()).then(() => fetchTasks()).then(() => {
             // 初期表示を今日の日付にスクロール
@@ -954,5 +1076,11 @@
             });
 
             // フォールバック（万が一イベントが発火しなかった場合）
-            setTimeout(scrollAction, 100); 
+            setTimeout(scrollAction, 100);
+
+            // 初回の published_at を記録してポーリング開始（閲覧者のみ）
+            getPublishedAt().then(function(val) {
+                _knownPublishedAt = val;
+                if (!_isEditor) startPolling();
+            });
         });

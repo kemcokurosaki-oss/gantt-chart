@@ -18,6 +18,8 @@
             <div class="input-row">
                 <button class="btn-add" id="new_project_btn" onclick="toggleNewProjectForm()" disabled>新規受注</button>
                 <button id="kanryo-btn" class="btn-add" onclick="openKanryoModal('kanri')" disabled style="margin-left:4px;">完了済み</button>
+                <button id="publish_btn" onclick="publishNow()" style="display:none; margin-left:4px;">📢 公開</button>
+                <span id="save-status" style="font-size:10px; color:#999; margin-left:4px;"></span>
                 <span id="mark-legend" style="display:flex; align-items:center; gap:4px; font-size: 13px; font-weight: bold; color: #333;">
                     <span>🚚</span> 部品送り開始日
                     <span style="margin-left: 10px; color: #d32f2f; font-size: 20px;">●</span> 外観検査
@@ -26,7 +28,6 @@
                     <span style="margin-left: 10px; color: #2E7D32; font-size: 22px;">★</span> 工場出荷
                 </span>
                 <span style="margin-left:auto; display:flex; align-items:center; gap:4px;">
-                    <span id="save-status" style="font-size:10px; color:#999;"></span>
                     <button id="help_btn" onclick="openHelp()" title="使い方ガイド">？使い方ガイド</button>
                     <button id="auth_btn" onclick="handleAuthBtn()" style="margin-left:4px;">ログイン</button>
                 </span>
@@ -234,6 +235,12 @@
             <button class="btn-confirm-copy" id="copy-fields-ok-btn">コピー実行</button>
         </div>
     </div>
+</div>
+
+<!-- 更新通知バナー（閲覧者向け） -->
+<div id="update-banner" style="display:none;">
+    <span id="update-banner-msg">🔔 工程表が更新されました</span>
+    <button id="update-banner-btn" onclick="applyUpdate()">最新データを取得</button>
 </div>
 
 <!-- 削除確認モーダル -->

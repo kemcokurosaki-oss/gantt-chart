@@ -36,6 +36,8 @@
                 authBtn.classList.toggle('logged-in', isEditor);
             }
             if (typeof gantt.render === 'function') gantt.render();
+            // 公開ボタン・ポーリング制御
+            if (typeof window._onAuthChanged === 'function') window._onAuthChanged(isEditor);
         }
 
         function handleAuthBtn() {
