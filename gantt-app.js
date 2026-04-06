@@ -2,15 +2,44 @@
             // スクロール位置を記憶
             const scrollPos = gantt.getScrollState();
 
-            // 表示モードに応じてソート順のカラムを切り替え
-            const sortColumn = currentDisplayMode === 'machine' ? 'sort_order_machine' : 'sort_order';
-            const { data, error } = await supabaseClient.from('tasks').select('*').order(sortColumn, { ascending: true });
-            if (error) return;
+            let data, locData;
+
+            if (!_isEditor) {
+                // 閲覧者: 公開スナップショットから読み込む
+                const { data: snap, error: snapErr } = await supabaseClient
+                    .from('app_settings')
+                    .select('key, value')
+                    .in('key', ['published_tasks', 'published_locs']);
+
+                if (!snapErr && snap && snap.length > 0) {
+                    const tasksEntry = snap.find(s => s.key === 'published_tasks');
+                    const locsEntry  = snap.find(s => s.key === 'published_locs');
+                    data    = tasksEntry ? JSON.parse(tasksEntry.value) : null;
+                    locData = locsEntry  ? JSON.parse(locsEntry.value)  : [];
+                }
+
+                // スナップショットがまだない場合はライブデータにフォールバック
+                if (!data) {
+                    const sortColumn = currentDisplayMode === 'machine' ? 'sort_order_machine' : 'sort_order';
+                    const { data: liveData, error } = await supabaseClient.from('tasks').select('*').order(sortColumn, { ascending: true });
+                    if (error) return;
+                    data = liveData;
+                    const { data: liveLoc } = await supabaseClient.from('task_locations').select('*');
+                    locData = liveLoc || [];
+                }
+            } else {
+                // 編集者: ライブデータから読み込む
+                const sortColumn = currentDisplayMode === 'machine' ? 'sort_order_machine' : 'sort_order';
+                const { data: liveData, error } = await supabaseClient.from('tasks').select('*').order(sortColumn, { ascending: true });
+                if (error) return;
+                data = liveData;
+                const { data: liveLoc } = await supabaseClient.from('task_locations').select('*');
+                locData = liveLoc || [];
+            }
 
             // task_locations データを取得してマッピング
-            const { data: locData, error: locError } = await supabaseClient.from('task_locations').select('*');
             const locMap = {};
-            if (!locError && locData) {
+            if (locData) {
                 locData.forEach(loc => {
                     if (!locMap[loc.task_id]) {
                         locMap[loc.task_id] = { area_group: loc.area_group, area_numbers: [] };
@@ -954,6 +983,17 @@
             btn.classList.add('publishing');
             btn.textContent = '公開中...';
             const now = new Date().toISOString();
+
+            // 現在のタスクデータをスナップショットとして保存
+            const [{ data: taskSnap }, { data: locSnap }] = await Promise.all([
+                supabaseClient.from('tasks').select('*').order('sort_order', { ascending: true }),
+                supabaseClient.from('task_locations').select('*')
+            ]);
+            await supabaseClient.from('app_settings').upsert([
+                { key: 'published_tasks', value: JSON.stringify(taskSnap  || []) },
+                { key: 'published_locs',  value: JSON.stringify(locSnap   || []) }
+            ]);
+
             const { error } = await supabaseClient
                 .from('app_settings')
                 .upsert({ key: 'published_at', value: now });
@@ -1055,8 +1095,256 @@
         };
         // ===== 公開・更新通知 ここまで =====
 
+        // ===== 設計工程表との出図日付同期 =====
+        async function syncDesignDrawingDates() {
+            if (!_isEditor) return; // ログイン済みの場合のみ実行
+            try {
+                // 設計工程表の図面タスク（task_type='drawing'）を取得
+                const { data: designTasks, error } = await supabaseClient
+                    .from('tasks')
+                    .select('project_number, machine, unit, start_date, end_date')
+                    .eq('task_type', 'drawing')
+                    .not('start_date', 'is', null)
+                    .not('end_date', 'is', null);
+
+                if (error) {
+                    console.warn('設計工程表タスク取得エラー:', error);
+                    return;
+                }
+                if (!designTasks || designTasks.length === 0) return;
+
+                // (project_number, machine, unit) ごとに最早開始日・最遅終了日を集計
+                const groupMap = {};
+                designTasks.forEach(t => {
+                    if (t.is_archived) return; // アーカイブ済みは除外
+                    const pn = (t.project_number || '').toString().trim();
+                    const mc = (t.machine || '').trim();
+                    const un = (t.unit || '').trim();
+                    const key = `${pn}|${mc}|${un}`;
+                    const s = (t.start_date || '').substring(0, 10);
+                    const e = (t.end_date   || '').substring(0, 10);
+                    if (!s || !e) return;
+                    if (!groupMap[key]) {
+                        groupMap[key] = { min_start: s, max_end: e };
+                    } else {
+                        if (s < groupMap[key].min_start) groupMap[key].min_start = s;
+                        if (e > groupMap[key].max_end)   groupMap[key].max_end = e;
+                    }
+                });
+
+                // 出図タスク（text='出図'）を全体工程表から検索
+                const izuTasks = (window.allTasks || []).filter(t => t.text === '出図');
+                if (izuTasks.length === 0) return;
+
+                const dbUpdates = [];
+                izuTasks.forEach(t => {
+                    const pn = (t.project_number || '').toString().trim();
+                    const mc = (t.machine || '').trim();
+                    const un = (t.unit || '').trim();
+                    const key = `${pn}|${mc}|${un}`;
+                    const group = groupMap[key];
+                    if (!group) return; // マッチなし → 更新しない
+
+                    // 新しい開始日・期間を計算
+                    const newStartDate = group.min_start;
+                    const [sy, sm, sd] = group.min_start.split('-').map(Number);
+                    const [ey, em, ed] = group.max_end.split('-').map(Number);
+                    const startD = new Date(sy, sm - 1, sd);
+                    const endD   = new Date(ey, em - 1, ed);
+                    const newDuration = Math.round((endD - startD) / (1000 * 60 * 60 * 24)) + 1;
+
+                    // 既存値と比較（変更がある場合のみ更新）
+                    const currentStart = (t.start_date instanceof Date)
+                        ? dateToDb(t.start_date)
+                        : (t.start_date || '').substring(0, 10);
+                    if (currentStart === newStartDate && t.duration === newDuration) return;
+
+                    dbUpdates.push({
+                        id: t.id,
+                        project_number: pn, machine: mc, unit: un,
+                        old_start_date: currentStart, old_duration: t.duration,
+                        start_date: newStartDate, duration: newDuration
+                    });
+                });
+
+                if (dbUpdates.length === 0) return;
+
+                // Supabaseを一括更新
+                await Promise.all(dbUpdates.map(u =>
+                    supabaseClient.from('tasks')
+                        .update({ start_date: u.start_date, duration: u.duration })
+                        .eq('id', u.id)
+                ));
+
+                // 変更履歴を保存
+                const logRows = dbUpdates.map(u => ({
+                    source:         '設計工程表',
+                    project_number: u.project_number,
+                    machine:        u.machine,
+                    unit:           u.unit,
+                    old_start_date: u.old_start_date || null,
+                    old_duration:   u.old_duration,
+                    new_start_date: u.start_date,
+                    new_duration:   u.duration
+                }));
+                await supabaseClient.from('sync_log').insert(logRows);
+
+                const syncCount = dbUpdates.length;
+                console.log(`出図タスク ${syncCount} 件の日付を設計工程表と同期しました`);
+                // 更新後に再描画
+                await fetchTasks();
+                // 編集者にバナー通知
+                showSyncChangeBanner('設計工程表', syncCount);
+            } catch (e) {
+                console.warn('出図タスク日付同期エラー:', e);
+            }
+        }
+        // ===== 設計工程表との出図日付同期 ここまで =====
+
+        // ===== 同期変更バナー（編集者向け） =====
+        function showSyncChangeBanner(source, count) {
+            if (!_isEditor) return;
+            const banner = document.getElementById('sync-change-banner');
+            const msgs   = document.getElementById('sync-change-banner-msgs');
+
+            // 同じ連携元のメッセージがあれば更新、なければ追加
+            let el = msgs.querySelector(`[data-source="${source}"]`);
+            if (!el) {
+                el = document.createElement('span');
+                el.dataset.source = source;
+                msgs.appendChild(el);
+            }
+            el.textContent = `🔄 ${source}との同期で ${count}件 の日付が更新されました`;
+            banner.style.display = 'flex';
+        }
+
+        function closeSyncChangeBanner() {
+            document.getElementById('sync-change-banner').style.display = 'none';
+            document.getElementById('sync-change-banner-msgs').innerHTML = '';
+        }
+        // ===== 同期変更バナー ここまで =====
+
+        // ===== 同期履歴モーダル =====
+        let _syncLogData = [];   // 取得した全データをキャッシュ
+        let _syncLogFilter = ''; // 現在のフィルター（''=すべて）
+
+        async function openSyncLogModal() {
+            document.getElementById('sync-log-overlay').style.display = 'block';
+            const content = document.getElementById('sync-log-content');
+            content.innerHTML = '<div style="color:#999; text-align:center; padding:20px;">読み込み中...</div>';
+
+            const oneMonthAgo = new Date();
+            oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+
+            const { data, error } = await supabaseClient
+                .from('sync_log')
+                .select('*')
+                .gte('synced_at', oneMonthAgo.toISOString())
+                .order('synced_at', { ascending: false })
+                .limit(500);
+
+            if (error || !data || data.length === 0) {
+                content.innerHTML = '<div style="color:#999; text-align:center; padding:20px;">過去1ヶ月の同期履歴はありません</div>';
+                return;
+            }
+
+            _syncLogData = data;
+            _syncLogFilter = '';
+            _renderSyncLog();
+        }
+
+        function _renderSyncLog() {
+            const content = document.getElementById('sync-log-content');
+
+            const fmt = (dateStr) => {
+                if (!dateStr) return '—';
+                const [y, m, d] = dateStr.substring(0, 10).split('-').map(Number);
+                return `${String(y).slice(-2)}/${m}/${d}`;
+            };
+            const fmtDt = (iso) => {
+                if (!iso) return '';
+                const d = new Date(iso);
+                return `${String(d.getFullYear()).slice(-2)}/${d.getMonth()+1}/${d.getDate()} ` +
+                    String(d.getHours()).padStart(2,'0') + ':' +
+                    String(d.getMinutes()).padStart(2,'0');
+            };
+            const endDate = (startStr, dur) => {
+                if (!startStr || !dur) return '—';
+                const [y,m,d] = startStr.substring(0,10).split('-').map(Number);
+                const end = new Date(y, m-1, d + dur - 1);
+                return fmt(`${end.getFullYear()}-${String(end.getMonth()+1).padStart(2,'0')}-${String(end.getDate()).padStart(2,'0')}`);
+            };
+
+            // 連携元の一覧を取得
+            const sources = [...new Set(_syncLogData.map(r => r.source || '').filter(Boolean))].sort();
+
+            // フィルターボタン
+            let filterHtml = `<div style="margin-bottom:10px; display:flex; gap:6px; flex-wrap:wrap;">
+                <button onclick="_setSyncLogFilter('')" style="font-size:12px; padding:3px 10px; cursor:pointer; border-radius:3px; border:1px solid #ccc; background:${_syncLogFilter==='' ? '#1565c0' : '#fff'}; color:${_syncLogFilter==='' ? '#fff' : '#333'};">すべて</button>`;
+            sources.forEach(s => {
+                const active = _syncLogFilter === s;
+                filterHtml += `<button onclick="_setSyncLogFilter('${s}')" style="font-size:12px; padding:3px 10px; cursor:pointer; border-radius:3px; border:1px solid #ccc; background:${active ? '#1565c0' : '#fff'}; color:${active ? '#fff' : '#333'};">${s}</button>`;
+            });
+            filterHtml += '</div>';
+
+            // テーブルデータをフィルタリング
+            const rows = _syncLogFilter
+                ? _syncLogData.filter(r => r.source === _syncLogFilter)
+                : _syncLogData;
+
+            if (rows.length === 0) {
+                content.innerHTML = filterHtml + '<div style="color:#999; text-align:center; padding:20px;">該当する履歴はありません</div>';
+                return;
+            }
+
+            let tableHtml = `<table style="width:100%; border-collapse:collapse; font-size:12px;">
+                <thead>
+                    <tr style="background:#f5f5f5;">
+                        <th style="padding:6px 8px; text-align:left; border-bottom:2px solid #ddd; white-space:nowrap;">同期日時</th>
+                        <th style="padding:6px 8px; text-align:left; border-bottom:2px solid #ddd; white-space:nowrap;">連携元</th>
+                        <th style="padding:6px 8px; text-align:left; border-bottom:2px solid #ddd;">工事番号</th>
+                        <th style="padding:6px 8px; text-align:left; border-bottom:2px solid #ddd;">機械</th>
+                        <th style="padding:6px 8px; text-align:left; border-bottom:2px solid #ddd;">ユニット</th>
+                        <th style="padding:6px 8px; text-align:left; border-bottom:2px solid #ddd;">変更前</th>
+                        <th style="padding:6px 8px; text-align:left; border-bottom:2px solid #ddd;">変更後</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+
+            rows.forEach((row, i) => {
+                const bg = i % 2 === 0 ? '#fff' : '#fafafa';
+                const oldEnd = endDate(row.old_start_date, row.old_duration);
+                const newEnd = endDate(row.new_start_date, row.new_duration);
+                tableHtml += `<tr style="background:${bg};">
+                    <td style="padding:5px 8px; border-bottom:1px solid #eee; white-space:nowrap; color:#666;">${fmtDt(row.synced_at)}</td>
+                    <td style="padding:5px 8px; border-bottom:1px solid #eee; color:#555;">${row.source || ''}</td>
+                    <td style="padding:5px 8px; border-bottom:1px solid #eee; font-weight:bold;">${row.project_number || ''}</td>
+                    <td style="padding:5px 8px; border-bottom:1px solid #eee;">${row.machine || ''}</td>
+                    <td style="padding:5px 8px; border-bottom:1px solid #eee;">${row.unit || ''}</td>
+                    <td style="padding:5px 8px; border-bottom:1px solid #eee; color:#999;">${fmt(row.old_start_date)} 〜 ${oldEnd}</td>
+                    <td style="padding:5px 8px; border-bottom:1px solid #eee; color:#1565c0; font-weight:bold;">${fmt(row.new_start_date)} 〜 ${newEnd}</td>
+                </tr>`;
+            });
+
+            tableHtml += '</tbody></table>';
+            content.innerHTML = filterHtml + tableHtml;
+        }
+
+        function _setSyncLogFilter(source) {
+            _syncLogFilter = source;
+            _renderSyncLog();
+        }
+
+        function closeSyncLogModal(e) {
+            if (e && e.target !== document.getElementById('sync-log-overlay')) return;
+            document.getElementById('sync-log-overlay').style.display = 'none';
+        }
+        // ===== 同期履歴モーダル ここまで =====
+
         document.getElementById('resource_close_btn').addEventListener('click', closeResourcePanel);
         loadCompletedProjects().then(() => loadHolidays()).then(() => fetchTasks()).then(() => {
+            // 設計工程表との出図日付同期（バックグラウンドで実行）
+            syncDesignDrawingDates();
             // 初期表示を今日の日付にスクロール
             // setTimeoutを短縮し、gantt.onRenderイベント等で補完
             const scrollAction = () => {

@@ -28,6 +28,7 @@
                     <span style="margin-left: 10px; color: #2E7D32; font-size: 22px;">★</span> 工場出荷
                 </span>
                 <span style="margin-left:auto; display:flex; align-items:center; gap:4px;">
+                    <button onclick="openSyncLogModal()" id="sync_log_btn" title="設計工程表との同期履歴">📋 同期履歴</button>
                     <button id="help_btn" onclick="openHelp()" title="使い方ガイド">？使い方ガイド</button>
                     <button id="auth_btn" onclick="handleAuthBtn()" style="margin-left:4px;">ログイン</button>
                 </span>
@@ -243,6 +244,12 @@
     <button id="update-banner-btn" onclick="applyUpdate()">最新データを取得</button>
 </div>
 
+<!-- 同期変更バナー（編集者向け） -->
+<div id="sync-change-banner" style="display:none;">
+    <span id="sync-change-banner-msgs"></span>
+    <button onclick="closeSyncChangeBanner()" id="sync-change-banner-close">✕</button>
+</div>
+
 <!-- 削除確認モーダル -->
 <div id="delete-confirm-overlay">
     <div id="delete-confirm-dialog">
@@ -257,6 +264,19 @@
 
 <!-- ヘルプモード コンテナ -->
 <div id="help_tips_container"></div>
+
+<!-- 同期履歴モーダル -->
+<div id="sync-log-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:9000;" onclick="closeSyncLogModal(event)">
+    <div id="sync-log-modal" style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:#fff; border-radius:6px; box-shadow:0 4px 20px rgba(0,0,0,0.3); width:700px; max-width:95vw; max-height:80vh; display:flex; flex-direction:column;">
+        <div style="padding:12px 16px; border-bottom:1px solid #eee; display:flex; align-items:center; justify-content:space-between;">
+            <span style="font-size:14px; font-weight:bold;">📋 設計工程表との同期履歴（過去1ヶ月）</span>
+            <button onclick="closeSyncLogModal()" style="background:none; border:none; font-size:18px; cursor:pointer; color:#666;">✕</button>
+        </div>
+        <div id="sync-log-content" style="overflow-y:auto; padding:12px 16px; flex:1; font-size:13px;">
+            <div style="color:#999; text-align:center; padding:20px;">読み込み中...</div>
+        </div>
+    </div>
+</div>
 
     <script src="gantt-setup.js"></script>
     <script src="gantt-events.js"></script>
