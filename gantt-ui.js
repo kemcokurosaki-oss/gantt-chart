@@ -369,6 +369,351 @@
         })();
         // ===== インライン編集 ここまで =====
 
+        // ===== 右クリックコンテキストメニュー =====
+        (function() {
+            let _ctxTaskId = null;
+
+            // ===== 複数行選択 =====
+            let _selectedIds = new Set();   // 選択中のタスクID
+            window._ganttSelectedIds = _selectedIds; // grid_row_class テンプレートから参照
+            let _lastClickedId = null;      // Shift範囲選択の起点
+
+            // 選択変更をガントに通知（テンプレート経由でクラスが付くため再描画のみ）
+            function applySelectionHighlight() {
+                gantt.render();
+            }
+
+            // 表示中のタスクIDを順番通りに返す
+            function getVisibleTaskIds() {
+                const ids = [];
+                gantt.eachTask(function(task) {
+                    try {
+                        if (!task.$virtual && gantt.isTaskVisible(task.id)) ids.push(String(task.id));
+                    } catch(e) {}
+                });
+                return ids;
+            }
+
+            // 選択をクリア
+            function clearSelection() {
+                if (_selectedIds.size === 0) return;
+                _selectedIds.clear();
+                _lastClickedId = null;
+                applySelectionHighlight();
+            }
+
+            // Ctrl/Shift クリックによる行選択
+            gantt.attachEvent('onTaskClick', function(id, e) {
+                const cell = e.target.closest('.gantt_cell');
+                if (!cell) return true;
+                const tag = e.target.tagName;
+                if (tag === 'INPUT' || tag === 'BUTTON' ||
+                    e.target.classList.contains('gantt_tree_icon') ||
+                    e.target.classList.contains('zoom-btn')) return true;
+
+                const task = gantt.getTask(id);
+                if (!task || task.$virtual) return true;
+
+                const sid = String(id);
+
+                if (e.ctrlKey || e.metaKey) {
+                    // Ctrl: トグル
+                    if (_selectedIds.has(sid)) {
+                        _selectedIds.delete(sid);
+                    } else {
+                        _selectedIds.add(sid);
+                    }
+                    _lastClickedId = sid;
+                    applySelectionHighlight();
+                    return true; // スクロール等のデフォルト動作は継続
+                } else if (e.shiftKey && _lastClickedId) {
+                    // Shift: 範囲選択
+                    const visIds = getVisibleTaskIds();
+                    const a = visIds.indexOf(_lastClickedId);
+                    const b = visIds.indexOf(sid);
+                    if (a >= 0 && b >= 0) {
+                        const lo = Math.min(a, b), hi = Math.max(a, b);
+                        for (let i = lo; i <= hi; i++) _selectedIds.add(visIds[i]);
+                    }
+                    applySelectionHighlight();
+                    return true;
+                } else {
+                    // 通常クリック: 選択解除
+                    clearSelection();
+                    _lastClickedId = sid;
+                    return true;
+                }
+            });
+
+            // メニュー要素を取得（初回のみ作成）
+            function getMenu() {
+                let m = document.getElementById('grid-context-menu');
+                if (m) return m;
+                m = document.createElement('div');
+                m.id = 'grid-context-menu';
+                m.innerHTML = `
+                    <div class="ctx-menu-item" id="ctx-copy-btn">
+                        <span>📋</span> <span id="ctx-copy-label">行をコピー（下に追加）</span>
+                    </div>
+                    <hr class="ctx-menu-separator">
+                    <div class="ctx-menu-item ctx-delete" id="ctx-delete-btn">
+                        <span>🗑️</span> <span id="ctx-delete-label">行を削除</span>
+                    </div>`;
+                document.body.appendChild(m);
+                document.getElementById('ctx-copy-btn').addEventListener('click', handleCopy);
+                document.getElementById('ctx-delete-btn').addEventListener('click', handleDelete);
+                return m;
+            }
+
+            function showMenu(x, y, targetId) {
+                const m = getMenu();
+                // 選択中IDセットにターゲットが含まれていなければ単独選択
+                if (!_selectedIds.has(String(targetId))) {
+                    clearSelection();
+                    _selectedIds.add(String(targetId));
+                    _lastClickedId = String(targetId);
+                    applySelectionHighlight();
+                }
+                const count = _selectedIds.size;
+                const suffix = count > 1 ? '（' + count + '行）' : '';
+                document.getElementById('ctx-copy-label').textContent = '行をコピー' + suffix;
+                document.getElementById('ctx-delete-label').textContent = '行を削除' + suffix;
+
+                m.classList.add('visible');
+                const margin = 8;
+                let left = x, top = y + 2;
+                if (left + m.offsetWidth > window.innerWidth - margin) left = window.innerWidth - m.offsetWidth - margin;
+                if (top + m.offsetHeight > window.innerHeight - margin) top = y - m.offsetHeight - 2;
+                m.style.left = Math.max(margin, left) + 'px';
+                m.style.top  = Math.max(margin, top)  + 'px';
+            }
+
+            function hideMenu() {
+                const m = document.getElementById('grid-context-menu');
+                if (m) m.classList.remove('visible');
+                _ctxTaskId = null;
+            }
+
+            // コピーする項目の定義
+            const COPY_FIELDS = [
+                { key: 'project_number',  label: '工事番号' },
+                { key: 'text',            label: 'タスク名' },
+                { key: 'major_item',      label: '部署' },
+                { key: 'machine',         label: '機械' },
+                { key: 'unit',            label: 'ユニット' },
+                { key: 'owner',           label: '担当' },
+                { key: 'area_number',     label: '場所' },
+                { key: 'start_date',      label: '開始日' },
+                { key: 'duration',        label: '終了日/期間' },
+            ];
+            const COPY_PREF_KEY = 'gantt_copy_fields_pref';
+
+            function loadCopyPrefs() {
+                try {
+                    const raw = localStorage.getItem(COPY_PREF_KEY);
+                    if (raw) return JSON.parse(raw);
+                } catch(e) {}
+                // デフォルト：全項目ON
+                const def = {};
+                COPY_FIELDS.forEach(function(f) { def[f.key] = true; });
+                return def;
+            }
+
+            function saveCopyPrefs(prefs) {
+                try { localStorage.setItem(COPY_PREF_KEY, JSON.stringify(prefs)); } catch(e) {}
+            }
+
+            // コピー処理（項目選択モーダルを経由）
+            function handleCopy() {
+                const targetIds = _selectedIds.size > 0
+                    ? Array.from(_selectedIds)
+                    : (_ctxTaskId ? [String(_ctxTaskId)] : []);
+                hideMenu();
+                if (targetIds.length === 0) return;
+                const tasks = targetIds.map(function(id) { return gantt.getTask(id); })
+                    .filter(function(t) { return t && !t.$virtual; });
+                if (tasks.length === 0) return;
+
+                // 単行コピーの場合は後方互換のため task を 1 件だけ使う
+                const task = tasks[0];
+                const taskId = String(task.id);
+
+                const prefs = loadCopyPrefs();
+
+                // チェックボックスリストを生成
+                const list = document.getElementById('copy-fields-list');
+                list.innerHTML = '';
+                COPY_FIELDS.forEach(function(f) {
+                    const lbl = document.createElement('label');
+                    const cb = document.createElement('input');
+                    cb.type = 'checkbox';
+                    cb.name = 'copy_field';
+                    cb.value = f.key;
+                    cb.checked = prefs[f.key] !== false;
+                    lbl.appendChild(cb);
+                    lbl.appendChild(document.createTextNode(f.label));
+                    list.appendChild(lbl);
+                });
+
+                const overlay = document.getElementById('copy-fields-overlay');
+                overlay.classList.add('visible');
+
+                function doExecute() {
+                    // 現在のチェック状態を保存
+                    const newPrefs = {};
+                    COPY_FIELDS.forEach(function(f) { newPrefs[f.key] = false; });
+                    list.querySelectorAll('input[name=copy_field]:checked').forEach(function(cb) {
+                        newPrefs[cb.value] = true;
+                    });
+                    saveCopyPrefs(newPrefs);
+                    cleanup();
+                    // 複数行の場合は全件をまとめて処理
+                    executeCopyMulti(tasks, newPrefs);
+                }
+                function doCancel() { cleanup(); }
+                function cleanup() {
+                    overlay.classList.remove('visible');
+                    document.getElementById('copy-fields-ok-btn').removeEventListener('click', doExecute);
+                    document.getElementById('copy-fields-cancel-btn').removeEventListener('click', doCancel);
+                }
+                document.getElementById('copy-fields-ok-btn').addEventListener('click', doExecute);
+                document.getElementById('copy-fields-cancel-btn').addEventListener('click', doCancel);
+            }
+
+            function buildCopyPayload(task, prefs) {
+                const copyField = function(key, val) { return prefs[key] ? (val || '') : ''; };
+                const copyDate  = function(key, d)   { return prefs[key] ? dateToDb(d) : dateToDb(task.start_date); };
+                const copyDur   = function(key, dur) { return prefs[key] ? dur : 1; };
+                return {
+                    project_number:   copyField('project_number',  task.project_number),
+                    customer_name:    task.customer_name   || '',
+                    project_details:  task.project_details || '',
+                    text:             copyField('text',       task.text),
+                    major_item:       copyField('major_item', task.major_item),
+                    machine:          copyField('machine',    task.machine),
+                    unit:             copyField('unit',       task.unit),
+                    owner:            copyField('owner',      task.owner),
+                    main_owner:       prefs['owner']       ? (task.main_owner  || '') : '',
+                    area_group:       prefs['area_number'] ? (task.area_group  || '') : '',
+                    area_number:      prefs['area_number'] ? (task.area_number || '') : '',
+                    start_date:       copyDate('start_date', task.start_date),
+                    duration:         copyDur('duration',    task.duration),
+                    parent:           task.parent_name     || '',
+                    is_business_trip: task.is_business_trip || false
+                };
+            }
+
+            async function executeCopyMulti(tasks, prefs) {
+                const payloads = tasks.map(function(t) { return buildCopyPayload(t, prefs); });
+
+                const { data, error } = await supabaseClient
+                    .from('tasks')
+                    .insert(payloads)
+                    .select();
+
+                if (error) {
+                    alert('コピーに失敗しました: ' + error.message);
+                    return;
+                }
+
+                // task_locations のコピー（場所ONの場合のみ）
+                if (prefs['area_number'] && data && data.length > 0) {
+                    const locInserts = [];
+                    for (let i = 0; i < tasks.length; i++) {
+                        const origId = tasks[i].original_id || String(tasks[i].id);
+                        const { data: locData } = await supabaseClient
+                            .from('task_locations')
+                            .select('area_group, area_number')
+                            .eq('task_id', origId);
+                        if (locData && locData.length > 0 && data[i]) {
+                            locData.forEach(function(l) {
+                                locInserts.push({ task_id: data[i].id, area_group: l.area_group, area_number: l.area_number });
+                            });
+                        }
+                    }
+                    if (locInserts.length > 0) {
+                        await supabaseClient.from('task_locations').insert(locInserts);
+                    }
+                }
+
+                clearSelection();
+                await fetchTasks();
+            }
+
+            // 削除処理（確認ダイアログあり）
+            function handleDelete() {
+                const targetIds = _selectedIds.size > 0
+                    ? Array.from(_selectedIds)
+                    : (_ctxTaskId ? [String(_ctxTaskId)] : []);
+                hideMenu();
+                if (targetIds.length === 0) return;
+                const tasks = targetIds.map(function(id) { return gantt.getTask(id); })
+                    .filter(function(t) { return t && !t.$virtual; });
+                if (tasks.length === 0) return;
+
+                let msg;
+                if (tasks.length === 1) {
+                    const t = tasks[0];
+                    const label = [t.project_number, t.text, t.machine].filter(Boolean).join(' / ');
+                    msg = '「' + label + '」を削除しますか？\nこの操作は元に戻せません。';
+                } else {
+                    msg = tasks.length + '行を一括削除しますか？\nこの操作は元に戻せません。';
+                }
+                document.getElementById('delete-confirm-msg').textContent = msg;
+
+                const overlay = document.getElementById('delete-confirm-overlay');
+                overlay.classList.add('visible');
+
+                function doDelete() {
+                    cleanup();
+                    tasks.forEach(function(t) { gantt.deleteTask(t.id); });
+                    clearSelection();
+                }
+                function doCancel() { cleanup(); }
+                function cleanup() {
+                    overlay.classList.remove('visible');
+                    document.getElementById('delete-confirm-ok-btn').removeEventListener('click', doDelete);
+                    document.getElementById('delete-confirm-cancel-btn').removeEventListener('click', doCancel);
+                }
+                document.getElementById('delete-confirm-ok-btn').addEventListener('click', doDelete);
+                document.getElementById('delete-confirm-cancel-btn').addEventListener('click', doCancel);
+            }
+
+            // グリッド右クリックイベント
+            document.getElementById('gantt_here').addEventListener('contextmenu', function(e) {
+                if (!_isEditor) return; // 編集権限がない場合は無視
+                const cell = e.target.closest('.gantt_cell');
+                if (!cell) { hideMenu(); return; }
+
+                const taskId = gantt.locate(e);
+                if (!taskId) { hideMenu(); return; }
+                const task = gantt.getTask(taskId);
+                if (!task || task.$virtual) { hideMenu(); return; }
+
+                e.preventDefault();
+                _ctxTaskId = taskId;
+                // メニューを作成してから位置決め（offsetWidthのため先に visible にする）
+                const m = getMenu();
+                m.style.left = '-9999px';
+                m.style.top  = '-9999px';
+                m.classList.add('visible');
+                showMenu(e.clientX, e.clientY, taskId);
+            });
+
+            // メニュー外クリックで閉じる
+            document.addEventListener('click', function(e) {
+                const m = document.getElementById('grid-context-menu');
+                if (m && m.classList.contains('visible') && !m.contains(e.target)) {
+                    hideMenu();
+                }
+            });
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') hideMenu();
+            });
+
+        })();
+        // ===== 右クリックコンテキストメニュー ここまで =====
+
         // ===== 削除確認ダイアログ z-index 修正 =====
         // DHTMLX Gantt の確認ダイアログが lightbox より下に表示される問題を修正
         (function() {

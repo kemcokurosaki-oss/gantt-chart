@@ -449,6 +449,12 @@
             } else if (!task.owner || task.owner.trim() === "") {
                 css += " unassigned-row";
             }
+
+            // 複数行選択ハイライト
+            if (window._ganttSelectedIds && window._ganttSelectedIds.has(String(task.id))) {
+                css += " row-selected";
+            }
+
             return css;
         };
 
@@ -755,7 +761,7 @@
         // ガント再描画のたびにマークを再配置
         gantt.attachEvent("onGanttRender", function() {
             renderPartsMarks();
-            updateStickyBarText();
+            if (typeof updateStickyBarText === 'function') updateStickyBarText();
         });
 
         // ドラッグ移動

@@ -958,7 +958,7 @@
         }
 
         // 2. 【スクロールの同期】
-        function updateStickyBarText(scrollLeft) {
+        window.updateStickyBarText = function updateStickyBarText(scrollLeft) {
             const sl = scrollLeft !== undefined ? scrollLeft : (gantt.getScrollState().x || 0);
             const gridEl = document.querySelector('.gantt_grid');
             if (!gridEl) return;

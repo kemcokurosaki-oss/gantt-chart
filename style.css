@@ -457,6 +457,158 @@
             z-index: 200000 !important;
         }
 
+        /* ===== 複数行選択ハイライト ===== */
+        .gantt_row.row-selected,
+        .gantt_row.gantt_row_task.row-selected {
+            background: #cce4f7 !important;
+        }
+        .gantt_task_row.row-selected {
+            background: #e8f4fd !important;
+        }
+
+        /* ===== 右クリックコンテキストメニュー ===== */
+        #grid-context-menu {
+            position: fixed;
+            z-index: 99995;
+            background: #fff;
+            border: 1px solid #bbb;
+            border-radius: 6px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.22);
+            padding: 4px 0;
+            min-width: 140px;
+            display: none;
+            font-size: 13px;
+        }
+        #grid-context-menu.visible { display: block; }
+        .ctx-menu-item {
+            padding: 8px 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #2c3e50;
+            white-space: nowrap;
+        }
+        .ctx-menu-item:hover { background: #f0f4f8; }
+        .ctx-menu-item.ctx-delete { color: #c0392b; }
+        .ctx-menu-item.ctx-delete:hover { background: #fdecea; }
+        .ctx-menu-separator {
+            border: none;
+            border-top: 1px solid #eee;
+            margin: 3px 0;
+        }
+
+        /* コピー項目選択モーダル */
+        #copy-fields-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.35);
+            z-index: 200001;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+        #copy-fields-overlay.visible { display: flex; }
+        #copy-fields-dialog {
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 6px 24px rgba(0,0,0,0.25);
+            padding: 20px 24px;
+            min-width: 280px;
+            max-width: 360px;
+        }
+        #copy-fields-dialog h3 {
+            margin: 0 0 14px;
+            font-size: 14px;
+            color: #2c3e50;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 8px;
+        }
+        #copy-fields-list {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px 12px;
+            margin-bottom: 16px;
+        }
+        #copy-fields-list label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            padding: 3px 4px;
+            border-radius: 3px;
+        }
+        #copy-fields-list label:hover { background: #f0f4f8; }
+        #copy-fields-list input[type=checkbox] { cursor: pointer; }
+        .btn-confirm-copy {
+            padding: 6px 20px;
+            border: none;
+            border-radius: 4px;
+            background: #2980b9;
+            color: #fff;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: bold;
+        }
+        .btn-confirm-copy:hover { background: #1f6fa0; }
+
+        /* 削除確認モーダル */
+        #delete-confirm-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.35);
+            z-index: 200001;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+        #delete-confirm-overlay.visible { display: flex; }
+        #delete-confirm-dialog {
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 6px 24px rgba(0,0,0,0.25);
+            padding: 24px 28px;
+            min-width: 300px;
+            max-width: 400px;
+            text-align: center;
+        }
+        #delete-confirm-dialog h3 {
+            margin: 0 0 10px;
+            font-size: 15px;
+            color: #2c3e50;
+        }
+        #delete-confirm-dialog p {
+            margin: 0 0 18px;
+            font-size: 13px;
+            color: #555;
+            line-height: 1.6;
+        }
+        #delete-confirm-dialog .dialog-btns {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+        #delete-confirm-dialog .btn-confirm-cancel {
+            padding: 6px 20px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background: #fff;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        #delete-confirm-dialog .btn-confirm-delete {
+            padding: 6px 20px;
+            border: none;
+            border-radius: 4px;
+            background: #e74c3c;
+            color: #fff;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: bold;
+        }
+        #delete-confirm-dialog .btn-confirm-delete:hover { background: #c0392b; }
+
         /* ===== グリッド インライン編集ポップアップ ===== */
         #inline-edit-popup {
             position: fixed;
