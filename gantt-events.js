@@ -241,13 +241,37 @@
         });
 
         // マイルストーンタスクのリサイズ（期間変更）を防ぐ
+        let _dragOldState = null;
         gantt.attachEvent("onBeforeTaskDrag", function(id, mode, e) {
             const task = gantt.getTask(id);
             const milestones = ["外観検査", "客先立会", "出荷確認会議", "工場出荷"];
             if (milestones.includes(task.text) && mode === gantt.config.drag_mode.resize) {
                 return false; // リサイズ操作をキャンセル
             }
+            // ドラッグ開始時の旧状態を保存
+            _dragOldState = {
+                start_date: dateToDb(task.start_date),
+                duration: task.duration
+            };
             return true;
+        });
+
+        // ドラッグ終了時に履歴を記録
+        gantt.attachEvent("onAfterTaskDrag", async function(id, mode, e) {
+            if (!_dragOldState) return;
+            const task = gantt.getTask(id);
+            if (!task || task.$virtual) { _dragOldState = null; return; }
+            const newStartDb = dateToDb(task.start_date);
+            const changes = [];
+            const startChanged = _dragOldState.start_date !== newStartDb;
+            const durChanged   = Number(_dragOldState.duration) !== Number(task.duration);
+            if (startChanged && durChanged) changes.push('開始日・終了日を変更しました');
+            else if (startChanged) changes.push('開始日を変更しました');
+            else if (durChanged)   changes.push('終了日を変更しました');
+            _dragOldState = null;
+            if (changes.length > 0 && typeof window.logChange === 'function') {
+                window.logChange(task.project_number || '', task.machine || '', task.unit || '', task.text || '', changes.join('・'));
+            }
         });
 
         // 編集内容をデータベースに保存
