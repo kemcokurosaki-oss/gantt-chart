@@ -282,6 +282,10 @@
             margin-top: 0 !important;
         }
 
+        /* 設計工程表の出張タスク（読み取り専用） */
+        .design-trip-readonly { cursor: default !important; opacity: 0.85; }
+        .design-trip-readonly .gantt_task_drag { display: none !important; }
+
         /* 業務別カラー設定（中程度のパステル調） */
         .task-blue, .gantt_project.task-blue { background-color: #85C1E9 !important; border-color: #5DADE2 !important; }
         .task-green, .gantt_project.task-green { background-color: #82E0AA !important; border-color: #58D68D !important; }

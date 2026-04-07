@@ -244,6 +244,8 @@
         let _dragOldState = null;
         gantt.attachEvent("onBeforeTaskDrag", function(id, mode, e) {
             const task = gantt.getTask(id);
+            // 設計工程表の出張タスクはドラッグ禁止
+            if (task.$design_trip) return false;
             const milestones = ["外観検査", "客先立会", "出荷確認会議", "工場出荷"];
             if (milestones.includes(task.text) && mode === gantt.config.drag_mode.resize) {
                 return false; // リサイズ操作をキャンセル
@@ -579,6 +581,9 @@
         };
 
         gantt.templates.task_class = function(start, end, task) {
+            // 設計工程表の出張タスクは水色固定・読み取り専用クラス
+            if (task.$design_trip) return "task-blue design-trip-readonly";
+
             const projectNumber = (task.project_number || "").toString();
             const is2000s = projectNumber.startsWith('2');
             let css = is2000s ? "task-2000s " : "";

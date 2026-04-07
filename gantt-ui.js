@@ -340,6 +340,10 @@
 
             // グリッドセルダブルクリック → インライン編集 / バーダブルクリック → 全項目編集画面
             gantt.attachEvent("onTaskDblClick", function(id, e) {
+                const task = gantt.getTask(id);
+                // 設計工程表の出張タスクは編集不可
+                if (task && task.$design_trip) return false;
+
                 const cell = e.target.closest('.gantt_cell');
                 if (!cell) {
                     // バーダブルクリック：ライトボックスを表示（デフォルト動作）
@@ -709,6 +713,8 @@
                 if (!taskId) { hideMenu(); return; }
                 const task = gantt.getTask(taskId);
                 if (!task || task.$virtual) { hideMenu(); return; }
+                // 設計工程表の出張タスクは右クリックメニュー禁止
+                if (task.$design_trip) { hideMenu(); return; }
 
                 e.preventDefault();
                 _ctxTaskId = taskId;

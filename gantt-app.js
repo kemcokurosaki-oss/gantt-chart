@@ -37,6 +37,54 @@
                 locData = liveLoc || [];
             }
 
+            // 設計工程表の出張タスク（task_type='business_trip'）を追加取得してマージ
+            const { data: designTripData } = await supabaseClient
+                .from('tasks')
+                .select('id, text, start_date, end_date, duration, owner, project_number, machine, unit, customer_name, project_details, main_owner')
+                .eq('task_type', 'business_trip')
+                .neq('is_archived', true);
+            if (designTripData && designTripData.length > 0) {
+                // 全体工程表の既存タスクから工事番号→客先名/工事名のマップを作成
+                const projectInfoMap = {};
+                (data || []).forEach(t => {
+                    if (t.project_number && (t.customer_name || t.project_details)) {
+                        if (!projectInfoMap[t.project_number]) {
+                            projectInfoMap[t.project_number] = {
+                                customer_name: t.customer_name || '',
+                                project_details: t.project_details || ''
+                            };
+                        }
+                    }
+                });
+                designTripData.forEach(t => {
+                    // 全体工程表の既存タスクIDと衝突しないよう仮IDを付与
+                    const pInfo = projectInfoMap[(t.project_number || '').toString().trim()] || {};
+                    data.push({
+                        id: 'design_trip_' + t.id,
+                        text: t.text,
+                        start_date: t.start_date,
+                        end_date: t.end_date,
+                        duration: t.duration,
+                        owner: t.owner || '',
+                        main_owner: t.main_owner || '',
+                        project_number: (t.project_number || '').toString().trim(),
+                        machine: t.machine || '',
+                        unit: t.unit || '',
+                        customer_name: pInfo.customer_name || t.customer_name || '',
+                        project_details: pInfo.project_details || t.project_details || '',
+                        is_business_trip: true,
+                        $design_trip: true,  // 設計工程表出張タスクの識別フラグ
+                        is_archived: false,
+                        sort_order: 999999,
+                        sort_order_machine: 999999,
+                        parent: '',
+                        major_item: '設計',
+                        is_completed: false,
+                        bar_color: ''
+                    });
+                });
+            }
+
             // task_locations データを取得してマッピング
             const locMap = {};
             if (locData) {
@@ -79,8 +127,8 @@
                     area_number: areaNumber,
                     main_owner: t.main_owner || "",
                     is_completed: t.is_completed || false,
-                    bar_color: t.bar_color || ''
-                    // is_new_task: t.is_new_task // データベースにカラムがない可能性があるため一時的にコメントアウト
+                    bar_color: t.bar_color || '',
+                    $design_trip: t.$design_trip || false
                 };
             });
 
@@ -188,7 +236,16 @@
                 });
             } else if (currentDisplayMode === 'business_trip') {
                 // 出張予定モード：見出し行を作らず、タスクをそのまま追加する
-                projects.forEach(pNum => {
+                // 設計工程表の出張タスクも含めて全工事番号を収集
+                const tripProjects = [...new Set(rawTasks
+                    .filter(t => {
+                        const val = t.is_business_trip;
+                        return val === true || val === 'true' || val === 'TRUE';
+                    })
+                    .map(t => t.project_number)
+                )].sort();
+
+                tripProjects.forEach(pNum => {
                     if (currentFilter && pNum !== currentFilter) return;
                     const projectTasks = rawTasks.filter(t => {
                         if (t.project_number !== pNum) return false;
@@ -196,9 +253,9 @@
                         return val === true || val === 'true' || val === 'TRUE';
                     });
 
-                    projectTasks.forEach(t => { 
+                    projectTasks.forEach(t => {
                         t.parent = 0; // 親なし（ルート）
-                        tasksWithHierarchy.push(t); 
+                        tasksWithHierarchy.push(t);
                     });
                 });
             } else {
