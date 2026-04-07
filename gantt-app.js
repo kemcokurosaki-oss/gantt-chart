@@ -525,10 +525,10 @@
             if (currentDisplayMode === 'business_trip') {
                 // 出張予定：工事番号、客先名、工事名、タスク名、担当者、開始日、終了日、＋
                 gantt.config.columns = [
-                    { name: "project_number", label: "工事番号", width: 80, align: "center", template: function(obj) {
-                        return obj.project_number || "";
+                    { name: "project_number", label: "工番", width: 55, align: "center", template: function(obj) {
+                        return "<div style='text-align:center;width:100%;'>" + (obj.project_number || "") + "</div>";
                     }},
-                    { name: "customer_name", label: "客先名", width: 100, align: "center", template: function(obj) {
+                    { name: "customer_name", label: "客先名", width: 125, align: "center", template: function(obj) {
                         return obj.customer_name || "";
                     }},
                     { name: "project_details", label: "工事名", width: 150, align: "left", template: function(obj) {
@@ -537,22 +537,22 @@
                     { name: "text", label: "タスク名", width: 150, tree: currentDisplayMode !== 'business_trip', template: function(obj) {
                         return obj.text;
                     }},
-                    { name: "owner", label: "担当者", width: 80, align: "left", template: function(obj) {
+                    { name: "owner", label: "担当", width: 55, align: "center", template: function(obj) {
                         if (obj.$virtual) return "";
                         if (!obj.owner || obj.owner.trim() === "") {
                             return "<span class='unassigned-warning'>⚠️</span>";
                         }
                         return obj.owner;
                     }},
-                    { name: "start_date", label: "開始日", width: 110, align: "center", template: function(t) {
+                    { name: "start_date", label: "開始日", width: 130, align: "center", template: function(t) {
                         return dateToDisplay(t.start_date);
                     }},
-                    { name: "end_date", label: "終了日", width: 110, align: "center", template: function(t) {
+                    { name: "end_date", label: "終了日", width: 130, align: "center", template: function(t) {
                         const d = gantt.calculateEndDate(t.start_date, t.duration);
                         d.setDate(d.getDate() - 1);
                         return dateToDisplay(d);
                     }},
-                    { name: "add", label: "", width: 44 }
+                    { name: "add", label: "", width: 30 }
                 ];
             } else if (currentDisplayMode === 'machine') {
                 // 機械別：詳細、工事番号、チェック、機械、ユニット、タスク名、担当、開始日、終了日
