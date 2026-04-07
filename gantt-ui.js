@@ -196,7 +196,8 @@
                 const labels = {
                     project_number: '工事番号', text: 'タスク名', machine: '機械',
                     unit: 'ユニット', owner: '担当', area_number: '場所',
-                    start_date: '開始日', end_date: '終了日'
+                    start_date: '開始日', end_date: '終了日',
+                    customer_name: '客先名', project_details: '工事名'
                 };
                 const popup = getPopup();
                 popup.querySelector('#inline-edit-field-label').textContent = labels[field] || field;
@@ -205,7 +206,7 @@
                 const _freeRow = popup.querySelector('#inline-edit-free-row');
                 if (_freeRow) _freeRow.style.display = 'none';
 
-                if (field === 'project_number' || field === 'machine' || field === 'unit') {
+                if (field === 'project_number' || field === 'machine' || field === 'unit' || field === 'customer_name' || field === 'project_details') {
                     showTextSection(task[field] || '');
                 } else if (field === 'text') {
                     const sel = (task.text || '').split(/[,，]/).map(function(s) { return s.trim(); }).filter(Boolean);
@@ -247,7 +248,7 @@
                 const task = gantt.getTask(taskId);
                 if (!task) return;
 
-                if (field === 'project_number' || field === 'machine' || field === 'unit') {
+                if (field === 'project_number' || field === 'machine' || field === 'unit' || field === 'customer_name' || field === 'project_details') {
                     task[field] = document.getElementById('inline-edit-text-input').value.trim();
 
                 } else if (field === 'text') {
@@ -341,8 +342,10 @@
             // グリッドセルダブルクリック → インライン編集 / バーダブルクリック → 全項目編集画面
             gantt.attachEvent("onTaskDblClick", function(id, e) {
                 const task = gantt.getTask(id);
+                if (!task) return false;
+
                 // 設計工程表の出張タスクは編集不可
-                if (task && task.$design_trip) return false;
+                if (task.$design_trip) return false;
 
                 const cell = e.target.closest('.gantt_cell');
                 if (!cell) {
@@ -354,6 +357,8 @@
                     e.target.classList.contains('gantt_tree_icon') ||
                     e.target.classList.contains('zoom-btn')) return true;
 
+                if (task.$virtual) return false;
+
                 const row = cell.parentElement;
                 const cells = Array.from(row.children).filter(function(c) { return c.classList.contains('gantt_cell'); });
                 const idx = cells.indexOf(cell);
@@ -361,11 +366,8 @@
                 if (idx < 0 || idx >= cols.length) return false;
 
                 const colName = cols[idx].name;
-                const editableFields = ['project_number', 'text', 'machine', 'unit', 'owner', 'area_number', 'start_date', 'end_date'];
+                const editableFields = ['project_number', 'text', 'machine', 'unit', 'owner', 'area_number', 'start_date', 'end_date', 'customer_name', 'project_details'];
                 if (!editableFields.includes(colName)) return false;
-
-                const task = gantt.getTask(id);
-                if (!task || task.$virtual) return false;
 
                 showIE(id, colName, cell);
                 return false; // デフォルト（ライトボックス）をキャンセル
