@@ -1,10 +1,10 @@
         html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: "メイリオ", sans-serif; font-size: 12px; }
         button, input, select, textarea { font-family: "メイリオ", sans-serif; }
-        #gantt_here .gantt_grid_head_cell { font-size: 14px !important; font-weight: bold !important; font-family: "メイリオ", sans-serif !important; background-color: #b0bec5 !important; color: #37474f !important; border-right: 1px solid rgba(255,255,255,0.4) !important; }
-        #gantt_here .gantt_scale_cell { font-family: "メイリオ", sans-serif !important; background-color: #b0bec5 !important; color: #37474f !important; border-right: 1px solid rgba(255,255,255,0.4) !important; }
-        #gantt_here .gantt_scale_cell.scale_saturday { color: #5577aa !important; }
-        #gantt_here .gantt_scale_cell.scale_sunday { color: #aa5555 !important; }
-        #gantt_here .gantt_scale_cell.scale_holiday { color: #aa5555 !important; }
+        #gantt_here .gantt_grid_head_cell { font-size: 14px !important; font-weight: bold !important; font-family: "メイリオ", sans-serif !important; background-color: #b0bec5 !important; color: #1a2a3a !important; border-right: 1px solid rgba(255,255,255,0.4) !important; }
+        #gantt_here .gantt_scale_cell { font-family: "メイリオ", sans-serif !important; background-color: #b0bec5 !important; color: #1a2a3a !important; border-right: 1px solid rgba(255,255,255,0.4) !important; }
+        #gantt_here .gantt_scale_cell.scale_saturday { color: #2266cc !important; }
+        #gantt_here .gantt_scale_cell.scale_sunday { color: #cc2222 !important; }
+        #gantt_here .gantt_scale_cell.scale_holiday { color: #cc2222 !important; }
         #gantt_here .gantt_grid_scale { background-color: #b0bec5 !important; }
         #gantt_here .gantt_scale_line { background-color: #b0bec5 !important; }
         .header-panel *, .toolbar * { font-size: 13px !important; }
