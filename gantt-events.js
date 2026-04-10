@@ -581,8 +581,11 @@
         };
 
         gantt.templates.task_class = function(start, end, task) {
-            // 設計工程表の出張タスクは水色固定・読み取り専用クラス
-            if (task.$design_trip) return "task-blue design-trip-readonly";
+            // 設計・組立工程表の出張タスクは読み取り専用、部署で色分け
+            if (task.$design_trip) {
+                const tripColor = task.major_item === '組立' ? 'task-yellow' : 'task-blue';
+                return tripColor + ' design-trip-readonly';
+            }
 
             const projectNumber = (task.project_number || "").toString();
             const is2000s = projectNumber.startsWith('2');

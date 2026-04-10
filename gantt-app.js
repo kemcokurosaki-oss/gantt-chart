@@ -37,10 +37,14 @@
                 locData = liveLoc || [];
             }
 
-            // 設計工程表の出張タスク（task_type='business_trip'）を追加取得してマージ
+            // 設計・組立工程表の出張タスク（task_type='business_trip'）はメインデータから除外
+            // （後で専用クエリで読み取り専用タスクとして追加するため、重複表示を防ぐ）
+            if (data) data = data.filter(t => t.task_type !== 'business_trip');
+
+            // 設計・組立工程表の出張タスク（task_type='business_trip'）を追加取得してマージ
             const { data: designTripData } = await supabaseClient
                 .from('tasks')
-                .select('id, text, start_date, end_date, duration, owner, project_number, machine, unit, customer_name, project_details, main_owner')
+                .select('id, text, start_date, end_date, duration, owner, project_number, machine, unit, customer_name, project_details, main_owner, major_item')
                 .eq('task_type', 'business_trip')
                 .neq('is_archived', true);
             if (designTripData && designTripData.length > 0) {
@@ -73,12 +77,12 @@
                         customer_name: pInfo.customer_name || t.customer_name || '',
                         project_details: pInfo.project_details || t.project_details || '',
                         is_business_trip: true,
-                        $design_trip: true,  // 設計工程表出張タスクの識別フラグ
+                        $design_trip: true,  // 設計・組立工程表出張タスクの識別フラグ（読み取り専用）
                         is_archived: false,
                         sort_order: 999999,
                         sort_order_machine: 999999,
                         parent: '',
-                        major_item: '設計',
+                        major_item: t.major_item || '',
                         is_completed: false,
                         bar_color: ''
                     });
