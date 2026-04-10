@@ -301,7 +301,7 @@
         .milestone-circle .gantt_task_content,
         .milestone-diamond .gantt_task_content,
         .milestone-star .gantt_task_content,
-        .milestone-square .gantt_task_content { display: none; }
+        .milestone-square .gantt_task_content { display: none !important; }
 
         .milestone-circle,
         .milestone-diamond,
@@ -339,9 +339,10 @@
             text-shadow: none !important;
         }
         .task-name-text {
-            display: inline-block;
+            position: absolute !important;
             white-space: nowrap;
-            vertical-align: middle;
+            display: block;
+            /* top / left は JS で計算して設定 */
         }
 
         /* 2000番台以外の見出し行の文字色（白に戻す） */

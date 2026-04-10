@@ -1031,3 +1031,53 @@
         document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeHelp(); });
         // ===== ヘルプモード ここまで =====
 
+        // ===== バー内テキストのスティッキースクロール =====
+        // position:absolute で top/left をJSで直接計算。
+        // DOMの読み取りを先にまとめて行い、書き込みをあとでまとめて行うことで
+        // レイアウトリフローを最小化する。
+        function updateStickyBarText(scrollLeft) {
+            if (scrollLeft === undefined) {
+                const state = gantt.getScrollState();
+                scrollLeft = state ? state.x : 0;
+            }
+            const PADDING = 8; // 境界線から確保するマージン(px)
+
+            // ---- 読み取りフェーズ（まとめてDOMを読む） ----
+            const bars = document.querySelectorAll('.gantt_task_line');
+            if (!bars.length) return;
+
+            // バーの高さをサンプル1本から取得（全バー共通）
+            const barH = bars[0].offsetHeight || 24;
+
+            const items = [];
+            bars.forEach(function(bar) {
+                const textSpan = bar.querySelector('.task-name-text');
+                if (!textSpan) return;
+                items.push({
+                    textSpan : textSpan,
+                    barLeft  : parseFloat(bar.style.left)  || 0,
+                    barWidth : parseFloat(bar.style.width) || 0,
+                    textW    : textSpan.offsetWidth,
+                    textH    : textSpan.offsetHeight || 15,
+                });
+            });
+
+            // ---- 書き込みフェーズ（まとめてスタイルを適用） ----
+            items.forEach(function(m) {
+                const { textSpan, barLeft, barWidth, textW, textH } = m;
+
+                // 縦：バー高さの中央に配置
+                const vertTop = Math.max(0, Math.round((barH - textH) / 2));
+
+                // 横：常にPADDING確保しつつ、バーが境界を超えた分だけ右にシフト
+                let shift = PADDING + Math.max(0, scrollLeft - barLeft);
+                const maxShift = Math.max(0, barWidth - textW - PADDING);
+                shift = Math.min(shift, maxShift);
+
+                textSpan.style.top  = vertTop + 'px';
+                textSpan.style.left = shift   + 'px';
+            });
+        }
+        window.updateStickyBarText = updateStickyBarText;
+        // ===== バー内テキストのスティッキースクロール ここまで =====
+

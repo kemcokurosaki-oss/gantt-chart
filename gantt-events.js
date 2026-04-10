@@ -830,6 +830,11 @@
             if (typeof updateStickyBarText === 'function') updateStickyBarText();
         });
 
+        // スクロールに合わせてバー内テキストを追従させる
+        gantt.attachEvent("onGanttScroll", function(left, top) {
+            updateStickyBarText(left);
+        });
+
         // ドラッグ移動
         document.addEventListener("mousemove", function(e) {
             if (!_markDragState) return;
