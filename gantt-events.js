@@ -123,7 +123,7 @@
         gantt.config.drag_resize = true;
         gantt.config.row_height = 27;
         gantt.config.bar_height = 21; // バーを太く (18 -> 21)
-        gantt.config.scale_height = 66;
+        gantt.config.scale_height = 60;
         gantt.config.min_column_width = 22;
         gantt.config.open_tree_initially = false;
         gantt.config.order_branch = true;
@@ -663,12 +663,12 @@
 
         const zoomConfig = {
             levels: [
-                { name: "days", scale_height: 66, min_column_width: 22, scales: [
+                { name: "days", scale_height: 60, min_column_width: 22, scales: [
                     { unit: "month", step: 1, format: "%Y/%n", css: () => "month-end-cell" },
                     { unit: "day", step: 1, format: "%j", css: (date) => { const ds = date.getFullYear()+"-"+String(date.getMonth()+1).padStart(2,"0")+"-"+String(date.getDate()).padStart(2,"0"); const isHol = holidaySet.has(ds) && date.getDay()!==0; return (isWeekendOrHoliday(date) ? "weekend" : "") + (isMonthEndDate(date) ? " month-end-cell" : "") + (date.getDay() === 0 ? " scale_sunday" : isHol ? " scale_holiday" : date.getDay() === 6 ? " scale_saturday" : ""); } },
                     { unit: "day", step: 1, format: (date) => dayNames[date.getDay()], css: (date) => { const ds = date.getFullYear()+"-"+String(date.getMonth()+1).padStart(2,"0")+"-"+String(date.getDate()).padStart(2,"0"); const isHol = holidaySet.has(ds) && date.getDay()!==0; return (isWeekendOrHoliday(date) ? "weekend" : "") + (isMonthEndDate(date) ? " month-end-cell" : "") + (date.getDay() === 0 ? " scale_sunday" : isHol ? " scale_holiday" : date.getDay() === 6 ? " scale_saturday" : ""); } }
                 ]},
-                { name: "weeks", scale_height: 66, min_column_width: 22, scales: [
+                { name: "weeks", scale_height: 60, min_column_width: 22, scales: [
                     { unit: "month", step: 1, format: "%Y/%n" },
                     { unit: "week", step: 1, format: (date) => {
                         const dateToStr = gantt.date.date_to_str("%j");
