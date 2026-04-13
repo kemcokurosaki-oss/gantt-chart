@@ -254,7 +254,7 @@
             border-right: 1px solid #ebebeb;
         }
         .gantt_marker.today-line { background: #cc0000 !important; width: 2px !important; opacity: 0.8; z-index: 1000 !important; }
-        .gantt_group_row { background-color: #dce8ef !important; font-weight: bold !important; } /* 見出し行 */
+        .gantt_group_row { background-color: #dce8ef !important; font-weight: bold !important; font-size: 12.5px !important; } /* 見出し行 */
         
         /* 白の子タスク行のインデント・ツリーアイコンを非表示（水色の見出し行は除外） */
         .gantt_row_task:not(.gantt_group_row) .gantt_tree_indent,
@@ -266,13 +266,8 @@
         .project-border-top { border-top: 2px solid #999 !important; }
         .project-border-top .gantt_tree_indent, 
         .project-border-top .gantt_cell { border-top: none !important; } /* セル内部の重なり防止 */
-        @font-face {
-            font-family: "GridFont";
-            src: local("Meiryo"), local("メイリオ");
-            unicode-range: U+0030-0039; /* 数字 0-9 はメイリオ */
-        }
-        #gantt_here .gantt_cell { font-family: "GridFont", sans-serif !important; }
-        .resource-cell { font-family: "GridFont", sans-serif !important; }
+        #gantt_here .gantt_cell { font-family: "メイリオ", Meiryo, sans-serif !important; font-size: 12.7px !important; }
+        .resource-cell { font-family: "メイリオ", Meiryo, sans-serif !important; }
 
         /* カレンダーの年月を中央揃えにする */
         .gantt_scale_cell { text-align: center !important; font-size: 12px; font-weight: bold !important; }
