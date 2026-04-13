@@ -1053,7 +1053,7 @@
         async function publishNow() {
             const btn = document.getElementById('publish_btn');
             btn.classList.add('publishing');
-            btn.textContent = '公開中...';
+            btn.textContent = '更新中...';
             const now = new Date().toISOString();
 
             // 現在のタスクデータをスナップショットとして保存
@@ -1070,7 +1070,7 @@
                 .from('app_settings')
                 .upsert({ key: 'published_at', value: now });
             btn.classList.remove('publishing');
-            btn.textContent = '📢 公開';
+            btn.textContent = '🔄 更新';
             if (error) {
                 alert('公開に失敗しました: ' + error.message);
             } else {
