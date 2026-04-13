@@ -334,7 +334,7 @@
                             <div class="resource-cell" style="width: ${COLUMN_WIDTHS[6]}px; border-right: 1px solid #eee;"></div>
                             <div class="resource-cell" style="width: ${COLUMN_WIDTHS[7]}px; border-right: 1px solid #eee;"></div>
                             <div class="resource-cell" style="width: ${COLUMN_WIDTHS[8]}px; border-right: 1px solid #eee;"></div>
-                            <div class="resource-cell owner-name-cell" style="width: ${COLUMN_WIDTHS[9]}px; padding: 0 4px; display: flex; align-items: center; font-size: 14px; font-weight: normal; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                            <div class="resource-cell owner-name-cell" style="width: ${COLUMN_WIDTHS[9]}px; padding: 0 4px; display: flex; align-items: center; font-size: 12.8px; font-family: メイリオ, sans-serif; font-weight: normal; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                                 <span class="${dotColorClass}" style="margin-right: 4px; font-size: 14px; display: ${dotDisplay};">●</span>${ownerName.replace(/\d+/g, "")}
                             </div>
                         </div>
