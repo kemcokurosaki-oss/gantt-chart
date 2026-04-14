@@ -1040,7 +1040,7 @@
                 const state = gantt.getScrollState();
                 scrollLeft = state ? state.x : 0;
             }
-            const PADDING = 8; // 境界線から確保するマージン(px)
+            const PADDING = 16; // 境界線から確保するマージン(px)
 
             // ---- 読み取りフェーズ（まとめてDOMを読む） ----
             const bars = document.querySelectorAll('.gantt_task_line');
@@ -1074,6 +1074,7 @@
                 const maxShift = Math.max(0, barWidth - textW - PADDING);
                 shift = Math.min(shift, maxShift);
 
+                textSpan.style.transform = ''; // 旧resource.js版のtransformをリセット
                 textSpan.style.top  = vertTop + 'px';
                 textSpan.style.left = shift   + 'px';
             });

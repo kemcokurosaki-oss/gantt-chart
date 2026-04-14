@@ -525,9 +525,10 @@
 
 
         function updateGanttColumns() {
-            const scrollState = gantt.getScrollState();
             if (currentDisplayMode === 'business_trip') {
                 // 出張予定：工事番号、客先名、工事名、タスク名、担当者、開始日、終了日、＋
+                // 列構成が大きく変わるため即時 render（fetchTasks の parse より前に反映）
+                const scrollState = gantt.getScrollState();
                 gantt.config.columns = [
                     { name: "project_number", label: "工番", width: 55, align: "center", template: function(obj) {
                         return "<div style='text-align:center;width:100%;'>" + (obj.project_number || "") + "</div>";
@@ -538,7 +539,7 @@
                     { name: "project_details", label: "工事名", width: 150, align: "left", template: function(obj) {
                         return obj.project_details || "";
                     }},
-                    { name: "text", label: "タスク名", width: 150, tree: currentDisplayMode !== 'business_trip', template: function(obj) {
+                    { name: "text", label: "タスク名", width: 150, tree: false, template: function(obj) {
                         return obj.text;
                     }},
                     { name: "owner", label: "担当", width: 55, align: "center", template: function(obj) {
@@ -558,58 +559,14 @@
                     }},
                     { name: "add", label: "", width: 30 }
                 ];
-            } else if (currentDisplayMode === 'machine') {
-                // 機械別：詳細、工事番号、チェック、機械、ユニット、タスク名、担当、開始日、終了日
-                gantt.config.columns = [
-                    { name: "detail", label: "", width: COLUMN_WIDTHS[0], align: "center", template: function(obj) {
-                        // リンク設定済みの見出し行のみ表示
-                        if (obj.$virtual && (obj.text === "長納期品手配" || obj.text === "出図＆部品手配")) {
-                            return `<button class='zoom-btn' style='padding: 2px 5px; font-size: 12px; cursor: pointer;' onclick='openDetail("${obj.id}")'>🔍</button>`;
-                        }
-                        return "";
-                    }},
-                    { name: "project_number", label: "工事番号", width: COLUMN_WIDTHS[1], align: "center", template: function(obj) {
-                        return obj.project_number || "";
-                    }},
-                    { name: "checkbox", label: "", width: COLUMN_WIDTHS[2], align: "center", template: function(obj) {
-                        if (obj.$virtual) return "";
-                        const isChecked = taskCheckboxes[obj.id] ? "checked" : "";
-                        return `<input type='checkbox' ${isChecked} ${_isEditor ? '' : 'disabled'} onchange='toggleTaskCheckbox("${obj.id}", this.checked)'>`;
-                    }},
-                    { name: "machine", label: "機械", width: COLUMN_WIDTHS[4], align: "center", template: function(obj) {
-                        if (obj.$virtual) return "";
-                        return obj.machine || "";
-                    }},
-                    { name: "unit", label: "ユニット", width: COLUMN_WIDTHS[5], align: "center", template: function(obj) {
-                        if (obj.$virtual) return "";
-                        return obj.unit || "";
-                    }},
-                    { name: "text", label: "タスク名", width: COLUMN_WIDTHS[3], tree: true, template: function(obj) {
-                        return obj.text;
-                    }},
-                    { name: "owner", label: "担当", width: COLUMN_WIDTHS[6], align: "left", template: function(obj) {
-                        if (obj.$virtual) return "";
-                        if (!obj.owner || obj.owner.trim() === "") {
-                            return "<span class='unassigned-warning'>⚠️</span>";
-                        }
-                        return obj.owner;
-                    }},
-                    { name: "start_date", label: "開始日", width: COLUMN_WIDTHS[8], align: "center", template: function(t) {
-                        return dateToDisplay(t.start_date);
-                    }},
-                    { name: "end_date", label: "終了日", width: COLUMN_WIDTHS[9], align: "center", template: function(t) {
-                        const d = gantt.calculateEndDate(t.start_date, t.duration);
-                        d.setDate(d.getDate() - 1);
-                        return dateToDisplay(d);
-                    }},
-                    { name: "add", label: "", width: COLUMN_WIDTHS[10] }
-                ];
+                gantt.render();
+                gantt.scrollTo(scrollState.x, scrollState.y);
             } else {
-                // 工程別（デフォルト）：詳細、工事番号、チェック、タスク名、機械、ユニット、担当、開始日、終了日
+                // 工程別・機械別（共通）：列構成・幅が同一のため render 不要
+                // fetchTasks() の gantt.parse() で正しく再描画される
+                gantt.config.grid_width = 600;
                 gantt.config.columns = SHARED_COLUMNS;
             }
-            gantt.render();
-            gantt.scrollTo(scrollState.x, scrollState.y);
         }
 
         function toggleProjectGroupDropdown(e) {
