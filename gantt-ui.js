@@ -1032,51 +1032,43 @@
         // ===== ヘルプモード ここまで =====
 
         // ===== バー内テキストのスティッキースクロール =====
-        // position:absolute で top/left をJSで直接計算。
-        // DOMの読み取りを先にまとめて行い、書き込みをあとでまとめて行うことで
-        // レイアウトリフローを最小化する。
+        // グリッド右端を getBoundingClientRect() で実測し、
+        // テキスト左端がグリッドに隠れた分だけ translateX でずらす。
+        // gantt-resource.js と同じ実装で統一。
         function updateStickyBarText(scrollLeft) {
-            if (scrollLeft === undefined) {
-                const state = gantt.getScrollState();
-                scrollLeft = state ? state.x : 0;
-            }
-            const PADDING = 16; // 境界線から確保するマージン(px)
+            const sl = scrollLeft !== undefined ? scrollLeft : (gantt.getScrollState().x || 0);
+            const gridEl = document.querySelector('.gantt_grid');
+            if (!gridEl) return;
+            const boundary = gridEl.getBoundingClientRect().right;
 
-            // ---- 読み取りフェーズ（まとめてDOMを読む） ----
             const bars = document.querySelectorAll('.gantt_task_line');
             if (!bars.length) return;
-
-            // バーの高さをサンプル1本から取得（全バー共通）
             const barH = bars[0].offsetHeight || 24;
 
-            const items = [];
             bars.forEach(function(bar) {
-                const textSpan = bar.querySelector('.task-name-text');
-                if (!textSpan) return;
-                items.push({
-                    textSpan : textSpan,
-                    barLeft  : parseFloat(bar.style.left)  || 0,
-                    barWidth : parseFloat(bar.style.width) || 0,
-                    textW    : textSpan.offsetWidth,
-                    textH    : textSpan.offsetHeight || 15,
-                });
-            });
-
-            // ---- 書き込みフェーズ（まとめてスタイルを適用） ----
-            items.forEach(function(m) {
-                const { textSpan, barLeft, barWidth, textW, textH } = m;
+                const textEl = bar.querySelector('.task-name-text');
+                if (!textEl) return;
+                const barLeft  = parseFloat(bar.style.left)  || 0;
+                const barWidth = parseFloat(bar.style.width) || 0;
 
                 // 縦：バー高さの中央に配置
+                const textH = textEl.offsetHeight || 15;
                 const vertTop = Math.max(0, Math.round((barH - textH) / 2));
+                textEl.style.top = vertTop + 'px';
 
-                // 横：常にPADDING確保しつつ、バーが境界を超えた分だけ右にシフト
-                let shift = PADDING + Math.max(0, scrollLeft - barLeft);
-                const maxShift = Math.max(0, barWidth - textW - PADDING);
-                shift = Math.min(shift, maxShift);
+                // バーが完全に左へ消えたらリセット
+                if (sl >= barLeft + barWidth) {
+                    textEl.style.transform = '';
+                    return;
+                }
 
-                textSpan.style.transform = ''; // 旧resource.js版のtransformをリセット
-                textSpan.style.top  = vertTop + 'px';
-                textSpan.style.left = shift   + 'px';
+                // transform をリセットして自然な位置のテキスト左端を実測
+                textEl.style.transform = '';
+                const textLeft = textEl.getBoundingClientRect().left;
+
+                // テキスト左端が境界線にぶつかった分だけずらす
+                const offset = Math.max(0, boundary - textLeft);
+                if (offset > 0) textEl.style.transform = 'translateX(' + offset + 'px)';
             });
         }
         window.updateStickyBarText = updateStickyBarText;

@@ -64,6 +64,10 @@
                 el.style.margin = '0';
                 el.style.padding = '0';
             });
+            // レンダリング後もバー内テキストの位置を更新
+            if (typeof window.updateStickyBarText === 'function') {
+                window.updateStickyBarText();
+            }
         });
 
         // 担当者名の名寄せ（正規化）処理
@@ -958,33 +962,7 @@
         }
 
         // 2. 【スクロールの同期】
-        window.updateStickyBarText = function updateStickyBarText(scrollLeft) {
-            const sl = scrollLeft !== undefined ? scrollLeft : (gantt.getScrollState().x || 0);
-            const gridEl = document.querySelector('.gantt_grid');
-            if (!gridEl) return;
-            const boundary = gridEl.getBoundingClientRect().right;
-
-            document.querySelectorAll('.gantt_task_line').forEach(bar => {
-                const textEl = bar.querySelector('.task-name-text');
-                if (!textEl) return;
-                const barLeft  = parseFloat(bar.style.left)  || 0;
-                const barWidth = parseFloat(bar.style.width) || 0;
-
-                // バーが完全に左へ消えたらリセット
-                if (sl >= barLeft + barWidth) {
-                    textEl.style.transform = '';
-                    return;
-                }
-
-                // transform をリセットして自然な位置のテキスト左端を実測
-                textEl.style.transform = '';
-                const textLeft = textEl.getBoundingClientRect().left;
-
-                // テキスト左端が境界線にぶつかった分だけずらす
-                const offset = Math.max(0, boundary - textLeft);
-                if (offset > 0) textEl.style.transform = `translateX(${offset}px)`;
-            });
-        }
+        // updateStickyBarText は gantt-ui.js で一元定義（window.updateStickyBarText）
 
         gantt.attachEvent("onGanttScroll", function (left, top){
             const resourceContent = document.querySelector(".resource-content");
