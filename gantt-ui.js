@@ -924,6 +924,7 @@
             { id: 'resource-dept-select',  title: '部署別リソース',   text: '選択した部署の担当者ごとの\nリソース状況を下部パネルに表示' },
             { id: 'location_resource_btn', title: '組立場所',         text: '組立エリアの場所別リソースを表示\nE1/E2などのエリアで確認できます' },
             { id: 'sort_business_trip_btn',title: '出張予定',         text: '出張タスクの一覧と\n担当者ごとのスケジュールを表示' },
+            { id: 'sync_log_btn',          title: '更新履歴',         text: '過去1ヶ月間のタスク追加・変更・削除の\n履歴を一覧表示します\n誰が・いつ・どのタスクを変更したかを確認できます' },
         ];
 
         function openHelp() {
@@ -959,7 +960,7 @@
             if (timelineEl) {
                 var tr = timelineEl.getBoundingClientRect();
                 if (tr.width > 0 && tr.height > 0) {
-                    addHelpItem(container, { title: 'ガントチャート（タイムライン）', text: 'バーをドラッグ → 日程変更\nバー右端をドラッグ → 期間変更\nバーをダブルクリック → 全項目編集画面\nバーの色 → 部署ごとに色分け' }, tr);
+                    addHelpItem(container, { title: 'ガントチャート（タイムライン）', text: 'バーの色 → 部署ごとに色分け\nバーの長さ → タスクの期間\nマーク → 各種イベントの目印（凡例参照）' }, tr);
                 }
             }
 
@@ -968,7 +969,7 @@
             if (gridEl) {
                 var gridR = gridEl.getBoundingClientRect();
                 if (gridR.width > 0 && gridR.height > 0) {
-                    addHelpItem(container, { title: 'グリッド（左側の表）', text: 'セルをクリック\n　→ タスク開始日へ自動スクロール\nセルをダブルクリック\n　→ 項目をその場で編集\nCtrl+クリック / Shift+クリック\n　→ 複数行を選択\n右クリック\n　→ コピー・削除メニュー' }, gridR);
+                    addHelpItem(container, { title: 'グリッド（左側の表）', text: 'セルをクリック\n　→ タスク開始日へ自動スクロール\n担当者未定のタスク → 赤字で表示\n完了済みのタスク → グレーで表示' }, gridR);
                 }
             }
 
