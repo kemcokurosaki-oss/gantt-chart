@@ -172,9 +172,6 @@
 
             if (currentDisplayMode === 'machine') {
                 projects.forEach(pNum => {
-                    if (currentFilter && pNum !== currentFilter) return;
-                    if (currentProjectGroupFilter === '2000' && !/^2/.test(pNum)) return;
-                    if (currentProjectGroupFilter === 'other' && /^2/.test(pNum)) return;
                     const projectTasks = rawTasks.filter(t => {
                         if (t.project_number !== pNum) return false;
                         const val = t.is_business_trip;
@@ -250,7 +247,6 @@
                 )].sort();
 
                 tripProjects.forEach(pNum => {
-                    if (currentFilter && pNum !== currentFilter) return;
                     const projectTasks = rawTasks.filter(t => {
                         if (t.project_number !== pNum) return false;
                         const val = t.is_business_trip;
@@ -264,7 +260,6 @@
                 });
             } else {
                 projects.forEach(pNum => {
-                    if (currentFilter && pNum !== currentFilter) return;
                     const projectTasks = rawTasks.filter(t => {
                         if (t.project_number !== pNum) return false;
                         const val = t.is_business_trip;
