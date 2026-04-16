@@ -95,10 +95,6 @@
                         // 設計部の部署別リソース画面では、is_detailedがTRUEのタスク（設計工程表専用）を非表示にする
                         if (isDetailed) return false;
                         if (t.major_item !== currentResourceDeptFilter) return false;
-                        const isShipping = (t.text && t.text.includes('出荷')) || 
-                                           (t.parent === '出荷' || t.parent === '出荷準備') || 
-                                           (t.parent_name && (t.parent_name.includes('出荷') || t.parent_name.includes('出荷準備')));
-                        if (currentResourceDeptFilter === '組立' && isShipping) return false;
                         return true;
                     });
 
@@ -151,18 +147,12 @@
 
             // 2. window.allTasks から major_item が deptName と一致するタスクを抽出
             // 外注の場合は、major_item も一致している必要がある
-            // 組立リソースの場合、見出し名（text）が「出荷」のタスクは除外する
             const deptTasks = (window.allTasks || []).filter(t => {
                 // is_detailed が true のタスクは除外（設計工程表専用タスクを全体工程表のリソース画面で非表示にする）
                 const isDetailed = (t.is_detailed === true || String(t.is_detailed).toLowerCase() === "true" || String(t.is_detailed).toLowerCase() === "t" || String(t.is_detailed) === "1");
                 if (isDetailed) return false;
 
                 if (t.major_item !== deptName) return false;
-                // 組立リソースの場合、タスク名または親（parent/parent_name）に出荷が含まれるタスクは除外する
-                const isShipping = (t.text && t.text.includes('出荷')) || 
-                                   (t.parent === '出荷' || t.parent === '出荷準備') || 
-                                   (t.parent_name && (t.parent_name.includes('出荷') || t.parent_name.includes('出荷準備')));
-                if (deptName === '組立' && isShipping) return false;
                 return true;
             });
 
@@ -258,7 +248,6 @@
             owners.forEach((ownerName, ownerIndex) => {
                 // 名寄せ後の名前に基づいてタスクを抽出
                 // 「外注」の場合は、major_item が現在の部署 (deptName) と一致するものだけを抽出する
-                // 組立リソースの場合、見出し名（text）が「出荷」のタスクは除外する
                 const ownerTasks = window.allTasks.filter(t => {
                     // is_detailed が true のタスクは除外（設計工程表専用タスクを全体工程表のリソース画面で非表示にする）
                     const isDetailed = (t.is_detailed === true || String(t.is_detailed).toLowerCase() === "true" || String(t.is_detailed).toLowerCase() === "t" || String(t.is_detailed) === "1");
@@ -272,11 +261,6 @@
                         isMatch = normalized.includes(ownerName);
                     }
                     if (!isMatch) return false;
-                    // 組立リソースの場合、タスク名または親（parent/parent_name）に出荷が含まれるタスクは表示しない。
-                    const isShipping = (t.text && t.text.includes('出荷')) || 
-                                       (t.parent === '出荷' || t.parent === '出荷準備') || 
-                                       (t.parent_name && (t.parent_name.includes('出荷') || t.parent_name.includes('出荷準備')));
-                    if (deptName === '組立' && isShipping) return false;
                     return true;
                 });
 
@@ -392,7 +376,7 @@
                         <div class="resource-cell-bar ${colorClass} ${milestoneClass} ${conflictClass}" 
                              style="position: absolute; top: ${topOffset}px; height: ${barHeight}px; left: ${left}px; width: ${width}px; border-radius: 3px; opacity: 0.8; display: flex; align-items: center; justify-content: center; color: #222; font-size: 13px; font-weight: bold; font-family: '游ゴシック','Yu Gothic',YuGothic,sans-serif; overflow: hidden; white-space: nowrap; text-shadow: none; z-index: ${5 + stackIndex}; box-sizing: border-box; border: 1px solid rgba(0,0,0,0.15);" 
                              title="${t.text} (${t.project_number})">
-                             <span class="resource-bar-text">${t.project_number || ""} ${t.machine || ""} ${t.unit || ""}</span>
+                             <span class="resource-bar-text">${milestoneClass === "milestone-star" ? "" : `${t.project_number || ""} ${t.machine || ""} ${t.unit || ""}`}</span>
                         </div>
                     `;
                 });
@@ -735,13 +719,6 @@
                 }
 
                 if (!isMatch) return false;
-
-                // 組立リソースの場合、タスク名または親（parent/parent_name）に出荷が含まれるタスクは表示しない。
-                // ただし、担当者別詳細画面（currentResourceDeptFilterが空）の場合は表示する。
-                const isShipping = (t.text && t.text.includes('出荷')) || 
-                                   (t.parent === '出荷' || t.parent === '出荷準備') || 
-                                   (t.parent_name && (t.parent_name.includes('出荷') || t.parent_name.includes('出荷準備')));
-                if (currentResourceDeptFilter && currentDept === '組立' && isShipping) return false;
 
                 return true;
             });
