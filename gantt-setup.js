@@ -205,44 +205,6 @@
             }
         };
 
-        // カスタムライトボックスセクション：担当者複数選択
-        gantt.form_blocks["owner_selector"] = {
-            render: function (sns) {
-                return `<div id='owner_selector_container' class='owner_selector_container' style='padding: 5px; background: #f9f9f9; border: 1px solid #ddd; border-radius: 4px; min-height: 30px; display: flex; flex-wrap: wrap; gap: 10px;'></div>`;
-            },
-            set_value: function (node, value, task) {
-                const majorItem = task.major_item || "";
-                const options = getOwnerOptions(majorItem);
-                const container = node.querySelector('#owner_selector_container');
-                const mainOwner = (task.main_owner || "").trim();
-                const selectedOwners = (value || "").split(',').map(s => s.trim());
-
-                let html = "";
-                if (options.length === 0) {
-                    html = "<span style='color: #999; font-size: 11px;'>フィルタ色分けを選択してください</span>";
-                } else {
-                    options.forEach(opt => {
-                        const isChecked = selectedOwners.includes(opt.key) ? "checked" : "";
-                        const isMain = mainOwner === opt.key ? "checked" : "";
-                        html += `<label style='display: inline-flex; align-items: center; gap: 3px; cursor: pointer; font-size: 11px;'>
-                                    <input type='radio' name='main_owner_radio' value='${opt.key}' ${isMain} title='メイン担当に設定' style='vertical-align: middle; cursor: pointer;'>
-                                    <input type='checkbox' name='owner_checkbox' value='${opt.key}' ${isChecked} style='vertical-align: middle;'> ${opt.label}
-                                 </label>`;
-                    });
-                }
-                container.innerHTML = html;
-            },
-            get_value: function (node, task) {
-                const checkboxes = node.querySelectorAll('input[name="owner_checkbox"]:checked');
-                const selected = [];
-                checkboxes.forEach(cb => selected.push(cb.value));
-                const mainRadio = node.querySelector('input[name="main_owner_radio"]:checked');
-                task.main_owner = mainRadio ? mainRadio.value : "";
-                return selected.join(', ');
-            },
-            focus: function (node) {}
-        };
-
         // 上段・下段で完全に一致させる固定値（1ピクセルも狂いなく同期）
         let GRID_WIDTH = 600;
         const COLUMN_WIDTHS = [30, 50, 22, 114, 37, 37, 65, 60, 80, 80, 25]; // 詳細, 工事番号, チェック, タスク名, 機械, ユニット, 担当, 場所, 開始日, 終了日, add(担当者名)
@@ -478,8 +440,8 @@
                             }
                             if (!ownerMaster[currentMajorItem].includes(newOwnerName)) {
                                 ownerMaster[currentMajorItem].push(newOwnerName);
-                                // 再描画
-                                gantt.form_blocks["owner_selector"].set_value(node, value, task);
+                                const curVal = Array.from(container.querySelectorAll('input[name="owner_checkbox"]:checked')).map(cb => cb.value).join(", ");
+                                gantt.form_blocks["owner_selector"].set_value(node, curVal, task);
                             }
                         }
                     };
@@ -488,7 +450,7 @@
                         const currentMajorItem = task.major_item;
                         if (!currentMajorItem) return;
 
-                        const checkedCheckboxes = container.querySelectorAll("input:checked");
+                        const checkedCheckboxes = container.querySelectorAll('input[name="owner_checkbox"]:checked');
                         if (checkedCheckboxes.length === 0) {
                             alert("削除する担当者にチェックを入れてください。");
                             return;
@@ -506,6 +468,7 @@
 
                 const owners = ownerMaster[majorItem] || [];
                 const selected = (value || "").split(",").map(s => s.trim());
+                const mainOwner = (task.main_owner || "").trim();
 
                 let html = "";
                 if (owners.length === 0) {
@@ -513,8 +476,10 @@
                 } else {
                     owners.forEach(name => {
                         const isChecked = selected.includes(name) ? "checked" : "";
-                        html += `<label style='display:inline-block; width:120px; margin-bottom:3px; font-size:11px; cursor:pointer;'>
-                                    <input type='checkbox' value='${name}' ${isChecked} style='vertical-align:middle;'> ${name}
+                        const isMain = mainOwner === name ? "checked" : "";
+                        html += `<label style='display:inline-flex; align-items:center; gap:3px; width:120px; margin-bottom:3px; font-size:11px; cursor:pointer;'>
+                                    <input type='radio' name='main_owner_radio' value='${name}' ${isMain} title='メイン担当に設定' style='vertical-align:middle; cursor:pointer;'>
+                                    <input type='checkbox' name='owner_checkbox' value='${name}' ${isChecked} style='vertical-align:middle;'> ${name}
                                  </label>`;
                     });
                 }
@@ -522,7 +487,12 @@
             },
             get_value: function(node, task) {
                 const container = node.querySelector(".owner_selector_container");
-                const checked = Array.from(container.querySelectorAll("input:checked")).map(cb => cb.value);
+                if (!container) return "";
+                const checked = Array.from(container.querySelectorAll('input[name="owner_checkbox"]:checked')).map(cb => cb.value);
+                const mainRadio = container.querySelector('input[name="main_owner_radio"]:checked');
+                let main = mainRadio ? mainRadio.value : "";
+                if (main && !checked.includes(main)) main = "";
+                task.main_owner = main;
                 return checked.join(", ");
             },
             focus: function (node) {}
