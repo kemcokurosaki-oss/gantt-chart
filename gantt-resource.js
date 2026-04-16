@@ -244,6 +244,23 @@
             </div>
             `;
 
+            const buildResourceTooltipText = function(task) {
+                const detailText = [task.project_number, task.machine, task.unit]
+                    .map(function(v) { return (v || "").toString().trim(); })
+                    .filter(Boolean)
+                    .join(" ");
+                const taskText = (task.text || "").toString().trim();
+                return detailText ? `${taskText} (${detailText})` : taskText;
+            };
+
+            const escapeTooltipAttr = function(text) {
+                return (text || "")
+                    .replace(/&/g, "&amp;")
+                    .replace(/"/g, "&quot;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;");
+            };
+
             // 各担当者ごとの行を生成
             owners.forEach((ownerName, ownerIndex) => {
                 // 名寄せ後の名前に基づいてタスクを抽出
@@ -377,7 +394,7 @@
                     html += `
                         <div class="resource-cell-bar ${colorClass} ${milestoneClass} ${partsDeliveryClass} ${conflictClass}" 
                              style="position: absolute; top: ${topOffset}px; height: ${barHeight}px; left: ${left}px; width: ${width}px; border-radius: 3px; opacity: 0.8; display: flex; align-items: center; justify-content: center; color: #222; font-size: 13px; font-weight: bold; font-family: '游ゴシック','Yu Gothic',YuGothic,sans-serif; overflow: hidden; white-space: nowrap; text-shadow: none; z-index: ${5 + stackIndex}; box-sizing: border-box; border: 1px solid rgba(0,0,0,0.15);" 
-                             title="${t.text} (${t.project_number})">
+                             data-resource-tooltip="${escapeTooltipAttr(buildResourceTooltipText(t))}">
                             <span class="resource-bar-text">${(milestoneClass || isPartsDeliveryTask) ? "" : `${t.project_number || ""} ${t.machine || ""} ${t.unit || ""}`}</span>
                         </div>
                     `;
@@ -391,7 +408,54 @@
             });
 
             container.innerHTML = html;
+            initResourceBarTooltip(container);
             syncResourceScroll();
+        }
+
+        function initResourceBarTooltip(container) {
+            let tooltip = document.getElementById('custom_resource_tooltip');
+            if (!tooltip) {
+                tooltip = document.createElement('div');
+                tooltip.id = 'custom_resource_tooltip';
+                tooltip.style.position = 'fixed';
+                tooltip.style.display = 'none';
+                tooltip.style.padding = '6px 10px';
+                tooltip.style.background = '#fff';
+                tooltip.style.color = '#000';
+                tooltip.style.fontSize = '12px';
+                tooltip.style.fontFamily = "'メイリオ','Meiryo',sans-serif";
+                tooltip.style.borderRadius = '8px';
+                tooltip.style.pointerEvents = 'none';
+                tooltip.style.whiteSpace = 'nowrap';
+                tooltip.style.zIndex = '9999';
+                tooltip.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.25)';
+                document.body.appendChild(tooltip);
+            }
+
+            container.querySelectorAll('.resource-cell-bar[data-resource-tooltip]').forEach(function(bar) {
+                bar.addEventListener('mouseenter', function(e) {
+                    const text = bar.getAttribute('data-resource-tooltip') || '';
+                    if (!text) return;
+                    tooltip.textContent = text;
+                    tooltip.style.display = 'block';
+
+                    const offset = 14;
+                    let left = e.clientX + offset;
+                    let top = e.clientY + offset;
+                    const rect = tooltip.getBoundingClientRect();
+                    if (left + rect.width > window.innerWidth - 8) {
+                        left = Math.max(8, e.clientX - rect.width - offset);
+                    }
+                    if (top + rect.height > window.innerHeight - 8) {
+                        top = Math.max(8, e.clientY - rect.height - offset);
+                    }
+                    tooltip.style.left = left + 'px';
+                    tooltip.style.top = top + 'px';
+                });
+                bar.addEventListener('mouseleave', function() {
+                    tooltip.style.display = 'none';
+                });
+            });
         }
 
         function showResourceViewByOwner(ownerValue) {
@@ -819,7 +883,11 @@
                 
                 const colorClass = getResourceTaskClass(t);
                 const partsDeliveryClass = isPartsDeliveryTask ? "parts-delivery-resource" : "";
-                const title = `${t.text} (${t.project_number})`;
+                const detailText = [t.project_number, t.machine, t.unit]
+                    .map(function(v) { return (v || "").toString().trim(); })
+                    .filter(Boolean)
+                    .join(" ");
+                const title = detailText ? `${t.text || ""} (${detailText})` : (t.text || "");
 
                 // 部署別表示の場合のみスタックとコンフリクト判定を行う
                 let topOffset = 3;
@@ -929,7 +997,7 @@
                             <div class="resource-cell-bars" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 2;">
                                 <div class="resource-cell-bar ${colorClass} ${partsDeliveryClass} ${conflictClass}" 
                                      style="position: absolute; top: ${topOffset}px; height: ${barHeight}px; left: ${left}px; width: ${width}px; border-radius: 3px; opacity: 0.8; display: flex; align-items: center; justify-content: center; color: #222; font-size: 13px; font-weight: bold; font-family: '游ゴシック','Yu Gothic',YuGothic,sans-serif; overflow: hidden; white-space: nowrap; text-shadow: none; z-index: ${zIndex}; box-sizing: border-box; border: 1px solid rgba(0,0,0,0.15);" 
-                                     title="${title.replace(/"/g, "&quot;")}">
+                                     data-resource-tooltip="${title.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}">
                                      <span class="resource-bar-text">${isPartsDeliveryTask ? "" : `${t.project_number || ""} ${t.machine || ""} ${t.unit || ""}`}</span>
                                 </div>
                             </div>
@@ -939,6 +1007,7 @@
             });
 
             container.innerHTML = html;
+            initResourceBarTooltip(container);
             syncResourceScroll();
         }
 
