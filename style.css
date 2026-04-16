@@ -338,13 +338,6 @@
             font-family: "游ゴシック", "Yu Gothic", YuGothic, sans-serif;
             text-shadow: none !important;
         }
-        .task-name-text {
-            position: absolute !important;
-            white-space: nowrap;
-            display: block;
-            /* top / left は JS で計算して設定 */
-        }
-
         /* 2000番台以外の見出し行の文字色（白に戻す） */
         .header-non-2000s .gantt_task_content {
             color: #fff !important;

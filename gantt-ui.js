@@ -224,12 +224,24 @@
                 } else if (field === 'owner') {
                     showMsSection(buildOwnerOpts(task.major_item || ''), getNormalizedOwners(task.owner || ''), task.main_owner || '');
                 } else if (field === 'area_number') {
-                    // task_locations から正確なデータを取得
-                    const realId = task.original_id || taskId;
-                    const { data: locData } = await supabaseClient.from('task_locations')
-                        .select('area_group, area_number').eq('task_id', realId);
-                    const sel = (locData || []).map(function(l) { return l.area_group + '-' + l.area_number; });
-                    showMsSection(buildLocationOpts(), sel);
+                    // 全体工程表からは場所変更不可 → 通知を表示して終了
+                    _ie = { taskId: null, field: null };
+                    (function() {
+                        let toast = document.getElementById('ie-location-readonly-toast');
+                        if (!toast) {
+                            toast = document.createElement('div');
+                            toast.id = 'ie-location-readonly-toast';
+                            toast.style.cssText = 'position:fixed;background:#555;color:#fff;padding:8px 14px;border-radius:6px;font-size:13px;font-family:メイリオ,sans-serif;z-index:99999;pointer-events:none;transition:opacity 0.3s;opacity:0;';
+                            document.body.appendChild(toast);
+                        }
+                        toast.textContent = '組立工程表から変更してください';
+                        toast.style.left = cellRect.left + 'px';
+                        toast.style.top = (cellRect.bottom + 4) + 'px';
+                        toast.style.opacity = '1';
+                        clearTimeout(toast._tid);
+                        toast._tid = setTimeout(function() { toast.style.opacity = '0'; }, 2500);
+                    })();
+                    return;
                 } else if (field === 'start_date') {
                     showDateSection(task.start_date);
                 } else if (field === 'end_date') {
@@ -267,22 +279,8 @@
                     task.main_owner = mainRadio ? mainRadio.value : '';
 
                 } else if (field === 'area_number') {
-                    const checked = Array.from(document.querySelectorAll('#inline-edit-ms-options input[type=checkbox]:checked')).map(function(cb) { return cb.value; });
-                    const locs = checked.map(function(v) {
-                        const parts = v.split('-');
-                        return { group: parts[0], num: parts[1] };
-                    });
-                    task.area_group = locs.length > 0 ? locs[0].group : '';
-                    task.area_number = locs.map(function(l) { return l.num; }).join(',');
-                    task._selected_locations = locs.map(function(l) { return { group: l.group, num: l.num }; });
-                    // task_locations テーブルを直接更新
-                    const realId = task.original_id || taskId;
-                    await supabaseClient.from('task_locations').delete().eq('task_id', realId);
-                    if (locs.length > 0) {
-                        await supabaseClient.from('task_locations').insert(
-                            locs.map(function(l) { return { task_id: realId, area_group: l.group, area_number: l.num }; })
-                        );
-                    }
+                    // 全体工程表からは場所変更不可のためスキップ（showIE でブロック済み）
+                    return;
 
                 } else if (field === 'start_date') {
                     const val = document.getElementById('inline-edit-date-input').value;
@@ -1031,47 +1029,4 @@
         }
         document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeHelp(); });
         // ===== ヘルプモード ここまで =====
-
-        // ===== バー内テキストのスティッキースクロール =====
-        // グリッド右端を getBoundingClientRect() で実測し、
-        // テキスト左端がグリッドに隠れた分だけ translateX でずらす。
-        // gantt-resource.js と同じ実装で統一。
-        function updateStickyBarText(scrollLeft) {
-            const sl = scrollLeft !== undefined ? scrollLeft : (gantt.getScrollState().x || 0);
-            const gridEl = document.querySelector('.gantt_grid');
-            if (!gridEl) return;
-            const boundary = gridEl.getBoundingClientRect().right;
-
-            const bars = document.querySelectorAll('.gantt_task_line');
-            if (!bars.length) return;
-            const barH = bars[0].offsetHeight || 24;
-
-            bars.forEach(function(bar) {
-                const textEl = bar.querySelector('.task-name-text');
-                if (!textEl) return;
-                const barLeft  = parseFloat(bar.style.left)  || 0;
-                const barWidth = parseFloat(bar.style.width) || 0;
-
-                // 縦：バー高さの中央に配置
-                const textH = textEl.offsetHeight || 15;
-                const vertTop = Math.max(0, Math.round((barH - textH) / 2));
-                textEl.style.top = vertTop + 'px';
-
-                // バーが完全に左へ消えたらリセット
-                if (sl >= barLeft + barWidth) {
-                    textEl.style.transform = '';
-                    return;
-                }
-
-                // transform をリセットして自然な位置のテキスト左端を実測
-                textEl.style.transform = '';
-                const textLeft = textEl.getBoundingClientRect().left;
-
-                // テキスト左端が境界線にぶつかった分だけずらす
-                const offset = Math.max(0, boundary - textLeft);
-                if (offset > 0) textEl.style.transform = 'translateX(' + offset + 'px)';
-            });
-        }
-        window.updateStickyBarText = updateStickyBarText;
-        // ===== バー内テキストのスティッキースクロール ここまで =====
 

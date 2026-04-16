@@ -154,12 +154,13 @@
             render: function (sns) {
                 // コンテナ自体にIDを付与して、後で非表示にしやすくする
                 let html = "<div id='location_selector_container' class='location_selector_container' style='padding: 5px; background: #f9f9f9; border: 1px solid #ddd; border-radius: 4px;'>";
+                html += "<div style='margin-bottom: 8px; font-size: 12px; color: #e57373; font-family: メイリオ, sans-serif;'>※ 場所の変更は組立工程表から行ってください（表示のみ）</div>";
                 LOCATION_GROUPS.forEach(group => {
                     html += `<div style='margin-bottom: 8px;'><strong>${group}:</strong><br/>`;
                     LOCATION_NUMBERS.forEach(num => {
                         const val = `${group}-${num}`;
-                        html += `<label style='margin-right: 10px; display: inline-block; cursor: pointer;'>
-                                    <input type='checkbox' name='loc_cb' value='${val}' data-group='${group}' data-num='${num}' style='vertical-align: middle;'> ${num}
+                        html += `<label style='margin-right: 10px; display: inline-block; cursor: not-allowed; opacity: 0.6;'>
+                                    <input type='checkbox' name='loc_cb' value='${val}' data-group='${group}' data-num='${num}' disabled style='vertical-align: middle; cursor: not-allowed;'> ${num}
                                  </label>`;
                     });
                     html += "</div>";
@@ -196,29 +197,9 @@
                 });
             },
             get_value: function (node, task) {
-                const checked = node.querySelectorAll("input[name='loc_cb']:checked");
-                if (checked.length > 0) {
-                    // チェックされたすべての要素から、グループと番号を抽出
-                    const locations = Array.from(checked).map(cb => ({
-                        group: cb.getAttribute("data-group"),
-                        num: cb.getAttribute("data-num")
-                    }));
-                    
-                    // 最初のチェックから代表のグループ(E1かE3)をセット（後方互換性のため）
-                    task.area_group = locations[0].group;
-                    // チェックされたすべての番号を配列にしてカンマ区切り文字列でセット
-                    const nums = locations.map(loc => loc.num);
-                    task.area_number = nums.join(",");
-                    
-                    // 複数のグループが混在する場合に備え、詳細な情報を保持
-                    task._selected_locations = locations;
-                } else {
-                    task.area_group = "";
-                    task.area_number = "";
-                    task._selected_locations = [];
-                }
-                // Gantt管理用の戻り値
-                return task.area_group + "-" + task.area_number;
+                // 全体工程表からは場所変更不可のため、task への書き込みは行わない
+                // （チェックボックスは disabled なので読み取り専用表示のみ）
+                return (task.area_group || "") + "-" + (task.area_number || "");
             },
             focus: function (node) {
             }

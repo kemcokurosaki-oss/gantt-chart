@@ -220,15 +220,8 @@
                 gantt.changeTaskId(id, newId);
                 console.log("New task added with ID:", newId);
 
-                // 組立場所の保存（もしあれば）
-                if (item.locations && item.locations.length > 0) {
-                    const locationRecords = item.locations.map(loc => ({
-                        task_id: newId,
-                        area_group: loc.area_group,
-                        area_number: loc.area_number
-                    }));
-                    await supabaseClient.from('task_locations').insert(locationRecords);
-                }
+                // 組立場所の保存は組立工程表から行う（全体工程表からは変更不可）
+                // if (item.locations && item.locations.length > 0) { ... }
 
                 // 変更履歴を記録
                 if (typeof window.logChange === 'function') {
@@ -352,58 +345,8 @@
             // async関数を即時実行して保存処理を行う
             (async () => {
                 try {
-                    // ① ライトボックスから最新のチェック状態を取得
-                    const locSection = gantt.getLightboxSection("locations");
-                    if (locSection && locSection.control) {
-                        // カスタムコントロールの場合、gantt.form_blocks を経由して get_value を呼ぶ
-                        gantt.form_blocks["location_selector"].get_value(locSection.control, item);
-                    }
-
-                    console.log("Saving locations for task:", id, item._selected_locations);
-
-                    // ② Supabase への保存処理（組立場所）
-                    // 既存データを削除
-                    const { error: deleteError } = await supabaseClient
-                        .from('task_locations')
-                        .delete()
-                        .eq('task_id', id);
-                    
-                    if (deleteError) {
-                        console.error("Delete error for task_locations:", deleteError);
-                    }
-
-                    // 新規データを登録
-                    const currentLocations = [];
-                    if (item._selected_locations && item._selected_locations.length > 0) {
-                        item._selected_locations.forEach(loc => {
-                            currentLocations.push({
-                                task_id: id,
-                                area_group: loc.group,
-                                area_number: loc.num
-                            });
-                        });
-                    } else if (item.area_group && item.area_number) {
-                        // フォールバック：_selected_locations がない場合は従来のカンマ区切りから生成
-                        const nums = item.area_number.split(",");
-                        nums.forEach(num => {
-                            currentLocations.push({
-                                task_id: id,
-                                area_group: item.area_group,
-                                area_number: num.trim()
-                            });
-                        });
-                    }
-
-                    if (currentLocations.length > 0) {
-                        console.log("Inserting location records:", currentLocations);
-                        const { error: insertError } = await supabaseClient
-                            .from('task_locations')
-                            .insert(currentLocations);
-                        
-                        if (insertError) {
-                            console.error("Insert error for task_locations:", insertError);
-                        }
-                    }
+                    // 組立場所の保存は組立工程表から行う（全体工程表からは変更不可）
+                    // ① get_value / task_locations DELETE・INSERT はスキップ
 
                     // tasks テーブルを更新
                     const { error: taskUpdateError } = await supabaseClient
@@ -576,8 +519,7 @@
                 taskName = task.text;
             }
 
-            let html = `<span class="task-name-text">${taskName || ""}</span>`;
-            return html;
+            return taskName || "";
         };
 
         gantt.templates.task_class = function(start, end, task) {
@@ -827,12 +769,6 @@
         // ガント再描画のたびにマークを再配置
         gantt.attachEvent("onGanttRender", function() {
             renderPartsMarks();
-            if (typeof updateStickyBarText === 'function') updateStickyBarText();
-        });
-
-        // スクロールに合わせてバー内テキストを追従させる
-        gantt.attachEvent("onGanttScroll", function(left, top) {
-            updateStickyBarText(left);
         });
 
         // ドラッグ移動

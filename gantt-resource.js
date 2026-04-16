@@ -64,10 +64,6 @@
                 el.style.margin = '0';
                 el.style.padding = '0';
             });
-            // レンダリング後もバー内テキストの位置を更新
-            if (typeof window.updateStickyBarText === 'function') {
-                window.updateStickyBarText();
-            }
         });
 
         // 担当者名の名寄せ（正規化）処理
@@ -449,6 +445,10 @@
                 if (resourcePanel) resourcePanel.style.display = "flex";
                 if (currentLocationResourceMode) {
                     renderLocationResourceTimeline();
+                } else if (currentResourceMode === 'dept' && currentResourceDeptFilter) {
+                    // 部署別表示中のとき: 担当者一覧ビューを再描画する
+                    // filterByDepartment(dept, null) は btn=null のためトグルせず再描画のみ行う
+                    filterByDepartment(currentResourceDeptFilter, null);
                 } else {
                     renderResourceTimeline();
                 }
@@ -961,15 +961,35 @@
             syncResourceScroll();
         }
 
-        // 2. 【スクロールの同期】
-        // updateStickyBarText は gantt-ui.js で一元定義（window.updateStickyBarText）
+        // 2. 【スクロールの同期】（下段リソースパネル表示時のみ）
+
+        /** ガントから resource の scrollLeft を同期したとき、scroll リスナが gantt.scrollTo を呼ばないようにする */
+        let _resourceScrollSyncFromGantt = false;
+        let _resourceScrollSyncClearTimer = null;
+
+        function _applyResourceScrollLeftFromGantt(resourceContent, left) {
+            if (_resourceScrollSyncClearTimer !== null) {
+                clearTimeout(_resourceScrollSyncClearTimer);
+                _resourceScrollSyncClearTimer = null;
+            }
+            _resourceScrollSyncFromGantt = true;
+            resourceContent.scrollLeft = left;
+            // scroll イベントは同期的にも次タスクにも届く。同一ターンの try/finally で囲むと手前で false
+            // になり、リスナから gantt.scrollTo が走って横スクロールと競合しやすい
+            _resourceScrollSyncClearTimer = setTimeout(function() {
+                _resourceScrollSyncClearTimer = null;
+                _resourceScrollSyncFromGantt = false;
+            }, 0);
+        }
 
         gantt.attachEvent("onGanttScroll", function (left, top){
-            const resourceContent = document.querySelector(".resource-content");
-            if (resourceContent) {
-                resourceContent.scrollLeft = left;
+            const resourcePanel = document.getElementById("resource_panel");
+            if (resourcePanel && resourcePanel.style.display !== "none") {
+                const resourceContent = document.querySelector(".resource-content");
+                if (resourceContent && resourceContent.scrollLeft !== left) {
+                    _applyResourceScrollLeftFromGantt(resourceContent, left);
+                }
             }
-            updateStickyBarText(left);
         });
 
         // 3. 【ズーム切り替え時の再描画】
@@ -1010,10 +1030,12 @@
         }
 
         function syncResourceScroll() {
+            const resourcePanel = document.getElementById("resource_panel");
+            if (!resourcePanel || resourcePanel.style.display === "none") return;
             const ganttScroll = gantt.getScrollState();
             const resourceContent = document.querySelector(".resource-content");
             if (resourceContent) {
-                resourceContent.scrollLeft = ganttScroll.x;
+                _applyResourceScrollLeftFromGantt(resourceContent, ganttScroll.x);
                 // グリッド幅分だけクリップ位置を調整（もし必要なら）
                 resourceContent.style.setProperty('--resource-clip-left', '0px');
             }
@@ -1037,14 +1059,18 @@
             setTimeout(() => {
                 const resourceContent = document.querySelector(".resource-content");
                 if (resourceContent) {
-                    resourceContent.addEventListener('scroll', function() {
+                    resourceContent.addEventListener('scroll', function(ev) {
+                        // ガント側から scrollLeft を入れたときに発火する scroll は多くの環境で isTrusted===false。
+                        // それを gantt.scrollTo に返すとガント横スクロールと競合して引っかかる。
+                        if (ev && ev.isTrusted === false) return;
+                        if (_resourceScrollSyncFromGantt) return;
                         // リソース側のスクロールをガント側に同期
                         // ただし、無限ループを防ぐために現在の位置と異なる場合のみ実行
                         const ganttScroll = gantt.getScrollState();
                         if (Math.abs(ganttScroll.x - this.scrollLeft) > 1) {
                             gantt.scrollTo(this.scrollLeft, null);
                         }
-                    });
+                    }, { passive: true });
                 }
             }, 1000);
         });
