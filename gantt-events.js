@@ -95,7 +95,11 @@
                 const owners = obj.owner.split(/[,，]/).map(function(s) { return s.trim(); }).filter(Boolean);
                 if (owners.length > 1 && obj.main_owner && obj.main_owner.trim()) {
                     const main = obj.main_owner.trim();
-                    return owners.map(function(o) { return o === main ? "<span style='color: blue;'>" + o + "</span>" : o; }).join(', ');
+                    const mainIdx = owners.findIndex(function(o) { return o === main; });
+                    var ordered = mainIdx >= 0
+                        ? [owners[mainIdx]].concat(owners.filter(function(_, i) { return i !== mainIdx; }))
+                        : owners.slice();
+                    return ordered.map(function(o) { return o === main ? "<span style='color: blue;'>" + o + "</span>" : o; }).join(', ');
                 }
                 return obj.owner;
             }},
