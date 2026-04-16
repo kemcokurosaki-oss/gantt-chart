@@ -226,6 +226,10 @@
             // background-position を調整してメイン画面のグリッド線と同期
             const backgroundStyle = `background-image: ${gridBackground}; background-position: ${-firstPos}px 0; background-size: ${columnWidth}px 27px; height: 100%;`;
 
+            // 今日線は各データ行のタイムライン内のみ（ヘッダー行には置かず、メイン線の「途切れ」を作る）
+            const todayPos = gantt.posFromDate(new Date());
+            const todayLineHtml = `<div class="resource-today-line" style="left: ${todayPos}px;"></div>`;
+
             let html = "";
             
             // ヘッダー行
@@ -336,6 +340,7 @@
                             </div>
                         </div>
                         <div class="resource-timeline" style="width: ${timelineWidth}px; flex-shrink: 0; position: relative; background: #fff; border-right: 1px solid #ebebeb;">
+                            <div class="resource-timeline-clip">
                             <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 0;">${weekendBackgroundHtml}</div>
                             <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; ${backgroundStyle} z-index: 1;"></div>
                             <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 1;">${rowConflictBackgroundHtml}</div>
@@ -397,6 +402,8 @@
 
                 html += `
                             </div>
+                            </div>
+                            ${todayLineHtml}
                         </div>
                     </div>
                 `;
@@ -610,6 +617,10 @@
             // background-position を調整してメイン画面のグリッド線と同期
             const backgroundStyle = `background-image: ${gridBackground}; background-position: ${-firstPos}px 0; background-size: ${columnWidth}px 27px; height: 100%;`;
 
+            // 今日線は各データ行のタイムライン内のみ（ヘッダー行には置かず、メイン線の「途切れ」を作る）
+            const todayPos = gantt.posFromDate(new Date());
+            const todayLineHtml = `<div class="resource-today-line" style="left: ${todayPos}px;"></div>`;
+
             let html = "";
             
             // ヘッダー
@@ -679,6 +690,7 @@
                                 <div class="resource-cell" style="width: ${COLUMN_WIDTHS[9]}px; padding: 0 4px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; color: #666;">${group}-${num}</div>
                             </div>
                             <div class="resource-timeline" style="width: ${timelineWidth}px; flex-shrink: 0; position: relative; background: #fff; border-right: 1px solid #ebebeb; box-sizing: border-box;">
+                            <div class="resource-timeline-clip">
                             <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 0;">${weekendBackgroundHtml}</div>
                             <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; ${backgroundStyle} z-index: 1;"></div>
                             <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 1;">${rowConflictBackgroundHtml}</div>
@@ -729,6 +741,8 @@
 
                     html += `
                                 </div>
+                                </div>
+                                ${todayLineHtml}
                             </div>
                         </div>
                     `;
@@ -831,6 +845,10 @@
             
             // background-position を調整してメイン画面のグリッド線と同期
             const backgroundStyle = `background-image: ${gridBackground}; background-position: ${-firstPos}px 0; background-size: ${columnWidth}px 27px; height: 100%;`;
+
+            // 今日線は各データ行のタイムライン内のみ（ヘッダー行には置かず、メイン線の「途切れ」を作る）
+            const todayPos = gantt.posFromDate(new Date());
+            const todayLineHtml = `<div class="resource-today-line" style="left: ${todayPos}px;"></div>`;
 
             let html = "";
             
@@ -976,6 +994,7 @@
                         <div class="resource-cell" style="width: ${COLUMN_WIDTHS[10]}px; padding: 0 4px;"></div>
                     </div>
                         <div class="resource-timeline" style="width: ${timelineWidth}px; flex-shrink: 0; position: relative; background: #fff; border-right: 1px solid #ebebeb; box-sizing: border-box;">
+                            <div class="resource-timeline-clip">
                             <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 0;">${weekendBackgroundHtml}</div>
                             <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; ${backgroundStyle} z-index: 1;"></div>
                             <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 1;">${rowConflictBackgroundHtml}</div>
@@ -986,6 +1005,8 @@
                                      <span class="resource-bar-text">${isPartsDeliveryTask ? "" : `${t.project_number || ""} ${t.machine || ""} ${t.unit || ""}`}</span>
                                 </div>
                             </div>
+                            </div>
+                            ${todayLineHtml}
                         </div>
                     </div>
                 `;

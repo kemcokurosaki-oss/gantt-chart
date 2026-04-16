@@ -253,7 +253,8 @@
         .zoom-days .gantt_task_cell {
             border-right: 1px solid #ebebeb;
         }
-        .gantt_marker.today-line { background: #cc0000 !important; width: 2px !important; opacity: 0.8; z-index: 1000 !important; }
+        /* リソースパネル（z-index:100）より下にし、下段では resource-today-line で途切れを表現する */
+        .gantt_marker.today-line { background: #cc0000 !important; width: 2px !important; opacity: 0.8; z-index: 99 !important; }
         .gantt_group_row { background-color: #dce8ef !important; font-weight: bold !important; font-size: 12.5px !important; } /* 見出し行 */
         
         /* 白の子タスク行のインデント・ツリーアイコンを非表示（水色の見出し行は除外） */
@@ -905,7 +906,16 @@
             height: 100%;
             background: #fff;
             border-right: 1px solid #e0e0e0;
-            /* 右スクロール時、グリッド範囲に入ったバーを完全に非表示にする */
+            overflow: visible;
+        }
+        /* clip-path は今日線より内側のみに適用（親に clip があると縦線の重ね順が崩れバーの下に潜ることがある） */
+        .resource-timeline-clip {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 0;
             clip-path: inset(0 0 0 var(--resource-clip-left, 0px));
         }
         .resource-timeline-grid {
@@ -995,10 +1005,20 @@
         .resource-scale-cell:last-child { border-right: none; }
         .resource-scale-cell.weekend { background: #f4f4f4 !important; }
         .resource-calendar-wrap { margin-bottom: 4px; }
-        .resource-today-line { position: absolute; top: 0; bottom: 0; width: 2px; background: #cc0000 !important; opacity: 0.8; z-index: 1000 !important; pointer-events: none; }
+        /* タイムライン直下の兄弟として置く（.resource-timeline-clip の外）。行境界の1pxをまたぐ */
+        .resource-today-line {
+            position: absolute;
+            top: -1px;
+            bottom: -1px;
+            width: 2px;
+            background: #cc0000 !important;
+            opacity: 0.8;
+            z-index: 20000 !important;
+            pointer-events: none;
+            box-sizing: border-box;
+        }
         .resource-today-wrap { position: relative; }
         .resource-today-row .resource-scale-inner { background: transparent; border: none; }
-        .resource-timeline { border-right: 1px solid #ebebeb; }
         .resource-item { border-bottom: 1px solid #ebebeb !important; }
         .resource-placeholder { padding: 20px; color: #999; text-align: center; font-size: 11px; }
         .filter-btn { padding: 0px 5px; border: 1px solid #ccc; border-radius: 4px; cursor: pointer; background: #fff; font-size: 12px; }
