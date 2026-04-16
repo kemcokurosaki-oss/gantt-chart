@@ -226,10 +226,6 @@
             // background-position を調整してメイン画面のグリッド線と同期
             const backgroundStyle = `background-image: ${gridBackground}; background-position: ${-firstPos}px 0; background-size: ${columnWidth}px 27px; height: 100%;`;
 
-            // 今日の日付線の位置計算
-            const todayPos = gantt.posFromDate(new Date());
-            const todayLineHtml = `<div class="resource-today-line" style="left: ${todayPos}px;"></div>`;
-
             let html = "";
             
             // ヘッダー行
@@ -343,7 +339,6 @@
                             <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 0;">${weekendBackgroundHtml}</div>
                             <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; ${backgroundStyle} z-index: 1;"></div>
                             <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 1;">${rowConflictBackgroundHtml}</div>
-                            ${todayLineHtml}
                             <div class="resource-cell-bars" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 2;">
                 `;
 
@@ -615,10 +610,6 @@
             // background-position を調整してメイン画面のグリッド線と同期
             const backgroundStyle = `background-image: ${gridBackground}; background-position: ${-firstPos}px 0; background-size: ${columnWidth}px 27px; height: 100%;`;
 
-            // 今日の日付線の位置計算
-            const todayPos = gantt.posFromDate(new Date());
-            const todayLineHtml = `<div class="resource-today-line" style="left: ${todayPos}px;"></div>`;
-
             let html = "";
             
             // ヘッダー
@@ -691,7 +682,6 @@
                             <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 0;">${weekendBackgroundHtml}</div>
                             <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; ${backgroundStyle} z-index: 1;"></div>
                             <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 1;">${rowConflictBackgroundHtml}</div>
-                            ${todayLineHtml}
                             <div class="resource-cell-bars" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 2;">
                     `;
 
@@ -842,10 +832,6 @@
             // background-position を調整してメイン画面のグリッド線と同期
             const backgroundStyle = `background-image: ${gridBackground}; background-position: ${-firstPos}px 0; background-size: ${columnWidth}px 27px; height: 100%;`;
 
-            // 今日の日付線の位置計算
-            const todayPos = gantt.posFromDate(new Date());
-            const todayLineHtml = `<div class="resource-today-line" style="left: ${todayPos}px;"></div>`;
-
             let html = "";
             
             // 担当者名とタスク件数を表示する固定ヘッダー行
@@ -993,7 +979,6 @@
                             <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 0;">${weekendBackgroundHtml}</div>
                             <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; ${backgroundStyle} z-index: 1;"></div>
                             <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 1;">${rowConflictBackgroundHtml}</div>
-                            ${todayLineHtml}
                             <div class="resource-cell-bars" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 2;">
                                 <div class="resource-cell-bar ${colorClass} ${partsDeliveryClass} ${conflictClass}" 
                                      style="position: absolute; top: ${topOffset}px; height: ${barHeight}px; left: ${left}px; width: ${width}px; border-radius: 3px; opacity: 0.8; display: flex; align-items: center; justify-content: center; color: #222; font-size: 13px; font-weight: bold; font-family: '游ゴシック','Yu Gothic',YuGothic,sans-serif; overflow: hidden; white-space: nowrap; text-shadow: none; z-index: ${zIndex}; box-sizing: border-box; border: 1px solid rgba(0,0,0,0.15);" 
