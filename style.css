@@ -397,6 +397,33 @@
             transform: scale(1.1);
             transition: none;
         }
+        /* リソース画面内の神戸送り開始日はバーではなく🚚マークで表示 */
+        .resource-cell-bar.parts-delivery-resource {
+            background: none !important;
+            border: none !important;
+            overflow: visible !important;
+        }
+        .resource-cell-bar.parts-delivery-resource .resource-bar-text {
+            display: none !important;
+        }
+        .resource-cell-bar.parts-delivery-resource::before {
+            content: "🚚";
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: rgba(109, 76, 65, 0.85);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: #fff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            pointer-events: none;
+        }
 
         /* --- 無料版の強力な表示制限を解除するための設定 --- */
         .gantt_task_content {

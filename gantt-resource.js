@@ -337,6 +337,7 @@
                     const left = gantt.posFromDate(start);
                     const right = gantt.posFromDate(end);
                     const width = Math.max(2, right - left);
+                    const isPartsDeliveryTask = t.text === "神戸送り開始日";
                     
                     // リソース表示時のみ、担当者ごとに異なる色を使用
                     let colorClass = resourceColorClass;
@@ -350,6 +351,7 @@
                     else if (t.text === "出荷確認会議") milestoneClass = "milestone-diamond";
                     else if (t.text === "工場出荷") milestoneClass = "milestone-star";
                     else if (t.text === "客先立会") milestoneClass = "milestone-square";
+                    const partsDeliveryClass = isPartsDeliveryTask ? "parts-delivery-resource" : "";
 
                     // スタック位置の計算
                     let stackIndex = 0;
@@ -373,10 +375,10 @@
                     const conflictClass = ""; // isOverlapping ? "is-conflict" : "";
 
                     html += `
-                        <div class="resource-cell-bar ${colorClass} ${milestoneClass} ${conflictClass}" 
+                        <div class="resource-cell-bar ${colorClass} ${milestoneClass} ${partsDeliveryClass} ${conflictClass}" 
                              style="position: absolute; top: ${topOffset}px; height: ${barHeight}px; left: ${left}px; width: ${width}px; border-radius: 3px; opacity: 0.8; display: flex; align-items: center; justify-content: center; color: #222; font-size: 13px; font-weight: bold; font-family: '游ゴシック','Yu Gothic',YuGothic,sans-serif; overflow: hidden; white-space: nowrap; text-shadow: none; z-index: ${5 + stackIndex}; box-sizing: border-box; border: 1px solid rgba(0,0,0,0.15);" 
                              title="${t.text} (${t.project_number})">
-                            <span class="resource-bar-text">${milestoneClass ? "" : `${t.project_number || ""} ${t.machine || ""} ${t.unit || ""}`}</span>
+                            <span class="resource-bar-text">${(milestoneClass || isPartsDeliveryTask) ? "" : `${t.project_number || ""} ${t.machine || ""} ${t.unit || ""}`}</span>
                         </div>
                     `;
                 });
@@ -809,12 +811,14 @@
             sortedTasks.forEach(t => {
                 const start = new Date(t.start_date);
                 const end = gantt.calculateEndDate(start, t.duration);
+                const isPartsDeliveryTask = t.text === "神戸送り開始日";
                 
                 const left = gantt.posFromDate(start);
                 const right = gantt.posFromDate(end);
                 const width = Math.max(2, right - left);
                 
                 const colorClass = getResourceTaskClass(t);
+                const partsDeliveryClass = isPartsDeliveryTask ? "parts-delivery-resource" : "";
                 const title = `${t.text} (${t.project_number})`;
 
                 // 部署別表示の場合のみスタックとコンフリクト判定を行う
@@ -923,10 +927,10 @@
                             <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 1;">${rowConflictBackgroundHtml}</div>
                             ${todayLineHtml}
                             <div class="resource-cell-bars" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 2;">
-                                <div class="resource-cell-bar ${colorClass} ${conflictClass}" 
+                                <div class="resource-cell-bar ${colorClass} ${partsDeliveryClass} ${conflictClass}" 
                                      style="position: absolute; top: ${topOffset}px; height: ${barHeight}px; left: ${left}px; width: ${width}px; border-radius: 3px; opacity: 0.8; display: flex; align-items: center; justify-content: center; color: #222; font-size: 13px; font-weight: bold; font-family: '游ゴシック','Yu Gothic',YuGothic,sans-serif; overflow: hidden; white-space: nowrap; text-shadow: none; z-index: ${zIndex}; box-sizing: border-box; border: 1px solid rgba(0,0,0,0.15);" 
                                      title="${title.replace(/"/g, "&quot;")}">
-                                     <span class="resource-bar-text">${t.project_number || ""} ${t.machine || ""} ${t.unit || ""}</span>
+                                     <span class="resource-bar-text">${isPartsDeliveryTask ? "" : `${t.project_number || ""} ${t.machine || ""} ${t.unit || ""}`}</span>
                                 </div>
                             </div>
                         </div>
