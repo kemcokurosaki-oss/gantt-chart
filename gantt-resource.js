@@ -946,17 +946,19 @@
 
         function _applyResourceScrollLeftFromGantt(resourceContent, left) {
             if (_resourceScrollSyncClearTimer !== null) {
-                clearTimeout(_resourceScrollSyncClearTimer);
+                cancelAnimationFrame(_resourceScrollSyncClearTimer);
                 _resourceScrollSyncClearTimer = null;
             }
             _resourceScrollSyncFromGantt = true;
             resourceContent.scrollLeft = left;
-            // scroll イベントは同期的にも次タスクにも届く。同一ターンの try/finally で囲むと手前で false
-            // になり、リスナから gantt.scrollTo が走って横スクロールと競合しやすい
-            _resourceScrollSyncClearTimer = setTimeout(function() {
-                _resourceScrollSyncClearTimer = null;
-                _resourceScrollSyncFromGantt = false;
-            }, 0);
+            // scrollLeft 設定後にブラウザが scroll イベントを発火させる（isTrusted===true）。
+            // setTimeout(0) よりも rAF を 2 回ネストする方が確実に scroll イベントの後にフラグをリセットできる。
+            _resourceScrollSyncClearTimer = requestAnimationFrame(function() {
+                _resourceScrollSyncClearTimer = requestAnimationFrame(function() {
+                    _resourceScrollSyncClearTimer = null;
+                    _resourceScrollSyncFromGantt = false;
+                });
+            });
         }
 
         gantt.attachEvent("onGanttScroll", function (left, top){
@@ -1037,9 +1039,8 @@
                 const resourceContent = document.querySelector(".resource-content");
                 if (resourceContent) {
                     resourceContent.addEventListener('scroll', function(ev) {
-                        // ガント側から scrollLeft を入れたときに発火する scroll は多くの環境で isTrusted===false。
-                        // それを gantt.scrollTo に返すとガント横スクロールと競合して引っかかる。
-                        if (ev && ev.isTrusted === false) return;
+                        // _applyResourceScrollLeftFromGantt で scrollLeft を設定したときに発火する scroll は
+                        // isTrusted===true になる場合があるため isTrusted チェックは使わず、フラグのみで判断する。
                         if (_resourceScrollSyncFromGantt) return;
                         // リソース側のスクロールをガント側に同期
                         // ただし、無限ループを防ぐために現在の位置と異なる場合のみ実行
