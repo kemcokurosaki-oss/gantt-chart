@@ -376,7 +376,7 @@
                         <div class="resource-cell-bar ${colorClass} ${milestoneClass} ${conflictClass}" 
                              style="position: absolute; top: ${topOffset}px; height: ${barHeight}px; left: ${left}px; width: ${width}px; border-radius: 3px; opacity: 0.8; display: flex; align-items: center; justify-content: center; color: #222; font-size: 13px; font-weight: bold; font-family: '游ゴシック','Yu Gothic',YuGothic,sans-serif; overflow: hidden; white-space: nowrap; text-shadow: none; z-index: ${5 + stackIndex}; box-sizing: border-box; border: 1px solid rgba(0,0,0,0.15);" 
                              title="${t.text} (${t.project_number})">
-                             <span class="resource-bar-text">${milestoneClass === "milestone-star" ? "" : `${t.project_number || ""} ${t.machine || ""} ${t.unit || ""}`}</span>
+                            <span class="resource-bar-text">${milestoneClass ? "" : `${t.project_number || ""} ${t.machine || ""} ${t.unit || ""}`}</span>
                         </div>
                     `;
                 });
