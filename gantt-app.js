@@ -958,6 +958,10 @@
                 }
             });
 
+            newTasks.forEach(function(t) {
+                t.end_date = inclusiveEndDateToDb(t.start_date, t.duration);
+            });
+
             // 4. Supabaseに一括挿入
             const { error: insertError } = await supabaseClient
                 .from('tasks')
@@ -1214,7 +1218,11 @@
                 // Supabaseを一括更新
                 await Promise.all(dbUpdates.map(u =>
                     supabaseClient.from('tasks')
-                        .update({ start_date: u.start_date, duration: u.duration })
+                        .update({
+                            start_date: u.start_date,
+                            duration: u.duration,
+                            end_date: inclusiveEndDateToDb(u.start_date, u.duration)
+                        })
                         .eq('id', u.id)
                 ));
 

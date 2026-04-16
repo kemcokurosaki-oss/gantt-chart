@@ -304,7 +304,10 @@
                         task.duration = Math.max(1, newDur);
                         // end_dateはduration変更のみのため直接Supabaseに保存
                         const realId = task.original_id || taskId;
-                        await supabaseClient.from('tasks').update({ duration: task.duration }).eq('id', realId);
+                        await supabaseClient.from('tasks').update({
+                            duration: task.duration,
+                            end_date: inclusiveEndDateToDb(task.start_date, task.duration)
+                        }).eq('id', realId);
                         // 変更履歴を記録
                         if (typeof window.logChange === 'function') {
                             window.logChange(task.project_number || '', task.machine || '', task.unit || '', task.text || '', '終了日を変更しました');
@@ -601,6 +604,8 @@
                 const copyField = function(key, val) { return prefs[key] ? (val || '') : ''; };
                 const copyDate  = function(key, d)   { return prefs[key] ? dateToDb(d) : dateToDb(task.start_date); };
                 const copyDur   = function(key, dur) { return prefs[key] ? dur : 1; };
+                const startStr = copyDate('start_date', task.start_date);
+                const durVal   = copyDur('duration',    task.duration);
                 return {
                     project_number:   copyField('project_number',  task.project_number),
                     customer_name:    task.customer_name   || '',
@@ -613,8 +618,9 @@
                     main_owner:       prefs['owner']       ? (task.main_owner  || '') : '',
                     area_group:       prefs['area_number'] ? (task.area_group  || '') : '',
                     area_number:      prefs['area_number'] ? (task.area_number || '') : '',
-                    start_date:       copyDate('start_date', task.start_date),
-                    duration:         copyDur('duration',    task.duration),
+                    start_date:       startStr,
+                    duration:         durVal,
+                    end_date:         inclusiveEndDateToDb(gantt.date.str_to_date("%Y-%m-%d")(startStr), durVal),
                     parent:           task.parent_name     || '',
                     is_business_trip: task.is_business_trip || false
                 };

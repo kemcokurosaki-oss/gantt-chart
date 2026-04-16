@@ -191,6 +191,7 @@
                 text: item.text,
                 start_date: dateToDb(item.start_date),
                 duration: item.duration,
+                end_date: inclusiveEndDateToDb(item.start_date, item.duration),
                 owner: item.owner || "",
                 project_number: item.project_number || "",
                 customer_name: item.customer_name || "",
@@ -286,6 +287,7 @@
                 text: item.text,
                 start_date: dateToDb(item.start_date),
                 duration: item.duration,
+                end_date: inclusiveEndDateToDb(item.start_date, item.duration),
                 owner: item.owner,
                 project_number: item.project_number,
                 customer_name: item.customer_name || "",
@@ -810,9 +812,13 @@
                     task.start_date = newDate;
                     gantt.updateTask(state.taskId);
                 }
-                // Supabaseに保存
+                // Supabaseに保存（end_date はグリッドと同じ包含終了日）
+                const dur = task.duration != null ? Number(task.duration) : 1;
                 await supabaseClient.from('tasks')
-                    .update({ start_date: dateStr })
+                    .update({
+                        start_date: dateStr,
+                        end_date: inclusiveEndDateToDb(gantt.date.str_to_date("%Y-%m-%d")(dateStr), dur)
+                    })
                     .eq('id', state.taskId);
             }
             renderPartsMarks();

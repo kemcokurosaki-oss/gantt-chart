@@ -145,6 +145,18 @@
         const dateToDb = gantt.date.date_to_str("%Y-%m-%d");
         const dateToDisplay = gantt.date.date_to_str("%y/%m/%d");
 
+        /** Supabase / 表示と揃える「包含的な終了日」(start + duration の最終暦日) */
+        function inclusiveEndDateToDb(startDate, duration) {
+            const dur = Number(duration);
+            if (startDate == null || !(dur >= 1)) return null;
+            const start = startDate instanceof Date
+                ? startDate
+                : gantt.date.str_to_date("%Y-%m-%d")(String(startDate).substring(0, 10));
+            const d = gantt.calculateEndDate(start, dur);
+            d.setDate(d.getDate() - 1);
+            return dateToDb(d);
+        }
+
         // 組立場所の選択肢
         const LOCATION_GROUPS = ["E1", "E3"];
         const LOCATION_NUMBERS = ["0", "1", "2", "3", "4", "5", "6"];
@@ -689,7 +701,12 @@
                 if (task.start_date) {
                     startInput.value = gantt.date.date_to_str("%Y-%m-%d")(task.start_date);
                 }
-                if (task.end_date) {
+                // グリッドの「終了日」と同じ（包含的な最終日）＝ calculateEndDate の前日
+                if (task.start_date != null && task.duration != null) {
+                    const d = gantt.calculateEndDate(task.start_date, task.duration);
+                    d.setDate(d.getDate() - 1);
+                    endInput.value = gantt.date.date_to_str("%Y-%m-%d")(d);
+                } else if (task.end_date) {
                     endInput.value = gantt.date.date_to_str("%Y-%m-%d")(task.end_date);
                 }
             },
@@ -701,8 +718,16 @@
                     task.start_date = gantt.date.str_to_date("%Y-%m-%d")(startInput.value);
                 }
                 if (endInput.value) {
-                    task.end_date = gantt.date.str_to_date("%Y-%m-%d")(endInput.value);
+                    const parts = endInput.value.split("-").map(Number);
+                    const y = parts[0], m = parts[1], d = parts[2];
+                    const startNorm = new Date(task.start_date);
+                    startNorm.setHours(0, 0, 0, 0);
+                    const endInclusive = new Date(y, m - 1, d);
+                    const newDur = Math.round((endInclusive - startNorm) / (1000 * 60 * 60 * 24)) + 1;
+                    task.duration = Math.max(1, newDur);
                 }
+                // バー描画用：dhtmlx の排他的 end_date を start+duration で揃える
+                task.end_date = gantt.calculateEndDate(task.start_date, task.duration);
                 return task.start_date;
             },
             focus: function(node) {
