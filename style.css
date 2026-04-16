@@ -1020,6 +1020,22 @@
             margin: 0 !important;
             padding: 0 !important;
         }
+        /* 見出し行のみ：タスク名列は「…」省略せず全文表示（右隣の列の上に重ねる） */
+        #gantt_here .gantt_group_row .gantt_cell:nth-child(4) {
+            overflow: visible !important;
+            text-overflow: clip !important;
+            white-space: nowrap !important;
+            position: relative;
+            z-index: 2;
+        }
+        #gantt_here .gantt_group_row .gantt_cell:nth-child(4) .gantt_cell_tree {
+            overflow: visible !important;
+        }
+        #gantt_here .gantt_group_row .gantt_cell:nth-child(4) .gantt_tree_content {
+            overflow: visible !important;
+            text-overflow: clip !important;
+            white-space: nowrap !important;
+        }
         /* 親タスク（見出し行）の＋ボタンを非表示 */
         .hide_add_button .gantt_add {
             display: none !important;
