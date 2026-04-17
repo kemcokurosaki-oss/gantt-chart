@@ -412,6 +412,7 @@
                     html += `
                         <div class="resource-cell-bar ${colorClass} ${milestoneClass} ${partsDeliveryClass} ${conflictClass}" 
                              style="position: absolute; top: ${topOffset}px; height: ${barHeight}px; left: ${left}px; width: ${width}px; border-radius: 3px; opacity: 0.8; display: flex; align-items: center; justify-content: center; color: #222; font-size: 13px; font-weight: bold; font-family: '游ゴシック','Yu Gothic',YuGothic,sans-serif; overflow: hidden; white-space: nowrap; text-shadow: none; z-index: ${5 + stackIndex}; box-sizing: border-box; border: 1px solid rgba(0,0,0,0.15);" 
+                             data-task-id="${t.id}"
                              data-resource-tooltip="${escapeTooltipAttr(buildResourceTooltipText(t))}">
                             <span class="resource-bar-text">${(milestoneClass || isPartsDeliveryTask) ? "" : `${t.project_number || ""} ${t.machine || ""} ${t.unit || ""}`}</span>
                         </div>
@@ -429,6 +430,7 @@
 
             container.innerHTML = html;
             initResourceBarTooltip(container);
+            initResourceBarDragAndResize(container);
             syncResourceScroll();
         }
 
@@ -474,6 +476,176 @@
                 });
                 bar.addEventListener('mouseleave', function() {
                     tooltip.style.display = 'none';
+                });
+            });
+        }
+
+        const RESOURCE_BAR_MILESTONE_TEXTS = ["外観検査", "客先立会", "出荷確認会議", "工場出荷"];
+
+        function resourceBarIsMilestoneTask(task) {
+            return !!(task && RESOURCE_BAR_MILESTONE_TEXTS.indexOf(task.text) >= 0);
+        }
+
+        function resourceEventToTimelineX(e, timelineEl) {
+            const content = document.querySelector(".resource-content");
+            if (!content || !timelineEl) return 0;
+            const r = timelineEl.getBoundingClientRect();
+            return content.scrollLeft + (e.clientX - r.left);
+        }
+
+        function resourceBarDayStart(d) {
+            const dt = new Date(d);
+            if (gantt.date && typeof gantt.date.day_start === "function") {
+                return gantt.date.day_start(dt);
+            }
+            return new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
+        }
+
+        /**
+         * 部署別・組立場所リソースのバーをドラッグ／端リサイズで更新（閲覧モードでは無効）。
+         * 保存は tasks の start_date / duration / end_date のみ（メインの onAfterTaskUpdate と同様の列）。
+         */
+        function initResourceBarDragAndResize(container) {
+            if (!container || typeof gantt === "undefined" || typeof supabaseClient === "undefined") return;
+            if (gantt.config.readonly) return;
+
+            const EDGE = 8;
+            const MOVE_THRESH = 5;
+
+            container.querySelectorAll(".resource-cell-bar[data-task-id]").forEach(function(bar) {
+                bar.classList.add("resource-bar-drag-enabled");
+
+                bar.addEventListener("mousedown", function(e) {
+                    if (e.button !== 0) return;
+                    if (gantt.config.readonly) return;
+                    const tid = bar.getAttribute("data-task-id");
+                    if (!tid) return;
+                    let task;
+                    try {
+                        task = gantt.getTask(tid);
+                    } catch (err) {
+                        return;
+                    }
+                    if (!task || task.$virtual || task.$design_trip) return;
+
+                    const timeline = bar.closest(".resource-timeline");
+                    if (!timeline) return;
+
+                    const isMs = resourceBarIsMilestoneTask(task);
+                    const br = bar.getBoundingClientRect();
+                    const lx = e.clientX - br.left;
+                    let edge = "move";
+                    if (!isMs) {
+                        if (lx <= EDGE) edge = "resize-start";
+                        else if (lx >= br.width - EDGE) edge = "resize-end";
+                    }
+                    const sc0 = gantt.getScale();
+                    if (edge !== "move" && sc0 && sc0.unit && sc0.unit !== "day") {
+                        edge = "move";
+                    }
+
+                    const startOrig = new Date(task.start_date);
+                    const durOrig = Math.max(1, Number(task.duration) || 1);
+
+                    const x0 = resourceEventToTimelineX(e, timeline);
+                    const grabOff = x0 - parseFloat(bar.style.left);
+
+                    let previewStart = new Date(startOrig);
+                    let previewDur = durOrig;
+                    let dragging = false;
+                    const startMx = e.clientX;
+
+                    function paint() {
+                        const s = resourceBarDayStart(previewStart);
+                        const left = gantt.posFromDate(s);
+                        const right = gantt.posFromDate(gantt.calculateEndDate(s, previewDur));
+                        const w = Math.max(2, right - left);
+                        bar.style.left = left + "px";
+                        bar.style.width = w + "px";
+                    }
+
+                    function onMove(ev) {
+                        if (gantt.config.readonly) return;
+                        const dx = ev.clientX - startMx;
+                        if (!dragging && edge === "move" && Math.abs(dx) < MOVE_THRESH) return;
+                        if (!dragging) {
+                            dragging = true;
+                            bar.classList.add("resource-cell-bar--dragging");
+                            document.body.style.userSelect = "none";
+                        }
+
+                        const x = resourceEventToTimelineX(ev, timeline);
+                        if (edge === "move") {
+                            const nd = gantt.dateFromPos(x - grabOff);
+                            if (!nd) return;
+                            previewStart = resourceBarDayStart(nd);
+                            previewDur = durOrig;
+                        } else if (edge === "resize-end") {
+                            const cell = resourceBarDayStart(gantt.dateFromPos(x));
+                            const scale = gantt.getScale();
+                            const u = (scale && scale.unit) ? scale.unit : "day";
+                            const exclusiveEnd = gantt.date.add(cell, 1, u);
+                            const sFixed = resourceBarDayStart(startOrig);
+                            previewStart = sFixed;
+                            previewDur = Math.max(1, gantt.calculateDuration(sFixed, exclusiveEnd));
+                        } else if (edge === "resize-start") {
+                            const ns = resourceBarDayStart(gantt.dateFromPos(x));
+                            const endEx = gantt.calculateEndDate(resourceBarDayStart(startOrig), durOrig);
+                            if (ns < endEx) {
+                                previewStart = ns;
+                                previewDur = Math.max(1, gantt.calculateDuration(ns, endEx));
+                            }
+                        }
+                        paint();
+                    }
+
+                    async function onUp() {
+                        document.removeEventListener("mousemove", onMove, true);
+                        document.removeEventListener("mouseup", onUp, true);
+                        document.body.style.userSelect = "";
+                        bar.classList.remove("resource-cell-bar--dragging");
+                        if (!dragging) return;
+                        bar._suppressNextClick = true;
+                        const startDb0 = dateToDb(resourceBarDayStart(startOrig));
+                        const dur0 = durOrig;
+                        const s1 = resourceBarDayStart(previewStart);
+                        const startDb1 = dateToDb(s1);
+                        const dur1 = previewDur;
+                        if (startDb0 === startDb1 && Number(dur0) === Number(dur1)) {
+                            paint();
+                            return;
+                        }
+                        const realId = task.original_id || tid;
+                        const upd = {
+                            start_date: startDb1,
+                            duration: dur1,
+                            end_date: inclusiveEndDateToDb(s1, dur1)
+                        };
+                        try {
+                            const { error } = await supabaseClient.from("tasks").update(upd).eq("id", realId);
+                            if (error) throw error;
+                            if (typeof window.logChange === "function") {
+                                const parts = [];
+                                if (startDb0 !== startDb1 && Number(dur0) !== Number(dur1)) parts.push("開始日・終了日を変更しました");
+                                else if (startDb0 !== startDb1) parts.push("開始日を変更しました");
+                                else if (Number(dur0) !== Number(dur1)) parts.push("終了日を変更しました");
+                                if (parts.length) {
+                                    window.logChange(task.project_number || "", task.machine || "", task.unit || "", task.text || "", parts.join("・"));
+                                }
+                            }
+                            if (typeof fetchTasks === "function") await fetchTasks();
+                        } catch (err) {
+                            console.error(err);
+                            alert("保存に失敗しました。");
+                            previewStart = startOrig;
+                            previewDur = durOrig;
+                            paint();
+                        }
+                    }
+
+                    document.addEventListener("mousemove", onMove, true);
+                    document.addEventListener("mouseup", onUp, true);
+                    e.preventDefault();
                 });
             });
         }
@@ -769,6 +941,7 @@
 
             container.innerHTML = html;
             initLocationBarColorPicker(container);
+            initResourceBarDragAndResize(container);
             syncResourceScroll();
         }
 
@@ -1202,6 +1375,12 @@
 
             container.querySelectorAll('.resource-cell-bar[data-task-id]').forEach(bar => {
                 bar.addEventListener('click', e => {
+                    if (bar._suppressNextClick) {
+                        bar._suppressNextClick = false;
+                        e.stopImmediatePropagation();
+                        e.preventDefault();
+                        return;
+                    }
                     e.stopPropagation();
                     if (_locBarPickerTarget === bar && picker.classList.contains('visible')) {
                         picker.classList.remove('visible');

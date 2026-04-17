@@ -67,6 +67,17 @@
             opacity: 0.85; 
             box-sizing: border-box;
         }
+        /* 部署別・組立場所リソース：編集者のみドラッグ可能（JS で resource-bar-drag-enabled を付与） */
+        .resource-bar-drag-enabled {
+            cursor: grab;
+        }
+        .resource-bar-drag-enabled:active {
+            cursor: grabbing;
+        }
+        .resource-cell-bar.resource-cell-bar--dragging {
+            z-index: 50 !important;
+            opacity: 0.95;
+        }
         /* 部署別リソースタイムライン専用のスタイル（重なり強調） */
         .resource-dept-view .resource-cell-bar {
             border: 1px solid rgba(255, 255, 255, 0.6); /* 白い細枠 */
