@@ -417,6 +417,75 @@
             }
         }
 
+        /**
+         * ライトボックス等から渡される locations を { area_group, area_number }[] に正規化する。
+         * @param {*} locations - get_value の戻り、または DB 行の配列
+         */
+        function normalizeLocationPairs(locations) {
+            if (!locations || !Array.isArray(locations) || locations.length === 0) return [];
+            return locations
+                .map(function (l) {
+                    return {
+                        area_group: String(l.area_group != null ? l.area_group : "").trim(),
+                        area_number: String(l.area_number != null ? l.area_number : "").trim()
+                    };
+                })
+                .filter(function (p) { return p.area_group && p.area_number; });
+        }
+
+        /**
+         * task_locations を差し替え、tasks.area_group / area_number を整合させる。
+         * @param {string|number} taskId
+         * @param {{area_group:string,area_number:string}[]} pairs
+         * @returns {Promise<boolean>}
+         */
+        window.persistTaskLocations = async function (taskId, pairsOrRaw) {
+            const tid = String(taskId);
+            const list = normalizeLocationPairs(pairsOrRaw);
+
+            const { error: delErr } = await supabaseClient.from("task_locations").delete().eq("task_id", tid);
+            if (delErr) {
+                console.error("task_locations delete:", delErr);
+                alert("場所の保存に失敗しました（既存データの削除）。");
+                return false;
+            }
+            if (list.length > 0) {
+                const rows = list.map(function (p) {
+                    return { task_id: tid, area_group: p.area_group, area_number: p.area_number };
+                });
+                const { error: insErr } = await supabaseClient.from("task_locations").insert(rows);
+                if (insErr) {
+                    console.error("task_locations insert:", insErr);
+                    alert("場所の保存に失敗しました（場所の登録）。");
+                    return false;
+                }
+            }
+
+            let area_group = "";
+            let area_number = "";
+            if (list.length > 0) {
+                const groups = new Set(list.map(function (p) { return p.area_group; }));
+                if (groups.size === 1) {
+                    area_group = list[0].area_group;
+                    area_number = list.map(function (p) { return p.area_number; }).join(",");
+                } else {
+                    area_group = "";
+                    area_number = list.map(function (p) { return p.area_group + "-" + p.area_number; }).join(",");
+                }
+            }
+
+            const { error: uerr } = await supabaseClient
+                .from("tasks")
+                .update({ area_group: area_group, area_number: area_number })
+                .eq("id", tid);
+            if (uerr) {
+                console.error("tasks area update:", uerr);
+                alert("場所の保存に失敗しました（タスクの場所欄の更新）。");
+                return false;
+            }
+            return true;
+        };
+
         function scrollToToday() {
             const pos = gantt.posFromDate(new Date());
             gantt.scrollTo(pos - 200, null);

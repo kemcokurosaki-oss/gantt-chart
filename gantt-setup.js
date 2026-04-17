@@ -163,55 +163,77 @@
 
         // カスタムライトボックスセクション：組立場所
         gantt.form_blocks["location_selector"] = {
+            // 注意: render() が返す文字列内の <input> はライブラリ側で除去されることがあるため、
+            // 担当者ブロックと同様に set_value で innerHTML によりチェックボックスを挿入する。
             render: function (sns) {
-                // コンテナ自体にIDを付与して、後で非表示にしやすくする
-                let html = "<div id='location_selector_container' class='location_selector_container' style='padding: 5px; background: #f9f9f9; border: 1px solid #ddd; border-radius: 4px;'>";
-                html += "<div style='margin-bottom: 8px; font-size: 12px; color: #e57373; font-family: メイリオ, sans-serif;'>※ 場所の変更は組立工程表から行ってください（表示のみ）</div>";
-                LOCATION_GROUPS.forEach(group => {
-                    html += `<div style='margin-bottom: 8px;'><strong>${group}:</strong><br/>`;
-                    LOCATION_NUMBERS.forEach(num => {
-                        const val = `${group}-${num}`;
-                        html += `<label style='margin-right: 10px; display: inline-block; cursor: not-allowed; opacity: 0.6;'>
-                                    <input type='checkbox' name='loc_cb' value='${val}' data-group='${group}' data-num='${num}' disabled style='vertical-align: middle; cursor: not-allowed;'> ${num}
-                                 </label>`;
-                    });
-                    html += "</div>";
-                });
-                html += "</div>";
-                return html;
+                return "<div class='location_selector_container' style='padding: 5px; background: #f9f9f9; border: 1px solid #ddd; border-radius: 4px;'>" +
+                    "<div class='location_selector_body'></div>" +
+                    "</div>";
             },
             set_value: function (node, value, task) {
-                // 1. チェックボックス要素をすべて取得
+                const body = node.querySelector(".location_selector_body");
+                if (!body) return;
+
+                let inner = "";
+                LOCATION_GROUPS.forEach(group => {
+                    inner += `<div style='margin-bottom: 8px;'><strong>${group}:</strong><br/>`;
+                    LOCATION_NUMBERS.forEach(num => {
+                        const val = `${group}-${num}`;
+                        inner += `<label style='margin-right: 10px; display: inline-block; cursor: pointer;'>` +
+                            `<input type='checkbox' name='loc_cb' value='${val}' data-group='${group}' data-num='${num}' style='vertical-align: middle; cursor: pointer;'> ${num}` +
+                            `</label>`;
+                    });
+                    inner += "</div>";
+                });
+                body.innerHTML = inner;
+
                 const checkboxes = node.querySelectorAll("input[name='loc_cb']");
-                
-                // 2. 現在のグループ(E1/E3)と番号を取得（型を文字列に統一）
-                // task_locations テーブルのデータが優先されるように、
-                // task オブジェクトに保存されている area_group / area_number を使用する
-                const currentGroup = String(task.area_group || "").trim();
-                // 番号は "0,1,2" のようなカンマ区切りを配列にする
-                const currentNumbers = String(task.area_number || "").split(",").map(n => n.trim());
-                
-                // 3. 一旦すべてのチェックを外す
-                checkboxes.forEach(cb => {
-                    cb.checked = false;
-                    
-                    const cbGroup = cb.getAttribute("data-group");
-                    const cbNum = cb.getAttribute("data-num");
-                    
-                    // 4. グループと番号が一致する場合のみチェックを入れる
-                    // task.area_group が空でない場合（tasksテーブルまたはtask_locationsから取得済み）
-                    if (currentGroup && currentNumbers.includes(cbNum)) {
-                        // グループが一致するか、またはグループ指定がない場合はチェック
-                        if (!currentGroup || cbGroup === currentGroup) {
-                            cb.checked = true;
+                checkboxes.forEach(cb => { cb.checked = false; });
+
+                /** @type {{g:string,n:string}[]} */
+                let pairs = [];
+
+                if (Array.isArray(value) && value.length > 0 && value[0] && (value[0].area_group !== undefined || value[0].area_number !== undefined)) {
+                    value.forEach(loc => {
+                        if (loc && loc.area_group != null && loc.area_number != null) {
+                            pairs.push({ g: String(loc.area_group).trim(), n: String(loc.area_number).trim() });
                         }
+                    });
+                }
+
+                if (pairs.length === 0 && task) {
+                    const currentGroup = String(task.area_group || "").trim();
+                    const rawParts = String(task.area_number || "").split(",").map(s => s.trim()).filter(Boolean);
+                    if (currentGroup && rawParts.length) {
+                        rawParts.forEach(n => {
+                            if (n.indexOf("-") >= 0) {
+                                const i = n.lastIndexOf("-");
+                                pairs.push({ g: n.slice(0, i), n: n.slice(i + 1) });
+                            } else {
+                                pairs.push({ g: currentGroup, n: n });
+                            }
+                        });
+                    } else if (rawParts.length) {
+                        rawParts.forEach(seg => {
+                            const s = String(seg);
+                            const i = s.lastIndexOf("-");
+                            if (i > 0) pairs.push({ g: s.slice(0, i), n: s.slice(i + 1) });
+                        });
                     }
+                }
+
+                pairs.forEach(({ g, n }) => {
+                    checkboxes.forEach(cb => {
+                        if (cb.getAttribute("data-group") === g && cb.getAttribute("data-num") === n) cb.checked = true;
+                    });
                 });
             },
             get_value: function (node, task) {
-                // 全体工程表からは場所変更不可のため、task への書き込みは行わない
-                // （チェックボックスは disabled なので読み取り専用表示のみ）
-                return (task.area_group || "") + "-" + (task.area_number || "");
+                const checked = Array.from(node.querySelectorAll("input[name='loc_cb']:checked"));
+                return checked.map(cb => ({
+                    area_group: cb.getAttribute("data-group") || "",
+                    area_number: cb.getAttribute("data-num") || ""
+                })).filter(p => p.area_group && p.area_number);
             },
             focus: function (node) {
             }

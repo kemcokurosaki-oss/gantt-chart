@@ -225,8 +225,9 @@
                 gantt.changeTaskId(id, newId);
                 console.log("New task added with ID:", newId);
 
-                // 組立場所の保存は組立工程表から行う（全体工程表からは変更不可）
-                // if (item.locations && item.locations.length > 0) { ... }
+                if (typeof window.persistTaskLocations === "function") {
+                    await window.persistTaskLocations(newId, item.locations);
+                }
 
                 // 変更履歴を記録
                 if (typeof window.logChange === 'function') {
@@ -351,30 +352,13 @@
             // async関数を即時実行して保存処理を行う
             (async () => {
                 try {
-                    // 組立場所の保存は組立工程表から行う（全体工程表からは変更不可）
-                    // ① get_value / task_locations DELETE・INSERT はスキップ
-
-                    // tasks テーブルを更新
-                    const { error: taskUpdateError } = await supabaseClient
-                        .from('tasks')
-                        .update({ 
-                            area_group: item.area_group || "", 
-                            area_number: item.area_number || "" 
-                        })
-                        .eq('id', id);
-                    
-                    if (taskUpdateError) {
-                        console.error("Task update error:", taskUpdateError);
+                    if (typeof window.persistTaskLocations === "function") {
+                        const ok = await window.persistTaskLocations(id, item.locations);
+                        if (!ok) return;
                     }
 
-                    console.log("Locations saved successfully");
-                    
-                    // データ保存後にガントチャートを更新して、内部データを最新にする
                     gantt.updateTask(id);
-                    
-                    // 画面を最新状態に更新
                     await fetchTasks();
-                    
                 } catch (e) {
                     console.error("Lightbox save error:", e);
                 }

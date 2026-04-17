@@ -468,6 +468,19 @@
         .gantt_cal_ltext textarea { height: 22px !important; box-sizing: border-box !important; margin: 0 !important; padding: 1px 4px !important; width: 100% !important; font-family: "メイリオ", Meiryo, sans-serif !important; }
         .gantt_cal_ltext select  { height: 32px !important; box-sizing: border-box !important; margin: 0 !important; width: 100% !important; font-family: "メイリオ", Meiryo, sans-serif !important; }
         .gantt_cal_ltext input[type="date"] { font-family: "メイリオ", Meiryo, sans-serif !important; }
+        /* 組立場所: render 文字列内の input が除去されるため set_value で挿入する。表示・操作を確実にする */
+        .gantt_cal_ltext .location_selector_body input[type="checkbox"] {
+            width: auto !important;
+            height: auto !important;
+            min-width: 14px !important;
+            min-height: 14px !important;
+            opacity: 1 !important;
+            display: inline-block !important;
+            margin: 0 3px 0 0 !important;
+            vertical-align: middle !important;
+            cursor: pointer !important;
+            accent-color: #1976d2;
+        }
         .gantt_cal_light .gantt_cal_title, .gantt_cal_light .gantt_cal_lcontrols { font-family: "メイリオ", Meiryo, sans-serif !important; }
 
         /* 削除確認ダイアログを編集画面より上に表示（CSS補助） */

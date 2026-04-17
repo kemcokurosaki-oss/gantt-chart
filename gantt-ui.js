@@ -185,6 +185,19 @@
                 return out;
             }
 
+            /** タスクの場所をインライン用チェックボックス値（"E1-0" 形式）の配列に変換 */
+            function locationCheckboxValuesFromTask(task) {
+                if (!task) return [];
+                const out = [];
+                const g = String(task.area_group || "").trim();
+                const parts = String(task.area_number || "").split(",").map(function(s) { return s.trim(); }).filter(Boolean);
+                parts.forEach(function(p) {
+                    if (p.indexOf("-") >= 0) out.push(p);
+                    else if (g) out.push(g + "-" + p);
+                });
+                return out;
+            }
+
             async function showIE(taskId, field, cellEl) {
                 const task = gantt.getTask(taskId);
                 if (!task || task.$virtual) return;
@@ -224,24 +237,7 @@
                 } else if (field === 'owner') {
                     showMsSection(buildOwnerOpts(task.major_item || ''), getNormalizedOwners(task.owner || ''), task.main_owner || '');
                 } else if (field === 'area_number') {
-                    // 全体工程表からは場所変更不可 → 通知を表示して終了
-                    _ie = { taskId: null, field: null };
-                    (function() {
-                        let toast = document.getElementById('ie-location-readonly-toast');
-                        if (!toast) {
-                            toast = document.createElement('div');
-                            toast.id = 'ie-location-readonly-toast';
-                            toast.style.cssText = 'position:fixed;background:#555;color:#fff;padding:8px 14px;border-radius:6px;font-size:13px;font-family:メイリオ,sans-serif;z-index:99999;pointer-events:none;transition:opacity 0.3s;opacity:0;';
-                            document.body.appendChild(toast);
-                        }
-                        toast.textContent = '組立工程表から変更してください';
-                        toast.style.left = cellRect.left + 'px';
-                        toast.style.top = (cellRect.bottom + 4) + 'px';
-                        toast.style.opacity = '1';
-                        clearTimeout(toast._tid);
-                        toast._tid = setTimeout(function() { toast.style.opacity = '0'; }, 2500);
-                    })();
-                    return;
+                    showMsSection(buildLocationOpts(), locationCheckboxValuesFromTask(task), undefined);
                 } else if (field === 'start_date') {
                     showDateSection(task.start_date);
                 } else if (field === 'end_date') {
@@ -257,6 +253,7 @@
             async function saveIE() {
                 const { taskId, field } = _ie;
                 if (!taskId || !field) return;
+                if (!_isEditor) return;
                 const task = gantt.getTask(taskId);
                 if (!task) return;
 
@@ -279,7 +276,29 @@
                     task.main_owner = mainRadio ? mainRadio.value : '';
 
                 } else if (field === 'area_number') {
-                    // 全体工程表からは場所変更不可のためスキップ（showIE でブロック済み）
+                    const checkedVals = Array.from(document.querySelectorAll('#inline-edit-ms-options input[type=checkbox]:checked')).map(function(cb) { return cb.value; });
+                    const pairs = checkedVals.map(function(val) {
+                        const i = val.lastIndexOf('-');
+                        return { area_group: val.slice(0, i), area_number: val.slice(i + 1) };
+                    });
+                    const realId = task.original_id || taskId;
+                    const oldTask = (window.allTasks || []).find(function(t) { return String(t.id) === String(realId); });
+                    const oldKey = oldTask ? locationCheckboxValuesFromTask(oldTask).slice().sort().join(",") : "";
+                    const newKey = checkedVals.slice().sort().join(",");
+                    if (typeof window.persistTaskLocations !== "function") {
+                        closeIE();
+                        return;
+                    }
+                    const ok = await window.persistTaskLocations(realId, pairs);
+                    if (!ok) {
+                        closeIE();
+                        return;
+                    }
+                    if (oldKey !== newKey && typeof window.logChange === "function") {
+                        window.logChange(task.project_number || "", task.machine || "", task.unit || "", task.text || "", "場所を変更しました");
+                    }
+                    closeIE();
+                    await fetchTasks();
                     return;
 
                 } else if (field === 'start_date') {
