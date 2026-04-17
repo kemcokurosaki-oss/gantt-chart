@@ -89,12 +89,16 @@
                 setTimeout(function() { inp.select(); }, 50);
             }
 
-            function showMsSection(options, selectedValues, mainSelected) {
+            function showMsSection(options, selectedValues, mainSelected, showSearch) {
                 const p = getPopup();
                 p.querySelector('#inline-edit-text-section').style.display = 'none';
                 p.querySelector('#inline-edit-ms-section').style.display = 'block';
                 p.querySelector('#inline-edit-date-section').style.display = 'none';
-                p.querySelector('#inline-edit-ms-search').value = '';
+                const searchEl = p.querySelector('#inline-edit-ms-search');
+                if (searchEl) {
+                    searchEl.value = '';
+                    searchEl.style.display = showSearch === false ? 'none' : '';
+                }
                 const container = p.querySelector('#inline-edit-ms-options');
                 container.innerHTML = '';
                 const showRadio = mainSelected !== undefined;
@@ -235,9 +239,9 @@
                         freeText.value = hasUnknown ? sel.filter(function(s) { return !allValues.includes(s); }).join(',') : '';
                     }
                 } else if (field === 'owner') {
-                    showMsSection(buildOwnerOpts(task.major_item || ''), getNormalizedOwners(task.owner || ''), task.main_owner || '');
+                    showMsSection(buildOwnerOpts(task.major_item || ''), getNormalizedOwners(task.owner || ''), task.main_owner || '', false);
                 } else if (field === 'area_number') {
-                    showMsSection(buildLocationOpts(), locationCheckboxValuesFromTask(task), undefined);
+                    showMsSection(buildLocationOpts(), locationCheckboxValuesFromTask(task), undefined, false);
                 } else if (field === 'start_date') {
                     showDateSection(task.start_date);
                 } else if (field === 'end_date') {
