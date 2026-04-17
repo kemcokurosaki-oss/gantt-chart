@@ -73,6 +73,14 @@
             return ownerStr.split(/[,,，、・\s]+/).map(s => s.trim()).filter(Boolean);
         }
 
+        // 部署別リソースの「未定」行：未入力の担当と明示の「未定」のみ（複数担当に混在する場合は除外）
+        function isOwnerUnsettled(ownerStr) {
+            const raw = (ownerStr || "").trim();
+            if (!raw) return true;
+            const parts = getNormalizedOwners(ownerStr);
+            return parts.length === 1 && parts[0] === "未定";
+        }
+
         // 大項目フィルタ（部署別フィルタ）
         function filterByMajorItem(majorItem) {
             currentMajorFilter = majorItem || null;
@@ -102,6 +110,7 @@
                         const normalized = getNormalizedOwners(t.owner);
                         return normalized.filter(name => {
                             if (name === "外注") return t.major_item === currentResourceDeptFilter;
+                            if (name === "未定") return false;
                             return true;
                         });
                     }))].sort();
@@ -164,6 +173,7 @@
                     if (name === "外注") {
                         return t.major_item === deptName;
                     }
+                    if (name === "未定") return false;
                     return true;
                 });
             }))].sort();
@@ -178,7 +188,12 @@
             if (!container) return;
             container.innerHTML = "";
 
-            if (owners.length === 0) {
+            const deptTasksForDept = (window.allTasks || []).filter(t => {
+                const isDetailed = (t.is_detailed === true || String(t.is_detailed).toLowerCase() === "true" || String(t.is_detailed).toLowerCase() === "t" || String(t.is_detailed) === "1");
+                if (isDetailed) return false;
+                return t.major_item === deptName;
+            });
+            if (deptTasksForDept.length === 0) {
                 container.innerHTML = `<div class="resource-placeholder">【${deptName}】に該当する担当タスクはありません</div>`;
                 return;
             }
@@ -261,8 +276,9 @@
                     .replace(/>/g, "&gt;");
             };
 
-            // 各担当者ごとの行を生成
-            owners.forEach((ownerName, ownerIndex) => {
+            // 各担当者ごとの行を生成（末尾に常に「未定」行）
+            const ownerRows = owners.concat(["未定"]);
+            ownerRows.forEach((ownerName, ownerIndex) => {
                 // 名寄せ後の名前に基づいてタスクを抽出
                 // 「外注」の場合は、major_item が現在の部署 (deptName) と一致するものだけを抽出する
                 const ownerTasks = window.allTasks.filter(t => {
@@ -272,7 +288,9 @@
 
                     const normalized = getNormalizedOwners(t.owner);
                     let isMatch = false;
-                    if (ownerName === "外注") {
+                    if (ownerName === "未定") {
+                        isMatch = t.major_item === deptName && isOwnerUnsettled(t.owner);
+                    } else if (ownerName === "外注") {
                         isMatch = normalized.includes("外注") && t.major_item === deptName;
                     } else {
                         isMatch = normalized.includes(ownerName);
