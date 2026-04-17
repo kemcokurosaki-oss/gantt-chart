@@ -1453,6 +1453,37 @@
 
         let _locBarPickerTarget = null;
         let _locBarPickerHideTimer = null;
+        let _locBarPickerDocCloseBound = false;
+
+        /** 組立場所バー用カラーチャートをビューポート内に収まるよう配置（下に足りなければ上に表示） */
+        function positionLocationColorPicker(picker, bar, clientX) {
+            const rect = bar.getBoundingClientRect();
+            const margin = 8;
+            const gap = 4;
+            picker.style.left = "-9999px";
+            picker.style.top = "0";
+            picker.classList.add("visible");
+            const pw = picker.offsetWidth || 175;
+            const ph = picker.offsetHeight || 140;
+
+            const anchorX = typeof clientX === "number" && !isNaN(clientX) ? clientX : rect.left + rect.width / 2;
+            let left = anchorX - pw / 2;
+            left = Math.max(margin, Math.min(left, window.innerWidth - pw - margin));
+
+            let top = rect.bottom + gap;
+            if (top + ph + margin > window.innerHeight) {
+                top = rect.top - ph - gap;
+            }
+            if (top + ph + margin > window.innerHeight) {
+                top = Math.max(margin, window.innerHeight - ph - margin);
+            }
+            if (top < margin) {
+                top = margin;
+            }
+
+            picker.style.left = left + "px";
+            picker.style.top = top + "px";
+        }
 
         function initLocationBarColorPicker(container) {
             const picker = getOrCreateLocationColorPicker();
@@ -1472,17 +1503,13 @@
                         return;
                     }
                     _locBarPickerTarget = bar;
-                    const rect = bar.getBoundingClientRect();
-                    let top = rect.bottom + 4;
-                    let left = e.clientX;
-                    if (left + 180 > window.innerWidth) left = window.innerWidth - 185;
-                    picker.style.top = top + 'px';
-                    picker.style.left = left + 'px';
                     const currentColor = locationBarColors[bar.dataset.taskId] || '';
                     picker.querySelectorAll('.loc-bar-color-swatch').forEach(s => {
                         s.classList.toggle('active', s.dataset.color === currentColor);
                     });
-                    picker.classList.add('visible');
+                    requestAnimationFrame(function() {
+                        positionLocationColorPicker(picker, bar, e.clientX);
+                    });
                 });
             });
 
@@ -1502,11 +1529,13 @@
                 _locBarPickerTarget = null;
             });
 
-            // ピッカー外クリックで閉じる
-            document.addEventListener('click', () => {
-                picker.classList.remove('visible');
-                _locBarPickerTarget = null;
-            });
+            if (!_locBarPickerDocCloseBound) {
+                _locBarPickerDocCloseBound = true;
+                document.addEventListener('click', function() {
+                    picker.classList.remove('visible');
+                    _locBarPickerTarget = null;
+                });
+            }
         }
         // ========================================================
 
