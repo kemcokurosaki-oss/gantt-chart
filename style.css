@@ -78,6 +78,22 @@
             z-index: 50 !important;
             opacity: 0.95;
         }
+        /* リソースバー右クリックメニュー（担当・場所） */
+        .resource-bar-field-menu .rb-field-menu-item {
+            display: block;
+            width: 100%;
+            text-align: left;
+            padding: 8px 14px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-size: 12px;
+            font-family: メイリオ, Meiryo, sans-serif;
+            color: #2c3e50;
+        }
+        .resource-bar-field-menu .rb-field-menu-item:hover {
+            background: #f0f4f8;
+        }
         /* 部署別リソースタイムライン専用のスタイル（重なり強調） */
         .resource-dept-view .resource-cell-bar {
             border: 1px solid rgba(255, 255, 255, 0.6); /* 白い細枠 */

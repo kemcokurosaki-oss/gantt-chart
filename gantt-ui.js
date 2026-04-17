@@ -396,7 +396,8 @@
             // ポップアップ外クリックで閉じる
             document.addEventListener('click', function(e) {
                 const p = document.getElementById('inline-edit-popup');
-                if (p && p.classList.contains('visible') && !p.contains(e.target) && !e.target.closest('.gantt_cell')) {
+                if (p && p.classList.contains('visible') && !p.contains(e.target) && !e.target.closest('.gantt_cell') &&
+                    !e.target.closest('.resource-cell-bar') && !e.target.closest('#resource-bar-field-menu')) {
                     closeIE();
                 }
             });
@@ -404,6 +405,9 @@
             document.addEventListener('keydown', function(e) {
                 if (e.key === 'Escape') closeIE();
             });
+
+            /** リソースタイムラインのバーなどからインライン編集を開く（cellEl は getBoundingClientRect を持てば可） */
+            window.openInlineEditForTask = showIE;
 
         })();
         // ===== インライン編集 ここまで =====
