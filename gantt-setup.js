@@ -500,6 +500,26 @@
                     node._events_attached = true;
                 }
 
+                // 部署プルダウン変更時に担当チェックボックスをリアルタイム更新
+                // set_value が呼ばれる時点でライトボックスは表示済みのため select を直接操作できる
+                const _lightboxEl = document.querySelector(".gantt_cal_light");
+                if (_lightboxEl) {
+                    _lightboxEl.querySelectorAll("select").forEach(function(sel) {
+                        const vals = Array.from(sel.options).map(function(o) { return o.value; });
+                        if (vals.includes("営業") || vals.includes("設計") || vals.includes("組立")) {
+                            // 古いリスナーを削除してから登録（複数回 set_value が呼ばれても重複しない）
+                            if (sel._ownerChangeListener) sel.removeEventListener("change", sel._ownerChangeListener);
+                            sel._ownerChangeListener = function() {
+                                task.major_item = this.value;
+                                const cur = Array.from(container.querySelectorAll('input[name="owner_checkbox"]:checked'))
+                                    .map(function(el) { return el.value; }).join(", ");
+                                gantt.form_blocks["owner_selector"].set_value(node, cur, task);
+                            };
+                            sel.addEventListener("change", sel._ownerChangeListener);
+                        }
+                    });
+                }
+
                 const owners = ownerMaster[majorItem] || [];
                 const selected = (value || "").split(",").map(s => s.trim());
                 const mainOwner = (task.main_owner || "").trim();

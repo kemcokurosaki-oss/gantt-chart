@@ -1,30 +1,8 @@
         gantt.attachEvent("onLightboxChange", function(id, name, value) {
             if (name === "major_item") {
                 const task = gantt.getTask(id);
-                task.major_item = value;
-                _refreshOwnerCheckboxes(value);
+                if (task) task.major_item = value;
             }
-        });
-
-        // onLightboxReady で部署 select に直接 change リスナーを付ける（onLightboxChange が発火しない場合の保険）
-        gantt.attachEvent("onLightboxReady", function() {
-            setTimeout(function() {
-                const lightbox = document.querySelector(".gantt_cal_light");
-                if (!lightbox) return;
-                // 部署プルダウンは majorItemOptions の値（"営業"等）を持つ select
-                const selects = lightbox.querySelectorAll("select");
-                let majorSelect = null;
-                selects.forEach(function(sel) {
-                    const vals = Array.from(sel.options).map(function(o) { return o.value; });
-                    if (vals.includes("営業") || vals.includes("設計") || vals.includes("組立")) {
-                        majorSelect = sel;
-                    }
-                });
-                if (!majorSelect) return;
-                majorSelect.addEventListener("change", function() {
-                    _refreshOwnerCheckboxes(this.value);
-                });
-            }, 80);
         });
         gantt.locale.labels.section_project_number = "工事番号";
         gantt.locale.labels.section_parent_name = "見出し名";
