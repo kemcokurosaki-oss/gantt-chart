@@ -651,62 +651,21 @@
             });
         }
 
-        let _resourceBarFieldMenuListenersBound = false;
-
-        function ensureResourceBarFieldMenu() {
-            let menu = document.getElementById("resource-bar-field-menu");
-            if (menu) return menu;
-            menu = document.createElement("div");
-            menu.id = "resource-bar-field-menu";
-            menu.className = "resource-bar-field-menu";
-            menu.style.cssText = "display:none; position:fixed; z-index:100010; min-width:150px; padding:4px 0; background:#fff; border:1px solid #bbb; border-radius:6px; box-shadow:0 4px 16px rgba(0,0,0,0.22); font-family:メイリオ,Meiryo,sans-serif; font-size:12px;";
-            menu.innerHTML =
-                "<button type=\"button\" class=\"rb-field-menu-item\" data-rb-field=\"owner\">担当を変更…</button>" +
-                "<button type=\"button\" class=\"rb-field-menu-item\" data-rb-field=\"area_number\">場所を変更…</button>";
-            document.body.appendChild(menu);
-
-            if (!_resourceBarFieldMenuListenersBound) {
-                _resourceBarFieldMenuListenersBound = true;
-                document.addEventListener("click", function(ev) {
-                    if (!menu || menu.style.display === "none") return;
-                    if (menu.contains(ev.target)) return;
-                    menu.style.display = "none";
-                });
-                document.addEventListener("keydown", function(ev) {
-                    if (ev.key === "Escape") menu.style.display = "none";
-                });
-                menu.addEventListener("click", function(ev) {
-                    const btn = ev.target.closest(".rb-field-menu-item");
-                    if (!btn) return;
-                    const field = btn.getAttribute("data-rb-field");
-                    const tid = menu.dataset.taskId;
-                    const anchor = menu._anchorBar;
-                    menu.style.display = "none";
-                    if (!tid || !field || !anchor) return;
-                    setTimeout(function() {
-                        if (typeof window.openInlineEditForTask !== "function") return;
-                        let task;
-                        try {
-                            task = gantt.getTask(tid);
-                        } catch (err) {
-                            return;
-                        }
-                        if (!task || task.$virtual || task.$design_trip) return;
-                        window.openInlineEditForTask(tid, field, anchor);
-                    }, 0);
-                });
-            }
-            return menu;
+        function resolveResourceBarInlineField() {
+            if (currentLocationResourceMode) return "area_number";
+            if (currentResourceMode === "dept" && currentResourceDeptFilter) return "owner";
+            return null;
         }
 
-        /** リソースバーを右クリックして担当・場所のインライン編集を開く（閲覧モードでは無効） */
+        /** リソースバー右クリックで、表示モードに応じたインライン編集を即座に開く（閲覧モードでは無効） */
         function initResourceBarInlineFieldMenu(container) {
             if (!container || typeof gantt === "undefined") return;
             if (gantt.config.readonly) return;
-            const menu = ensureResourceBarFieldMenu();
             container.querySelectorAll(".resource-cell-bar[data-task-id]").forEach(function(bar) {
                 bar.addEventListener("contextmenu", function(e) {
                     if (gantt.config.readonly) return;
+                    const field = resolveResourceBarInlineField();
+                    if (!field) return;
                     const tid = bar.getAttribute("data-task-id");
                     if (!tid) return;
                     let task;
@@ -718,17 +677,15 @@
                     if (!task || task.$virtual || task.$design_trip) return;
                     e.preventDefault();
                     e.stopPropagation();
-                    menu.dataset.taskId = tid;
-                    menu._anchorBar = bar;
-                    menu.style.display = "block";
-                    let x = e.clientX;
-                    let y = e.clientY;
-                    const mw = 170;
-                    const mh = 72;
-                    if (x + mw > window.innerWidth - 6) x = Math.max(6, window.innerWidth - mw - 8);
-                    if (y + mh > window.innerHeight - 6) y = Math.max(6, window.innerHeight - mh - 8);
-                    menu.style.left = x + "px";
-                    menu.style.top = y + "px";
+                    if (typeof window.openInlineEditForTask !== "function") return;
+                    window.openInlineEditForTask(tid, field, {
+                        left: e.clientX,
+                        right: e.clientX,
+                        top: e.clientY,
+                        bottom: e.clientY,
+                        width: 0,
+                        height: 0
+                    });
                 });
             });
         }

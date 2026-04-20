@@ -208,7 +208,10 @@
                 _ie = { taskId, field };
 
                 // await より前に座標を確定させる（await 後はスクロール等で位置がズレる場合がある）
-                const cellRect = cellEl.getBoundingClientRect();
+                const cellRect = (cellEl && typeof cellEl.getBoundingClientRect === 'function')
+                    ? cellEl.getBoundingClientRect()
+                    : cellEl;
+                if (!cellRect) return;
 
                 const labels = {
                     project_number: '工事番号', text: 'タスク名', machine: '機械',
