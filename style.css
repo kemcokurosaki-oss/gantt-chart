@@ -312,7 +312,12 @@
 
         /* 設計工程表の出張タスク（読み取り専用） */
         .design-trip-readonly { cursor: default !important; opacity: 0.85; }
-        .design-trip-readonly .gantt_task_drag { display: none !important; }
+        /* 出張タスクは端ドラッグ不可（JS の onBeforeTaskDrag と併用） */
+        #gantt_here .gantt_task_line.design-trip-readonly .gantt_task_drag {
+            display: none !important;
+            visibility: hidden !important;
+            pointer-events: none !important;
+        }
 
         /* 業務別カラー設定（中程度のパステル調） */
         .task-blue, .gantt_project.task-blue { background-color: #85C1E9 !important; border-color: #5DADE2 !important; }
@@ -883,17 +888,40 @@
         #inline-edit-cancel-btn:hover { background: #ddd; }
         /* ============================================== */
 
-        /* タスクバー上のドラッグハンドル（三角）をすべて非表示 */
-        .gantt_task_drag,
-        .gantt_task_drag[data-bind-property="start_date"],
-        .gantt_task_drag.task_left,
-        .gantt_task_drag.task_right {
+        /* タスクバー左右端：リサイズのみ（透明ヒット領域。見た目の帯は出さない） */
+        #gantt_here .gantt_task_line:not(.design-trip-readonly) .gantt_task_drag,
+        #gantt_here .gantt_task_line:not(.design-trip-readonly) .gantt_task_drag[data-bind-property="start_date"],
+        #gantt_here .gantt_task_line:not(.design-trip-readonly) .gantt_task_drag.task_left,
+        #gantt_here .gantt_task_line:not(.design-trip-readonly) .gantt_task_drag.task_right {
+            display: block !important;
+            visibility: visible !important;
+            pointer-events: auto !important;
+            width: 10px !important;
+            min-width: 10px !important;
+            min-height: 21px !important;
+            opacity: 0 !important;
+            box-sizing: border-box !important;
+            cursor: ew-resize !important;
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+            z-index: 5 !important;
+        }
+        /* マイルストーンは期間固定のため端ハンドルを出さない（onBeforeTaskDrag とも一致） */
+        #gantt_here .gantt_task_line.milestone-circle .gantt_task_drag,
+        #gantt_here .gantt_task_line.milestone-diamond .gantt_task_drag,
+        #gantt_here .gantt_task_line.milestone-star .gantt_task_drag,
+        #gantt_here .gantt_task_line.milestone-square .gantt_task_drag {
             display: none !important;
             visibility: hidden !important;
             pointer-events: none !important;
-            width: 0 !important;
-            height: 0 !important;
-            opacity: 0 !important;
+        }
+        /* 見出し行（仮想タスク）：端ハンドル非表示（リサイズは JS でも拒否） */
+        #gantt_here .gantt_task_line.header-non-2000s .gantt_task_drag,
+        #gantt_here .gantt_task_line.header-2000s .gantt_task_drag {
+            display: none !important;
+            visibility: hidden !important;
+            pointer-events: none !important;
         }
 
         /* 進捗率ドラッグハンドル（左下の▲）を非表示 */

@@ -221,6 +221,8 @@
         let _dragOldState = null;
         gantt.attachEvent("onBeforeTaskDrag", function(id, mode, e) {
             const task = gantt.getTask(id);
+            // 見出し行（仮想タスク）は期間リサイズ不可
+            if (task.$virtual && mode === gantt.config.drag_mode.resize) return false;
             // 設計工程表の出張タスクはドラッグ禁止
             if (task.$design_trip) return false;
             const milestones = ["外観検査", "客先立会", "出荷確認会議", "工場出荷"];
