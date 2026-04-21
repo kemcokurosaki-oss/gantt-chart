@@ -873,7 +873,6 @@
         .resource-item.clickable:hover { background-color: #ebf5ff !important; }
         .resource-item.clickable:hover .resource-grid-container { background-color: #ebf5ff !important; }
         .resource-item.clickable:hover .resource-timeline { background-color: #ebf5ff !important; }
-        .owner-name-cell:active { background-color: #1a5f8a !important; color: #fff !important; border-radius: 3px; }
         /* 下段グリッド：上段と同じ列幅（GRID_WIDTH=400）でカレンダー開始位置を一致・横スクロール時も固定 */
         .resource-grid-container {
             width: 400px;
