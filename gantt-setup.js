@@ -319,6 +319,8 @@
         gantt.config.date_format = "%Y-%m-%d";
         gantt.config.date_grid = "%Y/%m/%d";
         gantt.config.start_on_monday = true; // 週の開始を月曜日に固定
+        gantt.config.drag_links = false;    // タスクバー上のリンク操作点を非表示・無効化
+        gantt.config.drag_progress = false; // 進捗率ドラッグハンドルを無効化
 
         // 編集画面（ライトボックス）の設定
         const majorItemOptions = [

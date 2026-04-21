@@ -883,11 +883,39 @@
         #inline-edit-cancel-btn:hover { background: #ddd; }
         /* ============================================== */
 
-        /* 開始日リサイズハンドル（バー左の三角）を表示・有効化（終了日同様に変更可能にする） */
-        .gantt_task_drag[data-bind-property="start_date"] {
-            display: block !important;
-            visibility: visible !important;
-            pointer-events: auto !important;
+        /* タスクバー上のドラッグハンドル（三角）をすべて非表示 */
+        .gantt_task_drag,
+        .gantt_task_drag[data-bind-property="start_date"],
+        .gantt_task_drag.task_left,
+        .gantt_task_drag.task_right {
+            display: none !important;
+            visibility: hidden !important;
+            pointer-events: none !important;
+            width: 0 !important;
+            height: 0 !important;
+            opacity: 0 !important;
+        }
+
+        /* 進捗率ドラッグハンドル（左下の▲）を非表示 */
+        .gantt_task_progress_drag {
+            display: none !important;
+        }
+
+        /* リンク操作点（▲/▼などの接続ハンドル）を非表示 */
+        .gantt_link_control,
+        .gantt_link_point,
+        .gantt_task_line .gantt_link_control,
+        .gantt_task_line .gantt_link_point,
+        .task_start_date.gantt_link_control,
+        .task_end_date.gantt_link_control,
+        .gantt_task_link .gantt_link_control,
+        .gantt_task_link .gantt_link_point,
+        [class*="gantt_link_control"],
+        [class*="gantt_link_point"] {
+            display: none !important;
+            visibility: hidden !important;
+            pointer-events: none !important;
+            opacity: 0 !important;
         }
 
         .filter-group {
