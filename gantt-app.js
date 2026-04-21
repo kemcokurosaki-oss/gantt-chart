@@ -1243,6 +1243,46 @@
             }
         }
 
+        // 別タブ/別ブラウザから復帰した際に、カレンダーヘッダー文字が消える現象を防ぐ
+        // 検知条件に頼らず、復帰後に必ずスケールを再構築する。
+        // setLevel の2連呼び出しは同期処理のため画面フラッシュは発生しない。
+        const refreshCalendarHeaderAfterReturn = (() => {
+            let t1 = null, t2 = null;
+
+            function rebuildScale() {
+                try {
+                    if (!(gantt.ext && gantt.ext.zoom)) return;
+                    const zoom = (typeof gantt.ext.zoom.getCurrentLevel === 'function')
+                        ? (gantt.ext.zoom.getCurrentLevel() || 'days') : 'days';
+                    if (typeof gantt.setSizes === 'function') gantt.setSizes();
+                    // setLevel を別レベル→元レベルの順に呼ぶことでスケール設定を強制再構築
+                    const fallback = zoom === 'days' ? 'weeks' : 'days';
+                    gantt.ext.zoom.setLevel(fallback);
+                    gantt.ext.zoom.setLevel(zoom);
+                    if (typeof gantt.render === 'function') gantt.render();
+                } catch (e) {
+                    console.warn('calendar header rebuild error:', e);
+                }
+            }
+
+            return function() {
+                clearTimeout(t1);
+                clearTimeout(t2);
+                // 100ms後に1回目（即時修復）
+                t1 = setTimeout(rebuildScale, 100);
+                // 500ms後に2回目（Gantt自身の遅延リサイズ後の再修復）
+                t2 = setTimeout(rebuildScale, 500);
+            };
+        })();
+
+        document.addEventListener('visibilitychange', function() {
+            if (document.visibilityState === 'visible') {
+                refreshCalendarHeaderAfterReturn();
+            }
+        });
+        window.addEventListener('focus', refreshCalendarHeaderAfterReturn);
+        window.addEventListener('pageshow', refreshCalendarHeaderAfterReturn);
+
         // 認証状態変化時に公開ボタン表示/非表示を切り替え
         const _origUpdateUIForAuth = _updateUIForAuth;
         // gantt-setup.js の _updateUIForAuth をラップ（上書き）
