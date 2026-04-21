@@ -192,6 +192,50 @@
             renderDepartmentSummary(owners, deptName);
         }
 
+        /** 単一タスクまたは合体バー内の複数タスクから吹き出し用テキストを生成（複数は開始日順で「機械組立～工場出荷 (工番 …)」形式） */
+        function buildResourceTooltipText(taskOrTasks) {
+            const tasks = Array.isArray(taskOrTasks)
+                ? taskOrTasks.filter(Boolean)
+                : (taskOrTasks ? [taskOrTasks] : []);
+            if (!tasks.length) return "";
+
+            const sorted = [...tasks].sort((a, b) => new Date(a.start_date) - new Date(b.start_date));
+            const first = sorted[0];
+            const last = sorted[sorted.length - 1];
+
+            const firstText = (first.text || "").toString().trim();
+            const lastText = (last.text || "").toString().trim();
+
+            const detailText = [first.project_number, first.machine, first.unit]
+                .map(function(v) { return (v || "").toString().trim(); })
+                .filter(Boolean)
+                .join(" ");
+
+            let labelPart;
+            if (sorted.length === 1) {
+                labelPart = firstText;
+            } else if (firstText === lastText) {
+                labelPart = firstText || lastText;
+            } else if (firstText && lastText) {
+                labelPart = `${firstText}～${lastText}`;
+            } else {
+                labelPart = firstText || lastText;
+            }
+
+            if (!labelPart) {
+                return detailText || "";
+            }
+            return detailText ? `${labelPart} (${detailText})` : labelPart;
+        }
+
+        function escapeTooltipAttr(text) {
+            return (text || "")
+                .replace(/&/g, "&amp;")
+                .replace(/"/g, "&quot;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;");
+        }
+
         function renderDepartmentSummary(owners, deptName) {
             const container = document.getElementById("resource_content_inner");
             if (!container) return;
@@ -268,23 +312,6 @@
                 </div>
             </div>
             `;
-
-            const buildResourceTooltipText = function(task) {
-                const detailText = [task.project_number, task.machine, task.unit]
-                    .map(function(v) { return (v || "").toString().trim(); })
-                    .filter(Boolean)
-                    .join(" ");
-                const taskText = (task.text || "").toString().trim();
-                return detailText ? `${taskText} (${detailText})` : taskText;
-            };
-
-            const escapeTooltipAttr = function(text) {
-                return (text || "")
-                    .replace(/&/g, "&amp;")
-                    .replace(/"/g, "&quot;")
-                    .replace(/</g, "&lt;")
-                    .replace(/>/g, "&gt;");
-            };
 
             // 各担当者ごとの行を生成（末尾に常に「未定」行）
             const ownerRows = owners.concat(["未定"]);
@@ -498,6 +525,56 @@
             return !!(task && RESOURCE_BAR_MILESTONE_TEXTS.indexOf(task.text) >= 0);
         }
 
+        function locationResourceMergeKey(task) {
+            return [task.project_number ?? "", task.machine ?? "", task.unit ?? ""].join("\x1e");
+        }
+
+        /**
+         * 組立場所の同一セル行で、工事番号・機械・ユニットが同じタスクを1本のバーにまとめるためのセグメント。
+         * 期間は各タスクの表示範囲の和集合（最左〜最右）とする。
+         */
+        function buildLocationResourceRowSegments(areaTasks) {
+            const map = new Map();
+            for (const t of areaTasks) {
+                const k = locationResourceMergeKey(t);
+                if (!map.has(k)) map.set(k, []);
+                map.get(k).push(t);
+            }
+            const segments = [];
+            map.forEach((tasks) => {
+                tasks.sort((a, b) => new Date(a.start_date) - new Date(b.start_date) || String(a.id).localeCompare(String(b.id)));
+                let minLeft = Infinity;
+                let maxRight = -Infinity;
+                let mergedStartMs = Infinity;
+                let mergedEndMs = -Infinity;
+                for (const t of tasks) {
+                    const s = new Date(t.start_date);
+                    const e = gantt.calculateEndDate(s, t.duration);
+                    minLeft = Math.min(minLeft, gantt.posFromDate(s));
+                    maxRight = Math.max(maxRight, gantt.posFromDate(e));
+                    mergedStartMs = Math.min(mergedStartMs, s.getTime());
+                    mergedEndMs = Math.max(mergedEndMs, e.getTime());
+                }
+                segments.push({
+                    tasks,
+                    left: minLeft,
+                    width: Math.max(2, maxRight - minLeft),
+                    mergedStart: new Date(mergedStartMs),
+                    mergedEnd: new Date(mergedEndMs)
+                });
+            });
+            segments.sort((a, b) => a.left - b.left);
+            return segments;
+        }
+
+        /** 複数タスクを合体表示するときの色・マーク用クラス（マイルストーン以外を優先） */
+        function getLocationMergedBarClass(tasks) {
+            const sorted = [...tasks].sort((a, b) => new Date(a.start_date) - new Date(b.start_date));
+            const nonMs = sorted.find(t => !resourceBarIsMilestoneTask(t));
+            if (nonMs) return getResourceTaskClass(nonMs);
+            return getResourceTaskClass(sorted[sorted.length - 1]);
+        }
+
         function resourceEventToTimelineX(e, timelineEl) {
             const content = document.querySelector(".resource-content");
             if (!content || !timelineEl) return 0;
@@ -530,6 +607,7 @@
                 bar.addEventListener("mousedown", function(e) {
                     if (e.button !== 0) return;
                     if (gantt.config.readonly) return;
+                    if (bar.classList.contains("resource-loc-bar-merged")) return;
                     const tid = bar.getAttribute("data-task-id");
                     if (!tid) return;
                     let task;
@@ -675,6 +753,7 @@
             container.querySelectorAll(".resource-cell-bar[data-task-id]").forEach(function(bar) {
                 bar.addEventListener("contextmenu", function(e) {
                     if (gantt.config.readonly) return;
+                    if (bar.classList.contains("resource-loc-bar-merged")) return;
                     const field = resolveResourceBarInlineField();
                     if (!field) return;
                     const tid = bar.getAttribute("data-task-id");
@@ -880,9 +959,9 @@
             LOCATION_GROUPS.forEach(group => {
                 LOCATION_NUMBERS.forEach(num => {
                     const areaTasks = locationTasks.filter(t => t.area_group === group && t.area_number === num);
-                    
-                    // 組立場所表示は常にスタックとコンフリクト強調を行う
-                    const sortedTasks = areaTasks.sort((a, b) => new Date(a.start_date) - new Date(b.start_date));
+                    const rowSegments = buildLocationResourceRowSegments(areaTasks);
+
+                    // 組立場所表示は常にスタックとコンフリクト強調を行う（合体後の帯同士で判定）
                     const stacks = []; // 各スタックの終了時間を保持
 
                     // この組立場所の行内で重なりがある日付（セル）を特定して赤斜線背景を生成
@@ -892,16 +971,16 @@
                         const cellEnd = gantt.date.add(cellStart, 1, scale.unit);
                         
                         let hasConflictInCell = false;
-                        for (let idx1 = 0; idx1 < areaTasks.length; idx1++) {
-                            const t1 = areaTasks[idx1];
-                            const s1 = new Date(t1.start_date);
-                            const e1 = gantt.calculateEndDate(s1, t1.duration);
+                        for (let idx1 = 0; idx1 < rowSegments.length; idx1++) {
+                            const seg1 = rowSegments[idx1];
+                            const s1 = seg1.mergedStart;
+                            const e1 = seg1.mergedEnd;
                             if (!(s1 < cellEnd && e1 > cellStart)) continue;
                             
-                            for (let idx2 = idx1 + 1; idx2 < areaTasks.length; idx2++) {
-                                const t2 = areaTasks[idx2];
-                                const s2 = new Date(t2.start_date);
-                                const e2 = gantt.calculateEndDate(s2, t2.duration);
+                            for (let idx2 = idx1 + 1; idx2 < rowSegments.length; idx2++) {
+                                const seg2 = rowSegments[idx2];
+                                const s2 = seg2.mergedStart;
+                                const e2 = seg2.mergedEnd;
                                 if (!(s2 < cellEnd && e2 > cellStart)) continue;
                                 
                                 if (s1 < e2 && e1 > s2) {
@@ -939,13 +1018,15 @@
                             <div class="resource-cell-bars" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 2;">
                     `;
 
-                    sortedTasks.forEach(t => {
-                        const start = new Date(t.start_date);
-                        const end = gantt.calculateEndDate(start, t.duration);
-                        const left = gantt.posFromDate(start);
-                        const right = gantt.posFromDate(end);
-                        const width = Math.max(2, right - left);
-                        const colorClass = getResourceTaskClass(t);
+                    rowSegments.forEach(seg => {
+                        const tasks = seg.tasks;
+                        const rep = tasks[0];
+                        const isMerged = tasks.length > 1;
+                        const start = seg.mergedStart;
+                        const end = seg.mergedEnd;
+                        const left = seg.left;
+                        const width = seg.width;
+                        const colorClass = getLocationMergedBarClass(tasks);
 
                         // スタック位置の計算
                         let stackIndex = 0;
@@ -958,25 +1039,26 @@
                         const topOffset = 3 + (stackIndex * 5);
                         const barHeight = 21; // 重なる場合も高さを維持
 
-                        // 重なりがある場合のクラス判定
-                        // ※背景セルに表示するため、バー自体の赤斜線クラス(is-conflict)は付与しない
-                        const isOverlapping = areaTasks.some(other => {
-                            if (other.id === t.id) return false;
-                            const oStart = new Date(other.start_date);
-                            const oEnd = gantt.calculateEndDate(oStart, other.duration);
-                            return (start < oEnd && end > oStart);
-                        });
-                        const conflictClass = ""; // isOverlapping ? "is-conflict" : "";
-                        const customBarColor = locationBarColors[t.id] || '';
-                        const customColorStyle = customBarColor ? `background-color: ${customBarColor} !important;` : '';
+                        // 重なり強調は背景セルのみ（バーへの is-conflict は付与しない）
+                        const conflictClass = "";
+                        const customBarColor = locationBarColors[rep.id] || '';
+                        const customColorStyle = customBarColor
+                            ? `background-color: ${customBarColor} !important; border-color: ${customBarColor} !important;`
+                            : '';
                         const barTextColor = '#222';
+                        const barInnerText = tasks.every(resourceBarIsMilestoneTask)
+                            ? ""
+                            : `${rep.project_number || ""} ${rep.machine || ""} ${rep.unit || ""}`;
+                        const mergedClass = isMerged ? " resource-loc-bar-merged" : "";
+                        const mergeIdsAttr = isMerged ? ` data-loc-merge-ids="${tasks.map(t => t.id).join(",")}"` : "";
+                        const locTooltipRaw = buildResourceTooltipText(tasks);
 
                         html += `
-                            <div class="resource-cell-bar ${colorClass} ${conflictClass}"
-                                 data-task-id="${t.id}"
+                            <div class="resource-cell-bar ${colorClass} ${conflictClass}${mergedClass}"
+                                 data-task-id="${rep.id}"${mergeIdsAttr}
                                  style="position: absolute; top: ${topOffset}px; height: ${barHeight}px; left: ${left}px; width: ${width}px; border-radius: 3px; opacity: 0.8; display: flex; align-items: center; justify-content: center; color: ${barTextColor}; font-size: 13px; font-weight: bold; font-family: '游ゴシック','Yu Gothic',YuGothic,sans-serif; overflow: hidden; white-space: nowrap; text-shadow: none; z-index: ${5 + stackIndex}; box-sizing: border-box; border: 1px solid rgba(0,0,0,0.15); ${customColorStyle}"
-                                 title="${t.project_number || ""}-${t.machine || ""}${t.unit || ""}">
-                                 <span class="resource-bar-text">${t.project_number || ""} ${t.machine || ""} ${t.unit || ""}</span>
+                                 data-resource-tooltip="${escapeTooltipAttr(locTooltipRaw)}">
+                                 <span class="resource-bar-text">${barInnerText}</span>
                             </div>
                         `;
                     });
@@ -992,6 +1074,7 @@
             });
 
             container.innerHTML = html;
+            initResourceBarTooltip(container);
             initLocationBarColorPicker(container);
             initResourceBarDragAndResize(container);
             initResourceBarInlineFieldMenu(container);
@@ -1132,11 +1215,7 @@
                 
                 const colorClass = getResourceTaskClass(t);
                 const partsDeliveryClass = isPartsDeliveryTask ? "parts-delivery-resource" : "";
-                const detailText = [t.project_number, t.machine, t.unit]
-                    .map(function(v) { return (v || "").toString().trim(); })
-                    .filter(Boolean)
-                    .join(" ");
-                const title = detailText ? `${t.text || ""} (${detailText})` : (t.text || "");
+                const title = buildResourceTooltipText(t);
 
                 // 部署別表示の場合のみスタックとコンフリクト判定を行う
                 let topOffset = 3;
@@ -1246,7 +1325,7 @@
                             <div class="resource-cell-bars" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 2;">
                                 <div class="resource-cell-bar ${colorClass} ${partsDeliveryClass} ${conflictClass}" 
                                      style="position: absolute; top: ${topOffset}px; height: ${barHeight}px; left: ${left}px; width: ${width}px; border-radius: 3px; opacity: 0.8; display: flex; align-items: center; justify-content: center; color: #222; font-size: 13px; font-weight: bold; font-family: '游ゴシック','Yu Gothic',YuGothic,sans-serif; overflow: hidden; white-space: nowrap; text-shadow: none; z-index: ${zIndex}; box-sizing: border-box; border: 1px solid rgba(0,0,0,0.15);" 
-                                     data-resource-tooltip="${title.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}">
+                                     data-resource-tooltip="${escapeTooltipAttr(title)}">
                                      <span class="resource-bar-text">${isPartsDeliveryTask ? "" : `${t.project_number || ""} ${t.machine || ""} ${t.unit || ""}`}</span>
                                 </div>
                             </div>
@@ -1487,10 +1566,15 @@
                 const swatch = e.target.closest('.loc-bar-color-swatch');
                 if (!swatch || !_locBarPickerTarget) return;
                 const color = swatch.dataset.color;
-                const taskId = _locBarPickerTarget.dataset.taskId;
-                locationBarColors[taskId] = color;
+                const mergeRaw = _locBarPickerTarget.dataset.locMergeIds;
+                const taskIds = mergeRaw
+                    ? mergeRaw.split(",").map(s => s.trim()).filter(Boolean)
+                    : (_locBarPickerTarget.dataset.taskId ? [_locBarPickerTarget.dataset.taskId] : []);
+                if (!taskIds.length) return;
+                taskIds.forEach(id => { locationBarColors[id] = color; });
                 _locBarPickerTarget.style.setProperty('background-color', color, 'important');
-                supabaseClient.from('tasks').update({ bar_color: color }).eq('id', taskId)
+                _locBarPickerTarget.style.setProperty('border-color', color, 'important');
+                supabaseClient.from('tasks').update({ bar_color: color }).in('id', taskIds)
                     .then(({ error }) => { if (error) console.error("バー色保存エラー:", error); });
                 picker.querySelectorAll('.loc-bar-color-swatch').forEach(s => {
                     s.classList.toggle('active', s.dataset.color === color);

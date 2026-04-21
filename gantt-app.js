@@ -144,7 +144,7 @@
 
             window.allTasks = rawTasks;
 
-            const parentOrder = ["受注", "基本設計＆計画承認", "長納期品手配", "出図＆部品手配", "電気設計＆電気品手配", "盤製作", "組立全体", "外観検査", "タスクリスト作成", "試運転", "客先立会", "出荷確認会議", "出荷準備", "出荷", "現地工事"];
+            const parentOrder = PHASE_PARENT_ORDER;
             const tasksWithHierarchy = [];
             const parentsMap = {};
 
@@ -433,16 +433,24 @@
                 .filter(function (p) { return p.area_group && p.area_number; });
         }
 
-        /**
-         * task_locations を差し替え、tasks.area_group / area_number を整合させる。
-         * @param {string|number} taskId
-         * @param {{area_group:string,area_number:string}[]} pairs
-         * @returns {Promise<boolean>}
-         */
-        window.persistTaskLocations = async function (taskId, pairsOrRaw) {
-            const tid = String(taskId);
-            const list = normalizeLocationPairs(pairsOrRaw);
+        /** 工程見出しの並び（tasks.parent／fetchTasks の parentOrder と共通） */
+        const PHASE_PARENT_ORDER = ["受注", "基本設計＆計画承認", "長納期品手配", "出図＆部品手配", "電気設計＆電気品手配", "盤製作", "組立全体", "外観検査", "タスクリスト作成", "試運転", "客先立会", "出荷確認会議", "出荷準備", "出荷", "現地工事"];
+        /** 組立場所の自動伝播対象の見出し（tasks.parent）。タスクリスト作成・出荷準備は含めない。 */
+        const PARENTS_ASSEMBLY_THROUGH_SHIPPING = new Set([
+            "組立全体", "外観検査", "試運転", "客先立会", "出荷確認会議", "出荷"
+        ]);
 
+        function isAssemblyThroughShippingParent(parentName) {
+            const p = String(parentName != null ? parentName : "").trim();
+            return PARENTS_ASSEMBLY_THROUGH_SHIPPING.has(p);
+        }
+
+        /**
+         * task_locations を差し替え、tasks.area_group / area_number を整合（伝播なし）。
+         * @param {string} tid
+         * @param {{area_group:string,area_number:string}[]} list normalize済み
+         */
+        async function persistTaskLocationsOnly(tid, list) {
             const { error: delErr } = await supabaseClient.from("task_locations").delete().eq("task_id", tid);
             if (delErr) {
                 console.error("task_locations delete:", delErr);
@@ -482,6 +490,64 @@
                 console.error("tasks area update:", uerr);
                 alert("場所の保存に失敗しました（タスクの場所欄の更新）。");
                 return false;
+            }
+            return true;
+        }
+
+        /**
+         * 同一工番・機械で、見出しが組立全体／外観検査／試運転／客先立会／出荷確認会議／出荷のタスクへ場所をコピーする。
+         * @param {string} sourceTid 手動保存したタスクID
+         * @param {{area_group:string,area_number:string}[]} list normalize済み（空でない）
+         */
+        async function propagateAssemblyTaskLocations(sourceTid, list) {
+            const { data: srcRow, error: srcErr } = await supabaseClient
+                .from("tasks")
+                .select("project_number, machine, parent")
+                .eq("id", sourceTid)
+                .maybeSingle();
+            if (srcErr || !srcRow) return;
+            const pn = String(srcRow.project_number != null ? srcRow.project_number : "").trim();
+            const machine = String(srcRow.machine != null ? srcRow.machine : "").trim();
+            const par = String(srcRow.parent != null ? srcRow.parent : "").trim();
+            if (!pn || !machine || !isAssemblyThroughShippingParent(par)) return;
+
+            const { data: siblings, error: sibErr } = await supabaseClient
+                .from("tasks")
+                .select("id, parent, is_business_trip, task_type")
+                .eq("project_number", pn)
+                .eq("machine", machine);
+            if (sibErr || !siblings || siblings.length === 0) return;
+
+            for (let i = 0; i < siblings.length; i++) {
+                const row = siblings[i];
+                const oid = String(row.id);
+                if (oid === sourceTid) continue;
+                const trip = row.is_business_trip;
+                if (trip === true || trip === "true" || trip === "TRUE") continue;
+                if (String(row.task_type || "") === "business_trip") continue;
+                const p = String(row.parent != null ? row.parent : "").trim();
+                if (!isAssemblyThroughShippingParent(p)) continue;
+                const ok = await persistTaskLocationsOnly(oid, list);
+                if (!ok) return;
+            }
+        }
+
+        /**
+         * task_locations を差し替え、tasks.area_group / area_number を整合させる。
+         * 組立全体～出荷の見出し下で、同一工番・機械のタスクへ場所を自動反映する。
+         * @param {string|number} taskId
+         * @param {{area_group:string,area_number:string}[]} pairs
+         * @returns {Promise<boolean>}
+         */
+        window.persistTaskLocations = async function (taskId, pairsOrRaw) {
+            const tid = String(taskId);
+            const list = normalizeLocationPairs(pairsOrRaw);
+
+            const ok = await persistTaskLocationsOnly(tid, list);
+            if (!ok) return false;
+
+            if (list.length > 0) {
+                await propagateAssemblyTaskLocations(tid, list);
             }
             return true;
         };
