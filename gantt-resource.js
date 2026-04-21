@@ -73,6 +73,13 @@
             return ownerStr.split(/[,,，、・\s]+/).map(s => s.trim()).filter(Boolean);
         }
 
+        /** メイン工程表の完了済工番と同様、リソース画面からも該当工事のタスクを除外する */
+        function isTaskOnCompletedProjectNumber(task) {
+            const taskPNum = (task.project_number || task.project_no || "").trim();
+            if (!taskPNum) return false;
+            return completedProjects.some(cp => String(cp.project_number || "").trim() === taskPNum);
+        }
+
         // 部署別リソースの「未定」行：未入力の担当と明示の「未定」のみ（複数担当に混在する場合は除外）
         function isOwnerUnsettled(ownerStr) {
             const raw = (ownerStr || "").trim();
@@ -102,6 +109,7 @@
                         const isDetailed = (t.is_detailed === true || String(t.is_detailed).toLowerCase() === "true" || String(t.is_detailed).toLowerCase() === "t" || String(t.is_detailed) === "1");
                         // 設計部の部署別リソース画面では、is_detailedがTRUEのタスク（設計工程表専用）を非表示にする
                         if (isDetailed) return false;
+                        if (isTaskOnCompletedProjectNumber(t)) return false;
                         if (t.major_item !== currentResourceDeptFilter) return false;
                         return true;
                     });
@@ -160,6 +168,7 @@
                 // is_detailed が true のタスクは除外（設計工程表専用タスクを全体工程表のリソース画面で非表示にする）
                 const isDetailed = (t.is_detailed === true || String(t.is_detailed).toLowerCase() === "true" || String(t.is_detailed).toLowerCase() === "t" || String(t.is_detailed) === "1");
                 if (isDetailed) return false;
+                if (isTaskOnCompletedProjectNumber(t)) return false;
 
                 if (t.major_item !== deptName) return false;
                 return true;
@@ -191,6 +200,7 @@
             const deptTasksForDept = (window.allTasks || []).filter(t => {
                 const isDetailed = (t.is_detailed === true || String(t.is_detailed).toLowerCase() === "true" || String(t.is_detailed).toLowerCase() === "t" || String(t.is_detailed) === "1");
                 if (isDetailed) return false;
+                if (isTaskOnCompletedProjectNumber(t)) return false;
                 return t.major_item === deptName;
             });
             if (deptTasksForDept.length === 0) {
@@ -285,6 +295,7 @@
                     // is_detailed が true のタスクは除外（設計工程表専用タスクを全体工程表のリソース画面で非表示にする）
                     const isDetailed = (t.is_detailed === true || String(t.is_detailed).toLowerCase() === "true" || String(t.is_detailed).toLowerCase() === "t" || String(t.is_detailed) === "1");
                     if (isDetailed) return false;
+                    if (isTaskOnCompletedProjectNumber(t)) return false;
 
                     const normalized = getNormalizedOwners(t.owner);
                     let isMatch = false;
@@ -815,6 +826,7 @@
                 // is_detailed が true のタスクは除外
                 const isDetailed = (task.is_detailed === true || String(task.is_detailed).toLowerCase() === "true" || String(task.is_detailed).toLowerCase() === "t" || String(task.is_detailed) === "1");
                 if (isDetailed) return null;
+                if (isTaskOnCompletedProjectNumber(task)) return null;
 
                 return { ...task, area_group: ld.area_group, area_number: ld.area_number };
             }).filter(Boolean);
@@ -1001,6 +1013,7 @@
                 // is_detailed が true のタスクは除外
                 const isDetailed = (t.is_detailed === true || String(t.is_detailed).toLowerCase() === "true" || String(t.is_detailed).toLowerCase() === "t" || String(t.is_detailed) === "1");
                 if (isDetailed) return false;
+                if (isTaskOnCompletedProjectNumber(t)) return false;
 
                 let isMatch = false;
                 let currentDept = currentResourceDeptFilter || lastDeptName;

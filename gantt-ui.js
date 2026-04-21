@@ -926,6 +926,7 @@
             completedProjects.push(newEntry);
             gantt.render();
             updateProjectList(window.allTasks || []);
+            if (typeof updateResourceVisibility === 'function') updateResourceVisibility();
             renderKanryoKanri(document.getElementById('kanryo-modal-body'));
         }
 
@@ -936,6 +937,7 @@
             completedProjects = completedProjects.filter(cp => cp.project_number !== pNum);
             gantt.render();
             updateProjectList(window.allTasks || []);
+            if (typeof updateResourceVisibility === 'function') updateResourceVisibility();
             renderKanryoIchiran(document.getElementById('kanryo-modal-body'));
         }
         // ===== 完了済工番 ここまで =====
