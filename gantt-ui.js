@@ -101,7 +101,7 @@
                 }
                 const container = p.querySelector('#inline-edit-ms-options');
                 container.innerHTML = '';
-                const showRadio = mainSelected !== undefined;
+                const showMainToggle = mainSelected !== undefined;
                 options.forEach(function(opt) {
                     if (opt.isGroup) {
                         const g = document.createElement('div');
@@ -109,25 +109,60 @@
                         g.textContent = opt.label;
                         container.appendChild(g);
                     } else {
-                        const lbl = document.createElement('label');
-                        lbl.className = 'inline-ms-option';
-                        if (showRadio) {
-                            const rb = document.createElement('input');
-                            rb.type = 'radio';
-                            rb.name = 'ie_main_owner_radio';
-                            rb.value = opt.value;
-                            rb.checked = opt.value === mainSelected;
-                            rb.title = 'メイン担当に設定';
-                            rb.style.cursor = 'pointer';
-                            lbl.appendChild(rb);
-                        }
+                        const row = document.createElement(showMainToggle ? 'div' : 'label');
+                        row.className = 'inline-ms-option';
                         const cb = document.createElement('input');
                         cb.type = 'checkbox';
                         cb.value = opt.value;
                         cb.checked = selectedValues.includes(opt.value);
-                        lbl.appendChild(cb);
-                        lbl.appendChild(document.createTextNode(' ' + opt.label));
-                        container.appendChild(lbl);
+                        if (showMainToggle) {
+                            const mainCb = document.createElement('input');
+                            mainCb.type = 'checkbox';
+                            mainCb.name = 'ie_main_owner_checkbox';
+                            mainCb.value = opt.value;
+                            mainCb.checked = String(opt.value) === String(mainSelected || '');
+                            mainCb.className = 'owner-main-switch-input';
+                            mainCb.title = 'メイン担当（一覧で青字・複数人時のみ）';
+                            mainCb.setAttribute('aria-label', 'メイン担当');
+                            const swWrap = document.createElement('span');
+                            swWrap.className = 'owner-main-switch';
+                            swWrap.appendChild(mainCb);
+                            const swUi = document.createElement('span');
+                            swUi.className = 'owner-main-switch-ui';
+                            swUi.setAttribute('aria-hidden', 'true');
+                            const swTrack = document.createElement('span');
+                            swTrack.className = 'owner-main-switch-track';
+                            const swThumb = document.createElement('span');
+                            swThumb.className = 'owner-main-switch-thumb';
+                            swTrack.appendChild(swThumb);
+                            swUi.appendChild(swTrack);
+                            swWrap.appendChild(swUi);
+                            const mainWrap = document.createElement('span');
+                            mainWrap.className = 'owner-main-switch-wrap';
+                            mainWrap.title = 'メイン担当（一覧で青字・複数人時のみ）';
+                            mainWrap.appendChild(swWrap);
+                            mainCb.addEventListener('change', function() {
+                                if (mainCb.checked) {
+                                    container.querySelectorAll('input[name="ie_main_owner_checkbox"]').forEach(function(o) {
+                                        if (o !== mainCb) o.checked = false;
+                                    });
+                                    cb.checked = true;
+                                }
+                            });
+                            cb.addEventListener('change', function() {
+                                if (!cb.checked && mainCb.checked) mainCb.checked = false;
+                            });
+                            row.appendChild(mainWrap);
+                            const ownerLbl = document.createElement('label');
+                            ownerLbl.className = 'inline-ms-owner-check-wrap';
+                            ownerLbl.appendChild(cb);
+                            ownerLbl.appendChild(document.createTextNode(' ' + opt.label));
+                            row.appendChild(ownerLbl);
+                        } else {
+                            row.appendChild(cb);
+                            row.appendChild(document.createTextNode(' ' + opt.label));
+                        }
+                        container.appendChild(row);
                     }
                 });
             }
@@ -277,10 +312,12 @@
                     }
 
                 } else if (field === 'owner') {
-                    const checked = Array.from(document.querySelectorAll('#inline-edit-ms-options input[type=checkbox]:checked')).map(function(cb) { return cb.value; });
-                    task.owner = checked.join(',');
-                    const mainRadio = document.querySelector('#inline-edit-ms-options input[name="ie_main_owner_radio"]:checked');
-                    task.main_owner = mainRadio ? mainRadio.value : '';
+                    const ownerVals = Array.from(document.querySelectorAll('#inline-edit-ms-options .inline-ms-owner-check-wrap input[type=checkbox]')).filter(function(el) { return el.checked; }).map(function(cb) { return cb.value; });
+                    task.owner = ownerVals.join(',');
+                    const mainEl = document.querySelector('#inline-edit-ms-options input[name="ie_main_owner_checkbox"]:checked');
+                    let main = mainEl ? mainEl.value : '';
+                    if (main && !ownerVals.includes(main)) main = '';
+                    task.main_owner = main;
 
                 } else if (field === 'area_number') {
                     const checkedVals = Array.from(document.querySelectorAll('#inline-edit-ms-options input[type=checkbox]:checked')).map(function(cb) { return cb.value; });

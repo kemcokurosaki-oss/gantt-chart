@@ -442,6 +442,27 @@
         // インラインエディタを有効化
         gantt.config.show_errors = false;
 
+        /** メイン担当用チェック（排他・すべて外せる）。担当チェック外し時はメインも外す */
+        function bindExclusiveMainOwnerRowControls(container) {
+            if (!container) return;
+            container.querySelectorAll(".owner-selector-row").forEach(function(lbl) {
+                const mainCb = lbl.querySelector('input[name="main_owner_checkbox"]');
+                const ownerCb = lbl.querySelector('input[name="owner_checkbox"]');
+                if (!mainCb || !ownerCb) return;
+                mainCb.addEventListener("change", function() {
+                    if (mainCb.checked) {
+                        container.querySelectorAll('input[name="main_owner_checkbox"]').forEach(function(o) {
+                            if (o !== mainCb) o.checked = false;
+                        });
+                        ownerCb.checked = true;
+                    }
+                });
+                ownerCb.addEventListener("change", function() {
+                    if (!ownerCb.checked && mainCb.checked) mainCb.checked = false;
+                });
+            });
+        }
+
         // 担当者用カスタムコントロールの登録
         gantt.form_blocks["owner_selector"] = {
             render: function(sns) {
@@ -531,20 +552,29 @@
                     owners.forEach(name => {
                         const isChecked = selected.includes(name) ? "checked" : "";
                         const isMain = mainOwner === name ? "checked" : "";
-                        html += `<label style='display:inline-flex; align-items:center; gap:3px; width:120px; margin-bottom:3px; font-size:11px; cursor:pointer;'>
-                                    <input type='radio' name='main_owner_radio' value='${name}' ${isMain} title='メイン担当に設定' style='vertical-align:middle; cursor:pointer;'>
-                                    <input type='checkbox' name='owner_checkbox' value='${name}' ${isChecked} style='vertical-align:middle;'> ${name}
-                                 </label>`;
+                        html += `<div class='owner-selector-row'>
+                                    <span class='owner-main-switch-wrap' title='メイン担当（一覧で青字・複数人時のみ）'>
+                                        <span class='owner-main-switch'>
+                                            <input type='checkbox' name='main_owner_checkbox' class='owner-main-switch-input' value='${name}' ${isMain} aria-label='メイン担当'>
+                                            <span class='owner-main-switch-ui' aria-hidden='true'><span class='owner-main-switch-track'><span class='owner-main-switch-thumb'></span></span></span>
+                                        </span>
+                                    </span>
+                                    <label class='owner-owner-check-wrap'>
+                                        <input type='checkbox' name='owner_checkbox' value='${name}' ${isChecked}>
+                                        <span class='owner-selector-name'>${name}</span>
+                                    </label>
+                                 </div>`;
                     });
                 }
                 container.innerHTML = html;
+                bindExclusiveMainOwnerRowControls(container);
             },
             get_value: function(node, task) {
                 const container = node.querySelector(".owner_selector_container");
                 if (!container) return "";
                 const checked = Array.from(container.querySelectorAll('input[name="owner_checkbox"]:checked')).map(cb => cb.value);
-                const mainRadio = container.querySelector('input[name="main_owner_radio"]:checked');
-                let main = mainRadio ? mainRadio.value : "";
+                const mainEl = container.querySelector('input[name="main_owner_checkbox"]:checked');
+                let main = mainEl ? mainEl.value : "";
                 if (main && !checked.includes(main)) main = "";
                 task.main_owner = main;
                 return checked.join(", ");
@@ -968,7 +998,7 @@
             const options = getOwnerOptions(majorItem || "");
             // 現在チェック済みの担当者を保持
             const checked = Array.from(container.querySelectorAll('input[name="owner_checkbox"]:checked')).map(el => el.value);
-            const mainChecked = (container.querySelector('input[name="main_owner_radio"]:checked') || {}).value || "";
+            const mainChecked = (container.querySelector('input[name="main_owner_checkbox"]:checked') || {}).value || "";
             let html = "";
             if (options.length === 0) {
                 html = "<span style='color: #999; font-size: 11px;'>部署を選択してください</span>";
@@ -976,12 +1006,21 @@
                 options.forEach(opt => {
                     const isChecked = checked.includes(opt.key) ? "checked" : "";
                     const isMain = mainChecked === opt.key ? "checked" : "";
-                    html += `<label style='display: inline-flex; align-items: center; gap: 3px; cursor: pointer; font-size: 11px;'>
-                                <input type='radio' name='main_owner_radio' value='${opt.key}' ${isMain} title='メイン担当に設定' style='vertical-align: middle; cursor: pointer;'>
-                                <input type='checkbox' name='owner_checkbox' value='${opt.key}' ${isChecked} style='vertical-align: middle;'> ${opt.label}
-                             </label>`;
+                    html += `<div class='owner-selector-row'>
+                                <span class='owner-main-switch-wrap' title='メイン担当（一覧で青字・複数人時のみ）'>
+                                    <span class='owner-main-switch'>
+                                        <input type='checkbox' name='main_owner_checkbox' class='owner-main-switch-input' value='${opt.key}' ${isMain} aria-label='メイン担当'>
+                                        <span class='owner-main-switch-ui' aria-hidden='true'><span class='owner-main-switch-track'><span class='owner-main-switch-thumb'></span></span></span>
+                                    </span>
+                                </span>
+                                <label class='owner-owner-check-wrap'>
+                                    <input type='checkbox' name='owner_checkbox' value='${opt.key}' ${isChecked}>
+                                    <span class='owner-selector-name'>${opt.label}</span>
+                                </label>
+                             </div>`;
                 });
             }
             container.innerHTML = html;
+            bindExclusiveMainOwnerRowControls(container);
         }
 

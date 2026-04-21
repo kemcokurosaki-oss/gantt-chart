@@ -756,7 +756,104 @@
         }
         .inline-ms-option:hover { background: #f0f7ff; }
         .inline-ms-option input[type=checkbox] { cursor: pointer; margin: 0; }
-        .inline-ms-option input[type=radio] { cursor: pointer; margin: 0; accent-color: #1976d2; }
+        .inline-ms-owner-check-wrap {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            flex: 1;
+            min-width: 0;
+        }
+        .owner-main-switch-wrap {
+            flex-shrink: 0;
+            display: inline-flex;
+            align-items: center;
+        }
+        /* ライトボックス：担当者ブロック */
+        .owner-selector-row {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+            width: 100%;
+            max-width: 380px;
+            margin-bottom: 6px;
+            font-size: 11px;
+        }
+        /* メイン担当：スイッチ型（中身は checkbox で保存ロジック共通） */
+        .owner-main-switch {
+            position: relative;
+            display: inline-block;
+            width: 38px;
+            height: 22px;
+            flex-shrink: 0;
+            vertical-align: middle;
+            cursor: pointer;
+        }
+        .owner-main-switch-input {
+            position: absolute;
+            inset: 0;
+            margin: 0;
+            opacity: 0;
+            cursor: pointer;
+            z-index: 2;
+            width: 100%;
+            height: 100%;
+        }
+        .owner-main-switch-input:focus-visible + .owner-main-switch-ui {
+            outline: 2px solid #1976d2;
+            outline-offset: 2px;
+            border-radius: 12px;
+        }
+        .owner-main-switch-ui {
+            pointer-events: none;
+            display: block;
+        }
+        .owner-main-switch-track {
+            display: block;
+            width: 38px;
+            height: 22px;
+            border-radius: 11px;
+            background: #bdbdbd;
+            position: relative;
+            transition: background 0.2s ease;
+        }
+        .owner-main-switch-thumb {
+            position: absolute;
+            left: 3px;
+            top: 3px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #fff;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.28);
+            transition: transform 0.2s ease;
+        }
+        .owner-main-switch-input:checked + .owner-main-switch-ui .owner-main-switch-track {
+            background: #1976d2;
+        }
+        .owner-main-switch-input:checked + .owner-main-switch-ui .owner-main-switch-thumb {
+            transform: translateX(16px);
+        }
+
+        .owner-owner-check-wrap {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+            flex: 1;
+            min-width: 0;
+        }
+        .owner-owner-check-wrap input[type="checkbox"] {
+            cursor: pointer;
+            margin: 0;
+            flex-shrink: 0;
+        }
+        .owner-selector-name {
+            flex: 1;
+            min-width: 4em;
+            color: #222;
+        }
         #inline-edit-buttons {
             display: flex;
             gap: 6px;
