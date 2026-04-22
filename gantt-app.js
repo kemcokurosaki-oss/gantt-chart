@@ -287,12 +287,6 @@
                                     const orderStart = new Date(orderTasks[0].start_date);
                                     minStart = gantt.calculateEndDate(orderStart, orderTasks[0].duration);
                                     maxEnd = new Date(drawingTasks[0].start_date);
-                                    const diffTime = maxEnd.getTime() - minStart.getTime();
-                                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                                    tasksInParent.forEach(t => {
-                                        t.start_date = minStart;
-                                        t.duration = diffDays > 0 ? diffDays : 1;
-                                    });
                                 }
                             }
 
@@ -1092,6 +1086,24 @@
                     }
                 }
             });
+
+            // 「基本設計＆計画承認」配下は新規作成時のみ自動計算で初期値を設定する。
+            // 以降はDB保存値（ドラッグ変更値）をそのまま使うため、fetch時には上書きしない。
+            const orderTaskForInit = newTasks.find(t => t.parent === "受注" || t.text === "受注");
+            const drawingTaskForInit = newTasks.find(t => t.parent === "出図＆部品手配" || t.text === "出図＆部品手配");
+            if (orderTaskForInit && drawingTaskForInit) {
+                const orderStart = new Date(orderTaskForInit.start_date);
+                const basicStart = gantt.calculateEndDate(orderStart, orderTaskForInit.duration || 1);
+                const drawingStart = new Date(drawingTaskForInit.start_date);
+                const diffTime = drawingStart.getTime() - basicStart.getTime();
+                const basicDuration = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+                newTasks.forEach(t => {
+                    if (t.parent === "基本設計＆計画承認") {
+                        t.start_date = dateToDb(basicStart);
+                        t.duration = basicDuration;
+                    }
+                });
+            }
 
             newTasks.forEach(function(t) {
                 t.end_date = inclusiveEndDateToDb(t.start_date, t.duration);
