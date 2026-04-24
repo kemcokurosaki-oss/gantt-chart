@@ -503,19 +503,20 @@
         }
 
         /**
-         * 同一工番・機械で、見出しが組立全体／外観検査／試運転／客先立会／出荷確認会議／出荷のタスクへ場所をコピーする。
+         * 同一工番・機械・ユニットで、見出しが組立全体／外観検査／試運転／客先立会／出荷確認会議／出荷のタスクへ場所をコピーする。
          * @param {string} sourceTid 手動保存したタスクID
          * @param {{area_group:string,area_number:string}[]} list normalize済み（空でない）
          */
         async function propagateAssemblyTaskLocations(sourceTid, list) {
             const { data: srcRow, error: srcErr } = await supabaseClient
                 .from("tasks")
-                .select("project_number, machine, parent")
+                .select("project_number, machine, unit, parent")
                 .eq("id", sourceTid)
                 .maybeSingle();
             if (srcErr || !srcRow) return;
             const pn = String(srcRow.project_number != null ? srcRow.project_number : "").trim();
             const machine = String(srcRow.machine != null ? srcRow.machine : "").trim();
+            const unit = String(srcRow.unit != null ? srcRow.unit : "").trim();
             const par = String(srcRow.parent != null ? srcRow.parent : "").trim();
             if (!pn || !machine || !isAssemblyThroughShippingParent(par)) return;
 
@@ -523,7 +524,8 @@
                 .from("tasks")
                 .select("id, parent, is_business_trip, task_type")
                 .eq("project_number", pn)
-                .eq("machine", machine);
+                .eq("machine", machine)
+                .eq("unit", unit);
             if (sibErr || !siblings || siblings.length === 0) return;
 
             for (let i = 0; i < siblings.length; i++) {
