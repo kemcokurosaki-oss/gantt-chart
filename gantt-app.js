@@ -5,27 +5,30 @@
             let data, locData;
 
             if (!_isEditor) {
-                // 閲覧者: 公開スナップショットから読み込む
+                // 閲覧者: 公開スナップショットのみ（「更新」未実行の DB 変更は表示しない）
                 const { data: snap, error: snapErr } = await supabaseClient
                     .from('app_settings')
                     .select('key, value')
                     .in('key', ['published_tasks', 'published_locs']);
-
+                data = [];
+                locData = [];
                 if (!snapErr && snap && snap.length > 0) {
                     const tasksEntry = snap.find(s => s.key === 'published_tasks');
                     const locsEntry  = snap.find(s => s.key === 'published_locs');
-                    data    = tasksEntry ? JSON.parse(tasksEntry.value) : null;
-                    locData = locsEntry  ? JSON.parse(locsEntry.value)  : [];
-                }
-
-                // スナップショットがまだない場合はライブデータにフォールバック
-                if (!data) {
-                    const sortColumn = currentDisplayMode === 'machine' ? 'sort_order_machine' : 'sort_order';
-                    const { data: liveData, error } = await supabaseClient.from('tasks').select('*').order(sortColumn, { ascending: true });
-                    if (error) return;
-                    data = liveData;
-                    const { data: liveLoc } = await supabaseClient.from('task_locations').select('*');
-                    locData = liveLoc || [];
+                    try {
+                        const parsed = tasksEntry ? JSON.parse(tasksEntry.value) : null;
+                        data = Array.isArray(parsed) ? parsed : [];
+                    } catch (e) {
+                        console.error('[fetchTasks] published_tasks JSON parse error', e);
+                        data = [];
+                    }
+                    try {
+                        const parsedL = locsEntry ? JSON.parse(locsEntry.value) : [];
+                        locData = Array.isArray(parsedL) ? parsedL : [];
+                    } catch (e) {
+                        console.error('[fetchTasks] published_locs JSON parse error', e);
+                        locData = [];
+                    }
                 }
             } else {
                 // 編集者: ライブデータから読み込む
@@ -39,14 +42,22 @@
 
             // 設計・組立工程表の出張タスク（task_type='business_trip'）はメインデータから除外
             // （後で専用クエリで読み取り専用タスクとして追加するため、重複表示を防ぐ）
+            // 閲覧者は公開スナップショット内の出張行のみ使う（未公開のライブ tasks は読まない）
+            let designTripData = [];
+            if (!_isEditor && Array.isArray(data)) {
+                designTripData = data.filter(t => t.task_type === 'business_trip' && t.is_archived !== true);
+            }
             if (data) data = data.filter(t => t.task_type !== 'business_trip');
 
-            // 設計・組立工程表の出張タスク（task_type='business_trip'）を追加取得してマージ
-            const { data: designTripData } = await supabaseClient
-                .from('tasks')
-                .select('id, text, start_date, end_date, duration, owner, project_number, machine, unit, customer_name, project_details, main_owner, major_item')
-                .eq('task_type', 'business_trip')
-                .neq('is_archived', true);
+            // 編集者: 出張タスクをライブ DB から取得してマージ
+            if (_isEditor) {
+                const { data: tripRows } = await supabaseClient
+                    .from('tasks')
+                    .select('id, text, start_date, end_date, duration, owner, project_number, machine, unit, customer_name, project_details, main_owner, major_item')
+                    .eq('task_type', 'business_trip')
+                    .neq('is_archived', true);
+                designTripData = tripRows || [];
+            }
             if (designTripData && designTripData.length > 0) {
                 // 全体工程表の既存タスクから工事番号→客先名/工事名のマップを作成
                 const projectInfoMap = {};
@@ -1140,6 +1151,7 @@
         // ===== 公開・更新通知 =====
         let _knownPublishedAt = null;   // 閲覧者が最後に読み込んだ公開日時
         let _pollTimer = null;
+        let _updateBannerHideTimer = null;
 
         // app_settings から published_at を取得
         async function getPublishedAt() {
@@ -1189,8 +1201,12 @@
             }
         }
 
-        // 閲覧者：バナーを表示
+        // 閲覧者：バナーを表示（3秒後に自動で閉じる）
         function showBanner(publishedAt) {
+            if (_updateBannerHideTimer) {
+                clearTimeout(_updateBannerHideTimer);
+                _updateBannerHideTimer = null;
+            }
             const d = new Date(publishedAt);
             const label = d.getFullYear() + '/' + String(d.getMonth()+1).padStart(2,'0') + '/' +
                 String(d.getDate()).padStart(2,'0') + ' ' +
@@ -1199,19 +1215,19 @@
             if (msg) msg.textContent = '🔔 工程表が更新されました（' + label + ' 公開）';
             const banner = document.getElementById('update-banner');
             if (banner) banner.style.display = 'flex';
+            _updateBannerHideTimer = setTimeout(function() {
+                _updateBannerHideTimer = null;
+                hideBanner();
+            }, 3000);
         }
 
         function hideBanner() {
+            if (_updateBannerHideTimer) {
+                clearTimeout(_updateBannerHideTimer);
+                _updateBannerHideTimer = null;
+            }
             const banner = document.getElementById('update-banner');
             if (banner) banner.style.display = 'none';
-        }
-
-        // 閲覧者：バナーの「最新データを取得」
-        async function applyUpdate() {
-            hideBanner();
-            const latest = await getPublishedAt();
-            if (latest) _knownPublishedAt = latest;
-            await fetchTasks();
         }
 
         // Realtime：app_settings の変更をリアルタイムで受信
@@ -1230,7 +1246,14 @@
                     if (_isEditor) return;
                     const latest = payload.new && payload.new.value;
                     if (latest && latest !== _knownPublishedAt) {
-                        showBanner(latest);
+                        _knownPublishedAt = latest;
+                        fetchTasks()
+                            .then(function() {
+                                showBanner(latest);
+                            })
+                            .catch(function(err) {
+                                console.error('[fetchTasks] 閲覧者の自動更新', err);
+                            });
                     }
                 })
                 .on('postgres_changes', {
@@ -1242,7 +1265,14 @@
                     if (_isEditor) return;
                     const latest = payload.new && payload.new.value;
                     if (latest && latest !== _knownPublishedAt) {
-                        showBanner(latest);
+                        _knownPublishedAt = latest;
+                        fetchTasks()
+                            .then(function() {
+                                showBanner(latest);
+                            })
+                            .catch(function(err) {
+                                console.error('[fetchTasks] 閲覧者の自動更新', err);
+                            });
                     }
                 })
                 .subscribe();
