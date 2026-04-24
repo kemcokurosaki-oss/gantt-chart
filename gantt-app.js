@@ -950,6 +950,11 @@
             const projectDetails = document.getElementById('project_details_input').value.trim();
             const orderDateValue = document.getElementById('order_date').value;
             const shippingDateValue = document.getElementById('shipping_date').value;
+            const resolveMajorItemForTask = (taskName, fallbackMajorItem) => {
+                if (taskName === "出荷準備(組立)") return "組立";
+                if (taskName === "出荷準備(電装)") return "電装";
+                return fallbackMajorItem || null;
+            };
 
             if (!projectNumber) {
                 alert("工事番号を入力してください");
@@ -1042,13 +1047,14 @@
                 // 2000番台（task_template）は taskNameOptions の選択肢をすべて子タスクとして作成
                 const isChildTaskPattern = (templateTable === 'task_template_a' || templateTable === 'task_template_b');
                 if (isChildTaskPattern) {
+                    const majorItem = resolveMajorItemForTask(item.name, item.major_item);
                     newTasks.push({
                         project_number: projectNumber,
                         customer_name: customerName || "",
                         project_details: projectDetails || "",
                         text: item.name,
                         parent: "",
-                        major_item: item.major_item || null,
+                        major_item: majorItem,
                         start_date: startDateStr,
                         duration: duration,
                         owner: "",
@@ -1069,13 +1075,14 @@
                                     taskStartDateStr = dateToDb(d);
                                 }
                             }
+                            const majorItem = resolveMajorItemForTask(optName, item.major_item);
                             newTasks.push({
                                 project_number: projectNumber,
                                 customer_name: customerName || "",
                                 project_details: projectDetails || "",
                                 text: optName,
                                 parent: item.name,
-                                major_item: item.major_item || null,
+                                major_item: majorItem,
                                 start_date: taskStartDateStr,
                                 duration: duration,
                                 owner: "",
