@@ -11,7 +11,14 @@
         // createClient呼び出し前にURLのtype情報を保存（Supabaseがhashを処理・クリアする前に取得）
         const _pageInitType = new URLSearchParams(window.location.hash.replace('#', '?')).get('type')
                            || new URLSearchParams(window.location.search).get('type');
-        const supabaseClient = supabase.createClient(S_URL, S_KEY);
+        const supabaseClient = supabase.createClient(S_URL, S_KEY, {
+            auth: {
+                flowType: 'implicit',      // PKCEはfile://でiframeが使えないためimplicitに切り替え
+                persistSession: true,
+                detectSessionInUrl: true,  // パスワードリセット等のURL認証は引き続き使用
+                autoRefreshToken: true
+            }
+        });
 
         // ===== 認証管理 =====
         // 編集可能なメールアドレスリスト（確定後に追加してください）
@@ -242,10 +249,7 @@
         // 上段・下段で完全に一致させる固定値（1ピクセルも狂いなく同期）
         let GRID_WIDTH = 600;
         const COLUMN_WIDTHS = [30, 50, 22, 114, 37, 37, 65, 60, 80, 80, 25]; // 詳細, 工事番号, チェック, タスク名, 機械, ユニット, 担当, 場所, 開始日, 終了日, add(担当者名)
-        
-        // 1列目を固定
-        gantt.config.grid_elastic_columns = false;
-        gantt.config.columns[0].frozen = true;
+        // 1列目固定・grid_elastic_columns は gantt.config.columns 代入後に gantt-events.js で設定する（columns 未初期化での TypeError 防止）
         // 下段リソースで担当者検索時にのみフィルタする用（未選択時は下段を非表示）
         let currentResourceOwnerFilter = "";
         let currentProjectFilter = ""; // 工事番号フィルター用

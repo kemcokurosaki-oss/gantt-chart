@@ -99,6 +99,7 @@
             { name: "add", label: "", width: COLUMN_WIDTHS[10], align: "left" }
         ];
         gantt.config.columns = SHARED_COLUMNS;
+        gantt.config.grid_elastic_columns = false;
         gantt.config.indent = 6;
         gantt.config.grid_width = 600;
         gantt.config.grid_resize = false;

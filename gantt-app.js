@@ -12,6 +12,9 @@
                     .in('key', ['published_tasks', 'published_locs']);
                 data = [];
                 locData = [];
+                if (snapErr) {
+                    console.error('[fetchTasks] Supabaseクエリエラー:', snapErr);
+                }
                 if (!snapErr && snap && snap.length > 0) {
                     const tasksEntry = snap.find(s => s.key === 'published_tasks');
                     const locsEntry  = snap.find(s => s.key === 'published_locs');
@@ -701,6 +704,7 @@
                 // fetchTasks() の gantt.parse() で正しく再描画される
                 gantt.config.grid_width = 600;
                 gantt.config.columns = SHARED_COLUMNS;
+                gantt.config.grid_elastic_columns = false;
             }
         }
 
@@ -1179,11 +1183,11 @@
             await supabaseClient.from('app_settings').upsert([
                 { key: 'published_tasks', value: JSON.stringify(taskSnap  || []) },
                 { key: 'published_locs',  value: JSON.stringify(locSnap   || []) }
-            ]);
+            ], { onConflict: 'key' });
 
             const { error } = await supabaseClient
                 .from('app_settings')
-                .upsert({ key: 'published_at', value: now });
+                .upsert({ key: 'published_at', value: now }, { onConflict: 'key' });
             btn.classList.remove('publishing');
             btn.textContent = '🔄 更新';
             if (error) {
