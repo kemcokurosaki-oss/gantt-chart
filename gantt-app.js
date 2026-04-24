@@ -1222,7 +1222,7 @@
             _updateBannerHideTimer = setTimeout(function() {
                 _updateBannerHideTimer = null;
                 hideBanner();
-            }, 3000);
+            }, 5000);
         }
 
         function hideBanner() {
@@ -1231,7 +1231,12 @@
                 _updateBannerHideTimer = null;
             }
             const banner = document.getElementById('update-banner');
-            if (banner) banner.style.display = 'none';
+            if (!banner || banner.style.display === 'none') return;
+            banner.classList.add('hiding');
+            setTimeout(function() {
+                banner.style.display = 'none';
+                banner.classList.remove('hiding');
+            }, 400);
         }
 
         // Realtime：app_settings の変更をリアルタイムで受信

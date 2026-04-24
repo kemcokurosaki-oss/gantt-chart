@@ -1394,6 +1394,13 @@
             from { transform: translateY(-100%); }
             to   { transform: translateY(0); }
         }
+        @keyframes bannerSlideUp {
+            from { transform: translateY(0); }
+            to   { transform: translateY(-100%); }
+        }
+        #update-banner.hiding {
+            animation: bannerSlideUp 0.4s ease forwards;
+        }
         #sync-change-banner {
             position: fixed;
             top: 0; left: 0; right: 0;
