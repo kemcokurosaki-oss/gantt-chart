@@ -1417,6 +1417,9 @@
             box-shadow: 0 2px 8px rgba(0,0,0,0.25);
             animation: bannerSlideDown 0.3s ease;
         }
+        #sync-change-banner.hiding {
+            animation: bannerSlideUp 0.4s ease forwards;
+        }
         #sync-change-banner-msgs { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; }
         #sync-change-banner-close {
             background: none;

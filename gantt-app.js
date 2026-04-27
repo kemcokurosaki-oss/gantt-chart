@@ -453,6 +453,38 @@
             return PARENTS_ASSEMBLY_THROUGH_SHIPPING.has(p);
         }
 
+        // 組立工程表由来の行かどうかを判定（Realtime payload 用）
+        function isAssemblyTaskRow(row) {
+            if (!row) return false;
+            if (isAssemblyThroughShippingParent(row.parent)) return true;
+            const parent = String(row.parent != null ? row.parent : "").trim();
+            return parent === "タスクリスト作成" || parent === "出荷準備";
+        }
+
+        // この画面で発生した tasks 更新を一時識別し、Realtime通知を抑制
+        let _suppressAssemblyBannerUntil = 0;
+        function markLocalTaskMutation() {
+            _suppressAssemblyBannerUntil = Date.now() + 4000;
+        }
+        (function patchSupabaseTasksMutationForBannerSuppression() {
+            if (!supabaseClient || supabaseClient._overallTasksPatchApplied) return;
+            const originalFrom = supabaseClient.from.bind(supabaseClient);
+            supabaseClient.from = function(table) {
+                const builder = originalFrom(table);
+                if (table !== 'tasks' || !builder) return builder;
+                ['insert', 'update', 'delete', 'upsert'].forEach(function(method) {
+                    const originalMethod = builder[method];
+                    if (typeof originalMethod !== 'function') return;
+                    builder[method] = function() {
+                        markLocalTaskMutation();
+                        return originalMethod.apply(this, arguments);
+                    };
+                });
+                return builder;
+            };
+            supabaseClient._overallTasksPatchApplied = true;
+        })();
+
         /**
          * task_locations を差し替え、tasks.area_group / area_number を整合（伝播なし）。
          * @param {string} tid
@@ -1165,6 +1197,7 @@
         let _knownPublishedAt = null;   // 閲覧者が最後に読み込んだ公開日時
         let _pollTimer = null;
         let _updateBannerHideTimer = null;
+        let _syncBannerHideTimer = null;
 
         // app_settings から published_at を取得
         async function getPublishedAt() {
@@ -1250,6 +1283,7 @@
 
         // Realtime：app_settings の変更をリアルタイムで受信
         let _realtimeChannel = null;
+        let _assemblyTaskChannel = null;
 
         function startPolling() {
             stopPolling();
@@ -1303,6 +1337,34 @@
             }
         }
 
+        // 編集者向け：組立工程表のタスク変更をRealtime受信して通知
+        function startAssemblyTaskWatch() {
+            stopAssemblyTaskWatch();
+            _assemblyTaskChannel = supabaseClient
+                .channel('assembly_tasks_changes')
+                .on('postgres_changes', {
+                    event: '*',
+                    schema: 'public',
+                    table: 'tasks'
+                }, function(payload) {
+                    if (!_isEditor) return;
+                    if (Date.now() < _suppressAssemblyBannerUntil) return;
+                    const rowNew = payload.new || null;
+                    const rowOld = payload.old || null;
+                    const isTarget = isAssemblyTaskRow(rowNew) || isAssemblyTaskRow(rowOld);
+                    if (!isTarget) return;
+                    showSyncChangeBanner('組立工程表', payload.eventType);
+                })
+                .subscribe();
+        }
+
+        function stopAssemblyTaskWatch() {
+            if (_assemblyTaskChannel) {
+                supabaseClient.removeChannel(_assemblyTaskChannel);
+                _assemblyTaskChannel = null;
+            }
+        }
+
         // 別タブ/別ブラウザから復帰した際に、カレンダーヘッダー文字が消える現象を防ぐ
         // 検知条件に頼らず、復帰後に必ずスケールを再構築する。
         // setLevel の2連呼び出しは同期処理のため画面フラッシュは発生しない。
@@ -1352,7 +1414,9 @@
             if (isEditor) {
                 stopPolling();
                 hideBanner();
+                startAssemblyTaskWatch();
             } else {
+                stopAssemblyTaskWatch();
                 startPolling();
             }
         };
@@ -1476,7 +1540,7 @@
                 // 更新後に再描画
                 await fetchTasks();
                 // 編集者にバナー通知
-                showSyncChangeBanner('設計工程表', syncCount);
+                showSyncChangeBanner('設計工程表', 'UPDATE');
             } catch (e) {
                 console.warn('出図タスク日付同期エラー:', e);
             }
@@ -1484,28 +1548,62 @@
         // ===== 設計工程表との出図日付同期 ここまで =====
 
         // ===== 同期変更バナー（編集者向け） =====
-        const _syncBannerMessages = new Map(); // source → count
+        const _syncBannerMessages = new Map(); // source → actionLabel
 
-        function showSyncChangeBanner(source, count) {
+        function toActionLabel(eventType) {
+            const t = String(eventType || '').toUpperCase();
+            if (t === 'INSERT') return '追加';
+            if (t === 'DELETE') return '削除';
+            // UPDATE / 未指定 は「編集」に寄せる
+            return '編集';
+        }
+
+        function showSyncChangeBanner(source, eventType) {
             if (!_isEditor) return;
-            _syncBannerMessages.set(source, count);
+            _syncBannerMessages.set(source, toActionLabel(eventType));
             _renderSyncChangeBanner();
         }
 
         function _renderSyncChangeBanner() {
             const banner = document.getElementById('sync-change-banner');
             const msgs   = document.getElementById('sync-change-banner-msgs');
+            if (_syncBannerHideTimer) {
+                clearTimeout(_syncBannerHideTimer);
+                _syncBannerHideTimer = null;
+            }
+            banner.classList.remove('hiding');
             msgs.innerHTML = Array.from(_syncBannerMessages.entries())
-                .map(([src, cnt]) => `<span>🔄 ${src}との同期で ${cnt}件 の日付が更新されました</span>`)
+                .map(([src, action]) => `<span>🔄 ${src}でタスクが${action}されました</span>`)
                 .join('<span style="opacity:0.5;">｜</span>');
             banner.style.display = 'flex';
+            _syncBannerHideTimer = setTimeout(function() {
+                _syncBannerHideTimer = null;
+                const target = document.getElementById('sync-change-banner');
+                if (!target || target.style.display === 'none') return;
+                target.classList.add('hiding');
+                setTimeout(function() {
+                    target.style.display = 'none';
+                    target.classList.remove('hiding');
+                    document.getElementById('sync-change-banner-msgs').innerHTML = '';
+                    _syncBannerMessages.clear();
+                }, 400);
+            }, 5000);
         }
 
         function closeSyncChangeBanner() {
+            if (_syncBannerHideTimer) {
+                clearTimeout(_syncBannerHideTimer);
+                _syncBannerHideTimer = null;
+            }
             _syncBannerMessages.clear();
             document.getElementById('sync-change-banner').style.display = 'none';
+            document.getElementById('sync-change-banner').classList.remove('hiding');
             document.getElementById('sync-change-banner-msgs').innerHTML = '';
         }
+        window.showSyncChangeBannerForTest = function(source, eventType) {
+            _syncBannerMessages.set(source || '組立工程表', toActionLabel(eventType || 'UPDATE'));
+            _renderSyncChangeBanner();
+        };
         // ===== 同期変更バナー ここまで =====
 
         // ===== 更新履歴モーダル =====
@@ -1612,6 +1710,10 @@
             // 初回の published_at を記録してポーリング開始（閲覧者のみ）
             getPublishedAt().then(function(val) {
                 _knownPublishedAt = val;
-                if (!_isEditor) startPolling();
+                if (_isEditor) {
+                    startAssemblyTaskWatch();
+                } else {
+                    startPolling();
+                }
             });
         });
