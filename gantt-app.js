@@ -553,6 +553,8 @@
             return !parent && major === "組立";
         }
 
+        window.isAssemblyTaskRowForChangeLog = isAssemblyTaskRow;
+
         function rememberAssemblyTaskSnapshot(row) {
             if (!row || row.id == null) return;
             if (!isAssemblyTaskRow(row)) return;
@@ -1885,7 +1887,7 @@
                     <td style="padding:6px 10px;border-bottom:1px solid #eee;white-space:nowrap;">${row.machine || ''}</td>
                     <td style="padding:6px 10px;border-bottom:1px solid #eee;white-space:nowrap;">${row.unit || ''}</td>
                     <td style="padding:6px 10px;border-bottom:1px solid #eee;${cellWrap}">${row.task_text || ''}</td>
-                    <td style="padding:6px 10px;border-bottom:1px solid #eee;color:#1565c0;${cellWrap}">${row.description || ''}</td>
+                    <td style="padding:6px 10px;border-bottom:1px solid #eee;color:#000;${cellWrap}">${row.description || ''}</td>
                     <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:left;vertical-align:top;">${sourceCell}</td>
                 </tr>`;
             });

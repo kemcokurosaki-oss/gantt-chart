@@ -354,20 +354,48 @@
             if (item.$virtual) return; // 仮想的な見出し行は削除対象外
 
             const realId = item.original_id || id;
-            const { error } = await supabaseClient
-                .from('tasks')
-                .delete()
-                .eq('id', realId);
+            const { error: rpcErr } = await supabaseClient.rpc('delete_task_with_change_log_source', {
+                p_task_id: String(realId),
+                p_source: '全体工程表'
+            });
+
+            let error = rpcErr;
+            if (rpcErr) {
+                console.error('Delete RPC error:', rpcErr);
+                const { error: delErr } = await supabaseClient
+                    .from('tasks')
+                    .delete()
+                    .eq('id', realId);
+                error = delErr;
+            }
 
             if (error) {
                 console.error("Delete error:", error);
-                alert("削除に失敗しました。");
+                alert("削除に失敗しました。" + (rpcErr ? " change_log_task_delete_trigger.sql（RPC 含む）を Supabase で実行済みか確認してください。" : ""));
             } else {
-                // 変更履歴を記録
-                if (typeof window.logChange === 'function') {
-                    window.logChange(item.project_number || '', item.machine || '', item.unit || '', item.text || '', 'タスクを削除しました');
+                /* RPC 成功時は change_log は DB トリガーのみ（gantt の item で組立判定がズレると logChange と二重になるため） */
+                if (rpcErr && typeof window.logChange === 'function') {
+                    const trigAssembly = typeof window.isAssemblyTaskRowForChangeLog === 'function'
+                        && window.isAssemblyTaskRowForChangeLog(item);
+                    if (!trigAssembly) {
+                        await window.logChange(
+                            item.project_number || '',
+                            item.machine || '',
+                            item.unit || '',
+                            item.text || '',
+                            'タスクを削除しました'
+                        );
+                    } else {
+                        await window.logChange(
+                            item.project_number || '',
+                            item.machine || '',
+                            item.unit || '',
+                            item.text || '',
+                            'タスクを削除しました',
+                            '全体工程表'
+                        );
+                    }
                 }
-                // 成功したらデータを再取得して allTasks と画面を更新
                 await fetchTasks();
             }
         });
