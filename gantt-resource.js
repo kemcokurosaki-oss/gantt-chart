@@ -762,9 +762,9 @@
             container.querySelectorAll(".resource-cell-bar[data-task-id]").forEach(function(bar) {
                 bar.addEventListener("contextmenu", function(e) {
                     if (gantt.config.readonly) return;
-                    if (bar.classList.contains("resource-loc-bar-merged")) return;
                     const field = resolveResourceBarInlineField();
                     if (!field) return;
+                    // 合体バーでも組立場所モードでは field=area_number のため、場所のインライン編集を開く
                     const tid = bar.getAttribute("data-task-id");
                     if (!tid) return;
                     let task;
