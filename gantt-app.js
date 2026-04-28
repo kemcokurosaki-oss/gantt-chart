@@ -157,6 +157,7 @@
             });
 
             window.allTasks = rawTasks;
+            refreshAssemblyLogSnapshotsFromAllTasks();
 
             const parentOrder = PHASE_PARENT_ORDER;
             const tasksWithHierarchy = [];
@@ -453,12 +454,122 @@
             return PARENTS_ASSEMBLY_THROUGH_SHIPPING.has(p);
         }
 
+        /** キャッシュから parent を補完しても「組立系」判定を壊さない見出しのみ */
+        function isSafeAssemblyParentName(name) {
+            const p = String(name != null ? name : "").trim();
+            if (!p) return false;
+            if (isAssemblyThroughShippingParent(p)) return true;
+            return p === "タスクリスト作成" || p === "出荷準備";
+        }
+
+        /** DBの parent または fetchTasks 後の parent_name（Realtime とキャッシュで混在し得る） */
+        function taskRowParent(row) {
+            if (!row) return "";
+            const p = row.parent != null ? row.parent : row.parent_name;
+            return String(p != null ? p : "").trim();
+        }
+
+        /** DELETE 受信時に allTasks から既に消えている場合のログ補完用（組立系タスクのみ） */
+        let _assemblyLogSnapshotById = new Map();
+
+        /**
+         * Realtime の DELETE では old に主キー以外が載らないことが多い（REPLICA IDENTITY DEFAULT）。
+         * また major_item だけ載り parent / 工番などが欠けることもある。その場合でも isAssemblyTaskRow が
+         * true になり得るため、「判定が通ったら return」するとキャッシュ補完がスキップされ空行になる。
+         * 工番・機械・タスク名は allTasks / gantt から埋める。
+         * parent は「組立系見出し」のときだけ補完する（受注などに上書きすると isAssemblyTaskRow が false になり履歴が消える）。
+         */
+        function enrichAssemblyRealtimePayload(payload) {
+            const ev = String(payload.eventType || "").toUpperCase();
+            if (ev !== "DELETE" || !payload.old) return payload;
+            const id = payload.old.id;
+            if (id == null) return payload;
+
+            const old = Object.assign({}, payload.old);
+
+            function takeIfEmpty(key, val) {
+                const cur = old[key];
+                if (cur != null && String(cur).trim() !== "") return;
+                if (val != null && String(val).trim() !== "") old[key] = val;
+            }
+
+            function takeParentIfSafe(val) {
+                if (taskRowParent(old)) return;
+                const p = String(val != null ? val : "").trim();
+                if (!isSafeAssemblyParentName(p)) return;
+                old.parent = p;
+            }
+
+            const cached = Array.isArray(window.allTasks)
+                ? window.allTasks.find(function (t) {
+                    return String(t.id) === String(id);
+                })
+                : null;
+            if (cached) {
+                takeParentIfSafe(cached.parent_name);
+                takeIfEmpty("major_item", cached.major_item);
+                takeIfEmpty("text", cached.text);
+                takeIfEmpty("project_number", cached.project_number);
+                takeIfEmpty("machine", cached.machine);
+                takeIfEmpty("unit", cached.unit);
+            }
+
+            try {
+                if (typeof gantt !== "undefined" && gantt.getTask) {
+                    const gt = gantt.getTask(id);
+                    if (gt && !gt.$virtual) {
+                        takeParentIfSafe(gt.parent_name || gt.parent);
+                        takeIfEmpty("major_item", gt.major_item);
+                        takeIfEmpty("text", gt.text);
+                        takeIfEmpty("project_number", gt.project_number);
+                        takeIfEmpty("machine", gt.machine);
+                        takeIfEmpty("unit", gt.unit);
+                    }
+                }
+            } catch (_e) {
+                /* gantt に該当タスクが無い場合は無視 */
+            }
+
+            const snap = _assemblyLogSnapshotById.get(String(id));
+            if (snap) {
+                takeIfEmpty("project_number", snap.project_number);
+                takeIfEmpty("machine", snap.machine);
+                takeIfEmpty("unit", snap.unit);
+                takeIfEmpty("text", snap.text);
+            }
+
+            return Object.assign({}, payload, { old: old });
+        }
+
         // 組立工程表由来の行かどうかを判定（Realtime payload 用）
         function isAssemblyTaskRow(row) {
             if (!row) return false;
-            if (isAssemblyThroughShippingParent(row.parent)) return true;
-            const parent = String(row.parent != null ? row.parent : "").trim();
-            return parent === "タスクリスト作成" || parent === "出荷準備";
+            const parent = taskRowParent(row);
+            if (isAssemblyThroughShippingParent(parent)) return true;
+            if (parent === "タスクリスト作成" || parent === "出荷準備") return true;
+            // 組立工程表から新規追加された直後は parent が空で届くケースがあるため、
+            // parent 空 かつ 部署=組立 の行は組立工程表由来として扱う。
+            const major = String(row.major_item != null ? row.major_item : "").trim();
+            return !parent && major === "組立";
+        }
+
+        function rememberAssemblyTaskSnapshot(row) {
+            if (!row || row.id == null) return;
+            if (!isAssemblyTaskRow(row)) return;
+            _assemblyLogSnapshotById.set(String(row.id), {
+                project_number: String(row.project_number != null ? row.project_number : "").trim(),
+                machine: String(row.machine != null ? row.machine : "").trim(),
+                unit: String(row.unit != null ? row.unit : "").trim(),
+                text: String(row.text != null ? row.text : "").trim()
+            });
+        }
+
+        function refreshAssemblyLogSnapshotsFromAllTasks() {
+            if (!Array.isArray(window.allTasks)) return;
+            window.allTasks.forEach(function (t) {
+                if (!t || t.id == null) return;
+                rememberAssemblyTaskSnapshot(t);
+            });
         }
 
         // この画面で発生した tasks 更新を一時識別し、Realtime通知を抑制
@@ -1365,6 +1476,7 @@
         // 組立工程表（別画面）からの tasks 変更を更新履歴に残す（ローカル編集は _suppressAssemblyBannerUntil で除外）
         async function logAssemblyRealtimeChange(payload) {
             if (!_isEditor) return;
+            payload = enrichAssemblyRealtimePayload(payload);
             const ev = String(payload.eventType || '').toUpperCase();
             const rowNew = payload.new || null;
             const rowOld = payload.old || null;
@@ -1382,6 +1494,11 @@
                     task_text: (row.text || '').toString(),
                     description
                 });
+                if (ev === "DELETE") {
+                    _assemblyLogSnapshotById.delete(String(row.id));
+                } else {
+                    rememberAssemblyTaskSnapshot(row);
+                }
             } catch (e) {
                 console.warn('組立工程表の変更履歴保存エラー:', e);
             }
@@ -1399,12 +1516,16 @@
                 }, function(payload) {
                     if (!_isEditor) return;
                     if (Date.now() < _suppressAssemblyBannerUntil) return;
-                    const rowNew = payload.new || null;
-                    const rowOld = payload.old || null;
-                    const isTarget = isAssemblyTaskRow(rowNew) || isAssemblyTaskRow(rowOld);
+                    const rawOld = payload.old || null;
+                    const p = enrichAssemblyRealtimePayload(payload);
+                    const rowNew = p.new || null;
+                    const rowOld = p.old || null;
+                    const ev = String(payload.eventType || "").toUpperCase();
+                    const isTarget = isAssemblyTaskRow(rowNew) || isAssemblyTaskRow(rowOld)
+                        || (ev === "DELETE" && rawOld && isAssemblyTaskRow(rawOld));
                     if (!isTarget) return;
-                    showSyncChangeBanner('組立工程表', payload.eventType);
-                    void logAssemblyRealtimeChange(payload);
+                    showSyncChangeBanner('組立工程表', p.eventType);
+                    void logAssemblyRealtimeChange(p);
                 })
                 .subscribe();
         }
