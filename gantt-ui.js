@@ -339,7 +339,7 @@
                         return;
                     }
                     if (oldKey !== newKey && typeof window.logChange === "function") {
-                        window.logChange(task.project_number || "", task.machine || "", task.unit || "", task.text || "", "場所を変更しました");
+                        window.logChange(task.project_number || "", task.machine || "", task.unit || "", task.text || "", "場所を変更");
                     }
                     closeIE();
                     await fetchTasks();
@@ -373,7 +373,7 @@
                         }).eq('id', realId);
                         // 変更履歴を記録
                         if (typeof window.logChange === 'function') {
-                            window.logChange(task.project_number || '', task.machine || '', task.unit || '', task.text || '', '終了日を変更しました');
+                            window.logChange(task.project_number || '', task.machine || '', task.unit || '', task.text || '', '終了日を変更');
                         }
                         closeIE();
                         await fetchTasks();

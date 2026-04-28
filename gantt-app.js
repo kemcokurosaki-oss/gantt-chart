@@ -471,6 +471,7 @@
 
         /** DELETE 受信時に allTasks から既に消えている場合のログ補完用（組立系タスクのみ） */
         let _assemblyLogSnapshotById = new Map();
+        let _assemblyRecentLogByTaskId = new Map();
 
         /**
          * Realtime の DELETE では old に主キー以外が載らないことが多い（REPLICA IDENTITY DEFAULT）。
@@ -562,8 +563,130 @@
                 project_number: String(row.project_number != null ? row.project_number : "").trim(),
                 machine: String(row.machine != null ? row.machine : "").trim(),
                 unit: String(row.unit != null ? row.unit : "").trim(),
-                text: String(row.text != null ? row.text : "").trim()
+                text: String(row.text != null ? row.text : "").trim(),
+                start_date: String(row.start_date != null ? row.start_date : "").trim(),
+                end_date: String(row.end_date != null ? row.end_date : "").trim(),
+                duration: row.duration != null ? Number(row.duration) : null,
+                owner: String(row.owner != null ? row.owner : "").trim(),
+                main_owner: String(row.main_owner != null ? row.main_owner : "").trim()
             });
+        }
+
+        function _toDateYmd(v) {
+            if (v == null || v === '') return '';
+            if (v instanceof Date) return dateToDb(v);
+            const s = String(v).trim();
+            return s.length >= 10 ? s.substring(0, 10) : s;
+        }
+
+        function _rowDurationNum(row) {
+            if (!row || row.duration == null || row.duration === '') return null;
+            const n = Number(row.duration);
+            return Number.isFinite(n) ? n : null;
+        }
+
+        function buildAssemblyChangeDescription(ev, rowNew, rowOld) {
+            if (ev === 'INSERT') return 'タスクを追加しました';
+            if (ev !== 'UPDATE') return '変更が反映されました';
+            if (!rowNew || rowNew.id == null) return '変更が反映されました';
+
+            const snap = _assemblyLogSnapshotById.get(String(rowNew.id)) || null;
+            const oldRow = rowOld || {};
+            const changes = [];
+            const normalizeLoose = function(v) {
+                if (v == null) return '';
+                return String(v).replace(/[ \t\u3000]+/g, ' ').trim();
+            };
+            const normalizeOwners = function(v) {
+                const s = normalizeLoose(v);
+                if (!s) return '';
+                return s.replace(/，/g, ',')
+                    .split(',')
+                    .map(function(x) { return normalizeLoose(x); })
+                    .filter(Boolean)
+                    .sort()
+                    .join(',');
+            };
+
+            function pickOldString(key) {
+                const a = oldRow[key];
+                if (a != null && String(a).trim() !== '') return normalizeLoose(a);
+                const b = snap ? snap[key] : null;
+                if (b != null && String(b).trim() !== '') return normalizeLoose(b);
+                return '';
+            }
+            function pickNewString(key) {
+                const v = rowNew[key];
+                if (v == null) return '';
+                return normalizeLoose(v);
+            }
+
+            const oldText = pickOldString('text');
+            const newText = pickNewString('text');
+            if (oldText !== '' && newText !== '' && oldText !== newText) changes.push('タスク名を変更しました');
+
+            const oldStart = _toDateYmd(oldRow.start_date || (snap ? snap.start_date : ''));
+            const newStart = _toDateYmd(rowNew.start_date);
+            const oldEnd = _toDateYmd(oldRow.end_date || (snap ? snap.end_date : ''));
+            const newEnd = _toDateYmd(rowNew.end_date);
+            const oldDur = _rowDurationNum(oldRow) != null ? _rowDurationNum(oldRow) : _rowDurationNum(snap);
+            const newDur = _rowDurationNum(rowNew);
+            const startChanged = oldStart !== '' && newStart !== '' ? oldStart !== newStart : false;
+            const durChanged = oldDur != null && newDur != null ? oldDur !== newDur : false;
+            const endDateChanged = oldEnd !== '' && newEnd !== '' ? oldEnd !== newEnd : false;
+            const endChanged = durChanged || endDateChanged;
+            // 組立工程表のRealtime更新では、開始日変更時に duration/end_date も同時更新されることがあるため、
+            // 表示は「どちらを直接操作したか」を優先して単一項目に寄せる。
+            if (startChanged) changes.push('開始日を変更しました');
+            else if (endChanged) changes.push('終了日を変更しました');
+
+            const oldOwner = normalizeOwners(pickOldString('owner'));
+            const newOwner = normalizeOwners(pickNewString('owner'));
+            const oldMainOwner = normalizeLoose(pickOldString('main_owner'));
+            const newMainOwner = normalizeLoose(pickNewString('main_owner'));
+            const ownerChanged = oldOwner !== '' && newOwner !== '' ? oldOwner !== newOwner : false;
+            const mainOwnerChanged = oldMainOwner !== '' && newMainOwner !== '' ? oldMainOwner !== newMainOwner : false;
+            if (ownerChanged || mainOwnerChanged) changes.push('担当を変更しました');
+            const oldMachine = pickOldString('machine');
+            const newMachine = pickNewString('machine');
+            if (oldMachine !== '' && newMachine !== '' && oldMachine !== newMachine) changes.push('機械を変更しました');
+            const oldUnit = pickOldString('unit');
+            const newUnit = pickNewString('unit');
+            if (oldUnit !== '' && newUnit !== '' && oldUnit !== newUnit) changes.push('ユニットを変更しました');
+
+            if (changes.length > 0) return changes.join('・');
+            const hasStartHints =
+                rowNew.start_date != null || oldRow.start_date != null || (snap && snap.start_date != null);
+            const hasEndHints =
+                rowNew.end_date != null || rowNew.duration != null ||
+                oldRow.end_date != null || oldRow.duration != null ||
+                (snap && (snap.end_date != null || snap.duration != null));
+            if (hasStartHints) return '開始日を変更しました';
+            if (hasEndHints) return '終了日を変更しました';
+            return '変更が反映されました';
+        }
+
+        function shouldSkipAssemblyRealtimeLog(row, description) {
+            if (!row || row.id == null) return false;
+            const taskId = String(row.id);
+            const now = Date.now();
+            const prev = _assemblyRecentLogByTaskId.get(taskId);
+            const DUP_MS = 3000;
+            if (!prev || (now - prev.at) > DUP_MS) {
+                _assemblyRecentLogByTaskId.set(taskId, { at: now, description: description || '' });
+                return false;
+            }
+            const prevDesc = String(prev.description || '');
+            const curDesc = String(description || '');
+            const generic = '変更が反映されました';
+            const isSame = prevDesc === curDesc;
+            const isGenericPair = (prevDesc === generic || curDesc === generic);
+            if (isSame || isGenericPair) {
+                _assemblyRecentLogByTaskId.set(taskId, { at: now, description: curDesc });
+                return true;
+            }
+            _assemblyRecentLogByTaskId.set(taskId, { at: now, description: curDesc });
+            return false;
         }
 
         function refreshAssemblyLogSnapshotsFromAllTasks() {
@@ -772,7 +895,7 @@
                         const task = gantt.getTask(id);
                         if (task && typeof window.logChange === 'function') {
                             window.logChange(task.project_number, task.machine, task.unit, task.text,
-                                checked ? '完了済みにしました' : '未完了に戻しました');
+                                checked ? '完了に変更' : '未完了に変更');
                         }
                     } catch(e) {}
                 });
@@ -1488,10 +1611,14 @@
                OLD 行の内容で挿入する。Realtime の薄い payload では空欄になりやすいため。 */
             if (ev === "DELETE") {
                 if (row.id != null) _assemblyLogSnapshotById.delete(String(row.id));
+                if (row.id != null) _assemblyRecentLogByTaskId.delete(String(row.id));
                 return;
             }
-            let description = '変更が反映されました';
-            if (ev === 'INSERT') description = 'タスクを追加しました';
+            const description = buildAssemblyChangeDescription(ev, rowNew, rowOld);
+            if (shouldSkipAssemblyRealtimeLog(row, description)) {
+                rememberAssemblyTaskSnapshot(row);
+                return;
+            }
             try {
                 await supabaseClient.from('change_log').insert({
                     source: '組立工程表',
@@ -1708,7 +1835,7 @@
                     machine:        u.machine,
                     unit:           u.unit,
                     task_text:      '出図',
-                    description:    '開始日・終了日を変更しました'
+                    description:    '開始日・終了日を変更'
                 }));
                 await supabaseClient.from('change_log').insert(logRows);
 

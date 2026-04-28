@@ -796,9 +796,9 @@
                             if (error) throw error;
                             if (typeof window.logChange === "function") {
                                 const parts = [];
-                                if (startDb0 !== startDb1 && Number(dur0) !== Number(dur1)) parts.push("開始日・終了日を変更しました");
-                                else if (startDb0 !== startDb1) parts.push("開始日を変更しました");
-                                else if (Number(dur0) !== Number(dur1)) parts.push("終了日を変更しました");
+                                if (startDb0 !== startDb1 && Number(dur0) !== Number(dur1)) parts.push("開始日・終了日を変更");
+                                else if (startDb0 !== startDb1) parts.push("開始日を変更");
+                                else if (Number(dur0) !== Number(dur1)) parts.push("終了日を変更");
                                 if (parts.length) {
                                     window.logChange(task.project_number || "", task.machine || "", task.unit || "", task.text || "", parts.join("・"));
                                 }

@@ -247,9 +247,9 @@
             const changes = [];
             const startChanged = _dragOldState.start_date !== newStartDb;
             const durChanged   = Number(_dragOldState.duration) !== Number(task.duration);
-            if (startChanged && durChanged) changes.push('開始日・終了日を変更しました');
-            else if (startChanged) changes.push('開始日を変更しました');
-            else if (durChanged)   changes.push('終了日を変更しました');
+            if (startChanged && durChanged) changes.push('開始日・終了日を変更');
+            else if (startChanged) changes.push('開始日を変更');
+            else if (durChanged)   changes.push('終了日を変更');
             _dragOldState = null;
             if (changes.length > 0 && typeof window.logChange === 'function') {
                 window.logChange(task.project_number || '', task.machine || '', task.unit || '', task.text || '', changes.join('・'));
@@ -309,15 +309,24 @@
                     ? dateToDb(oldTask.start_date)
                     : (oldTask.start_date || '').substring(0, 10);
                 const changes = [];
-                if ((oldTask.text || '') !== (item.text || '')) changes.push('タスク名を変更しました');
+                if ((oldTask.text || '') !== (item.text || '')) changes.push('タスク名を変更');
                 const startChanged = oldStartDb !== newStartDb;
                 const durChanged = Number(oldTask.duration) !== Number(item.duration);
-                if (startChanged && durChanged) changes.push('開始日・終了日を変更しました');
-                else if (startChanged) changes.push('開始日を変更しました');
-                else if (durChanged) changes.push('終了日を変更しました');
-                if ((oldTask.owner || '') !== (item.owner || '')) changes.push('担当者を変更しました');
-                if ((oldTask.machine || '') !== (item.machine || '')) changes.push('機械を変更しました');
-                if ((oldTask.unit || '') !== (item.unit || '')) changes.push('ユニットを変更しました');
+                if (startChanged && durChanged) changes.push('開始日・終了日を変更');
+                else if (startChanged) changes.push('開始日を変更');
+                else if (durChanged) changes.push('終了日を変更');
+                const ownerStrChanged = (oldTask.owner || '') !== (item.owner || '');
+                const mainOwnerChanged = String(oldTask.main_owner || '').trim() !== String(item.main_owner || '').trim();
+                if (ownerStrChanged || mainOwnerChanged) changes.push('担当を変更');
+                if ((oldTask.machine || '') !== (item.machine || '')) changes.push('機械を変更');
+                if ((oldTask.unit || '') !== (item.unit || '')) changes.push('ユニットを変更');
+                if (String(oldTask.major_item || '') !== String(item.major_item || '')) changes.push('部署を変更');
+                if (String(oldTask.parent_name || oldTask.parent || '') !== String(item.parent_name || '')) changes.push('見出しを変更');
+                const oldAg = String(oldTask.area_group || '').trim();
+                const oldAn = String(oldTask.area_number || '').trim();
+                const newAg = String(item.area_group || '').trim();
+                const newAn = String(item.area_number || '').trim();
+                if (oldAg !== newAg || oldAn !== newAn) changes.push('場所を変更');
                 if (changes.length > 0) {
                     window.logChange(item.project_number, item.machine, item.unit, item.text, changes.join('・'));
                 }
