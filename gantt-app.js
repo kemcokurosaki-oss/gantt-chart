@@ -1134,14 +1134,14 @@
             }
 
             // 工事番号からテンプレートテーブルを決定
-            // 3T・4T始まり → task_template_b、3000・4000番台 → task_template_a、D番 → task_template_b、それ以外(2000番台) → task_template
+            // 3T・4T始まり → task_template_b、3000・4000番台・D番 → task_template_a、それ以外(2000番台) → task_template
             let templateTable;
             if (/^[34]T/i.test(projectNumber)) {
                 templateTable = 'task_template_b';
             } else if (/^[34]/i.test(projectNumber)) {
                 templateTable = 'task_template_a';
             } else if (/^D/i.test(projectNumber)) {
-                templateTable = 'task_template_b';
+                templateTable = 'task_template_a';
             } else {
                 templateTable = 'task_template';
             }
