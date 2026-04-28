@@ -22,6 +22,50 @@
             if (legend) legend.style.marginLeft = (actualWidth - 80) + 'px';
         })();
 
+        /** 上段ガントの gantt.templates.timeline_cell_class と同じ月末判定 */
+        function resourceTimelineIsMonthEndDate(date) {
+            const nextDay = new Date(date);
+            nextDay.setDate(nextDay.getDate() + 1);
+            return nextDay.getDate() === 1;
+        }
+
+        /**
+         * 上段ガント（.zoom-days .gantt_task_cell）と同一の罫線:
+         * 縦 1px #ebebeb、月末セル右 1.5px #999、横 1px #ebebeb（27px 行）。
+         * 週表示は従来どおり両軸 repeating-linear-gradient のみ。
+         */
+        function buildResourceTimelineGridLayers(scale, columnWidth, firstPos) {
+            const zoom = (gantt.ext && gantt.ext.zoom && typeof gantt.ext.zoom.getCurrentLevel === "function")
+                ? (gantt.ext.zoom.getCurrentLevel() || "days")
+                : "days";
+            const fullGrid =
+                "background-image: " +
+                `repeating-linear-gradient(to right, transparent, transparent ${columnWidth - 1}px, #ebebeb ${columnWidth - 1}px, #ebebeb ${columnWidth}px), ` +
+                `repeating-linear-gradient(to bottom, transparent, transparent 26px, #ebebeb 26px, #ebebeb 27px); ` +
+                `background-position: ${-firstPos}px 0; background-size: ${columnWidth}px 27px; height: 100%;`;
+            if (zoom !== "days" || !scale.trace_x || scale.trace_x.length === 0) {
+                return { backgroundStyle: fullGrid, verticalLinesHtml: "" };
+            }
+            let verticalLinesHtml = "";
+            for (let i = 1; i < scale.trace_x.length; i++) {
+                const prevDate = scale.trace_x[i - 1];
+                const monthEnd = resourceTimelineIsMonthEndDate(prevDate);
+                const w = monthEnd ? 1.5 : 1;
+                const color = monthEnd ? "#999" : "#ebebeb";
+                const left = firstPos + i * columnWidth - w;
+                verticalLinesHtml +=
+                    `<div style="position:absolute;top:0;bottom:0;left:${left}px;width:${w}px;background:${color};z-index:1;pointer-events:none;box-sizing:border-box;"></div>`;
+            }
+            const rightEdge = firstPos + scale.trace_x.length * columnWidth - 1;
+            verticalLinesHtml +=
+                `<div style="position:absolute;top:0;bottom:0;left:${rightEdge}px;width:1px;background:#ebebeb;z-index:1;pointer-events:none;box-sizing:border-box;"></div>`;
+            const backgroundStyle =
+                "background-image: " +
+                `repeating-linear-gradient(to bottom, transparent, transparent 26px, #ebebeb 26px, #ebebeb 27px); ` +
+                "background-size: 100% 27px; height: 100%;";
+            return { backgroundStyle, verticalLinesHtml };
+        }
+
         // ツリー展開・折り畳み後にカレンダーヘッダーが消える問題を修正
         function fixScaleAfterTreeToggle() {
             setTimeout(function() {
@@ -282,9 +326,6 @@
             const firstDate = scale.trace_x[0];
             const firstPos = gantt.posFromDate(firstDate);
             
-            // 背景のグリッド線（縦・横）を生成
-            const gridBackground = `repeating-linear-gradient(to right, transparent, transparent ${columnWidth - 1}px, #ebebeb ${columnWidth - 1}px, #ebebeb ${columnWidth}px), repeating-linear-gradient(to bottom, transparent, transparent 26px, #ebebeb 26px, #ebebeb 27px)`;
-            
             // 土日の背景色を個別のdivとして生成するためのHTML
             let weekendBackgroundHtml = "";
             const currentZoom = (gantt.ext.zoom.getCurrentLevel() || "days");
@@ -293,13 +334,14 @@
                     const isWeekend = date.getDay() === 0 || date.getDay() === 6;
                     const ds = date.getFullYear() + "-" + String(date.getMonth()+1).padStart(2,"0") + "-" + String(date.getDate()).padStart(2,"0");
                     if (isWeekend || holidaySet.has(ds)) {
-                        weekendBackgroundHtml += `<div style="position: absolute; top: 0; bottom: 0; left: ${i * columnWidth}px; width: ${columnWidth}px; background: #f4f4f4; z-index: 0;"></div>`;
+                        weekendBackgroundHtml += `<div style="position: absolute; top: 0; bottom: 0; left: ${firstPos + i * columnWidth}px; width: ${columnWidth}px; background: #f4f4f4; z-index: 0;"></div>`;
                     }
                 });
             }
-            
-            // background-position を調整してメイン画面のグリッド線と同期
-            const backgroundStyle = `background-image: ${gridBackground}; background-position: ${-firstPos}px 0; background-size: ${columnWidth}px 27px; height: 100%;`;
+
+            const _tlGridDept = buildResourceTimelineGridLayers(scale, columnWidth, firstPos);
+            const backgroundStyle = _tlGridDept.backgroundStyle;
+            const verticalLinesHtml = _tlGridDept.verticalLinesHtml;
 
             // 今日線は各データ行のタイムライン内のみ（ヘッダー行には置かず、メイン線の「途切れ」を作る）
             const todayPos = gantt.posFromDate(new Date());
@@ -404,6 +446,7 @@
                         <div class="resource-timeline" style="width: ${timelineWidth}px; flex-shrink: 0; position: relative; background: #fff; border-right: 1px solid #ebebeb;">
                             <div class="resource-timeline-clip">
                             <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 0;">${weekendBackgroundHtml}</div>
+                            ${verticalLinesHtml}
                             <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; ${backgroundStyle} z-index: 1;"></div>
                             <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 1;">${rowConflictBackgroundHtml}</div>
                             <div class="resource-cell-bars" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 2;">
@@ -585,10 +628,11 @@
         }
 
         function resourceEventToTimelineX(e, timelineEl) {
-            const content = document.querySelector(".resource-content");
-            if (!content || !timelineEl) return 0;
+            if (!timelineEl) return 0;
             const r = timelineEl.getBoundingClientRect();
-            return content.scrollLeft + (e.clientX - r.left);
+            // content.scrollLeft は r.left に既に反映されているため加算しない。
+            // 加算すると resize 時に座標が 2×scrollLeft ズレる（move は grabOff で相殺されるため影響なし）。
+            return e.clientX - r.left;
         }
 
         function resourceBarDayStart(d) {
@@ -613,6 +657,33 @@
             container.querySelectorAll(".resource-cell-bar[data-task-id]").forEach(function(bar) {
                 bar.classList.add("resource-bar-drag-enabled");
 
+                // カーソルを動的に更新（日単位のみ drag/resize 有効）
+                bar.addEventListener("mousemove", function(ev) {
+                    const sc = gantt.getScale();
+                    if (!sc || !sc.unit || sc.unit !== "day") {
+                        bar.style.cursor = "pointer";
+                        return;
+                    }
+                    if (bar.classList.contains("resource-loc-bar-merged")) {
+                        bar.style.cursor = "grab";
+                        return;
+                    }
+                    const tid2 = bar.getAttribute("data-task-id");
+                    let task2;
+                    try { task2 = gantt.getTask(tid2); } catch (e2) { return; }
+                    if (!task2 || task2.$virtual || task2.$design_trip) return;
+                    if (resourceBarIsMilestoneTask(task2)) {
+                        bar.style.cursor = "grab";
+                        return;
+                    }
+                    const br2 = bar.getBoundingClientRect();
+                    const lx2 = ev.clientX - br2.left;
+                    bar.style.cursor = (lx2 <= EDGE || lx2 >= br2.width - EDGE) ? "ew-resize" : "grab";
+                });
+                bar.addEventListener("mouseleave", function() {
+                    bar.style.cursor = "";
+                });
+
                 bar.addEventListener("mousedown", function(e) {
                     if (e.button !== 0) return;
                     if (gantt.config.readonly) return;
@@ -630,6 +701,10 @@
                     const timeline = bar.closest(".resource-timeline");
                     if (!timeline) return;
 
+                    // 日単位以外ではドラッグ・リサイズを無効化
+                    const sc0 = gantt.getScale();
+                    if (!sc0 || !sc0.unit || sc0.unit !== "day") return;
+
                     const isMs = resourceBarIsMilestoneTask(task);
                     const br = bar.getBoundingClientRect();
                     const lx = e.clientX - br.left;
@@ -637,10 +712,6 @@
                     if (!isMs) {
                         if (lx <= EDGE) edge = "resize-start";
                         else if (lx >= br.width - EDGE) edge = "resize-end";
-                    }
-                    const sc0 = gantt.getScale();
-                    if (edge !== "move" && sc0 && sc0.unit && sc0.unit !== "day") {
-                        edge = "move";
                     }
 
                     const startOrig = new Date(task.start_date);
@@ -937,9 +1008,6 @@
             const firstDate = scale.trace_x[0];
             const firstPos = gantt.posFromDate(firstDate);
             
-            // 背景のグリッド線（縦・横）を生成
-            const gridBackground = `repeating-linear-gradient(to right, transparent, transparent ${columnWidth - 1}px, #ebebeb ${columnWidth - 1}px, #ebebeb ${columnWidth}px), repeating-linear-gradient(to bottom, transparent, transparent 26px, #ebebeb 26px, #ebebeb 27px)`;
-            
             // 土日の背景色を個別のdivとして生成するためのHTML
             let weekendBackgroundHtml = "";
             const currentZoom = (gantt.ext.zoom.getCurrentLevel() || "days");
@@ -948,13 +1016,14 @@
                     const isWeekend = date.getDay() === 0 || date.getDay() === 6;
                     const ds = date.getFullYear() + "-" + String(date.getMonth()+1).padStart(2,"0") + "-" + String(date.getDate()).padStart(2,"0");
                     if (isWeekend || holidaySet.has(ds)) {
-                        weekendBackgroundHtml += `<div style="position: absolute; top: 0; bottom: 0; left: ${i * columnWidth}px; width: ${columnWidth}px; background: #f4f4f4; z-index: 0;"></div>`;
+                        weekendBackgroundHtml += `<div style="position: absolute; top: 0; bottom: 0; left: ${firstPos + i * columnWidth}px; width: ${columnWidth}px; background: #f4f4f4; z-index: 0;"></div>`;
                     }
                 });
             }
-            
-            // background-position を調整してメイン画面のグリッド線と同期
-            const backgroundStyle = `background-image: ${gridBackground}; background-position: ${-firstPos}px 0; background-size: ${columnWidth}px 27px; height: 100%;`;
+
+            const _tlGridLoc = buildResourceTimelineGridLayers(scale, columnWidth, firstPos);
+            const backgroundStyle = _tlGridLoc.backgroundStyle;
+            const verticalLinesHtml = _tlGridLoc.verticalLinesHtml;
 
             // 今日線は各データ行のタイムライン内のみ（ヘッダー行には置かず、メイン線の「途切れ」を作る）
             const todayPos = gantt.posFromDate(new Date());
@@ -1031,6 +1100,7 @@
                             <div class="resource-timeline" style="width: ${timelineWidth}px; flex-shrink: 0; position: relative; background: #fff; border-right: 1px solid #ebebeb; box-sizing: border-box;">
                             <div class="resource-timeline-clip">
                             <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 0;">${weekendBackgroundHtml}</div>
+                            ${verticalLinesHtml}
                             <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; ${backgroundStyle} z-index: 1;"></div>
                             <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 1;">${rowConflictBackgroundHtml}</div>
                             <div class="resource-cell-bars" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 2;">
@@ -1182,9 +1252,6 @@
             const firstDate = scale.trace_x[0];
             const firstPos = gantt.posFromDate(firstDate);
             
-            // 背景のグリッド線（縦・横）を生成
-            const gridBackground = `repeating-linear-gradient(to right, transparent, transparent ${columnWidth - 1}px, #ebebeb ${columnWidth - 1}px, #ebebeb ${columnWidth}px), repeating-linear-gradient(to bottom, transparent, transparent 26px, #ebebeb 26px, #ebebeb 27px)`;
-            
             // 土日の背景色を個別のdivとして生成するためのHTML
             let weekendBackgroundHtml = "";
             const currentZoom = (gantt.ext.zoom.getCurrentLevel() || "days");
@@ -1193,13 +1260,14 @@
                     const isWeekend = date.getDay() === 0 || date.getDay() === 6;
                     const ds = date.getFullYear() + "-" + String(date.getMonth()+1).padStart(2,"0") + "-" + String(date.getDate()).padStart(2,"0");
                     if (isWeekend || holidaySet.has(ds)) {
-                        weekendBackgroundHtml += `<div style="position: absolute; top: 0; bottom: 0; left: ${i * columnWidth}px; width: ${columnWidth}px; background: #f4f4f4; z-index: 0;"></div>`;
+                        weekendBackgroundHtml += `<div style="position: absolute; top: 0; bottom: 0; left: ${firstPos + i * columnWidth}px; width: ${columnWidth}px; background: #f4f4f4; z-index: 0;"></div>`;
                     }
                 });
             }
-            
-            // background-position を調整してメイン画面のグリッド線と同期
-            const backgroundStyle = `background-image: ${gridBackground}; background-position: ${-firstPos}px 0; background-size: ${columnWidth}px 27px; height: 100%;`;
+
+            const _tlGridOwner = buildResourceTimelineGridLayers(scale, columnWidth, firstPos);
+            const backgroundStyle = _tlGridOwner.backgroundStyle;
+            const verticalLinesHtml = _tlGridOwner.verticalLinesHtml;
 
             // 今日線は各データ行のタイムライン内のみ（ヘッダー行には置かず、メイン線の「途切れ」を作る）
             const todayPos = gantt.posFromDate(new Date());
@@ -1347,6 +1415,7 @@
                         <div class="resource-timeline" style="width: ${timelineWidth}px; flex-shrink: 0; position: relative; background: #fff; border-right: 1px solid #ebebeb; box-sizing: border-box;">
                             <div class="resource-timeline-clip">
                             <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 0;">${weekendBackgroundHtml}</div>
+                            ${verticalLinesHtml}
                             <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; ${backgroundStyle} z-index: 1;"></div>
                             <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 1;">${rowConflictBackgroundHtml}</div>
                             <div class="resource-cell-bars" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 2;">

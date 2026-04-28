@@ -210,8 +210,9 @@
         .resource-dept-view .resource-grid-container {
             background-color: #fff !important;
         }
+        /* 透明だと上段ガントの「今日」マーカーが行境界の隙間から滲むため白で塗る */
         .resource-dept-view .resource-timeline {
-            background-color: transparent !important;
+            background-color: #fff !important;
         }
         /* 下段リソース：左グリッド・右タイムラインのヘッダー（タイトル行）を完全非表示し、1行目からデータが同じ高さで始まるようにする */
         .gantt_layout_resource_row .gantt_grid_scale,
@@ -288,8 +289,44 @@
         .zoom-days .gantt_task_cell {
             border-right: 1px solid #ebebeb;
         }
-        /* リソースパネル（z-index:100）より下にし、下段では resource-today-line で途切れを表現する */
+        /* リソースパネルより下。パネル側は isolation + 高い z-index で上段のマーカーが行境界の隙間から滲まないようにする */
         .gantt_marker.today-line { background: #cc0000 !important; width: 2px !important; opacity: 0.8; z-index: 99 !important; }
+        /* 下段リソースパネル：上段ガントの今日線が行境界のサブピクセル隙間から点々と見えるのを防ぐ */
+        #resource_panel {
+            z-index: 600 !important;
+            isolation: isolate;
+            transform: translateZ(0);
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+        }
+        #resource_panel .resource-content,
+        #resource_panel .resource-content-inner {
+            background-color: #fff;
+            isolation: isolate;
+        }
+        /* 左リソースグリッド：横罫線のみ（色・太さは上段 .zoom-days .gantt_task_cell の下線と同じ 1px #ebebeb） */
+        #resource_panel .resource-item {
+            background-color: #fff !important;
+            position: relative;
+            border-bottom: 1px solid #ebebeb !important;
+        }
+        #resource_panel .resource-grid-container .resource-cell {
+            border-right: none !important;
+            box-sizing: border-box;
+            align-self: stretch;
+        }
+        #resource_panel .resource-summary-header {
+            border-bottom: 1px solid #ebebeb !important;
+        }
+        #resource_panel .resource-grid-container,
+        #resource_panel .resource-item .resource-grid-container {
+            background-color: #fff !important;
+            border-right: 1px solid #ebebeb !important;
+        }
+        #resource_panel .resource-timeline {
+            background-color: #fff !important;
+            border-right: 1px solid #ebebeb !important;
+        }
         .gantt_group_row { background-color: #dce8ef !important; font-weight: bold !important; font-size: 12.5px !important; } /* 見出し行 */
         
         /* 白の子タスク行のインデント・ツリーアイコンを非表示（水色の見出し行は除外） */
