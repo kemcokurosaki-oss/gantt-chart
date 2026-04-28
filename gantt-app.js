@@ -1482,9 +1482,14 @@
             const rowOld = payload.old || null;
             const row = rowNew || rowOld;
             if (!row) return;
+            /* DELETE の change_log は DB トリガー（change_log_task_delete_trigger.sql）が
+               OLD 行の内容で挿入する。Realtime の薄い payload では空欄になりやすいため。 */
+            if (ev === "DELETE") {
+                if (row.id != null) _assemblyLogSnapshotById.delete(String(row.id));
+                return;
+            }
             let description = '変更が反映されました';
             if (ev === 'INSERT') description = 'タスクを追加しました';
-            else if (ev === 'DELETE') description = 'タスクを削除しました';
             try {
                 await supabaseClient.from('change_log').insert({
                     source: '組立工程表',
@@ -1494,11 +1499,7 @@
                     task_text: (row.text || '').toString(),
                     description
                 });
-                if (ev === "DELETE") {
-                    _assemblyLogSnapshotById.delete(String(row.id));
-                } else {
-                    rememberAssemblyTaskSnapshot(row);
-                }
+                rememberAssemblyTaskSnapshot(row);
             } catch (e) {
                 console.warn('組立工程表の変更履歴保存エラー:', e);
             }
