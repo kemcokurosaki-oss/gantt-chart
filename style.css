@@ -35,7 +35,11 @@
         .project-group-dropdown-item { padding: 7px 12px; color: #ecf0f1; cursor: pointer; font-size: 12px; white-space: nowrap; }
         .project-group-dropdown-item:hover { background: #34495e; }
         .project-group-dropdown-item.active { background: #3498db; color: #fff; }
-        .chart-container { flex: 1; display: flex; flex-direction: column; background: #fff; position: relative; overflow: hidden; }
+        .chart-container { flex: 1; display: flex; flex-direction: column; background: #fff; position: relative; overflow: hidden; box-sizing: border-box; }
+        /* 下段リソースは position:absolute のため、開いているときだけ下に余白を確保して上段ガントの縦スクロール領域を境界までに制限する */
+        .chart-container.chart-container--resource-open {
+            padding-bottom: var(--resource-panel-reserved, 250px);
+        }
 
         /* ライトボックスの期間選択を年月日の順に並び替え */
         .gantt_section_time { display: flex !important; flex-wrap: wrap; align-items: center; gap: 5px; font-size: 11px; }

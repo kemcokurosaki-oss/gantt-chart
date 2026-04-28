@@ -159,6 +159,9 @@
             if (!currentResourceDeptFilter) {
                 // 解除時はパネルを閉じる
                 if (resourcePanel) resourcePanel.style.display = "none";
+                if (typeof window.applyResourcePanelChartLayout === "function") {
+                    window.applyResourcePanelChartLayout();
+                }
                 return;
             }
 
@@ -249,6 +252,9 @@
             });
             if (deptTasksForDept.length === 0) {
                 container.innerHTML = `<div class="resource-placeholder">【${deptName}】に該当する担当タスクはありません</div>`;
+                if (typeof window.applyResourcePanelChartLayout === "function") {
+                    requestAnimationFrame(function() { window.applyResourcePanelChartLayout(); });
+                }
                 return;
             }
 
@@ -471,6 +477,9 @@
             initResourceBarDragAndResize(container);
             initResourceBarInlineFieldMenu(container);
             syncResourceScroll();
+            if (typeof window.applyResourcePanelChartLayout === "function") {
+                requestAnimationFrame(function() { window.applyResourcePanelChartLayout(); });
+            }
         }
 
         function initResourceBarTooltip(container) {
@@ -827,6 +836,9 @@
             } else {
                 if (resourcePanel) resourcePanel.style.display = "none";
             }
+            if (typeof window.applyResourcePanelChartLayout === "function") {
+                requestAnimationFrame(function() { window.applyResourcePanelChartLayout(); });
+            }
         }
 
         // 部署別リソースのセレクト変更ハンドラ
@@ -840,6 +852,9 @@
                 if (resourcePanel) resourcePanel.style.display = "none";
                 const sel = document.getElementById('resource-dept-select');
                 if (sel) sel.value = '';
+                if (typeof window.applyResourcePanelChartLayout === "function") {
+                    window.applyResourcePanelChartLayout();
+                }
                 return;
             }
             filterByDepartment(value, null);
@@ -894,6 +909,9 @@
             
             if (error) {
                 container.innerHTML = '<div class="resource-placeholder">データの取得に失敗しました</div>';
+                if (typeof window.applyResourcePanelChartLayout === "function") {
+                    requestAnimationFrame(function() { window.applyResourcePanelChartLayout(); });
+                }
                 return;
             }
 
@@ -1079,6 +1097,9 @@
             initResourceBarDragAndResize(container);
             initResourceBarInlineFieldMenu(container);
             syncResourceScroll();
+            if (typeof window.applyResourcePanelChartLayout === "function") {
+                requestAnimationFrame(function() { window.applyResourcePanelChartLayout(); });
+            }
         }
 
         // リソース画面の描画処理
@@ -1088,6 +1109,9 @@
 
             if (!currentResourceOwnerFilter && !currentResourceDeptFilter) {
                 container.innerHTML = '<div class="resource-placeholder">担当者または部署を選択してリソース状況を表示</div>';
+                if (typeof window.applyResourcePanelChartLayout === "function") {
+                    requestAnimationFrame(function() { window.applyResourcePanelChartLayout(); });
+                }
                 return;
             }
 
@@ -1123,6 +1147,9 @@
 
             if (filteredTasks.length === 0) {
                 container.innerHTML = `<div class="resource-placeholder">該当する${currentResourceDeptFilter ? '部署' : '担当者'}のタスクはありません</div>`;
+                if (typeof window.applyResourcePanelChartLayout === "function") {
+                    requestAnimationFrame(function() { window.applyResourcePanelChartLayout(); });
+                }
                 return;
             }
 
@@ -1339,6 +1366,9 @@
             container.innerHTML = html;
             initResourceBarTooltip(container);
             syncResourceScroll();
+            if (typeof window.applyResourcePanelChartLayout === "function") {
+                requestAnimationFrame(function() { window.applyResourcePanelChartLayout(); });
+            }
         }
 
         // 2. 【スクロールの同期】（下段リソースパネル表示時のみ）

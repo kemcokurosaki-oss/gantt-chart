@@ -265,6 +265,25 @@
         const GANTT_START_DATE = new Date(2024, 10, 1);  // 2024/11/1
         const GANTT_END_DATE = new Date(2027, 11, 0);   // 2027/11/30（11月末）
         
+        /** 下段リソース表示中は .chart-container に下パディングを付け、#gantt_here の縦スクロールがパネル背面に潜らないようにする */
+        window.applyResourcePanelChartLayout = function applyResourcePanelChartLayout() {
+            const chart = document.querySelector(".chart-container");
+            const panel = document.getElementById("resource_panel");
+            if (!chart || !panel) return;
+            const visible = panel.style.display !== "none" && window.getComputedStyle(panel).display !== "none";
+            if (!visible) {
+                chart.classList.remove("chart-container--resource-open");
+                chart.style.removeProperty("--resource-panel-reserved");
+            } else {
+                chart.classList.add("chart-container--resource-open");
+                const h = panel.offsetHeight;
+                if (h > 0) chart.style.setProperty("--resource-panel-reserved", h + "px");
+            }
+            if (typeof gantt !== "undefined" && typeof gantt.setSizes === "function") {
+                try { gantt.setSizes(); } catch (err) {}
+            }
+        };
+
         // リソースパネルのリサイズ機能
         (function() {
             let isResizing = false;
@@ -277,6 +296,15 @@
                 const panel = document.getElementById('resource_panel');
 
                 if (!resizer || !panel) return;
+
+                if (typeof ResizeObserver !== "undefined") {
+                    const ro = new ResizeObserver(function() {
+                        if (typeof window.applyResourcePanelChartLayout === "function") {
+                            window.applyResourcePanelChartLayout();
+                        }
+                    });
+                    ro.observe(panel);
+                }
 
                 resizer.addEventListener('mousedown', (e) => {
                     isResizing = true;
@@ -298,12 +326,18 @@
 
                     panel.style.height = newHeight + 'px';
                     lastY = e.clientY;
+                    if (typeof window.applyResourcePanelChartLayout === "function") {
+                        window.applyResourcePanelChartLayout();
+                    }
                 });
 
                 window.addEventListener('mouseup', () => {
                     if (isResizing) {
                         isResizing = false;
                         document.body.style.cursor = 'default';
+                        if (typeof window.applyResourcePanelChartLayout === "function") {
+                            window.applyResourcePanelChartLayout();
+                        }
                     }
                 });
             });
