@@ -315,6 +315,22 @@
             box-sizing: border-box;
             align-self: stretch;
         }
+        /* 部署別（担当者名）・組立場所別（E1-0 等）・担当者検索：ラベル列の左だけ縦罫線（タイムラインと同じ 1px #ebebeb） */
+        #resource_panel .resource-grid-container .owner-name-cell,
+        #resource_panel .resource-grid-container .resource-grid-label-cell {
+            border-left: 1px solid #ebebeb !important;
+            background-color: #fff !important;
+            position: relative;
+            z-index: 3;
+            justify-content: flex-start !important;
+            font-size: 12.8px !important;
+            font-family: "メイリオ", Meiryo, sans-serif !important;
+            font-weight: normal !important;
+            color: #222;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
         #resource_panel .resource-summary-header {
             border-bottom: 1px solid #ebebeb !important;
         }

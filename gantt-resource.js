@@ -439,7 +439,7 @@
                             <div class="resource-cell" style="width: ${COLUMN_WIDTHS[6]}px; border-right: 1px solid #eee;"></div>
                             <div class="resource-cell" style="width: ${COLUMN_WIDTHS[7]}px; border-right: 1px solid #eee;"></div>
                             <div class="resource-cell" style="width: ${COLUMN_WIDTHS[8]}px; border-right: 1px solid #eee;"></div>
-                            <div class="resource-cell owner-name-cell" style="width: ${COLUMN_WIDTHS[9]}px; padding: 0 4px; display: flex; align-items: center; font-size: 12.8px; font-family: メイリオ, sans-serif; font-weight: normal; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                            <div class="resource-cell owner-name-cell" style="width: ${COLUMN_WIDTHS[9]}px; padding: 0 4px; display: flex; align-items: center; justify-content: flex-start; font-size: 12.8px; font-family: メイリオ, sans-serif; font-weight: normal; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                                 <span class="${dotColorClass}" style="margin-right: 4px; font-size: 14px; display: ${dotDisplay};">●</span>${ownerName.replace(/\d+/g, "")}
                             </div>
                         </div>
@@ -1095,7 +1095,7 @@
                                 <div class="resource-cell" style="width: ${COLUMN_WIDTHS[6]}px; border-right: 1px solid #eee;"></div>
                                 <div class="resource-cell" style="width: ${COLUMN_WIDTHS[7]}px; border-right: 1px solid #eee;"></div>
                                 <div class="resource-cell" style="width: ${COLUMN_WIDTHS[8]}px; border-right: 1px solid #eee;"></div>
-                                <div class="resource-cell" style="width: ${COLUMN_WIDTHS[9]}px; padding: 0 4px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; color: #666;">${group}-${num}</div>
+                                <div class="resource-cell resource-grid-label-cell" style="width: ${COLUMN_WIDTHS[9]}px; padding: 0 4px; display: flex; align-items: center; justify-content: flex-start; font-size: 12.8px; font-family: メイリオ, sans-serif; font-weight: normal; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${group}-${num}</div>
                             </div>
                             <div class="resource-timeline" style="width: ${timelineWidth}px; flex-shrink: 0; position: relative; background: #fff; border-right: 1px solid #ebebeb; box-sizing: border-box;">
                             <div class="resource-timeline-clip">
@@ -1406,7 +1406,7 @@
                         <div class="resource-cell" style="width: ${COLUMN_WIDTHS[3]}px; border-right: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${t.text || ""}</div>
                         <div class="resource-cell" style="width: ${COLUMN_WIDTHS[4]}px; border-right: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; justify-content: center; font-size: 14px;">${t.machine || ""}</div>
                         <div class="resource-cell" style="width: ${COLUMN_WIDTHS[5]}px; border-right: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; justify-content: center; font-size: 14px;">${t.unit || ""}</div>
-                        <div class="resource-cell" style="width: ${COLUMN_WIDTHS[6]}px; border-right: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; font-size: 13px;">${(t.owner || "").replace(/\d+/g, "")}</div>
+                        <div class="resource-cell owner-name-cell" style="width: ${COLUMN_WIDTHS[6]}px; border-right: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; font-size: 13px;">${(t.owner || "").replace(/\d+/g, "")}</div>
                         <div class="resource-cell" style="width: ${COLUMN_WIDTHS[7]}px; border-right: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; justify-content: center; font-size: 14px;">${t.area_group || ""}${t.area_number ? "-" + t.area_number : ""}</div>
                         <div class="resource-cell" style="width: ${COLUMN_WIDTHS[8]}px; border-right: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; justify-content: center; font-size: 14px;">${dateToDisplay(start)}</div>
                         <div class="resource-cell" style="width: ${COLUMN_WIDTHS[9]}px; border-right: 1px solid #eee; padding: 0 4px; display: flex; align-items: center; justify-content: center; font-size: 14px;">${dateToDisplay(end)}</div>
