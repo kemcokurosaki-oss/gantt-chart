@@ -1337,6 +1337,31 @@
             }
         }
 
+        // 組立工程表（別画面）からの tasks 変更を更新履歴に残す（ローカル編集は _suppressAssemblyBannerUntil で除外）
+        async function logAssemblyRealtimeChange(payload) {
+            if (!_isEditor) return;
+            const ev = String(payload.eventType || '').toUpperCase();
+            const rowNew = payload.new || null;
+            const rowOld = payload.old || null;
+            const row = rowNew || rowOld;
+            if (!row) return;
+            let description = '変更が反映されました';
+            if (ev === 'INSERT') description = 'タスクを追加しました';
+            else if (ev === 'DELETE') description = 'タスクを削除しました';
+            try {
+                await supabaseClient.from('change_log').insert({
+                    source: '組立工程表',
+                    project_number: (row.project_number || '').toString(),
+                    machine: (row.machine || '').toString(),
+                    unit: (row.unit || '').toString(),
+                    task_text: (row.text || '').toString(),
+                    description
+                });
+            } catch (e) {
+                console.warn('組立工程表の変更履歴保存エラー:', e);
+            }
+        }
+
         // 編集者向け：組立工程表のタスク変更をRealtime受信して通知
         function startAssemblyTaskWatch() {
             stopAssemblyTaskWatch();
@@ -1354,6 +1379,7 @@
                     const isTarget = isAssemblyTaskRow(rowNew) || isAssemblyTaskRow(rowOld);
                     if (!isTarget) return;
                     showSyncChangeBanner('組立工程表', payload.eventType);
+                    void logAssemblyRealtimeChange(payload);
                 })
                 .subscribe();
         }
@@ -1423,10 +1449,11 @@
         // ===== 公開・更新通知 ここまで =====
 
         // ===== 変更履歴ログ =====
-        async function logChange(projectNumber, machine, unit, taskText, description) {
+        async function logChange(projectNumber, machine, unit, taskText, description, source) {
             if (!_isEditor) return;
             try {
                 await supabaseClient.from('change_log').insert({
+                    source:         source        || '全体工程表',
                     project_number: projectNumber || '',
                     machine:        machine       || '',
                     unit:           unit          || '',
@@ -1527,11 +1554,12 @@
 
                 // 変更履歴を保存
                 const logRows = dbUpdates.map(u => ({
+                    source:         '設計工程表',
                     project_number: u.project_number,
                     machine:        u.machine,
                     unit:           u.unit,
                     task_text:      '出図',
-                    description:    '設計工程表との同期で開始日・終了日を変更しました'
+                    description:    '開始日・終了日を変更しました'
                 }));
                 await supabaseClient.from('change_log').insert(logRows);
 
@@ -1625,7 +1653,7 @@
                 .limit(500);
 
             if (error) {
-                content.innerHTML = '<div style="color:#f44; text-align:center; padding:20px;">テーブルが未作成です。Supabase で create_change_log.sql を実行してください。</div>';
+                content.innerHTML = '<div style="color:#f44; text-align:center; padding:20px;">change_log の取得に失敗しました。テーブル未作成の場合は create_change_log.sql、既存DBに source 列が無い場合は add_change_log_source_column.sql を Supabase で実行してください。</div>';
                 return;
             }
             if (!data || data.length === 0) {
@@ -1647,33 +1675,76 @@
                     String(d.getMinutes()).padStart(2,'0');
             };
 
-            let tableHtml = `<table style="width:100%; border-collapse:collapse; font-size:12px;">
+            const sourceTextStyle = (label) => {
+                const base = 'font-weight:400;font-size:12px;white-space:nowrap;';
+                if (label === '設計工程表') {
+                    return base + 'color:#0d47a1;';
+                }
+                if (label === '組立工程表') {
+                    return base + 'color:#f57c00;';
+                }
+                return base + 'color:#2e7d32;';
+            };
+
+            const thSticky = 'position:sticky;top:-2px;z-index:6;background:#eceff1;background-clip:padding-box;box-shadow:0 2px 3px rgba(0,0,0,0.12);';
+            const thSep = 'border-top:2px solid #cfd8dc;border-bottom:2px solid #cfd8dc;';
+            const cellWrap = 'word-break:break-word;overflow-wrap:anywhere;white-space:normal;vertical-align:top;';
+            // 列幅は px 固定（% にしない）。合計＝テーブル幅。ここだけ編集すれば他列に食い込まれません。
+            const SYNC_LOG_COL_PX = {
+                changedAt: 132,
+                projectNo: 84,
+                machine: 68,
+                unit: 76,
+                taskText: 156,
+                description: 264,
+                source: 88
+            };
+            const SYNC_LOG_TABLE_WIDTH_PX = SYNC_LOG_COL_PX.changedAt + SYNC_LOG_COL_PX.projectNo + SYNC_LOG_COL_PX.machine +
+                SYNC_LOG_COL_PX.unit + SYNC_LOG_COL_PX.taskText + SYNC_LOG_COL_PX.description + SYNC_LOG_COL_PX.source;
+            const w = SYNC_LOG_COL_PX;
+            let tableHtml = `<table style="width:${SYNC_LOG_TABLE_WIDTH_PX}px;margin:0;border-collapse:separate;border-spacing:0;font-size:12px;table-layout:fixed;">
+                <colgroup>
+                    <col style="width:${w.changedAt}px" />
+                    <col style="width:${w.projectNo}px" />
+                    <col style="width:${w.machine}px" />
+                    <col style="width:${w.unit}px" />
+                    <col style="width:${w.taskText}px" />
+                    <col style="width:${w.description}px" />
+                    <col style="width:${w.source}px" />
+                </colgroup>
                 <thead>
-                    <tr style="background:#f5f5f5;">
-                        <th style="padding:6px 8px; text-align:left; border-bottom:2px solid #ddd; white-space:nowrap;">更新日時</th>
-                        <th style="padding:6px 8px; text-align:left; border-bottom:2px solid #ddd;">工事番号</th>
-                        <th style="padding:6px 8px; text-align:left; border-bottom:2px solid #ddd;">機械</th>
-                        <th style="padding:6px 8px; text-align:left; border-bottom:2px solid #ddd;">ユニット</th>
-                        <th style="padding:6px 8px; text-align:left; border-bottom:2px solid #ddd;">タスク名</th>
-                        <th style="padding:6px 8px; text-align:left; border-bottom:2px solid #ddd;">変更箇所</th>
+                    <tr>
+                        <th style="padding:6px 10px;text-align:left;white-space:nowrap;${thSep}${thSticky}">更新日時</th>
+                        <th style="padding:6px 10px;text-align:left;white-space:nowrap;${thSep}${thSticky}">工事番号</th>
+                        <th style="padding:6px 10px;text-align:left;white-space:nowrap;${thSep}${thSticky}">機械</th>
+                        <th style="padding:6px 10px;text-align:left;white-space:nowrap;${thSep}${thSticky}">ユニット</th>
+                        <th style="padding:6px 10px;text-align:left;${cellWrap}${thSep}${thSticky}">タスク名</th>
+                        <th style="padding:6px 10px;text-align:left;${cellWrap}${thSep}${thSticky}">変更箇所</th>
+                        <th style="padding:6px 8px;text-align:left;white-space:nowrap;${thSep}${thSticky}">変更元</th>
                     </tr>
                 </thead>
                 <tbody>`;
 
             _syncLogData.forEach((row, i) => {
                 const bg = i % 2 === 0 ? '#fff' : '#fafafa';
+                const desc = row.description || '';
+                const sourceLabel = (row.source || '').trim()
+                    || (desc.indexOf('設計工程表') >= 0 ? '設計工程表'
+                    : (desc.indexOf('組立工程表') >= 0 ? '組立工程表' : '全体工程表'));
+                const sourceCell = `<span style="${sourceTextStyle(sourceLabel)}">${sourceLabel}</span>`;
                 tableHtml += `<tr style="background:${bg};">
-                    <td style="padding:5px 8px; border-bottom:1px solid #eee; white-space:nowrap; color:#666;">${fmtDt(row.changed_at)}</td>
-                    <td style="padding:5px 8px; border-bottom:1px solid #eee; font-weight:bold;">${row.project_number || ''}</td>
-                    <td style="padding:5px 8px; border-bottom:1px solid #eee;">${row.machine || ''}</td>
-                    <td style="padding:5px 8px; border-bottom:1px solid #eee;">${row.unit || ''}</td>
-                    <td style="padding:5px 8px; border-bottom:1px solid #eee;">${row.task_text || ''}</td>
-                    <td style="padding:5px 8px; border-bottom:1px solid #eee; color:#1565c0;">${row.description || ''}</td>
+                    <td style="padding:6px 10px;border-bottom:1px solid #eee;white-space:nowrap;color:#666;">${fmtDt(row.changed_at)}</td>
+                    <td style="padding:6px 10px;border-bottom:1px solid #eee;font-weight:bold;white-space:nowrap;">${row.project_number || ''}</td>
+                    <td style="padding:6px 10px;border-bottom:1px solid #eee;white-space:nowrap;">${row.machine || ''}</td>
+                    <td style="padding:6px 10px;border-bottom:1px solid #eee;white-space:nowrap;">${row.unit || ''}</td>
+                    <td style="padding:6px 10px;border-bottom:1px solid #eee;${cellWrap}">${row.task_text || ''}</td>
+                    <td style="padding:6px 10px;border-bottom:1px solid #eee;color:#1565c0;${cellWrap}">${row.description || ''}</td>
+                    <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:left;vertical-align:top;">${sourceCell}</td>
                 </tr>`;
             });
 
             tableHtml += '</tbody></table>';
-            content.innerHTML = tableHtml;
+            content.innerHTML = `<div style="width:${SYNC_LOG_TABLE_WIDTH_PX}px;max-width:100%;box-sizing:border-box;">${tableHtml}</div>`;
         }
 
         function closeSyncLogModal(e) {

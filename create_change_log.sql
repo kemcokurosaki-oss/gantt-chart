@@ -4,6 +4,7 @@
 CREATE TABLE IF NOT EXISTS public.change_log (
     id             BIGSERIAL PRIMARY KEY,
     changed_at     TIMESTAMPTZ DEFAULT NOW(),
+    source         TEXT,   -- 変更元（例: "全体工程表" / "設計工程表" / "組立工程表"）
     project_number TEXT,
     machine        TEXT,
     unit           TEXT,
@@ -24,4 +25,5 @@ CREATE POLICY "Allow auth insert change_log"
 
 -- パフォーマンス用インデックス
 CREATE INDEX IF NOT EXISTS idx_change_log_changed_at      ON public.change_log(changed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_change_log_source          ON public.change_log(source);
 CREATE INDEX IF NOT EXISTS idx_change_log_project_number  ON public.change_log(project_number);
