@@ -1,10 +1,17 @@
-        async function fetchTasks() {
+        let _cachedTasksRows = null;
+        let _cachedTaskLocationsRows = null;
+        async function fetchTasks(options) {
+            const useCache = !!(options && options.useCache);
             // スクロール位置を記憶
             const scrollPos = gantt.getScrollState();
 
             let data, locData;
+            const canUseCache = useCache && Array.isArray(_cachedTasksRows) && Array.isArray(_cachedTaskLocationsRows);
 
-            if (!_isEditor) {
+            if (canUseCache) {
+                data = _cachedTasksRows.map(t => ({ ...t }));
+                locData = _cachedTaskLocationsRows.map(l => ({ ...l }));
+            } else if (!_isEditor) {
                 // 閲覧者: 公開スナップショットのみ（「更新」未実行の DB 変更は表示しない）
                 const { data: snap, error: snapErr } = await supabaseClient
                     .from('app_settings')
@@ -33,6 +40,8 @@
                         locData = [];
                     }
                 }
+                _cachedTasksRows = Array.isArray(data) ? data.map(t => ({ ...t })) : [];
+                _cachedTaskLocationsRows = Array.isArray(locData) ? locData.map(l => ({ ...l })) : [];
             } else {
                 // 編集者: ライブデータから読み込む
                 const sortColumn = currentDisplayMode === 'machine' ? 'sort_order_machine' : 'sort_order';
@@ -41,26 +50,17 @@
                 data = liveData;
                 const { data: liveLoc } = await supabaseClient.from('task_locations').select('*');
                 locData = liveLoc || [];
+                _cachedTasksRows = Array.isArray(data) ? data.map(t => ({ ...t })) : [];
+                _cachedTaskLocationsRows = Array.isArray(locData) ? locData.map(l => ({ ...l })) : [];
             }
 
             // 設計・組立工程表の出張タスク（task_type='business_trip'）はメインデータから除外
             // （後で専用クエリで読み取り専用タスクとして追加するため、重複表示を防ぐ）
             // 閲覧者は公開スナップショット内の出張行のみ使う（未公開のライブ tasks は読まない）
-            let designTripData = [];
-            if (!_isEditor && Array.isArray(data)) {
-                designTripData = data.filter(t => t.task_type === 'business_trip' && t.is_archived !== true);
-            }
+            let designTripData = Array.isArray(data)
+                ? data.filter(t => t.task_type === 'business_trip' && t.is_archived !== true)
+                : [];
             if (data) data = data.filter(t => t.task_type !== 'business_trip');
-
-            // 編集者: 出張タスクをライブ DB から取得してマージ
-            if (_isEditor) {
-                const { data: tripRows } = await supabaseClient
-                    .from('tasks')
-                    .select('id, text, start_date, end_date, duration, owner, project_number, machine, unit, customer_name, project_details, main_owner, major_item')
-                    .eq('task_type', 'business_trip')
-                    .neq('is_archived', true);
-                designTripData = tripRows || [];
-            }
             if (designTripData && designTripData.length > 0) {
                 // 全体工程表の既存タスクから工事番号→客先名/工事名のマップを作成
                 const projectInfoMap = {};
@@ -683,7 +683,7 @@
             updateGanttColumns();
             
             // データの再読み込みと再描画
-            fetchTasks();
+            fetchTasks({ useCache: true });
         }
 
         // 出張予定ボタンのクリックハンドラ

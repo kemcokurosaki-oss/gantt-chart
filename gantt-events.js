@@ -601,6 +601,55 @@
         });
         */
 
+        let _displayFilterCacheKey = "";
+        let _taskVisibleCache = Object.create(null);
+        let _virtualVisibleCache = Object.create(null);
+        function _invalidateDisplayFilterCache() {
+            _displayFilterCacheKey = "";
+            _taskVisibleCache = Object.create(null);
+            _virtualVisibleCache = Object.create(null);
+        }
+        function _ensureDisplayFilterCache() {
+            const completedKey = completedProjects
+                .map(cp => (cp.project_number || "").toString().trim())
+                .sort()
+                .join(",");
+            const cacheKey = [
+                gantt.getTaskCount(),
+                currentFilter || "",
+                currentProjectGroupFilter || "all",
+                currentMajorFilter || "",
+                currentOwnerFilter || "",
+                currentMachineFilter || "",
+                currentTaskFilter || "",
+                isUnassignedOnly ? "1" : "0",
+                completedKey
+            ].join("|");
+            if (cacheKey === _displayFilterCacheKey) return;
+
+            const nextTaskVisible = Object.create(null);
+            const nextVirtualVisible = Object.create(null);
+
+            gantt.eachTask(function(task) {
+                if (task.$virtual) return;
+                const visible = isTaskVisible(task);
+                nextTaskVisible[task.id] = visible;
+                if (!visible) return;
+                if (task.parent != null && task.parent !== "") {
+                    nextVirtualVisible[task.parent] = true;
+                }
+            });
+
+            _displayFilterCacheKey = cacheKey;
+            _taskVisibleCache = nextTaskVisible;
+            _virtualVisibleCache = nextVirtualVisible;
+        }
+        gantt.attachEvent("onClear", _invalidateDisplayFilterCache);
+        gantt.attachEvent("onParse", _invalidateDisplayFilterCache);
+        gantt.attachEvent("onAfterTaskAdd", _invalidateDisplayFilterCache);
+        gantt.attachEvent("onAfterTaskDelete", _invalidateDisplayFilterCache);
+        gantt.attachEvent("onAfterTaskUpdate", _invalidateDisplayFilterCache);
+
         // 個別のタスクがフィルタ条件に合致するか判定する関数
         function isTaskVisible(task) {
             // 1. is_detailed が true のタスクは常に非表示
@@ -657,23 +706,14 @@
         }
 
         gantt.attachEvent("onBeforeTaskDisplay", function(id, task) {
+            _ensureDisplayFilterCache();
             // 仮想親行（工事番号行）の場合は、その配下に「表示対象となるタスク」が1つでもあるかチェック
             if (task.$virtual) {
-                const children = gantt.getChildren(id);
-                if (children.length > 0) {
-                    // 子タスクのいずれかが表示対象なら親も表示
-                    const hasVisibleChild = children.some(childId => {
-                        const child = gantt.getTask(childId);
-                        return isTaskVisible(child);
-                    });
-                    if (hasVisibleChild) return true;
-                }
-                // 子がいない、または表示対象の子がいない仮想親は常に非表示
-                return false;
+                return !!_virtualVisibleCache[id];
             }
 
             // 通常のタスク（子タスク）の表示判定
-            return isTaskVisible(task);
+            return !!_taskVisibleCache[id];
         });
 
         // ========== 神戸送り開始日マーク（ドラッグ可能・Supabase永続化） ==========
