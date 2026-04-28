@@ -617,7 +617,7 @@
             // 左側リスト選択 (currentFilter) のみ有効（入力欄フィルターは削除）
             if (currentFilter) {
                 var taskProjectNumber = task.project_number || task.project_no;
-                if (!taskProjectNumber || !taskProjectNumber.includes(currentFilter)) return false;
+                if (!taskProjectNumber || taskProjectNumber !== currentFilter) return false;
             }
 
             // 2b. 工事番号グループフィルター (AND条件)

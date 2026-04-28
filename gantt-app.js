@@ -831,12 +831,18 @@
             });
         }
 
+        const _lastProjectFilterOpenedVirtualIds = new Set();
         function filterByProject(p) { 
             const scrollState = gantt.getScrollState();
             currentFilter = (currentFilter === p) ? null : p; 
             
             // フィルタ変更時に再描画
             gantt.render();
+            if (currentFilter) {
+                _openOnlyFilteredProjectVirtual(currentFilter);
+            } else if (!_hasActiveSearchFilter()) {
+                _collapseLastProjectFilterVirtual();
+            }
             
             gantt.scrollTo(scrollState.x, scrollState.y);
             if (typeof updateProjectList === 'function') {
@@ -868,6 +874,25 @@
             gantt.eachTask(function(task) {
                 if (task.$virtual) gantt.close(task.id);
             });
+        }
+        function _openOnlyFilteredProjectVirtual(projectNumber) {
+            const target = String(projectNumber || "");
+            if (!target) return;
+            _lastProjectFilterOpenedVirtualIds.clear();
+            gantt.eachTask(function(task) {
+                if (!task.$virtual) return;
+                const pNum = String(task.project_number || "");
+                if (pNum === target) {
+                    gantt.open(task.id);
+                    _lastProjectFilterOpenedVirtualIds.add(task.id);
+                }
+            });
+        }
+        function _collapseLastProjectFilterVirtual() {
+            _lastProjectFilterOpenedVirtualIds.forEach(function(id) {
+                if (gantt.isTaskExists(id)) gantt.close(id);
+            });
+            _lastProjectFilterOpenedVirtualIds.clear();
         }
         function _hasActiveSearchFilter() {
             return !!(currentOwnerFilter || currentMachineFilter || currentTaskFilter);
