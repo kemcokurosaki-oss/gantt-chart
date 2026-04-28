@@ -266,10 +266,14 @@
         const GANTT_END_DATE = new Date(2027, 11, 0);   // 2027/11/30（11月末）
         
         /** 下段リソース表示中は .chart-container に下パディングを付け、#gantt_here の縦スクロールがパネル背面に潜らないようにする */
+        /** setSizes デバウンス用タイマー ID。clearTimeout で連続呼び出しを最後の1回にまとめる */
+        let _layoutTimer = null;
         window.applyResourcePanelChartLayout = function applyResourcePanelChartLayout() {
             const chart = document.querySelector(".chart-container");
             const panel = document.getElementById("resource_panel");
             if (!chart || !panel) return;
+
+            // CSS 変更は毎回即座に反映する
             const visible = panel.style.display !== "none" && window.getComputedStyle(panel).display !== "none";
             if (!visible) {
                 chart.classList.remove("chart-container--resource-open");
@@ -279,9 +283,47 @@
                 const h = panel.offsetHeight;
                 if (h > 0) chart.style.setProperty("--resource-panel-reserved", h + "px");
             }
-            if (typeof gantt !== "undefined" && typeof gantt.setSizes === "function") {
+
+            if (typeof gantt === "undefined" || typeof gantt.setSizes !== "function") return;
+
+            // setSizes + setLevel はイベントループが落ち着いてから1回だけ実行する
+            // （ResizeObserver・rAF・直接呼び出しが重複しても clearTimeout で最後の1回に集約）
+            const ge = document.getElementById("gantt_here");
+            if (ge) ge.classList.add('gantt-scale-hiding');
+
+            if (_layoutTimer !== null) clearTimeout(_layoutTimer);
+            _layoutTimer = setTimeout(function() {
+                _layoutTimer = null;
+                if (typeof gantt === "undefined" || typeof gantt.setSizes !== "function") {
+                    const geEl = document.getElementById("gantt_here");
+                    if (geEl) geEl.classList.remove('gantt-scale-hiding');
+                    return;
+                }
                 try { gantt.setSizes(); } catch (err) {}
-            }
+                if (gantt.ext && gantt.ext.zoom) {
+                    try {
+                        const lv = (typeof gantt.ext.zoom.getCurrentLevel === 'function')
+                            ? (gantt.ext.zoom.getCurrentLevel() || 'days') : 'days';
+                        gantt.ext.zoom.setLevel(lv);
+                    } catch (err) {}
+                }
+                // 設計工程表と同様に 2rAF 待機 + スクロールナッジで DHMLXガントの
+                // 内部処理が完全に終わってからスケールを再表示する
+                requestAnimationFrame(function() {
+                    requestAnimationFrame(function() {
+                        const geEl = document.getElementById("gantt_here");
+                        if (geEl) geEl.classList.remove('gantt-scale-hiding');
+                        if (typeof gantt === "undefined") return;
+                        try {
+                            const s = gantt.getScrollState();
+                            gantt.scrollTo(s.x + 1, s.y);
+                            requestAnimationFrame(function() {
+                                try { gantt.scrollTo(s.x, s.y); } catch (e) {}
+                            });
+                        } catch (e) {}
+                    });
+                });
+            }, 0);
         };
 
         // リソースパネルのリサイズ機能

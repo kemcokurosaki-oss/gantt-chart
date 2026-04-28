@@ -10,6 +10,10 @@
         #gantt_here .gantt_scale_line { background-color: #546e7a !important; border-top: none !important; border-bottom: none !important; }
         #gantt_here .gantt_scale_line:first-child { border-bottom: 1px solid #607d8b !important; }
         #gantt_here .gantt_scale_line:nth-child(2):not(:last-child) { border-bottom: 1px solid #607d8b !important; }
+        /* リソースパネル開閉時のsetSizes()再描画によるちらつきを防ぐ */
+        #gantt_here .gantt_scale, #gantt_here .gantt_scale_line, #gantt_here .gantt_scale_cell { backface-visibility: hidden; }
+        /* JS から gantt-scale-hiding クラスを付与している間、スケールを非表示にする */
+        #gantt_here.gantt-scale-hiding .gantt_scale { visibility: hidden !important; }
         .header-panel *, .toolbar * { font-size: 13px !important; }
         .main-container { display: flex; flex-direction: column; height: 100vh; }
         .header-panel { background: #fff; padding: 2px 10px; border-bottom: 1px solid #ccc; display: flex; flex-direction: column; gap: 2px; }
