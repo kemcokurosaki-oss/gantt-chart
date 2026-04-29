@@ -624,7 +624,7 @@
 
             const oldText = pickOldString('text');
             const newText = pickNewString('text');
-            if (oldText !== '' && newText !== '' && oldText !== newText) changes.push('タスク名を変更しました');
+            if (oldText !== '' && newText !== '' && oldText !== newText) changes.push('タスク名を変更');
 
             const oldStart = _toDateYmd(oldRow.start_date || (snap ? snap.start_date : ''));
             const newStart = _toDateYmd(rowNew.start_date);
@@ -638,8 +638,8 @@
             const endChanged = durChanged || endDateChanged;
             // 組立工程表のRealtime更新では、開始日変更時に duration/end_date も同時更新されることがあるため、
             // 表示は「どちらを直接操作したか」を優先して単一項目に寄せる。
-            if (startChanged) changes.push('開始日を変更しました');
-            else if (endChanged) changes.push('終了日を変更しました');
+            if (startChanged) changes.push('開始日を変更');
+            else if (endChanged) changes.push('終了日を変更');
 
             const oldOwner = normalizeOwners(pickOldString('owner'));
             const newOwner = normalizeOwners(pickNewString('owner'));
@@ -647,13 +647,13 @@
             const newMainOwner = normalizeLoose(pickNewString('main_owner'));
             const ownerChanged = oldOwner !== '' && newOwner !== '' ? oldOwner !== newOwner : false;
             const mainOwnerChanged = oldMainOwner !== '' && newMainOwner !== '' ? oldMainOwner !== newMainOwner : false;
-            if (ownerChanged || mainOwnerChanged) changes.push('担当を変更しました');
+            if (ownerChanged || mainOwnerChanged) changes.push('担当者を変更');
             const oldMachine = pickOldString('machine');
             const newMachine = pickNewString('machine');
-            if (oldMachine !== '' && newMachine !== '' && oldMachine !== newMachine) changes.push('機械を変更しました');
+            if (oldMachine !== '' && newMachine !== '' && oldMachine !== newMachine) changes.push('機械を変更');
             const oldUnit = pickOldString('unit');
             const newUnit = pickNewString('unit');
-            if (oldUnit !== '' && newUnit !== '' && oldUnit !== newUnit) changes.push('ユニットを変更しました');
+            if (oldUnit !== '' && newUnit !== '' && oldUnit !== newUnit) changes.push('ユニットを変更');
 
             if (changes.length > 0) return changes.join('・');
             const hasStartHints =
@@ -662,8 +662,8 @@
                 rowNew.end_date != null || rowNew.duration != null ||
                 oldRow.end_date != null || oldRow.duration != null ||
                 (snap && (snap.end_date != null || snap.duration != null));
-            if (hasStartHints) return '開始日を変更しました';
-            if (hasEndHints) return '終了日を変更しました';
+            if (hasStartHints) return '開始日を変更';
+            if (hasEndHints) return '終了日を変更';
             return '変更が反映されました';
         }
 

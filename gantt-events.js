@@ -322,11 +322,11 @@
                 else if (durChanged) changes.push('終了日を変更');
                 const ownerStrChanged = (oldTask.owner || '') !== (item.owner || '');
                 const mainOwnerChanged = String(oldTask.main_owner || '').trim() !== String(item.main_owner || '').trim();
-                if (ownerStrChanged || mainOwnerChanged) changes.push('担当を変更');
+                if (ownerStrChanged || mainOwnerChanged) changes.push('担当者を変更');
                 if ((oldTask.machine || '') !== (item.machine || '')) changes.push('機械を変更');
                 if ((oldTask.unit || '') !== (item.unit || '')) changes.push('ユニットを変更');
                 if (String(oldTask.major_item || '') !== String(item.major_item || '')) changes.push('部署を変更');
-                if (String(oldTask.parent_name || oldTask.parent || '') !== String(item.parent_name || '')) changes.push('見出しを変更');
+                if (String(oldTask.parent_name || '') !== String(item.parent_name || '')) changes.push('見出しを変更');
                 const oldAg = String(oldTask.area_group || '').trim();
                 const oldAn = String(oldTask.area_number || '').trim();
                 const newAg = String(item.area_group || '').trim();
