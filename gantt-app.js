@@ -1669,6 +1669,7 @@
             try {
                 await supabaseClient.from('change_log').insert({
                     source: '組立工程表',
+                    changed_by: (rowNew && rowNew.last_updated_by) || '',
                     project_number: (row.project_number || '').toString(),
                     machine: (row.machine || '').toString(),
                     unit: (row.unit || '').toString(),
@@ -1778,6 +1779,7 @@
             try {
                 await supabaseClient.from('change_log').insert({
                     source:         source        || '全体工程表',
+                    changed_by:     (window._getCurrentEditorName && window._getCurrentEditorName()) || '',
                     project_number: projectNumber || '',
                     machine:        machine       || '',
                     unit:           unit          || '',
@@ -1798,7 +1800,7 @@
                 // 設計工程表の図面タスク（task_type='drawing'）を取得
                 const { data: designTasks, error } = await supabaseClient
                     .from('tasks')
-                    .select('project_number, machine, unit, start_date, end_date')
+                    .select('project_number, machine, unit, start_date, end_date, last_updated_by')
                     .eq('task_type', 'drawing')
                     .not('start_date', 'is', null)
                     .not('end_date', 'is', null);
@@ -1821,11 +1823,13 @@
                     const e = (t.end_date   || '').substring(0, 10);
                     if (!s || !e) return;
                     if (!groupMap[key]) {
-                        groupMap[key] = { min_start: s, max_end: e };
+                        groupMap[key] = { min_start: s, max_end: e, editors: new Set() };
                     } else {
                         if (s < groupMap[key].min_start) groupMap[key].min_start = s;
                         if (e > groupMap[key].max_end)   groupMap[key].max_end = e;
                     }
+                    const editor = (t.last_updated_by || '').trim();
+                    if (editor) groupMap[key].editors.add(editor);
                 });
 
                 // 出図タスク（text='出図'）を全体工程表から検索
@@ -1859,7 +1863,8 @@
                         id: t.id,
                         project_number: pn, machine: mc, unit: un,
                         old_start_date: currentStart, old_duration: t.duration,
-                        start_date: newStartDate, duration: newDuration
+                        start_date: newStartDate, duration: newDuration,
+                        editorsStr: [...(group.editors || [])].join('・')
                     });
                 });
 
@@ -1879,6 +1884,7 @@
                 // 変更履歴を保存
                 const logRows = dbUpdates.map(u => ({
                     source:         '設計工程表',
+                    changed_by:     u.editorsStr || '',
                     project_number: u.project_number,
                     machine:        u.machine,
                     unit:           u.unit,
@@ -2021,10 +2027,11 @@
                 unit: 76,
                 taskText: 156,
                 description: 264,
-                source: 88
+                source: 88,
+                changedBy: 64
             };
             const SYNC_LOG_TABLE_WIDTH_PX = SYNC_LOG_COL_PX.changedAt + SYNC_LOG_COL_PX.projectNo + SYNC_LOG_COL_PX.machine +
-                SYNC_LOG_COL_PX.unit + SYNC_LOG_COL_PX.taskText + SYNC_LOG_COL_PX.description + SYNC_LOG_COL_PX.source;
+                SYNC_LOG_COL_PX.unit + SYNC_LOG_COL_PX.taskText + SYNC_LOG_COL_PX.description + SYNC_LOG_COL_PX.source + SYNC_LOG_COL_PX.changedBy;
             const w = SYNC_LOG_COL_PX;
             let tableHtml = `<table style="width:${SYNC_LOG_TABLE_WIDTH_PX}px;margin:0;border-collapse:separate;border-spacing:0;font-size:12px;table-layout:fixed;">
                 <colgroup>
@@ -2035,6 +2042,7 @@
                     <col style="width:${w.taskText}px" />
                     <col style="width:${w.description}px" />
                     <col style="width:${w.source}px" />
+                    <col style="width:${w.changedBy}px" />
                 </colgroup>
                 <thead>
                     <tr>
@@ -2045,6 +2053,7 @@
                         <th style="padding:6px 10px;text-align:left;${cellWrap}${thSep}${thSticky}">タスク名</th>
                         <th style="padding:6px 10px;text-align:left;${cellWrap}${thSep}${thSticky}">変更箇所</th>
                         <th style="padding:6px 8px;text-align:left;white-space:nowrap;${thSep}${thSticky}">変更元</th>
+                        <th style="padding:6px 8px;text-align:left;white-space:nowrap;${thSep}${thSticky}">変更者</th>
                     </tr>
                 </thead>
                 <tbody>`;
@@ -2064,6 +2073,7 @@
                     <td style="padding:6px 10px;border-bottom:1px solid #eee;${cellWrap}">${row.task_text || ''}</td>
                     <td style="padding:6px 10px;border-bottom:1px solid #eee;color:#000;${cellWrap}">${row.description || ''}</td>
                     <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:left;vertical-align:top;">${sourceCell}</td>
+                    <td style="padding:6px 8px;border-bottom:1px solid #eee;white-space:nowrap;color:#555;">${row.changed_by || ''}</td>
                 </tr>`;
             });
 

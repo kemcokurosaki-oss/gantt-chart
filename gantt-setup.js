@@ -27,8 +27,18 @@
             'e-kurosaki@kusakabe.com',  // 工程管理者
             's-morimura@kusakabe.com',  // 工程管理者
         ];
+        const EDITOR_NAMES = {
+            'm2-kusakabe@kusakabe.com': '常務',
+            'e-kurosaki@kusakabe.com':  '黒崎',
+            's-morimura@kusakabe.com':  '森村',
+        };
 
         let _isEditor = false;
+        let _currentEditorEmail = '';
+        window._getCurrentEditorName = function() {
+            if (!_isEditor || !_currentEditorEmail) return '';
+            return EDITOR_NAMES[_currentEditorEmail] || _currentEditorEmail.split('@')[0];
+        };
 
         function _updateUIForAuth(isEditor) {
             _isEditor = isEditor;
@@ -125,6 +135,7 @@
                 openSetPasswordDialog();
             } else {
                 const email = session?.user?.email || '';
+                _currentEditorEmail = email;
                 _updateUIForAuth(!!session && EDITORS.includes(email));
             }
         });

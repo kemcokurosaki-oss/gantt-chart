@@ -371,7 +371,8 @@
             if (typeof window.markLocalTaskMutation === 'function') window.markLocalTaskMutation(realId);
             const { error: rpcErr } = await supabaseClient.rpc('delete_task_with_change_log_source', {
                 p_task_id: String(realId),
-                p_source: '全体工程表'
+                p_source: '全体工程表',
+                p_user: (window._getCurrentEditorName && window._getCurrentEditorName()) || ''
             });
 
             let error = rpcErr;
