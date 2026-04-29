@@ -41,7 +41,12 @@
         var SHARED_COLUMNS = [
             { name: "detail", label: "", width: COLUMN_WIDTHS[0], align: "left", template: function(obj) {
                 // リンク設定済みの見出し行のみ表示
-                if (obj.$virtual && (obj.text === "長納期品手配" || obj.text === "出図＆部品手配")) {
+                const isDesignDetail = obj.$virtual && (obj.text === "長納期品手配" || obj.text === "出図＆部品手配");
+                const isSpecFolder = obj.$virtual
+                    && obj.text === "受注"
+                    && typeof window.hasSpecFolderLink === "function"
+                    && window.hasSpecFolderLink(obj.project_number);
+                if (isDesignDetail || isSpecFolder) {
                     return `<button class='zoom-btn' style='padding: 2px 5px; font-size: 12px; cursor: pointer;' onclick='openDetail("${obj.id}")'>🔍</button>`;
                 }
                 return "";

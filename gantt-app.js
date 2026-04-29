@@ -1,6 +1,66 @@
         let _cachedTasksRows = null;
         let _cachedTaskLocationsRows = null;
+        let _specFolderUrlMap = {};
+
+        function isEligibleSpecProjectNumber(projectNumber) {
+            const p = String(projectNumber || "").trim();
+            return /^2\d{3}$/.test(p);
+        }
+
+        window.hasSpecFolderLink = function(projectNumber) {
+            const p = String(projectNumber || "").trim();
+            return !!(isEligibleSpecProjectNumber(p) && _specFolderUrlMap[p]);
+        };
+
+        function getSpecFolderLink(projectNumber) {
+            const p = String(projectNumber || "").trim();
+            return window.hasSpecFolderLink(p) ? _specFolderUrlMap[p] : "";
+        }
+
+        async function loadSpecFolderUrlMap() {
+            const { data, error } = await supabaseClient
+                .from("app_settings")
+                .select("value")
+                .eq("key", "spec_folder_url_map")
+                .maybeSingle();
+            if (error) {
+                console.error("spec_folder_url_map load error:", error);
+                _specFolderUrlMap = {};
+                return;
+            }
+            if (!data || !data.value) {
+                _specFolderUrlMap = {};
+                return;
+            }
+            try {
+                const parsed = JSON.parse(data.value);
+                _specFolderUrlMap = parsed && typeof parsed === "object" ? parsed : {};
+            } catch (e) {
+                console.error("spec_folder_url_map parse error:", e);
+                _specFolderUrlMap = {};
+            }
+        }
+
+        async function upsertSpecFolderUrl(projectNumber, folderUrl) {
+            const p = String(projectNumber || "").trim();
+            const url = String(folderUrl || "").trim();
+            if (!isEligibleSpecProjectNumber(p)) return;
+
+            const nextMap = { ..._specFolderUrlMap };
+            if (url) nextMap[p] = url;
+            else delete nextMap[p];
+
+            const { error } = await supabaseClient
+                .from("app_settings")
+                .upsert([{ key: "spec_folder_url_map", value: JSON.stringify(nextMap) }], { onConflict: "key" });
+            if (error) {
+                throw error;
+            }
+            _specFolderUrlMap = nextMap;
+        }
+
         async function fetchTasks(options) {
+            await loadSpecFolderUrlMap();
             const useCache = !!(options && options.useCache);
             // スクロール位置を記憶
             const scrollPos = gantt.getScrollState();
@@ -896,6 +956,7 @@
             // 1. 機械別表示の場合
             // 2. 工程別表示で、見出し名が「出図＆部品手配」または「長納期品手配」の場合
             const isDesignDetail = (currentDisplayMode === 'machine') || (task.text === "出図＆部品手配") || (task.text === "長納期品手配");
+            const isSpecFolder = task.text === "受注";
 
             if (isDesignDetail) {
                 let url = `https://kemcokurosaki-oss.github.io/design-schedule/?project_no=${encodeURIComponent(projectNo)}`;
@@ -905,6 +966,13 @@
                     url += `&task_type=drawing`;
                 }
                 window.open(url, '_blank');
+            } else if (isSpecFolder) {
+                const folderUrl = getSpecFolderLink(projectNo);
+                if (!folderUrl) {
+                    alert("仕様書フォルダURLが未設定です");
+                    return;
+                }
+                window.open(folderUrl, "_blank");
             } else {
                 alert("準備中");
             }
@@ -1284,6 +1352,7 @@
             document.getElementById('project_details_input').value = '';
             document.getElementById('order_date').value = '';
             document.getElementById('shipping_date').value = '';
+            document.getElementById('spec_folder_url_input').value = '';
         }
 
         async function addProjectFromTemplate() {
@@ -1292,6 +1361,7 @@
             const projectDetails = document.getElementById('project_details_input').value.trim();
             const orderDateValue = document.getElementById('order_date').value;
             const shippingDateValue = document.getElementById('shipping_date').value;
+            const specFolderUrl = document.getElementById('spec_folder_url_input').value.trim();
             const resolveMajorItemForTask = (taskName, fallbackMajorItem) => {
                 if (taskName === "出荷準備(組立)") return "組立";
                 if (taskName === "出荷準備(電装)") return "電装";
@@ -1301,6 +1371,14 @@
             if (!projectNumber) {
                 alert("工事番号を入力してください");
                 return;
+            }
+            if (specFolderUrl) {
+                try {
+                    new URL(specFolderUrl);
+                } catch (_) {
+                    alert("仕様書フォルダURLの形式が正しくありません");
+                    return;
+                }
             }
 
             // 工事番号からテンプレートテーブルを決定
@@ -1482,6 +1560,12 @@
                 console.error("Insert error:", insertError);
                 alert("プロジェクトの作成に失敗しました");
             } else {
+                try {
+                    await upsertSpecFolderUrl(projectNumber, specFolderUrl);
+                } catch (e) {
+                    console.error("spec_folder_url_map upsert error:", e);
+                    alert("工事は作成しましたが、仕様書フォルダURLの保存に失敗しました");
+                }
                 alert(`工事番号 ${projectNumber} を作成しました`);
                 // フォームをリセット・非表示
                 document.getElementById('new-project-modal-overlay').classList.remove('visible');
@@ -1490,6 +1574,7 @@
                 document.getElementById('project_details_input').value = '';
                 document.getElementById('order_date').value = '';
                 document.getElementById('shipping_date').value = '';
+                document.getElementById('spec_folder_url_input').value = '';
                 // 2000番台の場合は新規作成工番をセット（fetchTasks内で見出し行を展開）
                 if (templateTable === 'task_template') {
                     _newlyCreatedProject = projectNumber;
