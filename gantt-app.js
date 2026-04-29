@@ -2,6 +2,15 @@
         let _cachedTaskLocationsRows = null;
         let _specFolderUrlMap = {};
 
+        function showLoading() {
+            const el = document.getElementById('loading-overlay');
+            if (el) el.classList.add('visible');
+        }
+        function hideLoading() {
+            const el = document.getElementById('loading-overlay');
+            if (el) el.classList.remove('visible');
+        }
+
         function isEligibleSpecProjectNumber(projectNumber) {
             const p = String(projectNumber || "").trim();
             return /^2\d{3}$/.test(p);
@@ -1016,11 +1025,12 @@
                 });
         };
 
-        function setDisplayMode(mode) {
+        async function setDisplayMode(mode) {
+            showLoading();
             currentDisplayMode = mode;
             document.getElementById('sort_process_btn').classList.toggle('active', mode === 'process');
             document.getElementById('sort_machine_btn').classList.toggle('active', mode === 'machine');
-            
+
             const btBtn = document.getElementById('sort_business_trip_btn');
             if (mode === 'business_trip') {
                 btBtn.classList.add('active');
@@ -1029,12 +1039,13 @@
                 btBtn.classList.remove('active');
                 btBtn.innerText = "出張予定";
             }
-            
+
             // 列の更新
             updateGanttColumns();
-            
+
             // データの再読み込みと再描画
-            fetchTasks({ useCache: true });
+            await fetchTasks({ useCache: true });
+            hideLoading();
         }
 
         // 出張予定ボタンのクリックハンドラ
@@ -2183,7 +2194,7 @@
                     scrollToToday();
                 }
             };
-            
+
             // 1回だけ実行されるようにフラグ管理
             let scrolled = false;
             const onRenderHandler = gantt.attachEvent("onRender", () => {
@@ -2192,10 +2203,11 @@
                     scrolled = true;
                     gantt.detachEvent(onRenderHandler);
                 }
+                hideLoading();
             });
 
             // フォールバック（万が一イベントが発火しなかった場合）
-            setTimeout(scrollAction, 100);
+            setTimeout(() => { scrollAction(); hideLoading(); }, 500);
 
             // 初回の published_at を記録してポーリング開始（閲覧者のみ）
             getPublishedAt().then(function(val) {

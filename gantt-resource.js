@@ -134,43 +134,47 @@
 
         // 大項目フィルタ（部署別フィルタ）
         function filterByMajorItem(majorItem) {
-            currentMajorFilter = majorItem || null;
-            // セレクトの値を同期
-            const sel = document.getElementById('major-filter-select');
-            if (sel) sel.value = currentMajorFilter || '';
-            gantt.render();
+            showLoading();
+            requestAnimationFrame(() => requestAnimationFrame(() => {
+                currentMajorFilter = majorItem || null;
+                // セレクトの値を同期
+                const sel = document.getElementById('major-filter-select');
+                if (sel) sel.value = currentMajorFilter || '';
+                gantt.render();
 
-            // リソース画面が表示されており、かつ部署フィルタが有効な場合は再描画
-            if (currentResourceMode === 'dept' && currentResourceDeptFilter) {
-                // filterByDepartmentを直接呼ぶとトグル処理が走ってしまうため、
-                // 内部の描画ロジックのみを再実行する
-                const resourcePanel = document.getElementById("resource_panel");
-                const ganttHere = document.getElementById("gantt_here");
-                
-                if (currentResourceDeptFilter) {
-                    // filterByDepartment(currentResourceDeptFilter) と同等の抽出ロジック
-                    const deptTasks = (window.allTasks || []).filter(t => {
-                        const isDetailed = (t.is_detailed === true || String(t.is_detailed).toLowerCase() === "true" || String(t.is_detailed).toLowerCase() === "t" || String(t.is_detailed) === "1");
-                        // 設計部の部署別リソース画面では、is_detailedがTRUEのタスク（設計工程表専用）を非表示にする
-                        if (isDetailed) return false;
-                        if (isTaskOnCompletedProjectNumber(t)) return false;
-                        if (t.major_item !== currentResourceDeptFilter) return false;
-                        return true;
-                    });
+                // リソース画面が表示されており、かつ部署フィルタが有効な場合は再描画
+                if (currentResourceMode === 'dept' && currentResourceDeptFilter) {
+                    // filterByDepartmentを直接呼ぶとトグル処理が走ってしまうため、
+                    // 内部の描画ロジックのみを再実行する
+                    const resourcePanel = document.getElementById("resource_panel");
+                    const ganttHere = document.getElementById("gantt_here");
 
-                    const owners = [...new Set(deptTasks.flatMap(t => {
-                        const normalized = getNormalizedOwners(t.owner);
-                        return normalized.filter(name => {
-                            if (name === "外注") return t.major_item === currentResourceDeptFilter;
-                            if (name === "未定") return false;
+                    if (currentResourceDeptFilter) {
+                        // filterByDepartment(currentResourceDeptFilter) と同等の抽出ロジック
+                        const deptTasks = (window.allTasks || []).filter(t => {
+                            const isDetailed = (t.is_detailed === true || String(t.is_detailed).toLowerCase() === "true" || String(t.is_detailed).toLowerCase() === "t" || String(t.is_detailed) === "1");
+                            // 設計部の部署別リソース画面では、is_detailedがTRUEのタスク（設計工程表専用）を非表示にする
+                            if (isDetailed) return false;
+                            if (isTaskOnCompletedProjectNumber(t)) return false;
+                            if (t.major_item !== currentResourceDeptFilter) return false;
                             return true;
                         });
-                    }))].sort();
 
-                    if (resourcePanel) resourcePanel.style.display = "flex";
-                    renderDepartmentSummary(owners, currentResourceDeptFilter);
+                        const owners = [...new Set(deptTasks.flatMap(t => {
+                            const normalized = getNormalizedOwners(t.owner);
+                            return normalized.filter(name => {
+                                if (name === "外注") return t.major_item === currentResourceDeptFilter;
+                                if (name === "未定") return false;
+                                return true;
+                            });
+                        }))].sort();
+
+                        if (resourcePanel) resourcePanel.style.display = "flex";
+                        renderDepartmentSummary(owners, currentResourceDeptFilter);
+                    }
                 }
-            }
+                hideLoading();
+            }));
         }
 
         // 入力した担当名 or 部署名で下段のみ絞り込み
@@ -914,21 +918,26 @@
 
         // 部署別リソースのセレクト変更ハンドラ
         function filterByDepartmentSelect(value) {
-            if (!value) {
-                currentResourceDeptFilter = "";
-                currentResourceMode = 'individual';
-                const backBar = document.getElementById("resource_back_bar");
-                if (backBar) backBar.style.display = "none";
-                const resourcePanel = document.getElementById("resource_panel");
-                if (resourcePanel) resourcePanel.style.display = "none";
-                const sel = document.getElementById('resource-dept-select');
-                if (sel) sel.value = '';
-                if (typeof window.applyResourcePanelChartLayout === "function") {
-                    window.applyResourcePanelChartLayout();
+            showLoading();
+            requestAnimationFrame(() => requestAnimationFrame(() => {
+                if (!value) {
+                    currentResourceDeptFilter = "";
+                    currentResourceMode = 'individual';
+                    const backBar = document.getElementById("resource_back_bar");
+                    if (backBar) backBar.style.display = "none";
+                    const resourcePanel = document.getElementById("resource_panel");
+                    if (resourcePanel) resourcePanel.style.display = "none";
+                    const sel = document.getElementById('resource-dept-select');
+                    if (sel) sel.value = '';
+                    if (typeof window.applyResourcePanelChartLayout === "function") {
+                        window.applyResourcePanelChartLayout();
+                    }
+                    hideLoading();
+                    return;
                 }
-                return;
-            }
-            filterByDepartment(value, null);
+                filterByDepartment(value, null);
+                hideLoading();
+            }));
         }
 
         // リソース画面を閉じる
@@ -946,6 +955,7 @@
 
         // 組立場所リソースのトグル
         async function toggleLocationResource(btn) {
+            showLoading();
             if (currentLocationResourceMode) {
                 closeResourcePanel();
             } else {
@@ -960,6 +970,7 @@
                 btn.classList.add('active');
                 updateResourceVisibility();
             }
+            hideLoading();
         }
 
         // 組立場所の展開/折りたたみ
@@ -1475,39 +1486,43 @@
 
         // 3. 【ズーム切り替え時の再描画】
         function setZoom(level) {
-            // スクロール位置を保存
-            const scrollState = gantt.getScrollState();
+            showLoading();
+            requestAnimationFrame(() => requestAnimationFrame(() => {
+                // スクロール位置を保存
+                const scrollState = gantt.getScrollState();
 
-            // ボタンのアクティブ状態を切り替え
-            document.getElementById('zoom_days_btn').classList.toggle('active', level === 'days');
-            document.getElementById('zoom_weeks_btn').classList.toggle('active', level === 'weeks');
+                // ボタンのアクティブ状態を切り替え
+                document.getElementById('zoom_days_btn').classList.toggle('active', level === 'days');
+                document.getElementById('zoom_weeks_btn').classList.toggle('active', level === 'weeks');
 
-            gantt.ext.zoom.setLevel(level); 
+                gantt.ext.zoom.setLevel(level);
 
-            // ズームレベルに応じてコンテナにクラスを付与（CSSでの制御用）
-            const container = document.getElementById("gantt_here");
-            if (level === "days") {
-                container.classList.add("zoom-days");
-            } else {
-                container.classList.remove("zoom-days");
-            }
+                // ズームレベルに応じてコンテナにクラスを付与（CSSでの制御用）
+                const container = document.getElementById("gantt_here");
+                if (level === "days") {
+                    container.classList.add("zoom-days");
+                } else {
+                    container.classList.remove("zoom-days");
+                }
 
-            gantt.config.start_date = new Date(GANTT_START_DATE.getTime());
-            gantt.config.end_date = new Date(GANTT_END_DATE.getTime());
-            gantt.config.fit_tasks = false;
-            gantt.render();
-            
-            // スクロール位置を復元
-            gantt.scrollTo(scrollState.x, scrollState.y);
+                gantt.config.start_date = new Date(GANTT_START_DATE.getTime());
+                gantt.config.end_date = new Date(GANTT_END_DATE.getTime());
+                gantt.config.fit_tasks = false;
+                gantt.render();
 
-            if (currentLocationResourceMode) {
-                renderLocationResourceTimeline();
-            } else if (currentResourceMode === 'dept' && lastDeptName) {
-                filterByDepartment(lastDeptName);
-            } else {
-                const owner = document.getElementById("resource_owner_input")?.value || lastOwnerName;
-                if (owner) showResourceViewByOwner(owner);
-            }
+                // スクロール位置を復元
+                gantt.scrollTo(scrollState.x, scrollState.y);
+
+                if (currentLocationResourceMode) {
+                    renderLocationResourceTimeline();
+                } else if (currentResourceMode === 'dept' && lastDeptName) {
+                    filterByDepartment(lastDeptName);
+                } else {
+                    const owner = document.getElementById("resource_owner_input")?.value || lastOwnerName;
+                    if (owner) showResourceViewByOwner(owner);
+                }
+                hideLoading();
+            }));
         }
 
         function syncResourceScroll() {
