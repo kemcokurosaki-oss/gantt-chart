@@ -543,15 +543,16 @@
         }
 
         // 組立工程表由来の行かどうかを判定（Realtime payload 用）
+        // ※ 組立工程表には部署「組立」「電装」が含まれるため、parent が空の判定でも両方を対象にする。
         function isAssemblyTaskRow(row) {
             if (!row) return false;
             const parent = taskRowParent(row);
             if (isAssemblyThroughShippingParent(parent)) return true;
             if (parent === "タスクリスト作成" || parent === "出荷準備") return true;
             // 組立工程表から新規追加された直後は parent が空で届くケースがあるため、
-            // parent 空 かつ 部署=組立 の行は組立工程表由来として扱う。
+            // parent 空 かつ 部署=組立/電装 の行は組立工程表由来として扱う。
             const major = String(row.major_item != null ? row.major_item : "").trim();
-            return !parent && major === "組立";
+            return !parent && (major === "組立" || major === "電装");
         }
 
         window.isAssemblyTaskRowForChangeLog = isAssemblyTaskRow;
@@ -699,8 +700,36 @@
 
         // この画面で発生した tasks 更新を一時識別し、Realtime通知を抑制
         let _suppressAssemblyBannerUntil = 0;
-        function markLocalTaskMutation() {
+        const _suppressAssemblyByTaskIdUntil = new Map(); // taskId(string) -> epoch(ms)
+
+        function markLocalTaskMutation(taskId) {
             _suppressAssemblyBannerUntil = Date.now() + 4000;
+            if (taskId == null || taskId === '') return;
+            _suppressAssemblyByTaskIdUntil.set(String(taskId), Date.now() + 30000);
+        }
+        window.markLocalTaskMutation = markLocalTaskMutation;
+
+        function hasLocalTaskMutationMark(taskId) {
+            if (taskId == null || taskId === '') return false;
+            const key = String(taskId);
+            const until = _suppressAssemblyByTaskIdUntil.get(key);
+            if (!until) return false;
+            if (Date.now() > until) {
+                _suppressAssemblyByTaskIdUntil.delete(key);
+                return false;
+            }
+            return true;
+        }
+
+        function shouldSuppressAssemblyRealtimeByTask(payload, rawOld) {
+            const ids = new Set();
+            if (payload && payload.new && payload.new.id != null) ids.add(String(payload.new.id));
+            if (payload && payload.old && payload.old.id != null) ids.add(String(payload.old.id));
+            if (rawOld && rawOld.id != null) ids.add(String(rawOld.id));
+            for (const id of ids) {
+                if (hasLocalTaskMutationMark(id)) return true;
+            }
+            return false;
         }
         (function patchSupabaseTasksMutationForBannerSuppression() {
             if (!supabaseClient || supabaseClient._overallTasksPatchApplied) return;
@@ -713,7 +742,25 @@
                     if (typeof originalMethod !== 'function') return;
                     builder[method] = function() {
                         markLocalTaskMutation();
-                        return originalMethod.apply(this, arguments);
+                        const args = Array.from(arguments);
+                        // insert/upsert の payload に id がある場合は task 単位でも抑止する
+                        if ((method === 'insert' || method === 'upsert') && args.length > 0) {
+                            const payload = args[0];
+                            const rows = Array.isArray(payload) ? payload : [payload];
+                            rows.forEach(function(row) {
+                                if (row && row.id != null) markLocalTaskMutation(row.id);
+                            });
+                        }
+                        const ret = originalMethod.apply(this, args);
+                        // update/delete は後続の eq('id', ...) で対象IDが決まるため、チェーン側をラップする
+                        if (!ret || (method !== 'update' && method !== 'delete')) return ret;
+                        const originalEq = ret.eq;
+                        if (typeof originalEq !== 'function') return ret;
+                        ret.eq = function(column, value) {
+                            if (String(column) === 'id') markLocalTaskMutation(value);
+                            return originalEq.apply(this, arguments);
+                        };
+                        return ret;
                     };
                 });
                 return builder;
@@ -1645,9 +1692,10 @@
                     table: 'tasks'
                 }, function(payload) {
                     if (!_isEditor) return;
-                    if (Date.now() < _suppressAssemblyBannerUntil) return;
                     const rawOld = payload.old || null;
                     const p = enrichAssemblyRealtimePayload(payload);
+                    if (Date.now() < _suppressAssemblyBannerUntil) return;
+                    if (shouldSuppressAssemblyRealtimeByTask(p, rawOld)) return;
                     const rowNew = p.new || null;
                     const rowOld = p.old || null;
                     const ev = String(payload.eventType || "").toUpperCase();

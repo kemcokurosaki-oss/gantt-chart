@@ -154,8 +154,11 @@
 
             try {
                 await Promise.all(promises);
+                if (typeof window.markLocalTaskMutation === 'function') {
+                    tasks.forEach(t => window.markLocalTaskMutation(t.id));
+                }
                 console.log("Sort order saved successfully");
-                
+
                 // 常に最新のSupabaseデータを反映するため、データを再取得して allTasks と画面を更新
                 await fetchTasks();
             } catch (error) {
@@ -202,6 +205,7 @@
                 // Supabaseから発行された本当のIDに書き換える
                 const newId = data[0].id;
                 gantt.changeTaskId(id, newId);
+                if (typeof window.markLocalTaskMutation === 'function') window.markLocalTaskMutation(newId);
                 console.log("New task added with ID:", newId);
 
                 if (typeof window.persistTaskLocations === "function") {
@@ -301,6 +305,7 @@
                 alert("保存に失敗しました。");
                 return;
             }
+            if (typeof window.markLocalTaskMutation === 'function') window.markLocalTaskMutation(realId);
 
             // 変更履歴を記録
             if (oldTask && typeof window.logChange === 'function') {
@@ -363,6 +368,7 @@
             if (item.$virtual) return; // 仮想的な見出し行は削除対象外
 
             const realId = item.original_id || id;
+            if (typeof window.markLocalTaskMutation === 'function') window.markLocalTaskMutation(realId);
             const { error: rpcErr } = await supabaseClient.rpc('delete_task_with_change_log_source', {
                 p_task_id: String(realId),
                 p_source: '全体工程表'
@@ -862,6 +868,7 @@
                         end_date: inclusiveEndDateToDb(gantt.date.str_to_date("%Y-%m-%d")(dateStr), dur)
                     })
                     .eq('id', state.taskId);
+                if (typeof window.markLocalTaskMutation === 'function') window.markLocalTaskMutation(state.taskId);
             }
             renderPartsMarks();
         });
