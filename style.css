@@ -19,9 +19,12 @@
         .header-panel { background: #fff; padding: 2px 10px; border-bottom: 1px solid #ccc; display: flex; flex-direction: column; gap: 2px; }
         .input-row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; height: 28px; }
         .input-row input { padding: 2px 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; }
-        .btn-add { padding: 0px 5px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; }
-        .btn-update { padding: 1px 10px; background: #2980b9; color: white; border: 1px solid #2471a3; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; letter-spacing: 0.03em; box-shadow: 0 1px 3px rgba(41,128,185,0.25); transition: background 0.15s, box-shadow 0.15s; }
+        .btn-add { padding: 0px 5px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; transition: filter 0.15s; }
+        .btn-add:hover { filter: brightness(0.88); }
+        .btn-add:active { transform: translateY(1px); filter: brightness(0.82); }
+        .btn-update { padding: 1px 10px; background: #2980b9; color: white; border: 1px solid #2471a3; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; letter-spacing: 0.03em; box-shadow: 0 1px 3px rgba(41,128,185,0.25); transition: background 0.15s, box-shadow 0.15s, filter 0.15s; }
         .btn-update:hover { background: #3498db; box-shadow: 0 2px 6px rgba(41,128,185,0.4); }
+        .btn-update:active { transform: translateY(1px); filter: brightness(0.88); }
         .content-area { display: flex; flex: 1; overflow: hidden; }
         .sidebar { width: 90px; background: #2c3e50; color: #ecf0f1; display: flex; flex-direction: column; border-right: 1px solid #1a252f; }
         .sidebar-title { padding: 8px; font-weight: bold; background: #1a252f; font-size: 12px; cursor: pointer; transition: 0.2s; }
@@ -221,7 +224,9 @@
         .gantt_layout_resource_row .gantt_scale,
         .gantt_layout_resource_row .gantt_scale_line { display: none !important; height: 0 !important; min-height: 0 !important; overflow: hidden !important; }
         .toolbar { background: #f8f9fa; padding: 0 12px; height: 28px; border-bottom: 1px solid #ddd; display: flex; gap: 8px; align-items: center; font-size: 10px; }
-        .zoom-btn { padding: 0px 5px; cursor: pointer; background: #fff; border: 1px solid #ccc; border-radius: 3px; font-size: 12px; }
+        .zoom-btn { padding: 0px 5px; cursor: pointer; background: #fff; border: 1px solid #ccc; border-radius: 3px; font-size: 12px; transition: filter 0.15s; }
+        .zoom-btn:hover { filter: brightness(0.88); }
+        .zoom-btn:active { transform: translateY(1px); filter: brightness(0.82); }
         .zoom-btn.active { background-color: #3498db; color: #fff; border-color: #3498db; }
         
         /* 組立場所ボタン専用スタイル */
@@ -1414,7 +1419,9 @@
             font-family: 'メイリオ', Meiryo, sans-serif;
         }
         #auth_btn { font-size: 12px; padding: 1px 8px; cursor: pointer;
-            border: 1px solid #ccc; border-radius: 4px; background: #f0f0f0; }
+            border: 1px solid #ccc; border-radius: 4px; background: #f0f0f0; transition: filter 0.15s; }
+        #auth_btn:hover { filter: brightness(0.88); }
+        #auth_btn:active { transform: translateY(1px); filter: brightness(0.82); }
         #auth_btn.logged-in { background: #e8f5e9; color: #2e7d32; border-color: #a5d6a7; }
 
         /* ===== 更新ボタン ===== */
@@ -1432,6 +1439,7 @@
             transition: background 0.15s, box-shadow 0.15s;
         }
         #publish_btn:hover { background: #21618c; box-shadow: 0 2px 6px rgba(26,82,118,0.5); }
+        #publish_btn:active { transform: translateY(1px); filter: brightness(0.88); }
         #publish_btn.publishing { opacity: 0.6; cursor: wait; }
 
         /* ===== 更新通知バナー（閲覧者向け） ===== */
@@ -1494,7 +1502,9 @@
         #sync-change-banner-close:hover { color: #fff; }
 
         /* ===== ヘルプモード ===== */
-        #help_btn, #sync_log_btn { font-size: 13px; padding: 1px 8px; font-weight: bold; color: #555; cursor: pointer; border: 1px solid #ccc; border-radius: 4px; background: #f0f0f0; }
+        #help_btn, #sync_log_btn { font-size: 13px; padding: 1px 8px; font-weight: bold; color: #555; cursor: pointer; border: 1px solid #ccc; border-radius: 4px; background: #f0f0f0; transition: filter 0.15s; }
+        #help_btn:hover, #sync_log_btn:hover { filter: brightness(0.88); }
+        #help_btn:active, #sync_log_btn:active { transform: translateY(1px); filter: brightness(0.82); }
         #help_btn.help-active { background: #1565c0; color: #fff; border-color: #1565c0; }
         #help_tips_container { display: none; position: fixed; inset: 0; z-index: 200000; pointer-events: none; }
         #help_tips_container.open { display: block; }
