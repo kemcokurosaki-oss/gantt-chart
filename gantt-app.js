@@ -2111,6 +2111,12 @@
 
         // ===== 更新履歴モーダル =====
         let _syncLogData = []; // 取得した全データをキャッシュ
+        let _syncLogFilter = {
+            keyword: '',
+            source: '',
+            dateFrom: '',
+            dateTo: ''
+        };
 
         async function openSyncLogModal() {
             document.getElementById('sync-log-overlay').style.display = 'block';
@@ -2137,11 +2143,172 @@
             }
 
             _syncLogData = data;
+            const dates = data
+                .map((row) => _toDateKey(row.changed_at))
+                .filter(Boolean)
+                .sort();
+            const minDate = dates[0] || '';
+            const maxDate = dates[dates.length - 1] || '';
+            _syncLogFilter = {
+                keyword: '',
+                source: '',
+                dateFrom: minDate,
+                dateTo: maxDate
+            };
             _renderSyncLog();
+        }
+
+        function _toDateKey(iso) {
+            if (!iso) return '';
+            const d = new Date(iso);
+            if (Number.isNaN(d.getTime())) return '';
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${y}-${m}-${day}`;
+        }
+
+        function _getSourceLabel(row) {
+            const desc = row.description || '';
+            return (row.source || '').trim()
+                || (desc.indexOf('設計工程表') >= 0 ? '設計工程表'
+                : (desc.indexOf('組立工程表') >= 0 ? '組立工程表' : '全体工程表'));
+        }
+
+        function _setSyncLogFilterKeyword(value) {
+            _syncLogFilter.keyword = (value || '').trim();
+            _renderSyncLogTable();
+        }
+        window.setSyncLogFilterKeyword = _setSyncLogFilterKeyword;
+
+        function _setSyncLogFilterSource(value) {
+            _syncLogFilter.source = value || '';
+            _renderSyncLog();
+        }
+        window.setSyncLogFilterSource = _setSyncLogFilterSource;
+
+        function _setSyncLogFilterDateFrom(value) {
+            _syncLogFilter.dateFrom = value || '';
+            _renderSyncLog();
+        }
+        window.setSyncLogFilterDateFrom = _setSyncLogFilterDateFrom;
+
+        function _setSyncLogFilterDateTo(value) {
+            _syncLogFilter.dateTo = value || '';
+            _renderSyncLog();
+        }
+        window.setSyncLogFilterDateTo = _setSyncLogFilterDateTo;
+
+        function _setSyncLogFilterPreset(preset) {
+            const now = new Date();
+            const make = (d) => {
+                const y = d.getFullYear();
+                const m = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                return `${y}-${m}-${day}`;
+            };
+            const day = now.getDay();
+            if (preset === 'thisWeek') {
+                const monday = new Date(now);
+                const delta = day === 0 ? 6 : day - 1;
+                monday.setDate(now.getDate() - delta);
+                _syncLogFilter.dateFrom = make(monday);
+                _syncLogFilter.dateTo = make(now);
+            } else if (preset === 'lastWeek') {
+                const thisMonday = new Date(now);
+                const delta = day === 0 ? 6 : day - 1;
+                thisMonday.setDate(now.getDate() - delta);
+                const lastMonday = new Date(thisMonday);
+                lastMonday.setDate(thisMonday.getDate() - 7);
+                const lastSunday = new Date(thisMonday);
+                lastSunday.setDate(thisMonday.getDate() - 1);
+                _syncLogFilter.dateFrom = make(lastMonday);
+                _syncLogFilter.dateTo = make(lastSunday);
+            } else {
+                const dates = _syncLogData
+                    .map((row) => _toDateKey(row.changed_at))
+                    .filter(Boolean)
+                    .sort();
+                _syncLogFilter.dateFrom = dates[0] || '';
+                _syncLogFilter.dateTo = dates[dates.length - 1] || '';
+            }
+            _renderSyncLog();
+        }
+        window.setSyncLogFilterPreset = _setSyncLogFilterPreset;
+
+        function _clearSyncLogFilter() {
+            const dates = _syncLogData
+                .map((row) => _toDateKey(row.changed_at))
+                .filter(Boolean)
+                .sort();
+            _syncLogFilter.keyword = '';
+            _syncLogFilter.source = '';
+            _syncLogFilter.dateFrom = dates[0] || '';
+            _syncLogFilter.dateTo = dates[dates.length - 1] || '';
+            _renderSyncLog();
+        }
+        window.clearSyncLogFilter = _clearSyncLogFilter;
+
+        function _getFilteredSyncLogRows() {
+            const keyword = (_syncLogFilter.keyword || '').toLowerCase();
+            return _syncLogData.filter((row) => {
+                const sourceLabel = _getSourceLabel(row);
+                if (_syncLogFilter.source && sourceLabel !== _syncLogFilter.source) return false;
+                const dateKey = _toDateKey(row.changed_at);
+                if (_syncLogFilter.dateFrom && dateKey && dateKey < _syncLogFilter.dateFrom) return false;
+                if (_syncLogFilter.dateTo && dateKey && dateKey > _syncLogFilter.dateTo) return false;
+                if (!keyword) return true;
+                const target = [
+                    row.project_number || '',
+                    row.machine || '',
+                    row.unit || '',
+                    row.task_text || '',
+                    row.description || '',
+                    row.changed_by || '',
+                    sourceLabel
+                ].join(' ').toLowerCase();
+                return target.indexOf(keyword) >= 0;
+            });
         }
 
         function _renderSyncLog() {
             const content = document.getElementById('sync-log-content');
+            const filterHtml = `<div style="position:sticky;top:0;z-index:20;background:#fff;border-bottom:1px solid #eceff1;padding:8px 0 10px 0;margin-bottom:6px;">
+                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;">
+                    <label style="font-size:12px;color:#555;white-space:nowrap;">キーワード</label>
+                    <input type="text" value="${_syncLogFilter.keyword || ''}" placeholder="工事番号・タスク名・変更内容..." oninput="setSyncLogFilterKeyword(this.value)" style="flex:1;min-width:240px;padding:4px 8px;border:1px solid #ccc;border-radius:4px;font-size:12px;">
+                    <label style="font-size:12px;color:#555;white-space:nowrap;">変更元</label>
+                    <select onchange="setSyncLogFilterSource(this.value)" style="padding:4px 8px;border:1px solid #ccc;border-radius:4px;font-size:12px;">
+                        <option value="" ${_syncLogFilter.source === '' ? 'selected' : ''}>すべて</option>
+                        <option value="全体工程表" ${_syncLogFilter.source === '全体工程表' ? 'selected' : ''}>全体工程表</option>
+                        <option value="設計工程表" ${_syncLogFilter.source === '設計工程表' ? 'selected' : ''}>設計工程表</option>
+                        <option value="組立工程表" ${_syncLogFilter.source === '組立工程表' ? 'selected' : ''}>組立工程表</option>
+                    </select>
+                </div>
+                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                    <label style="font-size:12px;color:#555;white-space:nowrap;">期間</label>
+                    <input type="date" value="${_syncLogFilter.dateFrom || ''}" onchange="setSyncLogFilterDateFrom(this.value)" style="padding:4px 6px;border:1px solid #ccc;border-radius:4px;font-size:12px;">
+                    <span style="font-size:12px;color:#666;">〜</span>
+                    <input type="date" value="${_syncLogFilter.dateTo || ''}" onchange="setSyncLogFilterDateTo(this.value)" style="padding:4px 6px;border:1px solid #ccc;border-radius:4px;font-size:12px;">
+                    <button onclick="setSyncLogFilterPreset('thisWeek')" style="padding:4px 8px;border:1px solid #cfd8dc;border-radius:4px;background:#f5f8fa;font-size:12px;cursor:pointer;">今週</button>
+                    <button onclick="setSyncLogFilterPreset('lastWeek')" style="padding:4px 8px;border:1px solid #cfd8dc;border-radius:4px;background:#f5f8fa;font-size:12px;cursor:pointer;">先週</button>
+                    <button onclick="clearSyncLogFilter()" style="padding:4px 8px;border:1px solid #e0e0e0;border-radius:4px;background:#fff;font-size:12px;cursor:pointer;color:#555;">クリア</button>
+                    <span id="sync-log-count" style="margin-left:auto;font-size:12px;color:#666;"></span>
+                </div>
+            </div>`;
+            content.innerHTML = `${filterHtml}<div id="sync-log-table-wrap"></div>`;
+            _renderSyncLogTable();
+        }
+
+        function _renderSyncLogTable() {
+            const tableWrap = document.getElementById('sync-log-table-wrap');
+            if (!tableWrap) return;
+            const countEl = document.getElementById('sync-log-count');
+            const filteredRows = _getFilteredSyncLogRows();
+            if (countEl) {
+                countEl.textContent = `表示 ${filteredRows.length} / ${_syncLogData.length} 件`;
+            }
+
             const fmtDt = (iso) => {
                 if (!iso) return '';
                 const d = new Date(iso);
@@ -2161,10 +2328,9 @@
                 return base + 'color:#2e7d32;';
             };
 
-            const thSticky = 'position:sticky;top:-2px;z-index:6;background:#eceff1;background-clip:padding-box;box-shadow:0 2px 3px rgba(0,0,0,0.12);';
+            const thSticky = 'position:sticky;top:88px;z-index:6;background:#eceff1;background-clip:padding-box;box-shadow:0 2px 3px rgba(0,0,0,0.12);';
             const thSep = 'border-top:2px solid #cfd8dc;border-bottom:2px solid #cfd8dc;';
             const cellWrap = 'word-break:break-word;overflow-wrap:anywhere;white-space:normal;vertical-align:top;';
-            // 列幅は px 固定（% にしない）。合計＝テーブル幅。ここだけ編集すれば他列に食い込まれません。
             const SYNC_LOG_COL_PX = {
                 changedAt: 132,
                 projectNo: 84,
@@ -2203,12 +2369,9 @@
                 </thead>
                 <tbody>`;
 
-            _syncLogData.forEach((row, i) => {
+            filteredRows.forEach((row, i) => {
                 const bg = i % 2 === 0 ? '#fff' : '#fafafa';
-                const desc = row.description || '';
-                const sourceLabel = (row.source || '').trim()
-                    || (desc.indexOf('設計工程表') >= 0 ? '設計工程表'
-                    : (desc.indexOf('組立工程表') >= 0 ? '組立工程表' : '全体工程表'));
+                const sourceLabel = _getSourceLabel(row);
                 const sourceCell = `<span style="${sourceTextStyle(sourceLabel)}">${sourceLabel}</span>`;
                 tableHtml += `<tr style="background:${bg};">
                     <td style="padding:6px 10px;border-bottom:1px solid #eee;white-space:nowrap;color:#666;">${fmtDt(row.changed_at)}</td>
@@ -2223,7 +2386,10 @@
             });
 
             tableHtml += '</tbody></table>';
-            content.innerHTML = `<div style="width:${SYNC_LOG_TABLE_WIDTH_PX}px;max-width:100%;box-sizing:border-box;">${tableHtml}</div>`;
+            if (filteredRows.length === 0) {
+                tableHtml = `<div style="padding:20px;color:#888;text-align:center;">条件に一致する更新履歴はありません</div>`;
+            }
+            tableWrap.innerHTML = `<div style="width:${SYNC_LOG_TABLE_WIDTH_PX}px;max-width:100%;box-sizing:border-box;">${tableHtml}</div>`;
         }
 
         function closeSyncLogModal(e) {
