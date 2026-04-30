@@ -270,13 +270,39 @@
                             else machinesSet.add("設定なし");
                         });
                     });
-                    const machines = Array.from(machinesSet).sort();
-                    
+                    const machines = Array.from(machinesSet).sort((a, b) =>
+                        a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
+                    );
+
                     machines.forEach(mName => {
                         const tasksInMachine = projectTasks.filter(t => {
                             const mStr = t.machine || "設定なし";
                             const mList = mStr.split(",").map(m => m.trim());
                             return mList.includes(mName) || (mName === "設定なし" && mList.includes(""));
+                        });
+
+                        const headingRank = (t) => {
+                            const p = String(t.parent_name || "").trim();
+                            const idx = parentOrder.indexOf(p);
+                            return idx === -1 ? parentOrder.length + 1 : idx;
+                        };
+                        tasksInMachine.sort((a, b) => {
+                            const ra = headingRank(a);
+                            const rb = headingRank(b);
+                            if (ra !== rb) return ra - rb;
+                            if (ra === parentOrder.length + 1) {
+                                const pa = String(a.parent_name || "").trim();
+                                const pb = String(b.parent_name || "").trim();
+                                const c = pa.localeCompare(pb, undefined, { numeric: true, sensitivity: 'base' });
+                                if (c !== 0) return c;
+                            }
+                            const ma = Number(a.sort_order_machine != null ? a.sort_order_machine : 1e9);
+                            const mb = Number(b.sort_order_machine != null ? b.sort_order_machine : 1e9);
+                            if (ma !== mb) return ma - mb;
+                            const oa = Number(a.sort_order != null ? a.sort_order : 1e9);
+                            const ob = Number(b.sort_order != null ? b.sort_order : 1e9);
+                            if (oa !== ob) return oa - ob;
+                            return String(a.id).localeCompare(String(b.id), undefined, { numeric: true, sensitivity: 'base' });
                         });
 
                         if (tasksInMachine.length > 0) {
