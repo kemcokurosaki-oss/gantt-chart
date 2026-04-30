@@ -709,7 +709,7 @@
                 if (!select) return;
 
                 // 出張予定モードの場合の選択肢
-                const businessTripOptions = ["現地搬入", "現地据付", "現地工事", "現地試運転", "現地操業", "現地SV"];
+                const businessTripOptions = ["現地工事", "現地操業", "現地SV"];
 
                 // イベントリスナーの設定（初回のみ）
                 if (!node._events_attached) {
