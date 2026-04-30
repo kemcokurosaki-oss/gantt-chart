@@ -751,9 +751,9 @@
                 return false;
             }
 
-            // 1b. 完了済工番フィルター（出張モードでは出張タスクを除外しない）
+            // 1b. 完了済工番フィルター
             const taskPNum = (task.project_number || task.project_no || '').trim();
-            if (currentDisplayMode !== 'business_trip' && completedProjects.some(cp => cp.project_number === taskPNum)) return false;
+            if (completedProjects.some(cp => cp.project_number === taskPNum)) return false;
 
             // 2. 工事番号フィルター (AND条件)
             // 左側リスト選択 (currentFilter) のみ有効（入力欄フィルターは削除）

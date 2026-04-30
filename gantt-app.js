@@ -112,12 +112,24 @@
                 _cachedTasksRows = Array.isArray(data) ? data.map(t => ({ ...t })) : [];
                 _cachedTaskLocationsRows = Array.isArray(locData) ? locData.map(l => ({ ...l })) : [];
             } else {
-                // 編集者: ライブデータから読み込む
+                // 編集者: ライブデータから読み込む（PostgREST max-rows制限対策でページネーション）
                 const sortColumn = currentDisplayMode === 'machine' ? 'sort_order_machine' : 'sort_order';
-                const { data: liveData, error } = await supabaseClient.from('tasks').select('*').order(sortColumn, { ascending: true });
-                if (error) return;
-                data = liveData;
-                const { data: liveLoc } = await supabaseClient.from('task_locations').select('*');
+                const PAGE = 1000;
+                let allTasks = [], pageFrom = 0, fetchErr = null;
+                while (true) {
+                    const { data: page, error } = await supabaseClient
+                        .from('tasks').select('*')
+                        .order(sortColumn, { ascending: true })
+                        .range(pageFrom, pageFrom + PAGE - 1);
+                    if (error) { fetchErr = error; break; }
+                    if (!page || page.length === 0) break;
+                    allTasks = allTasks.concat(page);
+                    if (page.length < PAGE) break;
+                    pageFrom += PAGE;
+                }
+                if (fetchErr) return;
+                data = allTasks;
+                const { data: liveLoc } = await supabaseClient.from('task_locations').select('*').range(0, 49999);
                 locData = liveLoc || [];
                 _cachedTasksRows = Array.isArray(data) ? data.map(t => ({ ...t })) : [];
                 _cachedTaskLocationsRows = Array.isArray(locData) ? locData.map(l => ({ ...l })) : [];
@@ -347,11 +359,13 @@
                 });
             } else if (currentDisplayMode === 'business_trip') {
                 // 出張予定モード：見出し行を作らず、タスクをそのまま追加する
-                // 設計工程表の出張タスクも含めて全工事番号を収集
+                // 設計工程表の出張タスクも含めて全工事番号を収集（完了済み工事番号は除外）
+                const _completedPNums = new Set((completedProjects || []).map(cp => (cp.project_number || "").toString().trim()));
                 const tripProjects = [...new Set(rawTasks
                     .filter(t => {
                         const val = t.is_business_trip;
-                        return val === true || val === 'true' || val === 'TRUE';
+                        if (!(val === true || val === 'true' || val === 'TRUE')) return false;
+                        return !_completedPNums.has((t.project_number || "").toString().trim());
                     })
                     .map(t => t.project_number)
                 )].sort();
@@ -478,7 +492,6 @@
 
             updateProjectList(rawTasks);
             gantt.clearAll();
-            console.log("Parsing tasks with hierarchy:", tasksWithHierarchy.length);
             gantt.parse({ data: tasksWithHierarchy });
             
             // 今日のマーカーを更新
