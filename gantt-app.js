@@ -2115,8 +2115,10 @@
             keyword: '',
             source: '',
             dateFrom: '',
-            dateTo: ''
+            dateTo: '',
+            preset: ''
         };
+        let _syncLogTableHeaderStickyTop = 0;
 
         async function openSyncLogModal() {
             document.getElementById('sync-log-overlay').style.display = 'block';
@@ -2153,7 +2155,8 @@
                 keyword: '',
                 source: '',
                 dateFrom: minDate,
-                dateTo: maxDate
+                dateTo: maxDate,
+                preset: ''
             };
             _renderSyncLog();
         }
@@ -2189,12 +2192,14 @@
 
         function _setSyncLogFilterDateFrom(value) {
             _syncLogFilter.dateFrom = value || '';
+            _syncLogFilter.preset = '';
             _renderSyncLog();
         }
         window.setSyncLogFilterDateFrom = _setSyncLogFilterDateFrom;
 
         function _setSyncLogFilterDateTo(value) {
             _syncLogFilter.dateTo = value || '';
+            _syncLogFilter.preset = '';
             _renderSyncLog();
         }
         window.setSyncLogFilterDateTo = _setSyncLogFilterDateTo;
@@ -2214,6 +2219,7 @@
                 monday.setDate(now.getDate() - delta);
                 _syncLogFilter.dateFrom = make(monday);
                 _syncLogFilter.dateTo = make(now);
+                _syncLogFilter.preset = 'thisWeek';
             } else if (preset === 'lastWeek') {
                 const thisMonday = new Date(now);
                 const delta = day === 0 ? 6 : day - 1;
@@ -2224,6 +2230,7 @@
                 lastSunday.setDate(thisMonday.getDate() - 1);
                 _syncLogFilter.dateFrom = make(lastMonday);
                 _syncLogFilter.dateTo = make(lastSunday);
+                _syncLogFilter.preset = 'lastWeek';
             } else {
                 const dates = _syncLogData
                     .map((row) => _toDateKey(row.changed_at))
@@ -2231,6 +2238,7 @@
                     .sort();
                 _syncLogFilter.dateFrom = dates[0] || '';
                 _syncLogFilter.dateTo = dates[dates.length - 1] || '';
+                _syncLogFilter.preset = '';
             }
             _renderSyncLog();
         }
@@ -2245,9 +2253,34 @@
             _syncLogFilter.source = '';
             _syncLogFilter.dateFrom = dates[0] || '';
             _syncLogFilter.dateTo = dates[dates.length - 1] || '';
+            _syncLogFilter.preset = '';
             _renderSyncLog();
         }
         window.clearSyncLogFilter = _clearSyncLogFilter;
+
+        function _setSyncLogBtnHover(btn, kind, isHover) {
+            if (!btn) return;
+            if (kind === 'green') {
+                btn.style.background = isHover ? '#66bb6a' : '#81c784';
+                btn.style.borderColor = isHover ? '#5aa95d' : '#66bb6a';
+            } else {
+                btn.style.background = isHover ? '#f3f4f6' : '#fff';
+                btn.style.borderColor = isHover ? '#bfc6cc' : '#d5d5d5';
+            }
+        }
+        window.setSyncLogBtnHover = _setSyncLogBtnHover;
+
+        function _setSyncLogBtnPressed(btn, isPressed) {
+            if (!btn) return;
+            if (isPressed) {
+                btn.style.transform = 'translateY(1px)';
+                btn.style.boxShadow = 'inset 0 2px 4px rgba(0,0,0,0.18)';
+            } else {
+                btn.style.transform = 'translateY(0)';
+                btn.style.boxShadow = 'none';
+            }
+        }
+        window.setSyncLogBtnPressed = _setSyncLogBtnPressed;
 
         function _getFilteredSyncLogRows() {
             const keyword = (_syncLogFilter.keyword || '').toLowerCase();
@@ -2273,7 +2306,7 @@
 
         function _renderSyncLog() {
             const content = document.getElementById('sync-log-content');
-            const filterHtml = `<div style="position:sticky;top:0;z-index:20;background:#fff;border-bottom:1px solid #eceff1;padding:8px 0 10px 0;margin-bottom:6px;">
+            const filterHtml = `<div id="sync-log-filter-wrap" style="position:sticky;top:0;z-index:30;background:#fff;border-bottom:1px solid #dfe5ea;padding:8px 0 8px 0;box-shadow:0 -1px 0 #fff, 0 1px 0 #fff;">
                 <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;">
                     <label style="font-size:12px;color:#555;white-space:nowrap;">キーワード</label>
                     <input type="text" value="${_syncLogFilter.keyword || ''}" placeholder="工事番号・タスク名・変更内容..." oninput="setSyncLogFilterKeyword(this.value)" style="flex:1;min-width:240px;padding:4px 8px;border:1px solid #ccc;border-radius:4px;font-size:12px;">
@@ -2290,13 +2323,15 @@
                     <input type="date" value="${_syncLogFilter.dateFrom || ''}" onchange="setSyncLogFilterDateFrom(this.value)" style="padding:4px 6px;border:1px solid #ccc;border-radius:4px;font-size:12px;">
                     <span style="font-size:12px;color:#666;">〜</span>
                     <input type="date" value="${_syncLogFilter.dateTo || ''}" onchange="setSyncLogFilterDateTo(this.value)" style="padding:4px 6px;border:1px solid #ccc;border-radius:4px;font-size:12px;">
-                    <button onclick="setSyncLogFilterPreset('thisWeek')" style="padding:4px 8px;border:1px solid #cfd8dc;border-radius:4px;background:#f5f8fa;font-size:12px;cursor:pointer;">今週</button>
-                    <button onclick="setSyncLogFilterPreset('lastWeek')" style="padding:4px 8px;border:1px solid #cfd8dc;border-radius:4px;background:#f5f8fa;font-size:12px;cursor:pointer;">先週</button>
-                    <button onclick="clearSyncLogFilter()" style="padding:4px 8px;border:1px solid #e0e0e0;border-radius:4px;background:#fff;font-size:12px;cursor:pointer;color:#555;">クリア</button>
+                    <button onclick="setSyncLogFilterPreset('thisWeek')" onmouseover="setSyncLogBtnHover(this,'${_syncLogFilter.preset === 'thisWeek' ? 'green' : 'white'}',true)" onmouseout="setSyncLogBtnHover(this,'${_syncLogFilter.preset === 'thisWeek' ? 'green' : 'white'}',false)" onmousedown="setSyncLogBtnPressed(this,true)" onmouseup="setSyncLogBtnPressed(this,false)" onmouseleave="setSyncLogBtnPressed(this,false)" style="padding:4px 8px;border:1px solid ${_syncLogFilter.preset === 'thisWeek' ? '#66bb6a' : '#d5d5d5'};border-radius:4px;background:${_syncLogFilter.preset === 'thisWeek' ? '#81c784' : '#fff'};font-size:12px;cursor:pointer;color:${_syncLogFilter.preset === 'thisWeek' ? '#fff' : '#333'};font-weight:${_syncLogFilter.preset === 'thisWeek' ? '700' : '400'};transition:background-color .12s,border-color .12s,transform .06s,box-shadow .06s;">今週</button>
+                    <button onclick="setSyncLogFilterPreset('lastWeek')" onmouseover="setSyncLogBtnHover(this,'${_syncLogFilter.preset === 'lastWeek' ? 'green' : 'white'}',true)" onmouseout="setSyncLogBtnHover(this,'${_syncLogFilter.preset === 'lastWeek' ? 'green' : 'white'}',false)" onmousedown="setSyncLogBtnPressed(this,true)" onmouseup="setSyncLogBtnPressed(this,false)" onmouseleave="setSyncLogBtnPressed(this,false)" style="padding:4px 8px;border:1px solid ${_syncLogFilter.preset === 'lastWeek' ? '#66bb6a' : '#d5d5d5'};border-radius:4px;background:${_syncLogFilter.preset === 'lastWeek' ? '#81c784' : '#fff'};font-size:12px;cursor:pointer;color:${_syncLogFilter.preset === 'lastWeek' ? '#fff' : '#333'};font-weight:${_syncLogFilter.preset === 'lastWeek' ? '700' : '400'};transition:background-color .12s,border-color .12s,transform .06s,box-shadow .06s;">先週</button>
+                    <button onclick="clearSyncLogFilter()" onmouseover="setSyncLogBtnHover(this,'green',true)" onmouseout="setSyncLogBtnHover(this,'green',false)" onmousedown="setSyncLogBtnPressed(this,true)" onmouseup="setSyncLogBtnPressed(this,false)" onmouseleave="setSyncLogBtnPressed(this,false)" style="padding:4px 8px;border:1px solid #66bb6a;border-radius:4px;background:#81c784;font-size:12px;cursor:pointer;color:#fff;font-weight:700;transition:background-color .12s,border-color .12s,transform .06s,box-shadow .06s;">クリア</button>
                     <span id="sync-log-count" style="margin-left:auto;font-size:12px;color:#666;"></span>
                 </div>
             </div>`;
-            content.innerHTML = `${filterHtml}<div id="sync-log-table-wrap"></div>`;
+            const filterWrap = document.getElementById('sync-log-filter-wrap');
+            _syncLogTableHeaderStickyTop = filterWrap ? filterWrap.offsetHeight : 0;
+            content.innerHTML = `${filterHtml}<div style="position:sticky;top:${_syncLogTableHeaderStickyTop}px;height:2px;background:#fff;z-index:25;"></div><div id="sync-log-table-wrap"></div>`;
             _renderSyncLogTable();
         }
 
@@ -2304,6 +2339,10 @@
             const tableWrap = document.getElementById('sync-log-table-wrap');
             if (!tableWrap) return;
             const countEl = document.getElementById('sync-log-count');
+            const filterWrap = document.getElementById('sync-log-filter-wrap');
+            if (filterWrap) {
+                _syncLogTableHeaderStickyTop = filterWrap.offsetHeight;
+            }
             const filteredRows = _getFilteredSyncLogRows();
             if (countEl) {
                 countEl.textContent = `表示 ${filteredRows.length} / ${_syncLogData.length} 件`;
@@ -2328,7 +2367,8 @@
                 return base + 'color:#2e7d32;';
             };
 
-            const thSticky = 'position:sticky;top:88px;z-index:6;background:#eceff1;background-clip:padding-box;box-shadow:0 2px 3px rgba(0,0,0,0.12);';
+            const thStickyTop = Math.max(0, Number(_syncLogTableHeaderStickyTop) || 0);
+            const thSticky = `position:sticky;top:${thStickyTop}px;z-index:6;background:#eceff1;background-clip:padding-box;box-shadow:0 2px 3px rgba(0,0,0,0.12);`;
             const thSep = 'border-top:2px solid #cfd8dc;border-bottom:2px solid #cfd8dc;';
             const cellWrap = 'word-break:break-word;overflow-wrap:anywhere;white-space:normal;vertical-align:top;';
             const SYNC_LOG_COL_PX = {
