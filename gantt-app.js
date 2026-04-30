@@ -991,19 +991,29 @@
 
         window.toggleTaskCheckbox = function(id, checked) {
             if (!_isEditor) return;
-            taskCheckboxes[id] = checked;
-            // 子タスク行を即時更新
-            const rowNode = gantt.getTaskRowNode(id);
-            if (rowNode) {
-                if (checked) rowNode.classList.add("task-checked");
-                else rowNode.classList.remove("task-checked");
-            }
+            const task = gantt.getTask(id);
+            const realId = (task && task.original_id) || id;
+            taskCheckboxes[realId] = checked;
+            // 子タスク行を即時更新（機械別で同一タスクが複数機械行に出る場合はすべて反映）
+            gantt.eachTask(function(t) {
+                if (t.$virtual) return;
+                const rowKey = t.original_id || t.id;
+                if (rowKey !== realId) return;
+                const rowNode = gantt.getTaskRowNode(t.id);
+                if (rowNode) {
+                    if (checked) rowNode.classList.add("task-checked");
+                    else rowNode.classList.remove("task-checked");
+                }
+            });
             // 親行（見出し行）の状態を更新
             try {
-                const task = gantt.getTask(id);
                 if (task && task.parent) {
                     const children = gantt.getChildren(task.parent);
-                    const allChecked = children.length > 0 && children.every(cid => taskCheckboxes[cid]);
+                    const allChecked = children.length > 0 && children.every(cid => {
+                        const c = gantt.getTask(cid);
+                        const key = (c && c.original_id) || cid;
+                        return taskCheckboxes[key];
+                    });
                     const parentRow = gantt.getTaskRowNode(task.parent);
                     if (parentRow) {
                         if (allChecked) parentRow.classList.add("task-checked");
@@ -1011,8 +1021,8 @@
                     }
                 }
             } catch(e) {}
-            // Supabaseへの保存はバックグラウンドで実行
-            supabaseClient.from('tasks').update({ is_completed: checked }).eq('id', id)
+            // Supabaseへの保存はバックグラウンドで実行（常に DB のタスク id）
+            supabaseClient.from('tasks').update({ is_completed: checked }).eq('id', realId)
                 .then(({ error }) => {
                     if (error) { console.error("チェックボックス保存エラー:", error); return; }
                     try {

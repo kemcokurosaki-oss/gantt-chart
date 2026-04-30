@@ -56,7 +56,8 @@
             }},
             { name: "checkbox", label: "", width: COLUMN_WIDTHS[2], align: "left", template: function(obj) {
                 if (obj.$virtual) return "";
-                const isChecked = taskCheckboxes[obj.id] ? "checked" : "";
+                const rowKey = obj.original_id || obj.id;
+                const isChecked = taskCheckboxes[rowKey] ? "checked" : "";
                 return `<input type='checkbox' ${isChecked} ${_isEditor ? '' : 'disabled'} onchange='toggleTaskCheckbox("${obj.id}", this.checked)'>`;
             }},
             { name: "text", label: "タスク名", width: COLUMN_WIDTHS[3], tree: true, template: function(obj) {
@@ -485,14 +486,18 @@
             let css = "";
 
             if (task.$virtual) {
-                // 見出し行：子タスクがすべてチェック済みならグレーアウト
+                // 見出し行：子タスクがすべてチェック済みならグレーアウト（機械別は子がクローンIDのため original_id で参照）
                 const children = gantt.getChildren(task.id);
-                if (children.length > 0 && children.every(cid => taskCheckboxes[cid])) {
+                if (children.length > 0 && children.every(cid => {
+                    const c = gantt.getTask(cid);
+                    const key = (c && c.original_id) || cid;
+                    return taskCheckboxes[key];
+                })) {
                     css += " task-checked";
                 }
             } else {
-                // チェックボックスの状態を確認
-                if (taskCheckboxes[task.id]) {
+                // チェックボックスの状態を確認（機械別クローン行は DB の id で taskCheckboxes を参照）
+                if (taskCheckboxes[task.original_id || task.id]) {
                     css += " task-checked";
                 }
             }
