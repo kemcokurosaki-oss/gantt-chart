@@ -901,7 +901,7 @@
             }
         };
 
-        gantt.config.lightbox.sections = [
+        const _lightboxSectionsNormal = [
             { name: "project_number", height: 24, map_to: "project_number", type: "textarea", focus: true },
             { name: "parent_name", height: 24, map_to: "parent_name", type: "textarea" },
             { name: "major_item", height: 24, map_to: "major_item", type: "select", options: majorItemOptions },
@@ -912,6 +912,14 @@
             { name: "locations", height: 80, map_to: "locations", type: "location_selector" },
             { name: "time", height: 30, type: "datepicker", map_to: "auto" }
         ];
+        const _lightboxSectionsTrip = [
+            { name: "project_number", height: 24, map_to: "project_number", type: "textarea", focus: true },
+            { name: "major_item", height: 24, map_to: "major_item", type: "select", options: majorItemOptions },
+            { name: "description", height: 34, map_to: "text", type: "task_name_selector" },
+            { name: "owner", height: 80, map_to: "owner", type: "owner_selector" },
+            { name: "time", height: 30, type: "datepicker", map_to: "auto" }
+        ];
+        gantt.config.lightbox.sections = _lightboxSectionsNormal;
 
         // gantt.showLightbox を全タスク共通のシンプルな構造に書き換え
         const originalShowLightbox = gantt.showLightbox;
@@ -920,7 +928,13 @@
                 // ① タスクを取得
                 const task = gantt.getTask(id);
 
-                // ② 担当者プルダウンの更新（major_itemに連動）
+                // ② 出張予定モード切替：見出し名・機械・ユニットを非表示
+                gantt.config.lightbox.sections = currentDisplayMode === 'business_trip'
+                    ? _lightboxSectionsTrip
+                    : _lightboxSectionsNormal;
+                gantt.config.lightbox.project_sections = gantt.config.lightbox.sections;
+
+                // ③ 担当者プルダウンの更新（major_itemに連動）
                 // ※ owner_selector は checkbox 形式なので innerHTML 直接操作は不要
                 // ※ 必要に応じて getLightboxSection で取得して再描画させる
                 const ownerSection = gantt.getLightboxSection("owner");
@@ -929,13 +943,13 @@
                     ownerSection.set_value(ownerSection.control, task.owner || "", task);
                 }
 
-                // ③ Supabase から場所データを取得してタスクオブジェクトに保持させる
+                // ④ Supabase から場所データを取得してタスクオブジェクトに保持させる
                 // これにより、後続の originalShowLightbox -> set_value でチェックが復元される
                 const { data: locations, error } = await supabaseClient
                     .from('task_locations')
                     .select('*')
                     .eq('task_id', id);
-                
+
                 if (!error && locations) {
                     task.locations = locations;
                     // area_group, area_number も同期しておく
@@ -947,7 +961,7 @@
                     task.locations = [];
                 }
 
-                // ④ ライトボックスを表示（内部で set_value が呼ばれる）
+                // ⑤ ライトボックスを表示（内部で set_value が呼ばれる）
                 originalShowLightbox.call(gantt, id);
 
                 // ⑤ ダイアログが描画された直後にドラッグを設定

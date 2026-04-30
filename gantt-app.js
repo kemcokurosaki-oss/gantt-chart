@@ -338,8 +338,8 @@
                     });
 
                     projectTasks.forEach(t => {
-                        t.parent = 0; // 親なし（ルート）
-                        tasksWithHierarchy.push(t);
+                        // window.allTasks の元オブジェクトを汚染しないようクローンして parent を設定
+                        tasksWithHierarchy.push({ ...t, parent: 0 });
                     });
                 });
             } else {

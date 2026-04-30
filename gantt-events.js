@@ -174,6 +174,13 @@
 
         // 新規タスク作成時の保存処理
         gantt.attachEvent("onAfterTaskAdd", async function(id, item) {
+            // 工事番号から客先名・工事名を自動補完（allTasks → completedProjects の順に検索）
+            const _pn = (item.project_number || "").toString().trim();
+            const _projectRef = (window.allTasks || []).find(t =>
+                t.project_number === _pn && (t.customer_name || t.project_details)
+            ) || (completedProjects || []).find(t =>
+                (t.project_number || "").toString().trim() === _pn && (t.customer_name || t.project_details)
+            );
             const newTaskData = {
                 text: item.text,
                 start_date: dateToDb(item.start_date),
@@ -181,8 +188,8 @@
                 end_date: inclusiveEndDateToDb(item.start_date, item.duration),
                 owner: item.owner || "",
                 project_number: item.project_number || "",
-                customer_name: item.customer_name || "",
-                project_details: item.project_details || "",
+                customer_name: (_projectRef && _projectRef.customer_name) || item.customer_name || "",
+                project_details: (_projectRef && _projectRef.project_details) || item.project_details || "",
                 machine: item.machine || "",
                 unit: item.unit || "",
                 major_item: item.major_item || "",
@@ -209,7 +216,13 @@
             } else if (data && data[0]) {
                 // Supabaseから発行された本当のIDに書き換える
                 const newId = data[0].id;
-                gantt.changeTaskId(id, newId);
+                // changeTaskId は tempId がすでに消えている場合にエラーになることがあるため try-catch で保護
+                // エラーでも fetchTasks は必ず実行して画面を最新状態にする
+                try {
+                    gantt.changeTaskId(id, newId);
+                } catch (e) {
+                    console.warn("changeTaskId skipped:", e);
+                }
                 if (typeof window.markLocalTaskMutation === 'function') window.markLocalTaskMutation(newId);
                 console.log("New task added with ID:", newId);
 
@@ -222,7 +235,7 @@
                     window.logChange(item.project_number || '', item.machine || '', item.unit || '', item.text || '', 'タスクを追加しました');
                 }
 
-                // 画面を最新状態に更新
+                // 画面を最新状態に更新（changeTaskId の成否にかかわらず必ず実行）
                 await fetchTasks();
             }
         });
@@ -274,6 +287,13 @@
             // 変更前のデータを取得（fetchTasks前なのでallTasksはまだ旧データ）
             const oldTask = (window.allTasks || []).find(t => String(t.id) === String(realId));
 
+            // 工事番号から客先名・工事名を自動補完（allTasks → completedProjects の順に検索）
+            const _pn = (item.project_number || "").toString().trim();
+            const _projectRef = (window.allTasks || []).find(t =>
+                t.project_number === _pn && (t.customer_name || t.project_details)
+            ) || (completedProjects || []).find(t =>
+                (t.project_number || "").toString().trim() === _pn && (t.customer_name || t.project_details)
+            );
             const updateData = {
                 text: item.text,
                 start_date: dateToDb(item.start_date),
@@ -281,8 +301,8 @@
                 end_date: inclusiveEndDateToDb(item.start_date, item.duration),
                 owner: item.owner,
                 project_number: item.project_number,
-                customer_name: item.customer_name || "",
-                project_details: item.project_details || "",
+                customer_name: (_projectRef && _projectRef.customer_name) || item.customer_name || "",
+                project_details: (_projectRef && _projectRef.project_details) || item.project_details || "",
                 machine: item.machine,
                 unit: item.unit,
                 major_item: item.major_item, // 色分け項目を保存
@@ -293,7 +313,7 @@
                 // 出張予定フラグ（出張予定モード時は強制的にtrue、それ以外は既存値を維持）
                 is_business_trip: currentDisplayMode === 'business_trip' ? true : (item.is_business_trip || false),
                 main_owner: item.main_owner || ""
-                // is_new_task: false // データベースにカラムがない可能性があるため一時的にコメントアウト
+                // is_new_task: false // データベースにカラムがない可能性があるため一時的にコメットアウト
             };
 
             // デバッグログの追加
@@ -347,18 +367,28 @@
         });
 
         // 保存ボタンが押された瞬間に実行されるイベント
-        // ※ async を付与して Supabase への保存を待機可能にする
         gantt.attachEvent("onLightboxSave", function(id, item) {
-            // async関数を即時実行して保存処理を行う
+            // 新規タスク判定を同期的に取得（非同期処理が始まる前に確定させる）
+            // _is_new_task フラグで判定（IDのallTasks比較はDHTMLXのtemp IDと既存IDが衝突するため不使用）
+            const _taskObj = gantt.isTaskExists(id) ? gantt.getTask(id) : null;
+            const isNewTask = !!(_taskObj && _taskObj._is_new_task);
+
             (async () => {
                 try {
-                    if (typeof window.persistTaskLocations === "function") {
+                    if (!isNewTask && typeof window.persistTaskLocations === "function") {
+                        // 既存タスク: 組立場所を保存してから updateTask → onAfterTaskUpdate が Supabase 更新・fetchTasks を担う
                         const ok = await window.persistTaskLocations(id, item.locations);
                         if (!ok) return;
                     }
 
-                    gantt.updateTask(id);
-                    await fetchTasks();
+                    if (!isNewTask) {
+                        gantt.updateTask(id);
+                    }
+                    // 新規タスクは onAfterTaskAdd が Supabase 保存・changeTaskId・fetchTasks をすべて担う
+                    // ここで fetchTasks を呼ぶと gantt.parse がテンポラリIDを消し changeTaskId が失敗するため呼ばない
+                    if (!isNewTask) {
+                        await fetchTasks();
+                    }
                 } catch (e) {
                     console.error("Lightbox save error:", e);
                 }
@@ -423,6 +453,8 @@
 
         // ＋ボタンの挙動をカスタマイズ（親の情報を引き継ぐ）
         gantt.attachEvent("onTaskCreated", function(task){
+            // 新規タスクであることをフラグで記録（onLightboxSaveで新規/既存を確実に判別するため）
+            task._is_new_task = true;
             if (task.parent) {
                 const parentTask = gantt.getTask(task.parent);
                 // 親が仮想行（見出し行）の場合、その情報を引き継ぐ
@@ -438,6 +470,13 @@
                     task.customer_name = parentTask.customer_name;
                     task.project_details = parentTask.project_details;
                 }
+            }
+            // 出張予定モードでは開始日を今日の日付に固定
+            if (currentDisplayMode === 'business_trip') {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                task.start_date = today;
+                task.duration = 1;
             }
             return true;
         });
@@ -707,9 +746,9 @@
                 return false;
             }
 
-            // 1b. 完了済工番フィルター
+            // 1b. 完了済工番フィルター（出張モードでは出張タスクを除外しない）
             const taskPNum = (task.project_number || task.project_no || '').trim();
-            if (completedProjects.some(cp => cp.project_number === taskPNum)) return false;
+            if (currentDisplayMode !== 'business_trip' && completedProjects.some(cp => cp.project_number === taskPNum)) return false;
 
             // 2. 工事番号フィルター (AND条件)
             // 左側リスト選択 (currentFilter) のみ有効（入力欄フィルターは削除）
