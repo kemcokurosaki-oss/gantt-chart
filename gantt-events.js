@@ -118,6 +118,175 @@
         gantt.config.order_branch = true;
         gantt.config.order_branch_free = true;
 
+        // ===== 列幅ドラッグリサイズ（ユニ・担当・場所のみ） =====
+        (function() {
+            var COL_WIDTHS_KEY = 'gantt_col_widths_v1';
+
+            // リサイズ対象列：name / COLUMN_WIDTHS の添字
+            var RESIZABLE = [
+                { name: 'unit',        minIdx: 5 },
+                { name: 'owner',       minIdx: 6 },
+                { name: 'area_number', minIdx: 7 }
+            ];
+
+            function loadWidths() {
+                try { return JSON.parse(localStorage.getItem(COL_WIDTHS_KEY) || '{}'); }
+                catch(e) { return {}; }
+            }
+
+            function saveWidth(name, w) {
+                try {
+                    var d = loadWidths();
+                    d[name] = w;
+                    localStorage.setItem(COL_WIDTHS_KEY, JSON.stringify(d));
+                } catch(e) {}
+            }
+
+            function syncGridWidth() {
+                var total = SHARED_COLUMNS.reduce(function(s, c) { return s + (c.width || 0); }, 0);
+                gantt.config.grid_width = total;
+            }
+
+            // 保存済み幅を SHARED_COLUMNS へ適用（ページ読み込み時に1回）
+            function applyStoredWidths() {
+                var stored = loadWidths();
+                RESIZABLE.forEach(function(r) {
+                    var w = stored[r.name];
+                    if (!w) return;
+                    var col = SHARED_COLUMNS.find(function(c) { return c.name === r.name; });
+                    if (!col) return;
+                    col.width = Math.max(w, COLUMN_WIDTHS[r.minIdx]);
+                });
+                syncGridWidth();
+            }
+
+            // Canvas measureText で列の全タスク最大コンテンツ幅を計測
+            function calcMaxWidth(name) {
+                var canvas = document.createElement('canvas');
+                var ctx = canvas.getContext('2d');
+                var sampleCell = document.querySelector('#gantt_here .gantt_cell');
+                ctx.font = sampleCell
+                    ? window.getComputedStyle(sampleCell).font
+                    : '13px sans-serif';
+
+                var maxW = 0;
+                try {
+                    gantt.eachTask(function(task) {
+                        var text = '';
+                        if (name === 'unit') {
+                            text = task.unit || '';
+                        } else if (name === 'owner') {
+                            text = task.owner || '';
+                            if (text) {
+                                var owners = text.split(/[,，]/).map(function(s) { return s.trim(); }).filter(Boolean);
+                                text = owners.join(', ');
+                            }
+                        } else if (name === 'area_number') {
+                            text = (task.area_group && task.area_number)
+                                ? task.area_group + '-' + task.area_number
+                                : (task.area_group || task.area_number || '');
+                        }
+                        if (!text) return;
+                        var w = ctx.measureText(text).width;
+                        if (w > maxW) maxW = w;
+                    });
+                } catch(e) {}
+                return Math.ceil(maxW) + 20; // 左右パディング
+            }
+
+            // ドラッグ状態
+            var dragging = null;
+            var rafPending = false;
+
+            // ヘッダーセルにリサイズハンドルを注入
+            function injectHandles() {
+                if (typeof currentDisplayMode !== 'undefined' && currentDisplayMode === 'business_trip') return;
+
+                var allCells = document.querySelectorAll('#gantt_here .gantt_grid_head_cell');
+                RESIZABLE.forEach(function(r) {
+                    var colIdx = SHARED_COLUMNS.findIndex(function(c) { return c.name === r.name; });
+                    if (colIdx < 0) return;
+                    var cell = allCells[colIdx];
+                    if (!cell || cell.querySelector('.col-resize-handle')) return;
+
+                    cell.style.position = 'relative';
+                    cell.style.overflow = 'visible';
+
+                    var handle = document.createElement('div');
+                    handle.className = 'col-resize-handle';
+                    handle.dataset.colName = r.name;
+                    handle.style.cssText = 'position:absolute;right:-3px;top:0;width:6px;height:100%;cursor:col-resize;z-index:10;background:transparent;user-select:none;';
+
+                    handle.addEventListener('mouseenter', function() {
+                        handle.style.background = 'rgba(66,133,244,0.35)';
+                    });
+                    handle.addEventListener('mouseleave', function() {
+                        if (!dragging) handle.style.background = 'transparent';
+                    });
+
+                    handle.addEventListener('mousedown', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        var col = SHARED_COLUMNS.find(function(c) { return c.name === r.name; });
+                        dragging = {
+                            name:       r.name,
+                            minW:       COLUMN_WIDTHS[r.minIdx],
+                            maxW:       Math.max(calcMaxWidth(r.name), COLUMN_WIDTHS[r.minIdx]),
+                            startX:     e.clientX,
+                            startWidth: col.width,
+                            col:        col
+                        };
+                        document.body.style.cursor = 'col-resize';
+                    });
+
+                    cell.appendChild(handle);
+                });
+            }
+
+            window.addEventListener('mousemove', function(e) {
+                if (!dragging) return;
+                var delta = e.clientX - dragging.startX;
+                var newW = Math.max(dragging.minW, Math.min(dragging.maxW, dragging.startWidth + delta));
+                dragging.col.width = newW;
+                syncGridWidth();
+
+                if (!rafPending) {
+                    rafPending = true;
+                    requestAnimationFrame(function() {
+                        rafPending = false;
+                        if (!dragging) return;
+                        try {
+                            var ss = gantt.getScrollState();
+                            gantt.render();
+                            gantt.scrollTo(ss.x, ss.y);
+                        } catch(e) {}
+                    });
+                }
+            });
+
+            window.addEventListener('mouseup', function() {
+                if (!dragging) return;
+                saveWidth(dragging.name, dragging.col.width);
+                document.body.style.cursor = '';
+                dragging = null;
+                try {
+                    var ss = gantt.getScrollState();
+                    gantt.render();
+                    gantt.scrollTo(ss.x, ss.y);
+                } catch(e) {}
+            });
+
+            // gantt.init() より前（この IIFE は init の前に実行される）に
+            // 保存済み幅を適用することで、レイアウト初期化時点から正しい grid_width になる
+            applyStoredWidths();
+
+            // render のたびにハンドルを再注入（DOM が作り直されるため）
+            gantt.attachEvent("onGanttRender", function() {
+                setTimeout(injectHandles, 0);
+            });
+        })();
+        // ===== 列幅ドラッグリサイズ ここまで =====
+
         // ドラッグによる並べ替え順序の保存
         gantt.attachEvent("onRowDragEnd", async function(id, target) {
             // fetchTasks が展開状態を記憶・復元するようになったため、

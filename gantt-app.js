@@ -1147,8 +1147,8 @@
             } else {
                 // 工程別・機械別（共通）：列構成・幅が同一のため render 不要
                 // fetchTasks() の gantt.parse() で正しく再描画される
-                gantt.config.grid_width = 600;
                 gantt.config.columns = SHARED_COLUMNS;
+                gantt.config.grid_width = SHARED_COLUMNS.reduce(function(s, c) { return s + (c.width || 0); }, 0);
                 gantt.config.grid_elastic_columns = false;
             }
         }
