@@ -132,7 +132,13 @@
     <!-- 完了済工番モーダル -->
     <!-- ===== 検索フィルターポップアップ ===== -->
     <div id="search-filter-popup" style="position:fixed; display:none; background:#fff; border-radius:6px; box-shadow:0 4px 16px rgba(0,0,0,0.2); border:1px solid #ddd; z-index:10000; padding:12px 14px; min-width:200px;">
-        <div style="font-size:12px; font-weight:bold; color:#555; margin-bottom:8px; border-bottom:1px solid #eee; padding-bottom:6px;">検索フィルター</div>
+        <div style="font-size:12px; font-weight:bold; color:#555; margin-bottom:8px; border-bottom:1px solid #eee; padding-bottom:6px; display:flex; align-items:center; justify-content:space-between;">
+            <span>検索フィルター</span>
+            <span id="search-filter-loading" style="display:none; align-items:center; gap:4px; color:#3498db; font-size:11px; font-weight:normal;">
+                <span style="display:inline-block; width:10px; height:10px; border:2px solid #bde0f7; border-top-color:#3498db; border-radius:50%; animation:spin 0.7s linear infinite;"></span>
+                処理中...
+            </span>
+        </div>
         <div style="display:flex; flex-direction:column; gap:8px;">
             <div>
                 <label style="font-size:11px; color:#777; display:block; margin-bottom:2px;">機械検索</label>

@@ -1544,3 +1544,4 @@
         .loading-spinner div:nth-child(8) { transform: rotate(315deg); animation-delay:  0.000s; }
         @keyframes ls-fade { 0% { opacity: 1; } 100% { opacity: 0.12; } }
         .loading-label { font-size: 15px; color: #555555; letter-spacing: 0.12em; font-family: 'Noto Sans JP', 'メイリオ', Meiryo, sans-serif; }
+        @keyframes spin { to { transform: rotate(360deg); } }

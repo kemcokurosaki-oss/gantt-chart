@@ -1309,10 +1309,17 @@
             return !!(currentOwnerFilter || currentMachineFilter || currentTaskFilter);
         }
 
+        function _showFilterLoading(show) {
+            let el = document.getElementById('search-filter-loading');
+            if (!el) return;
+            el.style.display = show ? 'flex' : 'none';
+        }
+
         let _filterDebounceTimer = null;
         function _applyFilterDebounced(setFn, expandIfActive) {
             setFn();
             clearTimeout(_filterDebounceTimer);
+            _showFilterLoading(true);
             _filterDebounceTimer = setTimeout(function() {
                 const scrollState = gantt.getScrollState();
                 gantt.render();
@@ -1322,7 +1329,8 @@
                     _collapseAllVirtual();
                 }
                 gantt.scrollTo(scrollState.x, scrollState.y);
-            }, 100);
+                _showFilterLoading(false);
+            }, 300);
         }
 
         async function filterByOwner(val) {
