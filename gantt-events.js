@@ -783,9 +783,9 @@
             if (task.text === "客先立会") return css + "milestone-square";
 
             // 大項目フィルタ（部署別フィルタ）と部署別リソースの両方が有効な時のみ担当者ごとの色を適用
-            if (currentMajorFilter && currentResourceDeptFilter && currentMajorFilter === currentResourceDeptFilter) {
+            if (currentMajorFilters.size > 0 && currentResourceDeptFilter && currentMajorFilters.has(currentResourceDeptFilter)) {
                 // フィルタ対象の部署と一致する場合のみ担当者ごとの色を適用
-                if (task.major_item === currentMajorFilter) {
+                if (task.major_item === currentResourceDeptFilter) {
                     const ownerColor = getOwnerColorClass(task.owner, task.major_item);
                     if (ownerColor) return css + ownerColor;
                 }
@@ -880,7 +880,7 @@
                 gantt.getTaskCount(),
                 currentFilter || "",
                 currentProjectGroupFilter || "all",
-                currentMajorFilter || "",
+                Array.from(currentMajorFilters).sort().join(","),
                 currentOwnerFilter || "",
                 currentMachineFilter || "",
                 currentTaskFilter || "",
@@ -939,8 +939,8 @@
             }
 
             // 3. 部署フィルター (AND条件)
-            if (currentMajorFilter) {
-                if (task.major_item !== currentMajorFilter) return false;
+            if (currentMajorFilters.size > 0) {
+                if (!currentMajorFilters.has(task.major_item)) return false;
             }
 
             // 4. 担当者フィルター (AND条件)

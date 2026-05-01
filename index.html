@@ -57,18 +57,23 @@
 
             <div class="filter-group" style="align-items:center;">
                 <label style="font-size:13px; white-space:nowrap;">部署別フィルタ</label>
-                <select id="major-filter-select" onchange="filterByMajorItem(this.value)" style="font-size:12px; padding:2px 4px; border:1px solid #ccc; border-radius:3px; margin-left:4px;">
-                    <option value="">全部署</option>
-                    <option value="営業">営業</option>
-                    <option value="設計">設計</option>
-                    <option value="製管">製管</option>
-                    <option value="組立">組立</option>
-                    <option value="電装">電装</option>
-                    <option value="品証">品証</option>
-                    <option value="操業">操業</option>
-                    <option value="電技">電技</option>
-                    <option value="明石">明石</option>
-                </select>
+                <div id="major-filter-wrapper" style="position:relative; margin-left:4px;">
+                    <button id="major-filter-btn" onclick="toggleMajorFilterDropdown(event)" class="zoom-btn" style="padding:2px 20px 2px 6px; min-width:76px; text-align:left; position:relative; height:22px; box-sizing:border-box; line-height:18px;">
+                        <span id="major-filter-label">全部署</span><span style="position:absolute; right:4px; top:50%; transform:translateY(-50%); font-size:9px; color:#000; pointer-events:none;">▼</span>
+                    </button>
+                    <div id="major-filter-dropdown" style="display:none; position:absolute; top:calc(100% + 1px); left:0; z-index:10001; background:#fff; border:1px solid #ccc; border-radius:3px; box-shadow:0 2px 8px rgba(0,0,0,0.15); padding:4px 0; min-width:110px; white-space:nowrap;">
+                        <div onclick="filterByMajorItem('')" style="padding:3px 10px; cursor:pointer; font-size:12px; color:#888; border-bottom:1px solid #eee;">全部署（リセット）</div>
+                        <label style="display:flex;align-items:center;padding:3px 10px;cursor:pointer;font-size:12px;gap:6px;"><input type="checkbox" id="major-chk-営業" onchange="filterByMajorItem('営業')" style="margin:0;cursor:pointer;"><span>営業</span></label>
+                        <label style="display:flex;align-items:center;padding:3px 10px;cursor:pointer;font-size:12px;gap:6px;"><input type="checkbox" id="major-chk-設計" onchange="filterByMajorItem('設計')" style="margin:0;cursor:pointer;"><span>設計</span></label>
+                        <label style="display:flex;align-items:center;padding:3px 10px;cursor:pointer;font-size:12px;gap:6px;"><input type="checkbox" id="major-chk-製管" onchange="filterByMajorItem('製管')" style="margin:0;cursor:pointer;"><span>製管</span></label>
+                        <label style="display:flex;align-items:center;padding:3px 10px;cursor:pointer;font-size:12px;gap:6px;"><input type="checkbox" id="major-chk-組立" onchange="filterByMajorItem('組立')" style="margin:0;cursor:pointer;"><span>組立</span></label>
+                        <label style="display:flex;align-items:center;padding:3px 10px;cursor:pointer;font-size:12px;gap:6px;"><input type="checkbox" id="major-chk-電装" onchange="filterByMajorItem('電装')" style="margin:0;cursor:pointer;"><span>電装</span></label>
+                        <label style="display:flex;align-items:center;padding:3px 10px;cursor:pointer;font-size:12px;gap:6px;"><input type="checkbox" id="major-chk-品証" onchange="filterByMajorItem('品証')" style="margin:0;cursor:pointer;"><span>品証</span></label>
+                        <label style="display:flex;align-items:center;padding:3px 10px;cursor:pointer;font-size:12px;gap:6px;"><input type="checkbox" id="major-chk-操業" onchange="filterByMajorItem('操業')" style="margin:0;cursor:pointer;"><span>操業</span></label>
+                        <label style="display:flex;align-items:center;padding:3px 10px;cursor:pointer;font-size:12px;gap:6px;"><input type="checkbox" id="major-chk-電技" onchange="filterByMajorItem('電技')" style="margin:0;cursor:pointer;"><span>電技</span></label>
+                        <label style="display:flex;align-items:center;padding:3px 10px;cursor:pointer;font-size:12px;gap:6px;"><input type="checkbox" id="major-chk-明石" onchange="filterByMajorItem('明石')" style="margin:0;cursor:pointer;"><span>明石</span></label>
+                    </div>
+                </div>
             </div>
 
             <div class="filter-group" style="align-items:center;">

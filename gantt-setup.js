@@ -141,7 +141,7 @@
         });
 
         let currentFilter = null;
-        let currentMajorFilter = null;
+        let currentMajorFilters = new Set();
         let currentDisplayMode = 'process'; // 'process' or 'machine'
         let currentResourceMode = 'individual'; // 'individual' か 'dept'
         let lastDeptName = ''; 

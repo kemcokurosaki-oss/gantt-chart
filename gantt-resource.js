@@ -136,10 +136,9 @@
         function filterByMajorItem(majorItem) {
             showLoading();
             requestAnimationFrame(() => requestAnimationFrame(() => {
-                currentMajorFilter = majorItem || null;
-                // セレクトの値を同期
-                const sel = document.getElementById('major-filter-select');
-                if (sel) sel.value = currentMajorFilter || '';
+                currentMajorFilters.clear();
+                if (majorItem) currentMajorFilters.add(majorItem);
+                if (typeof _updateMajorFilterBtn === 'function') _updateMajorFilterBtn();
                 gantt.render();
 
                 // リソース画面が表示されており、かつ部署フィルタが有効な場合は再描画
@@ -426,7 +425,7 @@
                 const stacks = []; // 各スタックの終了時間を保持
 
                 // 共通ロジックを使用して色を決定
-                const isSyncMode = currentMajorFilter && currentResourceDeptFilter && currentMajorFilter === currentResourceDeptFilter;
+                const isSyncMode = currentMajorFilters.size > 0 && currentResourceDeptFilter && currentMajorFilters.has(currentResourceDeptFilter);
                 const resourceColorClass = isSyncMode ? getOwnerColorClass(ownerName, deptName) : "";
                 const dotColorClass = isSyncMode ? getOwnerDotColorClass(ownerName, deptName) : "";
                 const dotDisplay = isSyncMode ? "inline" : "none";

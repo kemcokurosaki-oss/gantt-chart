@@ -1260,22 +1260,65 @@
                 updateProjectList(window.allTasks); 
             }
         }
-        function filterByMajorItem(major, btn) { 
+        function filterByMajorItem(major) {
             const scrollState = gantt.getScrollState();
-            currentMajorFilter = (currentMajorFilter === major) ? null : major; 
-            
+            if (!major) {
+                currentMajorFilters.clear();
+            } else if (currentMajorFilters.has(major)) {
+                currentMajorFilters.delete(major);
+            } else {
+                currentMajorFilters.add(major);
+            }
+
+            _updateMajorFilterBtn();
+
             // フィルタ変更時に再描画
             gantt.render();
-            
+
             // フィルタステータスの更新
             const statusEl = document.getElementById('filter_status');
             if (statusEl) {
-                statusEl.innerText = currentMajorFilter ? `${currentMajorFilter}を表示中` : "全工程を表示中";
+                const arr = Array.from(currentMajorFilters);
+                if (arr.length > 0) {
+                    statusEl.innerText = arr.join('・') + 'を表示中';
+                    statusEl.style.display = '';
+                } else {
+                    statusEl.style.display = 'none';
+                }
             }
 
-            document.querySelectorAll('.major-filter-btn').forEach(b => b.classList.toggle('active', b.innerText === major && currentMajorFilter)); 
             gantt.scrollTo(scrollState.x, scrollState.y);
         }
+
+        function _updateMajorFilterBtn() {
+            const label = document.getElementById('major-filter-label');
+            if (label) {
+                const arr = Array.from(currentMajorFilters);
+                if (arr.length === 0) label.textContent = '全部署';
+                else if (arr.length === 1) label.textContent = arr[0];
+                else label.textContent = arr.length + '部署選択中';
+            }
+            const depts = ['営業','設計','製管','組立','電装','品証','操業','電技','明石'];
+            depts.forEach(function(dept) {
+                const chk = document.getElementById('major-chk-' + dept);
+                if (chk) chk.checked = currentMajorFilters.has(dept);
+            });
+        }
+
+        function toggleMajorFilterDropdown(event) {
+            event.stopPropagation();
+            const dd = document.getElementById('major-filter-dropdown');
+            if (!dd) return;
+            dd.style.display = dd.style.display === 'none' ? '' : 'none';
+        }
+
+        document.addEventListener('click', function(e) {
+            const wrapper = document.getElementById('major-filter-wrapper');
+            if (wrapper && !wrapper.contains(e.target)) {
+                const dd = document.getElementById('major-filter-dropdown');
+                if (dd) dd.style.display = 'none';
+            }
+        });
         function _expandAllVirtual() {
             gantt.eachTask(function(task) {
                 if (task.$virtual) gantt.open(task.id);
