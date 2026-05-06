@@ -107,7 +107,7 @@
         gantt.config.columns = SHARED_COLUMNS;
         gantt.config.grid_elastic_columns = false;
         gantt.config.indent = 6;
-        gantt.config.grid_width = 600;
+        gantt.config.grid_width = 592;
         gantt.config.grid_resize = false;
         gantt.config.drag_resize = true;
         gantt.config.row_height = 27;
