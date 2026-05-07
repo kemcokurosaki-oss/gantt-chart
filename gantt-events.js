@@ -107,7 +107,7 @@
         gantt.config.columns = SHARED_COLUMNS;
         gantt.config.grid_elastic_columns = false;
         gantt.config.indent = 6;
-        gantt.config.grid_width = 592;
+        gantt.config.grid_width = 598;
         gantt.config.grid_resize = false;
         gantt.config.drag_resize = true;
         gantt.config.row_height = 27;
@@ -122,11 +122,11 @@
         (function() {
             var COL_WIDTHS_KEY = 'gantt_col_widths_v1';
 
-            // リサイズ対象列：name / COLUMN_WIDTHS の添字
+            // リサイズ対象列：name / COLUMN_WIDTHS の添字 / 元のデフォルト最小幅
             var RESIZABLE = [
-                { name: 'unit',        minIdx: 5 },
-                { name: 'owner',       minIdx: 6 },
-                { name: 'area_number', minIdx: 7 }
+                { name: 'unit',        minIdx: 5, minW: COLUMN_WIDTHS[5] },
+                { name: 'owner',       minIdx: 6, minW: COLUMN_WIDTHS[6] },
+                { name: 'area_number', minIdx: 7, minW: COLUMN_WIDTHS[7] }
             ];
 
             function loadWidths() {
@@ -145,6 +145,12 @@
             function syncGridWidth() {
                 var total = SHARED_COLUMNS.reduce(function(s, c) { return s + (c.width || 0); }, 0);
                 gantt.config.grid_width = total;
+                GRID_WIDTH = total;
+                // リサイズ対象列のみ COLUMN_WIDTHS を同期（下段リソースの列幅追従用）
+                RESIZABLE.forEach(function(r) {
+                    var col = SHARED_COLUMNS.find(function(c) { return c.name === r.name; });
+                    if (col) COLUMN_WIDTHS[r.minIdx] = col.width;
+                });
             }
 
             // 保存済み幅を SHARED_COLUMNS へ適用（ページ読み込み時に1回）
@@ -230,13 +236,31 @@
                         var col = SHARED_COLUMNS.find(function(c) { return c.name === r.name; });
                         dragging = {
                             name:       r.name,
-                            minW:       COLUMN_WIDTHS[r.minIdx],
-                            maxW:       Math.max(calcMaxWidth(r.name), COLUMN_WIDTHS[r.minIdx]),
+                            minW:       r.minW,
+                            maxW:       Math.max(calcMaxWidth(r.name), r.minW),
                             startX:     e.clientX,
                             startWidth: col.width,
                             col:        col
                         };
                         document.body.style.cursor = 'col-resize';
+                    });
+
+                    // ダブルクリックでコンテンツ幅に自動フィット
+                    handle.addEventListener('dblclick', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        var col = SHARED_COLUMNS.find(function(c) { return c.name === r.name; });
+                        if (!col) return;
+                        var fitW = Math.max(calcMaxWidth(r.name), r.minW);
+                        col.width = fitW;
+                        syncGridWidth();
+                        saveWidth(r.name, fitW);
+                        try {
+                            var ss = gantt.getScrollState();
+                            gantt.render();
+                            gantt.scrollTo(ss.x, ss.y);
+                        } catch(e2) {}
+                        if (typeof updateResourceVisibility === 'function') updateResourceVisibility();
                     });
 
                     cell.appendChild(handle);
@@ -274,6 +298,7 @@
                     gantt.render();
                     gantt.scrollTo(ss.x, ss.y);
                 } catch(e) {}
+                if (typeof updateResourceVisibility === 'function') updateResourceVisibility();
             });
 
             // gantt.init() より前（この IIFE は init の前に実行される）に
