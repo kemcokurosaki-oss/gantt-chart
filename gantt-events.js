@@ -437,6 +437,11 @@
                 // 出張予定フラグ
                 is_business_trip: currentDisplayMode === 'business_trip' ? true : (item.is_business_trip || false)
             };
+            // 出張予定モードで追加した行は組立／設計工程表からも参照できるよう task_type を付与
+            // （通常モードでは task_type を触らず、既存値を保持する）
+            if (currentDisplayMode === 'business_trip') {
+                newTaskData.task_type = 'business_trip';
+            }
 
             // デバッグログの追加
             console.log("Sending to Supabase (Insert):", newTaskData);
@@ -560,6 +565,11 @@
                 main_owner: item.main_owner || ""
                 // is_new_task: false // データベースにカラムがない可能性があるため一時的にコメットアウト
             };
+            // 出張予定モードで保存した行は組立／設計工程表からも参照できるよう task_type='business_trip' を付与
+            // （通常モードでは task_type を触らず、DB側の既存値を保持する）
+            if (currentDisplayMode === 'business_trip') {
+                updateData.task_type = 'business_trip';
+            }
 
             // デバッグログの追加
             console.log("Sending to Supabase (Update):", updateData, "Real ID:", realId);
@@ -622,7 +632,9 @@
                 try {
                     if (!isNewTask && typeof window.persistTaskLocations === "function") {
                         // 既存タスク: 組立場所を保存してから updateTask → onAfterTaskUpdate が Supabase 更新・fetchTasks を担う
-                        const ok = await window.persistTaskLocations(id, item.locations);
+                        // 設計・組立工程表由来の出張タスクは gantt の id がプレフィックス付きのため、本物の DB ID（original_id）を使う
+                        const realIdForLoc = (_taskObj && _taskObj.original_id) || (item && item.original_id) || id;
+                        const ok = await window.persistTaskLocations(realIdForLoc, item.locations);
                         if (!ok) return;
                     }
 
@@ -831,10 +843,10 @@
         };
 
         gantt.templates.task_class = function(start, end, task) {
-            // 設計・組立工程表の出張タスクは読み取り専用、部署で色分け
+            // 設計・組立工程表由来の出張タスクは部署で色分け（編集はログイン中のみ可）
             if (task.$design_trip) {
                 const tripColor = task.major_item === '組立' ? 'task-yellow' : 'task-blue';
-                return tripColor + ' design-trip-readonly';
+                return tripColor;
             }
 
             const projectNumber = (task.project_number || "").toString();

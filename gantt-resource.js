@@ -675,7 +675,7 @@
                     const tid2 = bar.getAttribute("data-task-id");
                     let task2;
                     try { task2 = gantt.getTask(tid2); } catch (e2) { return; }
-                    if (!task2 || task2.$virtual || task2.$design_trip) return;
+                    if (!task2 || task2.$virtual) return;
                     if (resourceBarIsMilestoneTask(task2)) {
                         bar.style.cursor = "grab";
                         return;
@@ -700,7 +700,7 @@
                     } catch (err) {
                         return;
                     }
-                    if (!task || task.$virtual || task.$design_trip) return;
+                    if (!task || task.$virtual) return;
 
                     const timeline = bar.closest(".resource-timeline");
                     if (!timeline) return;
@@ -848,7 +848,7 @@
                     } catch (err) {
                         return;
                     }
-                    if (!task || task.$virtual || task.$design_trip) return;
+                    if (!task || task.$virtual) return;
                     e.preventDefault();
                     e.stopPropagation();
                     if (typeof window.openInlineEditForTask !== "function") return;
