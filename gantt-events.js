@@ -107,7 +107,7 @@
         gantt.config.columns = SHARED_COLUMNS;
         gantt.config.grid_elastic_columns = false;
         gantt.config.indent = 6;
-        gantt.config.grid_width = 598;
+        gantt.config.grid_width = 621;
         gantt.config.grid_resize = false;
         gantt.config.drag_resize = true;
         gantt.config.row_height = 27;
@@ -118,13 +118,12 @@
         gantt.config.order_branch = true;
         gantt.config.order_branch_free = true;
 
-        // ===== 列幅ドラッグリサイズ（ユニ・担当・場所のみ） =====
+        // ===== 列幅ドラッグリサイズ（担当・場所のみ） =====
         (function() {
             var COL_WIDTHS_KEY = 'gantt_col_widths_v1';
 
             // リサイズ対象列：name / COLUMN_WIDTHS の添字 / 元のデフォルト最小幅
             var RESIZABLE = [
-                { name: 'unit',        minIdx: 5, minW: COLUMN_WIDTHS[5] },
                 { name: 'owner',       minIdx: 6, minW: COLUMN_WIDTHS[6] },
                 { name: 'area_number', minIdx: 7, minW: COLUMN_WIDTHS[7] }
             ];

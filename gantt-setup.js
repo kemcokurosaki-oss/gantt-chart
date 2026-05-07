@@ -258,8 +258,8 @@
         };
 
         // 上段・下段で完全に一致させる固定値（1ピクセルも狂いなく同期）
-        let GRID_WIDTH = 598;
-        const COLUMN_WIDTHS = [30, 50, 22, 100, 37, 37, 65, 60, 86, 86, 25]; // 詳細, 工事番号, チェック, タスク名, 機械, ユニット, 担当, 場所, 開始日, 終了日, add(担当者名)
+        let GRID_WIDTH = 621;
+        const COLUMN_WIDTHS = [30, 50, 22, 100, 37, 60, 65, 60, 86, 86, 25]; // 詳細, 工事番号, チェック, タスク名, 機械, ユニット, 担当, 場所, 開始日, 終了日, add(担当者名)
         // 1列目固定・grid_elastic_columns は gantt.config.columns 代入後に gantt-events.js で設定する（columns 未初期化での TypeError 防止）
         // 下段リソースで担当者検索時にのみフィルタする用（未選択時は下段を非表示）
         let currentResourceOwnerFilter = "";
