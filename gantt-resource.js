@@ -1,4 +1,15 @@
 
+        // リソースグリッドのCSS幅を更新する（列幅ドラッグ後にも呼び出せるよう公開）
+        const _resourceGridStyleEl = document.createElement('style');
+        _resourceGridStyleEl.id = 'resource-grid-width-css';
+        document.head.appendChild(_resourceGridStyleEl);
+
+        window.applyResourceGridWidthCSS = function(w) {
+            _resourceGridStyleEl.textContent = `.resource-grid-container { width: ${w}px !important; min-width: ${w}px !important; } .resource-grid { width: ${w}px !important; min-width: ${w}px !important; }`;
+            const legend = document.getElementById('mark-legend');
+            if (legend) legend.style.marginLeft = (w - 80) + 'px';
+        };
+
         // ガントグリッド幅をGRID_WIDTHに強制設定し、リソース下段に同期
         (function syncGridWidth() {
             const TARGET = GRID_WIDTH;
@@ -14,12 +25,7 @@
             // render後に実幅を読み取りリソース下段に同期
             const actualWidth = (document.querySelector('.gantt_grid') || {}).offsetWidth || TARGET;
             GRID_WIDTH = actualWidth;
-            const style = document.createElement('style');
-            style.textContent = `.resource-grid-container { width: ${actualWidth}px !important; min-width: ${actualWidth}px !important; } .resource-grid { width: ${actualWidth}px !important; min-width: ${actualWidth}px !important; }`;
-            document.head.appendChild(style);
-            // マーク一覧の開始位置をグリッド幅に合わせる
-            const legend = document.getElementById('mark-legend');
-            if (legend) legend.style.marginLeft = (actualWidth - 80) + 'px';
+            window.applyResourceGridWidthCSS(actualWidth);
         })();
 
         /** 上段ガントの gantt.templates.timeline_cell_class と同じ月末判定 */
@@ -355,7 +361,7 @@
             
             // ヘッダー行
             html += `
-                <div class="resource-item resource-summary-header resource-dept-view" style="display: flex; border-bottom: 1px solid #ddd; min-height: 27px; height: 27px; align-items: center; background: #f8f9fa; position: sticky; top: 0; left: 0; z-index: 10; width: ${totalWidth}px;">
+                <div class="resource-item resource-summary-header resource-dept-view" style="display: flex; border-bottom: 1px solid #ddd; min-height: 27px; height: 27px; align-items: center; background: #d8d8d8; position: sticky; top: 0; left: 0; z-index: 10; width: ${totalWidth}px;">
                     <div style="padding: 0 15px; font-weight: bold; color: #2c3e50; font-size: 11px; position: sticky; left: 0; background: inherit; height: 100%; display: flex; align-items: center; z-index: 11; white-space: nowrap;">
                     部署：${deptName}（${owners.length}名）
                 </div>
@@ -1046,7 +1052,7 @@
             
             // ヘッダー
                 html += `
-                    <div class="resource-item resource-summary-header" style="display: flex; border-bottom: 1px solid #ddd; min-height: 27px; height: 27px; align-items: center; background: #f8f9fa; position: sticky; top: 0; left: 0; z-index: 10; width: ${totalWidth}px;">
+                    <div class="resource-item resource-summary-header" style="display: flex; border-bottom: 1px solid #ddd; min-height: 27px; height: 27px; align-items: center; background: #d8d8d8; position: sticky; top: 0; left: 0; z-index: 10; width: ${totalWidth}px;">
                         <div style="padding: 0 15px; font-weight: bold; color: #2c3e50; font-size: 11px; position: sticky; left: 0; background: inherit; height: 100%; display: flex; align-items: center; z-index: 11; white-space: nowrap;">
                         組立場所別リソース状況
                     </div>
@@ -1301,7 +1307,7 @@
                 : "";
 
             html += `
-                <div class="resource-item resource-summary-header ${viewClass}" style="display: flex; border-bottom: 1px solid #ddd; min-height: 27px; height: 27px; align-items: center; background: #f8f9fa; position: sticky; top: 0; left: 0; z-index: 10; width: ${totalWidth}px;">
+                <div class="resource-item resource-summary-header ${viewClass}" style="display: flex; border-bottom: 1px solid #ddd; min-height: 27px; height: 27px; align-items: center; background: #d8d8d8; position: sticky; top: 0; left: 0; z-index: 10; width: ${totalWidth}px;">
                     <div style="width: ${GRID_WIDTH}px; flex-shrink: 0; position: sticky; left: 0; background: inherit; height: 100%; display: flex; align-items: center; padding: 0 8px; z-index: 11;">
                         <span style="font-weight: bold; color: #2c3e50; font-size: 11px; white-space: nowrap;">【${filterTitle}】のタスク　${filteredTasks.length}件</span>
                         ${backBtnHtml}

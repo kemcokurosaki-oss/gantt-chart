@@ -325,6 +325,9 @@
                             var ss = gantt.getScrollState();
                             gantt.render();
                             gantt.scrollTo(ss.x, ss.y);
+                            var aw = (document.querySelector('.gantt_grid') || {}).offsetWidth || GRID_WIDTH;
+                            GRID_WIDTH = aw;
+                            if (typeof window.applyResourceGridWidthCSS === 'function') window.applyResourceGridWidthCSS(aw);
                         } catch(e) {}
                     });
                 }
@@ -339,13 +342,12 @@
                     var ss = gantt.getScrollState();
                     gantt.render();
                     gantt.scrollTo(ss.x, ss.y);
+                    var aw = (document.querySelector('.gantt_grid') || {}).offsetWidth || GRID_WIDTH;
+                    GRID_WIDTH = aw;
+                    if (typeof window.applyResourceGridWidthCSS === 'function') window.applyResourceGridWidthCSS(aw);
                 } catch(e) {}
                 if (typeof updateResourceVisibility === 'function') updateResourceVisibility();
             });
-
-            // gantt.init() より前（この IIFE は init の前に実行される）に
-            // 保存済み幅を適用することで、レイアウト初期化時点から正しい grid_width になる
-            applyStoredWidths();
 
             // render のたびにハンドルを再注入（DOM が作り直されるため）
             gantt.attachEvent("onGanttRender", function() {
