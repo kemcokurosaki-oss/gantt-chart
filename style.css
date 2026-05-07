@@ -208,7 +208,7 @@
         }
         /* ヘッダー行はグレーにする */
         .resource-dept-view.resource-summary-header {
-            background-color: #f8f9fa !important;
+            background-color: #f4f4f4 !important;
         }
         .resource-dept-view .resource-grid-container {
             background-color: #fff !important;
@@ -342,6 +342,7 @@
         }
         #resource_panel .resource-summary-header {
             border-bottom: 1px solid #ebebeb !important;
+            background-color: #f4f4f4 !important;
         }
         #resource_panel .resource-grid-container,
         #resource_panel .resource-item .resource-grid-container {
