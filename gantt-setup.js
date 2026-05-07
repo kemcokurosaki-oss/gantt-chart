@@ -273,8 +273,11 @@
         const locationBarColors = {};
 
         // 表示期間（上段・下段で同一にし、ズレを防ぐ）
-        const GANTT_START_DATE = new Date(2024, 10, 1);  // 2024/11/1
-        const GANTT_END_DATE = new Date(2027, 11, 0);   // 2027/11/30（11月末）
+        // 開始日: fetchTasks() 後にアクティブタスクの最小開始月に動的更新される（フォールバック値）
+        let GANTT_START_DATE = new Date(2024, 10, 1);  // 2024/11/1
+        // 終了日: 起動時点から今月含めて2年先の月末
+        const _ganttEndBase = new Date();
+        let GANTT_END_DATE = new Date(_ganttEndBase.getFullYear() + 2, _ganttEndBase.getMonth() + 1, 0);
         
         /** 下段リソース表示中は .chart-container に下パディングを付け、#gantt_here の縦スクロールがパネル背面に潜らないようにする */
         /** setSizes デバウンス用タイマー ID。clearTimeout で連続呼び出しを最後の1回にまとめる */

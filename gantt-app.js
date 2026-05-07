@@ -244,6 +244,22 @@
             window.allTasks = rawTasks;
             refreshAssemblyLogSnapshotsFromAllTasks();
 
+            // アクティブ案件（完了済み除外）の最小開始月を GANTT_START_DATE に反映
+            {
+                const _completedSet = new Set((completedProjects || []).map(cp => (cp.project_number || "").toString().trim()));
+                const _strToDate = gantt.date.str_to_date("%Y-%m-%d");
+                let _minStart = null;
+                rawTasks.forEach(t => {
+                    if (!t.start_date) return;
+                    if (_completedSet.has((t.project_number || "").toString().trim())) return;
+                    const d = t.start_date instanceof Date ? t.start_date : _strToDate(String(t.start_date).substring(0, 10));
+                    if (d && !isNaN(d.getTime()) && (_minStart === null || d < _minStart)) _minStart = d;
+                });
+                if (_minStart) {
+                    GANTT_START_DATE = new Date(_minStart.getFullYear(), _minStart.getMonth(), 1);
+                }
+            }
+
             const parentOrder = PHASE_PARENT_ORDER;
             const tasksWithHierarchy = [];
             const parentsMap = {};
