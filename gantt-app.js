@@ -768,12 +768,16 @@
             if (oldUnit !== '' && newUnit !== '' && oldUnit !== newUnit) changes.push('ユニットを変更');
 
             if (changes.length > 0) return changes.join('・');
+            // フォールバック: データ不足で変更項目を特定できなかった場合
             const hasStartHints =
                 rowNew.start_date != null || oldRow.start_date != null || (snap && snap.start_date != null);
             const hasEndHints =
                 rowNew.end_date != null || rowNew.duration != null ||
                 oldRow.end_date != null || oldRow.duration != null ||
                 (snap && (snap.end_date != null || snap.duration != null));
+            // 開始日が変化していないと確認できる場合 → 終了日変更と判断
+            const startDefinitelySame = oldStart !== '' && newStart !== '' && oldStart === newStart;
+            if (startDefinitelySame && hasEndHints) return '終了日を変更';
             if (hasStartHints) return '開始日を変更';
             if (hasEndHints) return '終了日を変更';
             return '変更が反映されました';
@@ -785,20 +789,28 @@
             const now = Date.now();
             const prev = _assemblyRecentLogByTaskId.get(taskId);
             const DUP_MS = 3000;
-            if (!prev || (now - prev.at) > DUP_MS) {
-                _assemblyRecentLogByTaskId.set(taskId, { at: now, description: description || '' });
-                return false;
+            const SAME_DUP_MS = 60000; // 同一内容は60秒以内の重複をスキップ
+
+            if (prev) {
+                const elapsed = now - prev.at;
+                const prevDesc = String(prev.description || '');
+                const curDesc = String(description || '');
+                const generic = '変更が反映されました';
+                const isSame = prevDesc === curDesc;
+                const isGenericPair = (prevDesc === generic || curDesc === generic);
+
+                if (isSame && elapsed <= SAME_DUP_MS) {
+                    // 同一内容は最初の記録時刻を保持したままスキップ
+                    _assemblyRecentLogByTaskId.set(taskId, { at: prev.at, description: curDesc });
+                    return true;
+                }
+                if (isGenericPair && elapsed <= DUP_MS) {
+                    _assemblyRecentLogByTaskId.set(taskId, { at: now, description: curDesc });
+                    return true;
+                }
             }
-            const prevDesc = String(prev.description || '');
-            const curDesc = String(description || '');
-            const generic = '変更が反映されました';
-            const isSame = prevDesc === curDesc;
-            const isGenericPair = (prevDesc === generic || curDesc === generic);
-            if (isSame || isGenericPair) {
-                _assemblyRecentLogByTaskId.set(taskId, { at: now, description: curDesc });
-                return true;
-            }
-            _assemblyRecentLogByTaskId.set(taskId, { at: now, description: curDesc });
+
+            _assemblyRecentLogByTaskId.set(taskId, { at: now, description: description || '' });
             return false;
         }
 
