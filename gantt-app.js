@@ -136,7 +136,7 @@
             }
 
             // 設計・組立工程表の出張タスク（task_type='business_trip'）はメインデータから除外
-            // （後で専用クエリで読み取り専用タスクとして追加するため、重複表示を防ぐ）
+            // （後で専用クエリで出張タスクとして追加するため、重複表示を防ぐ）
             // 閲覧者は公開スナップショット内の出張行のみ使う（未公開のライブ tasks は読まない）
             let designTripData = Array.isArray(data)
                 ? data.filter(t => t.task_type === 'business_trip' && t.is_archived !== true)
@@ -156,10 +156,11 @@
                     }
                 });
                 designTripData.forEach(t => {
-                    // 全体工程表の既存タスクIDと衝突しないよう仮IDを付与
+                    // 全体工程表の既存タスクIDと衝突しないよう gantt 上の仮IDを付与（保存時は original_id で本物のDB IDを参照）
                     const pInfo = projectInfoMap[(t.project_number || '').toString().trim()] || {};
                     data.push({
                         id: 'design_trip_' + t.id,
+                        original_id: t.id,
                         text: t.text,
                         start_date: t.start_date,
                         end_date: t.end_date,
@@ -172,7 +173,8 @@
                         customer_name: pInfo.customer_name || t.customer_name || '',
                         project_details: pInfo.project_details || t.project_details || '',
                         is_business_trip: true,
-                        $design_trip: true,  // 設計・組立工程表出張タスクの識別フラグ（読み取り専用）
+                        task_type: 'business_trip',
+                        $design_trip: true,  // 設計・組立工程表由来の出張タスク識別フラグ（部署色分け用）
                         is_archived: false,
                         sort_order: 999999,
                         sort_order_machine: 999999,
@@ -227,7 +229,9 @@
                     main_owner: t.main_owner || "",
                     is_completed: t.is_completed || false,
                     bar_color: t.bar_color || '',
-                    $design_trip: t.$design_trip || false
+                    $design_trip: t.$design_trip || false,
+                    original_id: t.original_id || null,
+                    task_type: t.task_type || null
                 };
             });
 
