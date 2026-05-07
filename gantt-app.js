@@ -1298,6 +1298,8 @@
                 else if (arr.length === 1) label.textContent = arr[0];
                 else label.textContent = arr.length + '部署選択中';
             }
+            const btn = document.getElementById('major-filter-btn');
+            if (btn) btn.classList.toggle('active', currentMajorFilters.size > 0);
             const depts = ['営業','設計','製管','組立','電装','品証','操業','電技','明石'];
             depts.forEach(function(dept) {
                 const chk = document.getElementById('major-chk-' + dept);
@@ -1309,6 +1311,9 @@
             event.stopPropagation();
             const dd = document.getElementById('major-filter-dropdown');
             if (!dd) return;
+            // 他のドロップダウンを閉じる
+            const otherDd = document.getElementById('resource-dept-dropdown');
+            if (otherDd) otherDd.style.display = 'none';
             dd.style.display = dd.style.display === 'none' ? '' : 'none';
         }
 
@@ -1318,7 +1323,46 @@
                 const dd = document.getElementById('major-filter-dropdown');
                 if (dd) dd.style.display = 'none';
             }
+            const rWrapper = document.getElementById('resource-dept-wrapper');
+            if (rWrapper && !rWrapper.contains(e.target)) {
+                const rDd = document.getElementById('resource-dept-dropdown');
+                if (rDd) rDd.style.display = 'none';
+            }
         });
+
+        // 部署別リソースのドロップダウン開閉
+        function toggleResourceDeptDropdown(event) {
+            event.stopPropagation();
+            const dd = document.getElementById('resource-dept-dropdown');
+            if (!dd) return;
+            // 他のドロップダウンを閉じる
+            const otherDd = document.getElementById('major-filter-dropdown');
+            if (otherDd) otherDd.style.display = 'none';
+            dd.style.display = dd.style.display === 'none' ? '' : 'none';
+        }
+
+        // 部署別リソースの選択
+        function selectResourceDept(value) {
+            const dd = document.getElementById('resource-dept-dropdown');
+            if (dd) dd.style.display = 'none';
+            _updateResourceDeptBtn(value);
+            if (typeof filterByDepartmentSelect === 'function') {
+                filterByDepartmentSelect(value);
+            }
+        }
+
+        // 部署別リソース ボタンのラベル/選択状態を更新
+        function _updateResourceDeptBtn(value) {
+            const label = document.getElementById('resource-dept-label');
+            if (label) label.textContent = value ? value : '－';
+            const btn = document.getElementById('resource-dept-select');
+            if (btn) btn.classList.toggle('active', !!value);
+            document.querySelectorAll('#resource-dept-dropdown .resource-dept-item').forEach(function(item) {
+                item.classList.toggle('selected', item.getAttribute('data-dept') === value);
+            });
+        }
+        // グローバル公開（他ファイルから呼び出すため）
+        window._updateResourceDeptBtn = _updateResourceDeptBtn;
         function _expandAllVirtual() {
             gantt.eachTask(function(task) {
                 if (task.$virtual) gantt.open(task.id);

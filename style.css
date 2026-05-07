@@ -228,7 +228,11 @@
         .zoom-btn:hover { filter: brightness(0.88); }
         .zoom-btn:active { transform: translateY(1px); filter: brightness(0.82); }
         .zoom-btn.active { background-color: #3498db; color: #fff; border-color: #3498db; }
-        
+
+        /* 部署別リソースのドロップダウン項目 */
+        #resource-dept-dropdown .resource-dept-item:hover { background-color: #f5f5f5; }
+        #resource-dept-dropdown .resource-dept-item.selected { background-color: #ebf5ff; color: #3498db; font-weight: bold; }
+
         /* 組立場所ボタン専用スタイル */
         .resource-location-btn { background-color: #fdf2f2; border-color: #f1948a; color: #c0392b; font-weight: bold; }
         .resource-location-btn.active { background-color: #c0392b; color: #fff; border-color: #c0392b; }

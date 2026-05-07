@@ -4,6 +4,47 @@
                 if (task) task.major_item = value;
             }
         });
+
+        // 出張予定モードのライトボックス保存時に客先名・工事名をキャプチャする
+        // （DHTMLX の map_to タイミング問題により item に反映されないケースへの対策）
+        let _tripLightboxCapture = null;
+        gantt.attachEvent("onBeforeLightboxSave", function(id, task) {
+            _tripLightboxCapture = null;
+            if (currentDisplayMode !== 'business_trip') return true;
+
+            // DOM ルックアップで値を取得（最も確実な方法）
+            let cnValue = null, pdValue = null;
+            const larea = document.querySelector('.gantt_cal_larea');
+            if (larea) {
+                function _findSectionInput(labelText) {
+                    const chs = Array.from(larea.children);
+                    for (let i = 0; i < chs.length; i++) {
+                        if (chs[i].classList.contains('gantt_cal_lsection') &&
+                            chs[i].textContent.trim() === labelText) {
+                            const next = chs[i + 1];
+                            return next ? (next.querySelector('textarea') || next.querySelector('input[type=text]')) : null;
+                        }
+                    }
+                    return null;
+                }
+                const cnEl = _findSectionInput('客先名');
+                const pdEl = _findSectionInput('工事名');
+                if (cnEl !== null) cnValue = cnEl.value.trim();
+                if (pdEl !== null) pdValue = pdEl.value.trim();
+            }
+
+            // DOM ルックアップ失敗時は task パラメータから取得
+            // （onBeforeLightboxSave 発火前に DHTMLX が map_to を適用済みのため task は最新値を持つ）
+            if (cnValue === null) cnValue = task.customer_name !== undefined ? task.customer_name : null;
+            if (pdValue === null) pdValue = task.project_details !== undefined ? task.project_details : null;
+
+            _tripLightboxCapture = {
+                id: String(id),
+                customer_name:  cnValue,
+                project_details: pdValue
+            };
+            return true;
+        });
         gantt.locale.labels.section_project_number = "工事番号";
         gantt.locale.labels.section_customer_name = "客先名";
         gantt.locale.labels.section_project_details = "工事名";
@@ -490,6 +531,12 @@
             ) || (completedProjects || []).find(t =>
                 (t.project_number || "").toString().trim() === _pn && (t.customer_name || t.project_details)
             );
+            // onBeforeLightboxSave でキャプチャした値があればそれを優先（map_to タイミング問題の対策）
+            // ※ 同一保存で onAfterTaskUpdate が2回発火するため、ここではクリアしない
+            // （_tripLightboxCapture は次の onBeforeLightboxSave で自動的にリセットされる）
+            const _captured = (_tripLightboxCapture && _tripLightboxCapture.id === String(realId))
+                ? _tripLightboxCapture : null;
+
             const updateData = {
                 text: item.text,
                 start_date: dateToDb(item.start_date),
@@ -497,8 +544,12 @@
                 end_date: inclusiveEndDateToDb(item.start_date, item.duration),
                 owner: item.owner,
                 project_number: item.project_number,
-                customer_name: item.customer_name || (_projectRef && _projectRef.customer_name) || "",
-                project_details: item.project_details || (_projectRef && _projectRef.project_details) || "",
+                customer_name: (_captured && _captured.customer_name !== null)
+                    ? _captured.customer_name
+                    : (item.customer_name ?? ""),
+                project_details: (_captured && _captured.project_details !== null)
+                    ? _captured.project_details
+                    : (item.project_details ?? ""),
                 machine: item.machine,
                 unit: item.unit,
                 major_item: item.major_item, // 色分け項目を保存

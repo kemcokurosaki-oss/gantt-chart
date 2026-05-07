@@ -196,9 +196,10 @@
                 b.classList.toggle('active', b === btn && currentResourceDeptFilter !== "");
             });
 
-            // セレクトの値を同期
-            const resourceDeptSel = document.getElementById('resource-dept-select');
-            if (resourceDeptSel) resourceDeptSel.value = currentResourceDeptFilter || '';
+            // 部署別リソースボタンのラベル/選択状態を同期
+            if (typeof window._updateResourceDeptBtn === 'function') {
+                window._updateResourceDeptBtn(currentResourceDeptFilter || '');
+            }
 
             const resourcePanel = document.getElementById("resource_panel");
             const ganttHere = document.getElementById("gantt_here");
@@ -926,8 +927,9 @@
                     if (backBar) backBar.style.display = "none";
                     const resourcePanel = document.getElementById("resource_panel");
                     if (resourcePanel) resourcePanel.style.display = "none";
-                    const sel = document.getElementById('resource-dept-select');
-                    if (sel) sel.value = '';
+                    if (typeof window._updateResourceDeptBtn === 'function') {
+                        window._updateResourceDeptBtn('');
+                    }
                     if (typeof window.applyResourcePanelChartLayout === "function") {
                         window.applyResourcePanelChartLayout();
                     }
@@ -947,8 +949,9 @@
             currentResourceDeptFilter = "";
             currentLocationResourceMode = false;
             document.getElementById('location_resource_btn')?.classList.remove('active');
-            const resourceDeptSel = document.getElementById('resource-dept-select');
-            if (resourceDeptSel) resourceDeptSel.value = '';
+            if (typeof window._updateResourceDeptBtn === 'function') {
+                window._updateResourceDeptBtn('');
+            }
             updateResourceVisibility();
         }
 
