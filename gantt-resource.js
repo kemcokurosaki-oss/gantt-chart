@@ -1492,6 +1492,39 @@
             }
         });
 
+        // .gantt_data_area のスタイル変化を直接監視して同フレーム内で同期
+        // （onGanttScroll は DHTMLX 描画後に発火するため1フレーム遅れる問題を解消）
+        (function() {
+            var _scrollSyncObserver = null;
+
+            function setupDirectScrollSync() {
+                if (_scrollSyncObserver) {
+                    _scrollSyncObserver.disconnect();
+                    _scrollSyncObserver = null;
+                }
+                var dataArea = document.querySelector('#gantt_here .gantt_data_area');
+                if (!dataArea) return;
+
+                _scrollSyncObserver = new MutationObserver(function() {
+                    var panel = document.getElementById("resource_panel");
+                    if (!panel || panel.style.display === "none") return;
+                    var rc = document.querySelector(".resource-content");
+                    if (!rc) return;
+                    var x = gantt.getScrollState().x;
+                    if (Math.round(rc.scrollLeft) !== Math.round(x)) {
+                        _applyResourceScrollLeftFromGantt(rc, x);
+                    }
+                });
+                _scrollSyncObserver.observe(dataArea, { attributes: true, attributeFilter: ['style'] });
+            }
+
+            setupDirectScrollSync();
+            // render のたびに DOM が再構築されるため再設定
+            gantt.attachEvent("onGanttRender", function() {
+                setTimeout(setupDirectScrollSync, 0);
+            });
+        })();
+
         // 3. 【ズーム切り替え時の再描画】
         function setZoom(level) {
             showLoading();
