@@ -813,6 +813,10 @@
         // この画面で発生した tasks 更新を一時識別し、Realtime通知を抑制
         let _suppressAssemblyBannerUntil = 0;
         const _suppressAssemblyByTaskIdUntil = new Map(); // taskId(string) -> epoch(ms)
+        const _recentLocalLogs = new Map(); // "全体工程表側 logChange" 済みタスク内容 → expiry（Realtimeの二重記録を防ぐ）
+        function _makeLocalLogKey(p, m, u, t) {
+            return [String(p||''),String(m||''),String(u||''),String(t||'')].join('\x00').toLowerCase();
+        }
 
         function markLocalTaskMutation(taskId) {
             _suppressAssemblyBannerUntil = Date.now() + 4000;
@@ -1943,6 +1947,13 @@
                     if (shouldSuppressAssemblyRealtimeByTask(p, rawOld)) return;
                     const rowNew = p.new || null;
                     const rowOld = p.old || null;
+                    // 全体工程表が直近に logChange した同一タスクなら記録をスキップ
+                    const _rlRow = rowNew || rowOld;
+                    if (_rlRow) {
+                        const _rlExp = _recentLocalLogs.get(_makeLocalLogKey(
+                            _rlRow.project_number, _rlRow.machine, _rlRow.unit, _rlRow.text));
+                        if (_rlExp != null && Date.now() < _rlExp) return;
+                    }
                     const ev = String(payload.eventType || "").toUpperCase();
                     const isTarget = isAssemblyTaskRow(rowNew) || isAssemblyTaskRow(rowOld)
                         || (ev === "DELETE" && rawOld && isAssemblyTaskRow(rawOld));
@@ -2020,6 +2031,7 @@
         // ===== 変更履歴ログ =====
         async function logChange(projectNumber, machine, unit, taskText, description, source) {
             if (!_isEditor) return;
+            _recentLocalLogs.set(_makeLocalLogKey(projectNumber, machine, unit, taskText), Date.now() + 10000);
             try {
                 await supabaseClient.from('change_log').insert({
                     source:         source        || '全体工程表',
