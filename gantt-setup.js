@@ -914,6 +914,8 @@
         ];
         const _lightboxSectionsTrip = [
             { name: "project_number", height: 24, map_to: "project_number", type: "textarea", focus: true },
+            { name: "customer_name",  height: 24, map_to: "customer_name",  type: "textarea" },
+            { name: "project_details", height: 24, map_to: "project_details", type: "textarea" },
             { name: "major_item", height: 24, map_to: "major_item", type: "select", options: majorItemOptions },
             { name: "description", height: 34, map_to: "text", type: "task_name_selector" },
             { name: "owner", height: 80, map_to: "owner", type: "owner_selector" },
@@ -1096,6 +1098,7 @@
                     }
                 }
             });
+
         });
 
         // 部署プルダウン変更時に担当チェックボックスをリアルタイム更新

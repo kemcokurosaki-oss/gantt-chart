@@ -5,6 +5,8 @@
             }
         });
         gantt.locale.labels.section_project_number = "工事番号";
+        gantt.locale.labels.section_customer_name = "客先名";
+        gantt.locale.labels.section_project_details = "工事名";
         gantt.locale.labels.section_parent_name = "見出し名";
         gantt.locale.labels.section_major_item = "部署";
         gantt.locale.labels.section_machine = "機械";
@@ -382,8 +384,8 @@
                 end_date: inclusiveEndDateToDb(item.start_date, item.duration),
                 owner: item.owner || "",
                 project_number: item.project_number || "",
-                customer_name: (_projectRef && _projectRef.customer_name) || item.customer_name || "",
-                project_details: (_projectRef && _projectRef.project_details) || item.project_details || "",
+                customer_name: item.customer_name || (_projectRef && _projectRef.customer_name) || "",
+                project_details: item.project_details || (_projectRef && _projectRef.project_details) || "",
                 machine: item.machine || "",
                 unit: item.unit || "",
                 major_item: item.major_item || "",
@@ -495,8 +497,8 @@
                 end_date: inclusiveEndDateToDb(item.start_date, item.duration),
                 owner: item.owner,
                 project_number: item.project_number,
-                customer_name: (_projectRef && _projectRef.customer_name) || item.customer_name || "",
-                project_details: (_projectRef && _projectRef.project_details) || item.project_details || "",
+                customer_name: item.customer_name || (_projectRef && _projectRef.customer_name) || "",
+                project_details: item.project_details || (_projectRef && _projectRef.project_details) || "",
                 machine: item.machine,
                 unit: item.unit,
                 major_item: item.major_item, // 色分け項目を保存
