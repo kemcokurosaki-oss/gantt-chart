@@ -59,7 +59,7 @@
                 <label style="font-size:13px; white-space:nowrap;">部署別フィルタ</label>
                 <div id="major-filter-wrapper" style="position:relative; margin-left:4px;">
                     <button id="major-filter-btn" onclick="toggleMajorFilterDropdown(event)" class="zoom-btn" style="padding:2px 20px 2px 6px; min-width:76px; text-align:left; position:relative; height:22px; box-sizing:border-box; line-height:18px;">
-                        <span id="major-filter-label">全部署</span><span style="position:absolute; right:4px; top:50%; transform:translateY(-50%); font-size:9px; color:#000; pointer-events:none;">▼</span>
+                        <span id="major-filter-label">全部署</span><span id="major-filter-arrow" style="position:absolute; right:4px; top:50%; transform:translateY(-50%); font-size:9px; color:#000; pointer-events:none;">▶</span>
                     </button>
                     <div id="major-filter-dropdown" style="display:none; position:absolute; top:calc(100% + 1px); left:0; z-index:10001; background:#fff; border:1px solid #ccc; border-radius:3px; box-shadow:0 2px 8px rgba(0,0,0,0.15); padding:4px 0; min-width:110px; white-space:nowrap;">
                         <div onclick="filterByMajorItem('')" style="padding:3px 10px; cursor:pointer; font-size:12px; color:#888; border-bottom:1px solid #eee;">全部署（リセット）</div>
@@ -80,7 +80,7 @@
                 <label style="font-size:13px; white-space:nowrap;">部署別リソース</label>
                 <div id="resource-dept-wrapper" style="position:relative; margin-left:4px;">
                     <button id="resource-dept-select" onclick="toggleResourceDeptDropdown(event)" class="zoom-btn" style="padding:2px 20px 2px 6px; min-width:76px; text-align:left; position:relative; height:22px; box-sizing:border-box; line-height:18px;">
-                        <span id="resource-dept-label">－</span><span style="position:absolute; right:4px; top:50%; transform:translateY(-50%); font-size:9px; color:#000; pointer-events:none;">▼</span>
+                        <span id="resource-dept-label">－</span><span id="resource-dept-arrow" style="position:absolute; right:4px; top:50%; transform:translateY(-50%); font-size:9px; color:#000; pointer-events:none;">▶</span>
                     </button>
                     <div id="resource-dept-dropdown" style="display:none; position:absolute; top:calc(100% + 1px); left:0; z-index:10001; background:#fff; border:1px solid #ccc; border-radius:3px; box-shadow:0 2px 8px rgba(0,0,0,0.15); padding:4px 0; min-width:110px; white-space:nowrap;">
                         <div onclick="selectResourceDept('')" style="padding:3px 10px; cursor:pointer; font-size:12px; color:#888; border-bottom:1px solid #eee;">解除</div>
@@ -107,7 +107,7 @@
             <div class="sidebar">
                 <div class="sidebar-title">
                     <span onclick="resetFilter()" title="クリックして全表示にリセット" style="cursor:pointer; flex:1;">工事一覧</span>
-                    <button id="project-group-filter-btn" class="project-group-filter-btn" onclick="toggleProjectGroupDropdown(event)" title="工事番号フィルター">▼</button>
+                    <button id="project-group-filter-btn" class="project-group-filter-btn" onclick="toggleProjectGroupDropdown(event)" title="工事番号フィルター">▶</button>
                 </div>
                 <div id="project-group-dropdown" class="project-group-dropdown">
                     <div class="project-group-dropdown-item active" onclick="setProjectGroupFilter('all', this)">すべて</div>

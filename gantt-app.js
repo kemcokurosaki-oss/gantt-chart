@@ -1226,6 +1226,7 @@
             const dd = document.getElementById('project-group-dropdown');
             const btn = document.getElementById('project-group-filter-btn');
             const visible = dd.classList.toggle('visible');
+            btn.textContent = visible ? '▼' : '▶';
             if (visible) {
                 const rect = btn.getBoundingClientRect();
                 dd.style.top = rect.bottom + 'px';
@@ -1233,7 +1234,12 @@
             }
         }
         document.addEventListener('click', () => {
-            document.getElementById('project-group-dropdown')?.classList.remove('visible');
+            const dd = document.getElementById('project-group-dropdown');
+            if (dd?.classList.contains('visible')) {
+                dd.classList.remove('visible');
+                const btn = document.getElementById('project-group-filter-btn');
+                if (btn) btn.textContent = '▶';
+            }
         });
 
         function setProjectGroupFilter(type, el) {
@@ -1241,10 +1247,13 @@
             currentSalesPersonFilter = "";
             const submenu = document.getElementById('sales-person-submenu');
             if (submenu) submenu.style.display = 'none';
+            const salesMenuItem2 = document.getElementById('sales-person-menu-item');
+            if (salesMenuItem2) salesMenuItem2.textContent = '営業担当 ▶';
             document.querySelectorAll('.project-group-dropdown-item').forEach(d => d.classList.remove('active'));
             el.classList.add('active');
             document.getElementById('project-group-dropdown').classList.remove('visible');
             const btn = document.getElementById('project-group-filter-btn');
+            btn.textContent = '▶';
             btn.classList.toggle('filtered', type !== 'all');
             if (window.allTasks) updateProjectList(window.allTasks);
             const scrollState = gantt.getScrollState();
@@ -1255,8 +1264,11 @@
         function toggleSalesPersonSubMenu(event, el) {
             event.stopPropagation();
             const submenu = document.getElementById('sales-person-submenu');
+            const menuItem = document.getElementById('sales-person-menu-item');
             if (!submenu) return;
-            submenu.style.display = submenu.style.display === 'none' ? '' : 'none';
+            const nowOpen = submenu.style.display === 'none';
+            submenu.style.display = nowOpen ? '' : 'none';
+            if (menuItem) menuItem.textContent = nowOpen ? '営業担当 ▼' : '営業担当 ▶';
         }
 
         function setSalesPersonFilter(name) {
@@ -1271,8 +1283,10 @@
             document.getElementById('project-group-dropdown').classList.remove('visible');
             const submenu = document.getElementById('sales-person-submenu');
             if (submenu) submenu.style.display = 'none';
+            const salesMenuItem = document.getElementById('sales-person-menu-item');
+            if (salesMenuItem) salesMenuItem.textContent = '営業担当 ▶';
             const btn = document.getElementById('project-group-filter-btn');
-            if (btn) btn.classList.add('filtered');
+            if (btn) { btn.textContent = '▶'; btn.classList.add('filtered'); }
             if (window.allTasks) updateProjectList(window.allTasks);
             const scrollState = gantt.getScrollState();
             gantt.render();
@@ -1414,7 +1428,12 @@
             // 他のドロップダウンを閉じる
             const otherDd = document.getElementById('resource-dept-dropdown');
             if (otherDd) otherDd.style.display = 'none';
-            dd.style.display = dd.style.display === 'none' ? '' : 'none';
+            const otherArrow = document.getElementById('resource-dept-arrow');
+            if (otherArrow) otherArrow.textContent = '▶';
+            const nowOpen = dd.style.display === 'none';
+            dd.style.display = nowOpen ? '' : 'none';
+            const arrow = document.getElementById('major-filter-arrow');
+            if (arrow) arrow.textContent = nowOpen ? '▼' : '▶';
         }
 
         document.addEventListener('click', function(e) {
@@ -1422,11 +1441,15 @@
             if (wrapper && !wrapper.contains(e.target)) {
                 const dd = document.getElementById('major-filter-dropdown');
                 if (dd) dd.style.display = 'none';
+                const arrow = document.getElementById('major-filter-arrow');
+                if (arrow) arrow.textContent = '▶';
             }
             const rWrapper = document.getElementById('resource-dept-wrapper');
             if (rWrapper && !rWrapper.contains(e.target)) {
                 const rDd = document.getElementById('resource-dept-dropdown');
                 if (rDd) rDd.style.display = 'none';
+                const rArrow = document.getElementById('resource-dept-arrow');
+                if (rArrow) rArrow.textContent = '▶';
             }
         });
 
@@ -1438,13 +1461,20 @@
             // 他のドロップダウンを閉じる
             const otherDd = document.getElementById('major-filter-dropdown');
             if (otherDd) otherDd.style.display = 'none';
-            dd.style.display = dd.style.display === 'none' ? '' : 'none';
+            const otherArrow = document.getElementById('major-filter-arrow');
+            if (otherArrow) otherArrow.textContent = '▶';
+            const nowOpen = dd.style.display === 'none';
+            dd.style.display = nowOpen ? '' : 'none';
+            const arrow = document.getElementById('resource-dept-arrow');
+            if (arrow) arrow.textContent = nowOpen ? '▼' : '▶';
         }
 
         // 部署別リソースの選択
         function selectResourceDept(value) {
             const dd = document.getElementById('resource-dept-dropdown');
             if (dd) dd.style.display = 'none';
+            const arrow = document.getElementById('resource-dept-arrow');
+            if (arrow) arrow.textContent = '▶';
             _updateResourceDeptBtn(value);
             if (typeof filterByDepartmentSelect === 'function') {
                 filterByDepartmentSelect(value);
