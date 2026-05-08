@@ -413,6 +413,7 @@
 
         // 新規タスク作成時の保存処理
         gantt.attachEvent("onAfterTaskAdd", async function(id, item) {
+            showLoading();
             // 工事番号から客先名・工事名を自動補完（allTasks → completedProjects の順に検索）
             const _pn = (item.project_number || "").toString().trim();
             const _projectRef = (window.allTasks || []).find(t =>
@@ -457,6 +458,7 @@
                 console.error("Add error:", error);
                 alert("新規タスクの保存に失敗しました。");
                 gantt.deleteTask(id); // 保存失敗時はガントから削除
+                hideLoading();
             } else if (data && data[0]) {
                 // Supabaseから発行された本当のIDに書き換える
                 const newId = data[0].id;
@@ -481,6 +483,7 @@
 
                 // 画面を最新状態に更新（changeTaskId の成否にかかわらず必ず実行）
                 await fetchTasks();
+                hideLoading();
             }
         });
 
@@ -523,6 +526,7 @@
         // 編集内容をデータベースに保存
         gantt.attachEvent("onAfterTaskUpdate", async function(id, item) {
             if (item.$virtual) return; // 見出し行は仮想的なものなので保存対象外
+            showLoading();
 
             const realId = item.original_id || id;
 
@@ -585,6 +589,7 @@
             if (taskError) {
                 console.error("Update error:", taskError);
                 alert("保存に失敗しました。");
+                hideLoading();
                 return;
             }
             if (typeof window.markLocalTaskMutation === 'function') window.markLocalTaskMutation(realId);
@@ -621,6 +626,7 @@
 
             // 成功したらデータを再取得して allTasks と画面を更新
             await fetchTasks();
+            hideLoading();
         });
 
         // 保存ボタンが押された瞬間に実行されるイベント
@@ -631,13 +637,14 @@
             const isNewTask = !!(_taskObj && _taskObj._is_new_task);
 
             (async () => {
+                showLoading();
                 try {
                     if (!isNewTask && typeof window.persistTaskLocations === "function") {
                         // 既存タスク: 組立場所を保存してから updateTask → onAfterTaskUpdate が Supabase 更新・fetchTasks を担う
                         // 設計・組立工程表由来の出張タスクは gantt の id がプレフィックス付きのため、本物の DB ID（original_id）を使う
                         const realIdForLoc = (_taskObj && _taskObj.original_id) || (item && item.original_id) || id;
                         const ok = await window.persistTaskLocations(realIdForLoc, item.locations);
-                        if (!ok) return;
+                        if (!ok) { hideLoading(); return; }
                     }
 
                     if (!isNewTask) {
@@ -650,6 +657,7 @@
                     }
                 } catch (e) {
                     console.error("Lightbox save error:", e);
+                    hideLoading();
                 }
             })();
             
@@ -660,6 +668,7 @@
         // タスクの削除をデータベースに反映
         gantt.attachEvent("onAfterTaskDelete", async function(id, item) {
             if (item.$virtual) return; // 仮想的な見出し行は削除対象外
+            showLoading();
 
             const realId = item.original_id || id;
             if (typeof window.markLocalTaskMutation === 'function') window.markLocalTaskMutation(realId);
@@ -682,6 +691,7 @@
             if (error) {
                 console.error("Delete error:", error);
                 alert("削除に失敗しました。" + (rpcErr ? " change_log_task_delete_trigger.sql（RPC 含む）を Supabase で実行済みか確認してください。" : ""));
+                hideLoading();
             } else {
                 /* RPC 成功時は change_log は DB トリガーのみ（gantt の item で組立判定がズレると logChange と二重になるため） */
                 if (rpcErr && typeof window.logChange === 'function') {
@@ -707,6 +717,7 @@
                     }
                 }
                 await fetchTasks();
+                hideLoading();
             }
         });
 
