@@ -113,6 +113,17 @@
                     <div class="project-group-dropdown-item active" onclick="setProjectGroupFilter('all', this)">すべて</div>
                     <div class="project-group-dropdown-item" onclick="setProjectGroupFilter('2000', this)">2000番台</div>
                     <div class="project-group-dropdown-item" onclick="setProjectGroupFilter('other', this)">その他</div>
+                    <div class="project-group-dropdown-item" id="sales-person-menu-item" onclick="toggleSalesPersonSubMenu(event, this)">営業担当 ▶</div>
+                    <div id="sales-person-submenu" style="display:none; background:#243342; border-top:1px solid #3d5166;">
+                        <div class="project-group-dropdown-item sales-person-item" style="padding-left:20px;" onclick="setSalesPersonFilter('専務')">専務</div>
+                        <div class="project-group-dropdown-item sales-person-item" style="padding-left:20px;" onclick="setSalesPersonFilter('銭')">銭</div>
+                        <div class="project-group-dropdown-item sales-person-item" style="padding-left:20px;" onclick="setSalesPersonFilter('麻生')">麻生</div>
+                        <div class="project-group-dropdown-item sales-person-item" style="padding-left:20px;" onclick="setSalesPersonFilter('原田')">原田</div>
+                        <div class="project-group-dropdown-item sales-person-item" style="padding-left:20px;" onclick="setSalesPersonFilter('岡本')">岡本</div>
+                        <div class="project-group-dropdown-item sales-person-item" style="padding-left:20px;" onclick="setSalesPersonFilter('津村')">津村</div>
+                        <div class="project-group-dropdown-item sales-person-item" style="padding-left:20px;" onclick="setSalesPersonFilter('前川')">前川</div>
+                        <div class="project-group-dropdown-item sales-person-item" style="padding-left:20px;" onclick="setSalesPersonFilter('池田')">池田</div>
+                    </div>
                 </div>
                 <div id="project_list" class="project-list"></div>
             </div>
@@ -185,6 +196,20 @@
                 <div>
                     <label>工事名</label>
                     <input type="text" id="project_details_input" placeholder="工事名">
+                </div>
+                <div>
+                    <label>営業担当</label>
+                    <select id="sales_person_input" style="width:100%; padding:4px 6px; border:1px solid #ccc; border-radius:4px; font-size:13px;">
+                        <option value="">選択してください</option>
+                        <option value="専務">専務</option>
+                        <option value="銭">銭</option>
+                        <option value="麻生">麻生</option>
+                        <option value="原田">原田</option>
+                        <option value="岡本">岡本</option>
+                        <option value="津村">津村</option>
+                        <option value="前川">前川</option>
+                        <option value="池田">池田</option>
+                    </select>
                 </div>
                 <div>
                     <label>受注日</label>

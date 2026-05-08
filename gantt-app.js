@@ -1,6 +1,7 @@
         let _cachedTasksRows = null;
         let _cachedTaskLocationsRows = null;
         let _specFolderUrlMap = {};
+        let _salesPersonMap = {};
 
         function showLoading() {
             const el = document.getElementById('loading-overlay');
@@ -50,6 +51,36 @@
             }
         }
 
+        async function loadSalesPersonMap() {
+            const { data, error } = await supabaseClient
+                .from("app_settings")
+                .select("value")
+                .eq("key", "sales_person_map")
+                .maybeSingle();
+            if (error) { console.error("sales_person_map load error:", error); _salesPersonMap = {}; return; }
+            if (!data || !data.value) { _salesPersonMap = {}; return; }
+            try {
+                const parsed = JSON.parse(data.value);
+                _salesPersonMap = parsed && typeof parsed === "object" ? parsed : {};
+            } catch (e) {
+                console.error("sales_person_map parse error:", e);
+                _salesPersonMap = {};
+            }
+        }
+
+        async function upsertSalesPersonEntry(projectNumber, salesPerson) {
+            const p = String(projectNumber || "").trim();
+            if (!p) return;
+            const nextMap = { ..._salesPersonMap };
+            if (salesPerson) nextMap[p] = salesPerson;
+            else delete nextMap[p];
+            const { error } = await supabaseClient
+                .from("app_settings")
+                .upsert([{ key: "sales_person_map", value: JSON.stringify(nextMap) }], { onConflict: "key" });
+            if (error) throw error;
+            _salesPersonMap = nextMap;
+        }
+
         async function upsertSpecFolderUrl(projectNumber, folderUrl) {
             const p = String(projectNumber || "").trim();
             const url = String(folderUrl || "").trim();
@@ -70,6 +101,7 @@
 
         async function fetchTasks(options) {
             await loadSpecFolderUrlMap();
+            await loadSalesPersonMap();
             const useCache = !!(options && options.useCache);
             // スクロール位置を記憶
             const scrollPos = gantt.getScrollState();
@@ -1206,11 +1238,41 @@
 
         function setProjectGroupFilter(type, el) {
             currentProjectGroupFilter = type;
+            currentSalesPersonFilter = "";
+            const submenu = document.getElementById('sales-person-submenu');
+            if (submenu) submenu.style.display = 'none';
             document.querySelectorAll('.project-group-dropdown-item').forEach(d => d.classList.remove('active'));
             el.classList.add('active');
             document.getElementById('project-group-dropdown').classList.remove('visible');
             const btn = document.getElementById('project-group-filter-btn');
             btn.classList.toggle('filtered', type !== 'all');
+            if (window.allTasks) updateProjectList(window.allTasks);
+            const scrollState = gantt.getScrollState();
+            gantt.render();
+            gantt.scrollTo(scrollState.x, scrollState.y);
+        }
+
+        function toggleSalesPersonSubMenu(event, el) {
+            event.stopPropagation();
+            const submenu = document.getElementById('sales-person-submenu');
+            if (!submenu) return;
+            submenu.style.display = submenu.style.display === 'none' ? '' : 'none';
+        }
+
+        function setSalesPersonFilter(name) {
+            currentProjectGroupFilter = 'sales';
+            currentSalesPersonFilter = name;
+            document.querySelectorAll('.project-group-dropdown-item').forEach(d => d.classList.remove('active'));
+            const menuItem = document.getElementById('sales-person-menu-item');
+            if (menuItem) menuItem.classList.add('active');
+            document.querySelectorAll('.sales-person-item').forEach(d => {
+                d.classList.toggle('active', d.textContent.trim() === name);
+            });
+            document.getElementById('project-group-dropdown').classList.remove('visible');
+            const submenu = document.getElementById('sales-person-submenu');
+            if (submenu) submenu.style.display = 'none';
+            const btn = document.getElementById('project-group-filter-btn');
+            if (btn) btn.classList.add('filtered');
             if (window.allTasks) updateProjectList(window.allTasks);
             const scrollState = gantt.getScrollState();
             gantt.render();
@@ -1240,6 +1302,8 @@
                 projects = projects.filter(p => /^2/.test(p));
             } else if (currentProjectGroupFilter === 'other') {
                 projects = projects.filter(p => !/^2/.test(p));
+            } else if (currentProjectGroupFilter === 'sales' && currentSalesPersonFilter) {
+                projects = projects.filter(p => _salesPersonMap[p] === currentSalesPersonFilter);
             }
             listEl.innerHTML = "";
             let tooltip = document.getElementById('custom_project_tooltip') || document.createElement('div');
@@ -1550,6 +1614,7 @@
             const projectNumber = document.getElementById('project_number').value.trim();
             const customerName = document.getElementById('customer_name_input').value.trim();
             const projectDetails = document.getElementById('project_details_input').value.trim();
+            const salesPerson = document.getElementById('sales_person_input').value.trim();
             const orderDateValue = document.getElementById('order_date').value;
             const shippingDateValue = document.getElementById('shipping_date').value;
             const specFolderUrl = document.getElementById('spec_folder_url_input').value.trim();
@@ -1757,12 +1822,18 @@
                     console.error("spec_folder_url_map upsert error:", e);
                     alert("工事は作成しましたが、仕様書フォルダURLの保存に失敗しました");
                 }
+                try {
+                    await upsertSalesPersonEntry(projectNumber, salesPerson);
+                } catch (e) {
+                    console.error("sales_person_map upsert error:", e);
+                }
                 alert(`工事番号 ${projectNumber} を作成しました`);
                 // フォームをリセット・非表示
                 document.getElementById('new-project-modal-overlay').classList.remove('visible');
                 document.getElementById('project_number').value = '';
                 document.getElementById('customer_name_input').value = '';
                 document.getElementById('project_details_input').value = '';
+                document.getElementById('sales_person_input').value = '';
                 document.getElementById('order_date').value = '';
                 document.getElementById('shipping_date').value = '';
                 document.getElementById('spec_folder_url_input').value = '';

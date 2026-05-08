@@ -155,7 +155,8 @@
         let locationExpandedGroups = { "E1": true, "E3": true }; // 展開状態
         const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
         let currentResourceDeptFilter = "";
-        let currentProjectGroupFilter = "all"; // "all" | "2000" | "other"
+        let currentProjectGroupFilter = "all"; // "all" | "2000" | "other" | "sales"
+        let currentSalesPersonFilter = "";
         let completedProjects = [];
         // 各エントリ: { project_number, customer_name, project_details, completed_date }
         let holidaySet = new Set(); // Supabaseのholidaysテーブルから取得した休日日付セット（"YYYY-MM-DD"形式）
