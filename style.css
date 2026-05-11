@@ -16,8 +16,9 @@
         #gantt_here.gantt-scale-hiding .gantt_scale { visibility: hidden !important; }
         .header-panel *, .toolbar * { font-size: 13px !important; }
         .main-container { display: flex; flex-direction: column; height: 100vh; }
-        .header-panel { background: #fff; padding: 2px 10px; border-bottom: 1px solid #ccc; display: flex; flex-direction: column; gap: 2px; }
-        .input-row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; height: 28px; }
+        .header-panel { background: #fff; padding: 2px 10px; border-bottom: 1px solid #ccc; display: flex; flex-direction: column; gap: 2px; flex-shrink: 0; }
+        /* height 固定だと折り返し時に2行目が28pxにクリップされ、直下の .toolbar に隠れる */
+        .input-row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; min-height: 28px; }
 
         /* ヘッダー：各部工程表ボタンのみ（設計＝水色・組立＝黄色） */
         .header-panel .dept-schedule-btns {
