@@ -489,8 +489,206 @@
 
         // マイルストーンタスクのリサイズ（期間変更）を防ぐ
         let _dragOldState = null;
+        /** 期間リサイズ中のみ true（終了日プレビュー用） */
+        let _resizeFeedbackActive = false;
+        let _resizeHintEl = null;
+        let _resizeGuideEl = null;
+        let _resizeActiveLineEl = null;
+        let _factoryStarsDragRaf = null;
+        /** 期間リサイズで掴んだ端: "start" | "end" | null（mousedown のハンドルから決定） */
+        let _resizeActiveEdge = null;
+
+        function _getGanttResizeHintEl() {
+            if (_resizeHintEl) return _resizeHintEl;
+            _resizeHintEl = document.createElement("div");
+            _resizeHintEl.id = "gantt-resize-hint";
+            _resizeHintEl.className = "gantt-resize-hint";
+            _resizeHintEl.setAttribute("aria-live", "polite");
+            document.body.appendChild(_resizeHintEl);
+            return _resizeHintEl;
+        }
+
+        function _inclusiveEndDateForDisplay(start, duration) {
+            const dur = Math.max(1, parseInt(duration, 10) || 1);
+            let s = start;
+            if (!(s instanceof Date)) {
+                s = gantt.date.str_to_date("%Y-%m-%d")(String(s).substring(0, 10));
+            }
+            const d = gantt.calculateEndDate(s, dur);
+            d.setDate(d.getDate() - 1);
+            return d;
+        }
+
+        /** ドラッグ開始時点（original）と比較し、左ハンドル＝開始日変更 / 右ハンドル＝終了日（包含）変更 */
+        function _resizeEdgeFromOriginal(task, original) {
+            if (original && original.start_date != null && task && task.start_date != null) {
+                const o0 = original.start_date instanceof Date
+                    ? original.start_date
+                    : gantt.date.str_to_date("%Y-%m-%d")(String(original.start_date).substring(0, 10));
+                const t0 = task.start_date instanceof Date
+                    ? task.start_date
+                    : gantt.date.str_to_date("%Y-%m-%d")(String(task.start_date).substring(0, 10));
+                if (o0.getTime() !== t0.getTime()) return "start";
+                return "end";
+            }
+            if (_dragOldState && task && task.start_date != null) {
+                if (_dragOldState.start_date !== dateToDb(task.start_date)) return "start";
+                return "end";
+            }
+            return "end";
+        }
+
+        function hideGanttResizeFeedback() {
+            _resizeFeedbackActive = false;
+            if (_factoryStarsDragRaf) {
+                cancelAnimationFrame(_factoryStarsDragRaf);
+                _factoryStarsDragRaf = null;
+            }
+            if (_resizeHintEl) {
+                _resizeHintEl.style.display = "none";
+                _resizeHintEl.textContent = "";
+            }
+            if (_resizeGuideEl && _resizeGuideEl.parentNode) {
+                _resizeGuideEl.parentNode.removeChild(_resizeGuideEl);
+            }
+            _resizeGuideEl = null;
+            if (_resizeActiveLineEl) {
+                _resizeActiveLineEl.classList.remove("gantt-task-resize-active");
+                _resizeActiveLineEl = null;
+            }
+            _resizeActiveEdge = null;
+            const gh = document.getElementById("gantt_here");
+            if (gh) gh.classList.remove("gantt-resize-in-progress");
+        }
+
+        function updateGanttResizeFeedback(id, task, mode, dragEvent, original) {
+            if (!_resizeFeedbackActive || mode !== gantt.config.drag_mode.resize || !task) return;
+
+            const gh = document.getElementById("gantt_here");
+            if (gh) gh.classList.add("gantt-resize-in-progress");
+
+            const lineEl = (typeof gantt.getTaskNode === "function" && gantt.getTaskNode(id))
+                || document.querySelector('#gantt_here .gantt_task_line[task_id="' + id + '"]')
+                || document.querySelector('#gantt_here .gantt_task_line[data-task-id="' + id + '"]');
+            if (lineEl && lineEl !== _resizeActiveLineEl) {
+                if (_resizeActiveLineEl) _resizeActiveLineEl.classList.remove("gantt-task-resize-active");
+                _resizeActiveLineEl = lineEl;
+                _resizeActiveLineEl.classList.add("gantt-task-resize-active");
+            }
+
+            const dur = Math.max(1, parseInt(task.duration, 10) || 1);
+            const edge = _resizeActiveEdge || _resizeEdgeFromOriginal(task, original);
+            const endIncl = _inclusiveEndDateForDisplay(task.start_date, dur);
+            let startDisp = task.start_date;
+            if (startDisp && !(startDisp instanceof Date)) {
+                startDisp = gantt.date.str_to_date("%Y-%m-%d")(String(startDisp).substring(0, 10));
+            }
+            const hint = _getGanttResizeHintEl();
+            hint.textContent = edge === "start"
+                ? dateToDisplay(startDisp)
+                : dateToDisplay(endIncl);
+            hint.style.display = "block";
+
+            const pad = 6;
+            const vw = window.innerWidth;
+            const vh = window.innerHeight;
+            const offX = 14;
+            const offY = 12;
+            hint.style.visibility = "hidden";
+            const tw = hint.offsetWidth || 1;
+            const th = hint.offsetHeight || 24;
+            hint.style.visibility = "";
+
+            let left;
+            let top;
+            if (dragEvent && typeof dragEvent.clientX === "number" && typeof dragEvent.clientY === "number") {
+                const cx = dragEvent.clientX;
+                const cy = dragEvent.clientY;
+                if (edge === "start") {
+                    left = cx - tw - offX;
+                    top = cy - th - offY;
+                    if (left < pad) {
+                        left = cx + offX;
+                    }
+                } else {
+                    left = cx + offX;
+                    top = cy - th - offY;
+                    if (left + tw + pad > vw) {
+                        left = cx - tw - offX;
+                    }
+                }
+                if (top < pad) {
+                    top = cy + offY;
+                }
+                if (left < pad) {
+                    left = pad;
+                }
+                if (left + tw + pad > vw) {
+                    left = vw - tw - pad;
+                }
+                if (top + th + pad > vh) {
+                    top = vh - th - pad;
+                }
+            } else {
+                const rowForHint = lineEl || _resizeActiveLineEl;
+                if (rowForHint) {
+                    const rowRect = rowForHint.getBoundingClientRect();
+                    top = rowRect.top - pad - th;
+                    if (top < pad) {
+                        top = rowRect.bottom + pad;
+                    }
+                    left = rowRect.left + rowRect.width / 2 - tw / 2;
+                } else {
+                    left = pad;
+                    top = pad;
+                }
+                left = Math.max(pad, Math.min(left, vw - tw - pad));
+                top = Math.max(pad, Math.min(top, vh - th - pad));
+            }
+            hint.style.left = left + "px";
+            hint.style.top = top + "px";
+
+            const dataArea = document.querySelector(".gantt_data_area");
+            if (dataArea) {
+                if (!_resizeGuideEl) {
+                    _resizeGuideEl = document.createElement("div");
+                    _resizeGuideEl.className = "gantt-resize-guide";
+                    dataArea.appendChild(_resizeGuideEl);
+                }
+                let pos;
+                try {
+                    pos = gantt.getTaskPosition(id, task.start_date, gantt.calculateEndDate(task.start_date, task.duration));
+                } catch (err) {
+                    try {
+                        pos = gantt.getTaskPosition(task, task.start_date, gantt.calculateEndDate(task.start_date, task.duration));
+                    } catch (err2) {
+                        pos = null;
+                    }
+                }
+                if (pos && pos.width >= 0) {
+                    const x = edge === "start" ? pos.left : (pos.left + pos.width - 1);
+                    const fullH = dataArea.clientHeight || pos.height || 400;
+                    _resizeGuideEl.style.display = "block";
+                    _resizeGuideEl.style.left = x + "px";
+                    _resizeGuideEl.style.top = "0";
+                    _resizeGuideEl.style.height = fullH + "px";
+                }
+            }
+
+            if (task.text === "工場出荷" && typeof renderFactoryShipmentStars === "function") {
+                if (!_factoryStarsDragRaf) {
+                    _factoryStarsDragRaf = requestAnimationFrame(function() {
+                        _factoryStarsDragRaf = null;
+                        renderFactoryShipmentStars();
+                    });
+                }
+            }
+        }
+
         gantt.attachEvent("onBeforeTaskDrag", function(id, mode, e) {
             const task = gantt.getTask(id);
+            _resizeFeedbackActive = false;
+            _resizeActiveEdge = null;
             // 見出し行（仮想タスク）は期間リサイズ不可
             if (task.$virtual && mode === gantt.config.drag_mode.resize) return false;
             // 工場出荷は複数日出荷に対応するため期間リサイズを許可する
@@ -503,11 +701,35 @@
                 start_date: dateToDb(task.start_date),
                 duration: task.duration
             };
+            if (mode === gantt.config.drag_mode.resize) {
+                _resizeFeedbackActive = true;
+                if (e && e.target && typeof e.target.closest === "function") {
+                    const h = e.target.closest(".gantt_task_drag");
+                    if (h) {
+                        const bind = h.getAttribute("data-bind-property");
+                        if (bind === "start_date" || h.classList.contains("task_left")) {
+                            _resizeActiveEdge = "start";
+                        } else if (bind === "end_date" || bind === "duration" || h.classList.contains("task_right")) {
+                            _resizeActiveEdge = "end";
+                        }
+                    }
+                }
+            }
             return true;
+        });
+
+        gantt.attachEvent("onTaskDrag", function(id, mode, task, original, e) {
+            if (!_resizeFeedbackActive || mode !== gantt.config.drag_mode.resize) return;
+            const t = gantt.getTask(id);
+            if (!t || t.$virtual) return;
+            updateGanttResizeFeedback(id, t, mode, e, original);
         });
 
         // ドラッグ終了時に履歴を記録
         gantt.attachEvent("onAfterTaskDrag", async function(id, mode, e) {
+            hideGanttResizeFeedback();
+            if (typeof renderFactoryShipmentStars === "function") renderFactoryShipmentStars();
+
             if (!_dragOldState) return;
             const task = gantt.getTask(id);
             if (!task || task.$virtual) { _dragOldState = null; return; }
