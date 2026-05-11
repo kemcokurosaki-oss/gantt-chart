@@ -856,10 +856,14 @@
         };
 
         gantt.templates.task_class = function(start, end, task) {
-            // 設計・組立工程表由来の出張タスクは部署で色分け（編集はログイン中のみ可）
+            // 出張タスク（$design_trip フラグ）は部署ごとの色を適用
             if (task.$design_trip) {
-                const tripColor = task.major_item === '組立' ? 'task-yellow' : 'task-blue';
-                return tripColor;
+                const deptColorMap = {
+                    '設計': 'task-blue', '製管': 'task-green', '品証': 'task-green',
+                    '組立': 'task-yellow', '電装': 'task-purple', '操業': 'task-red',
+                    '電技': 'task-teal', '明石': 'task-brown', '営業': 'task-orange'
+                };
+                return deptColorMap[task.major_item] || 'task-blue';
             }
 
             const projectNumber = (task.project_number || "").toString();
