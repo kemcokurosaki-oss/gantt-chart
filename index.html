@@ -44,11 +44,18 @@
                     <button id="zoom_weeks_btn" class="zoom-btn" style="font-size: 12px;" onclick="setZoom('weeks')">週単位</button>
                     <button id="scroll_today_btn" class="zoom-btn" onclick="scrollToToday()" style="background-color: #ebf5ff; border-color: #3498db; color: #3498db; font-size: 12px;">今日へ移動</button>
                 </div>
-                <div style="margin-left:auto; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                <div style="margin-left:auto; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                     <span id="filter_status" style="font-weight:bold; color:#3498db; font-size: 12px; display:none;"></span>
-                    <span style="font-size:12px; color:#555; white-space:nowrap;">部門工程表</span>
-                    <button type="button" id="dept_link_design" class="zoom-btn" style="font-size:12px;" onclick="openDeptScheduleLink('design')" title="">設計</button>
-                    <button type="button" id="dept_link_assembly" class="zoom-btn" style="font-size:12px;" onclick="openDeptScheduleLink('assembly')" title="">組立</button>
+                    <div class="dept-schedule-btns" title="別タブで各部の工程表サイトを開きます">
+                        <button type="button" id="dept_link_design" class="dept-link-btn dept-link-btn--design" onclick="openDeptScheduleLink('design')" title="">
+                            <span class="dept-link-btn__icon" aria-hidden="true">📐</span>
+                            <span class="dept-link-btn__text">設計</span>
+                        </button>
+                        <button type="button" id="dept_link_assembly" class="dept-link-btn dept-link-btn--assembly" onclick="openDeptScheduleLink('assembly')" title="">
+                            <span class="dept-link-btn__icon" aria-hidden="true">🔧</span>
+                            <span class="dept-link-btn__text">組立</span>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
