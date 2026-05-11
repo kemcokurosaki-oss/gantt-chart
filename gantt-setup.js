@@ -33,7 +33,37 @@
             's-morimura@kusakabe.com':  '森村',
         };
 
+        /** 各部門工程表（別サイト）。常に別タブで開く。ログイン・閲覧可否はリンク先アプリ側で行う。 */
+        const DEPT_SCHEDULE_LINK_CONFIG = {
+            design: {
+                url: 'https://kemcokurosaki-oss.github.io/design-schedule/',
+                title: '設計工程表を別タブで開く（ログインはリンク先で行います）',
+            },
+            assembly: {
+                url: 'https://kemcokurosaki-oss.github.io/assembly-schedule/',
+                title: '組立工程表を別タブで開く（ログインはリンク先で行います）',
+            },
+        };
+
+        function updateDeptScheduleLinkButtons() {
+            ['design', 'assembly'].forEach(function (key) {
+                const cfg = DEPT_SCHEDULE_LINK_CONFIG[key];
+                const btn = document.getElementById(key === 'design' ? 'dept_link_design' : 'dept_link_assembly');
+                if (!btn || !cfg) return;
+                btn.disabled = false;
+                btn.title = cfg.title;
+            });
+        }
+
+        function openDeptScheduleLink(key) {
+            const cfg = DEPT_SCHEDULE_LINK_CONFIG[key];
+            if (!cfg || !cfg.url) return;
+            window.open(cfg.url, '_blank', 'noopener,noreferrer');
+        }
+
         let _isEditor = false;
+        /** Supabase セッションあり（編集者以外の閲覧専用ログインも含む） */
+        let _hasAuthSession = false;
         let _currentEditorEmail = '';
         window._getCurrentEditorName = function() {
             if (!_isEditor || !_currentEditorEmail) return '';
@@ -49,8 +79,9 @@
             document.getElementById('kanryo-btn').disabled = !isEditor;
             const authBtn = document.getElementById('auth_btn');
             if (authBtn) {
-                authBtn.textContent = isEditor ? 'ログアウト' : 'ログイン';
-                authBtn.classList.toggle('logged-in', isEditor);
+                const showLogout = _isEditor || _hasAuthSession;
+                authBtn.textContent = showLogout ? 'ログアウト' : 'ログイン';
+                authBtn.classList.toggle('logged-in', showLogout);
             }
             if (typeof gantt.render === 'function') gantt.render();
             // 公開ボタン・ポーリング制御
@@ -58,7 +89,7 @@
         }
 
         function handleAuthBtn() {
-            if (_isEditor) {
+            if (_isEditor || _hasAuthSession) {
                 if (confirm('ログアウトしますか？')) { doLogout(); }
             } else {
                 openLoginDialog();
@@ -136,7 +167,9 @@
             } else {
                 const email = session?.user?.email || '';
                 _currentEditorEmail = email;
+                _hasAuthSession = !!session;
                 _updateUIForAuth(!!session && EDITORS.includes(email));
+                updateDeptScheduleLinkButtons();
             }
         });
 
