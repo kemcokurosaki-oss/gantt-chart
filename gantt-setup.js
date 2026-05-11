@@ -38,26 +38,41 @@
             design: {
                 url: 'https://kemcokurosaki-oss.github.io/design-schedule/',
                 title: '設計工程表を別タブで開く（ログインはリンク先で行います）',
+                disabled: false,
             },
             assembly: {
                 url: 'https://kemcokurosaki-oss.github.io/assembly-schedule/',
                 title: '組立工程表を別タブで開く（ログインはリンク先で行います）',
+                disabled: false,
+            },
+            operations: {
+                url: '',
+                title: '操業工程表は準備中です（公開後に有効化します）',
+                disabled: true,
             },
         };
 
+        function _deptLinkButtonId(key) {
+            if (key === 'design') return 'dept_link_design';
+            if (key === 'assembly') return 'dept_link_assembly';
+            if (key === 'operations') return 'dept_link_operations';
+            return '';
+        }
+
         function updateDeptScheduleLinkButtons() {
-            ['design', 'assembly'].forEach(function (key) {
+            ['design', 'assembly', 'operations'].forEach(function (key) {
                 const cfg = DEPT_SCHEDULE_LINK_CONFIG[key];
-                const btn = document.getElementById(key === 'design' ? 'dept_link_design' : 'dept_link_assembly');
+                const btnId = _deptLinkButtonId(key);
+                const btn = btnId ? document.getElementById(btnId) : null;
                 if (!btn || !cfg) return;
-                btn.disabled = false;
+                btn.disabled = !!cfg.disabled;
                 btn.title = cfg.title;
             });
         }
 
         function openDeptScheduleLink(key) {
             const cfg = DEPT_SCHEDULE_LINK_CONFIG[key];
-            if (!cfg || !cfg.url) return;
+            if (!cfg || cfg.disabled || !cfg.url) return;
             window.open(cfg.url, '_blank', 'noopener,noreferrer');
         }
 
