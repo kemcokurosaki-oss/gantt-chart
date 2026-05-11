@@ -493,7 +493,8 @@
             const task = gantt.getTask(id);
             // 見出し行（仮想タスク）は期間リサイズ不可
             if (task.$virtual && mode === gantt.config.drag_mode.resize) return false;
-            const milestones = ["外観検査", "客先立会", "出荷確認会議", "工場出荷"];
+            // 工場出荷は複数日出荷に対応するため期間リサイズを許可する
+            const milestones = ["外観検査", "客先立会", "出荷確認会議"];
             if (milestones.includes(task.text) && mode === gantt.config.drag_mode.resize) {
                 return false; // リサイズ操作をキャンセル
             }
@@ -883,7 +884,7 @@
             if (task.text === "神戸送り開始日") return css + "hidden_bar";
             if (task.text === "外観検査") return css + "milestone-circle";
             if (task.text === "出荷確認会議") return css + "milestone-diamond";
-            if (task.text === "工場出荷") return css + "milestone-star";
+            if (task.text === "工場出荷") return css + "milestone-factory-ship";
             if (task.text === "客先立会") return css + "milestone-square";
 
             // 大項目フィルタ（部署別フィルタ）と部署別リソースの両方が有効な時のみ担当者ごとの色を適用
@@ -1085,6 +1086,49 @@
         // ========== 神戸送り開始日マーク（ドラッグ可能・Supabase永続化） ==========
         let _markDragState = null;
 
+        /** 工場出荷：duration 日数ぶん、各日の列の中央に ★ を重ね描画 */
+        function renderFactoryShipmentStars() {
+            document.querySelectorAll('.factory-shipment-star-mark').forEach(function(el) { el.remove(); });
+            const container = document.querySelector('.gantt_data_area');
+            if (!container) return;
+
+            gantt.eachTask(function(task) {
+                if (task.text !== "工場出荷") return;
+                try { if (!gantt.isTaskVisible(task.id)) return; } catch (e) { return; }
+                if (!task.start_date) return;
+
+                let start = task.start_date;
+                if (!(start instanceof Date)) {
+                    start = gantt.date.str_to_date("%Y-%m-%d")(String(start).substring(0, 10));
+                }
+                const dur = Math.max(1, parseInt(task.duration, 10) || 1);
+
+                for (let i = 0; i < dur; i++) {
+                    const segStart = gantt.date.add(start, i, "day");
+                    const segEnd = gantt.date.add(segStart, 1, "day");
+                    let pos;
+                    try {
+                        pos = gantt.getTaskPosition(task.id, segStart, segEnd);
+                    } catch (err) {
+                        try {
+                            pos = gantt.getTaskPosition(task, segStart, segEnd);
+                        } catch (err2) {
+                            continue;
+                        }
+                    }
+                    if (!pos || pos.width < 0.5) continue;
+
+                    const el = document.createElement("div");
+                    el.className = "factory-shipment-star-mark";
+                    el.setAttribute("aria-hidden", "true");
+                    el.textContent = "\u2605";
+                    el.style.left = (pos.left + pos.width / 2) + "px";
+                    el.style.top = (pos.top + pos.height / 2) + "px";
+                    container.appendChild(el);
+                }
+            });
+        }
+
         function renderPartsMarks() {
             document.querySelectorAll('.parts-delivery-mark').forEach(function(el) { el.remove(); });
             const container = document.querySelector('.gantt_data_area');
@@ -1146,6 +1190,7 @@
         // ガント再描画のたびにマークを再配置
         gantt.attachEvent("onGanttRender", function() {
             renderPartsMarks();
+            renderFactoryShipmentStars();
         });
 
         // ドラッグ移動
@@ -1168,6 +1213,7 @@
             _markDragState = null;
             if (!wasDragged) {
                 renderPartsMarks();
+                renderFactoryShipmentStars();
                 return;
             }
             const elLeft = parseFloat(state.el.style.left);
@@ -1194,6 +1240,7 @@
                 if (typeof window.markLocalTaskMutation === 'function') window.markLocalTaskMutation(state.taskId);
             }
             renderPartsMarks();
+            renderFactoryShipmentStars();
         });
         // ========== 神戸送り開始日マーク ここまで ==========
 

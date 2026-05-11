@@ -231,7 +231,8 @@
                 });
             }
 
-            const MILESTONE_TEXTS = ["外観検査", "客先立会", "出荷確認会議", "工場出荷"];
+            // マイルストーンのうち、読み込み時に duration を常に 1 に固定するタスク（工場出荷は複数日出荷のため除外）
+            const MILESTONE_ONE_DAY_TASKS = ["外観検査", "客先立会", "出荷確認会議"];
 
             const rawTasks = data.map(t => {
                 let areaGroup = t.area_group;
@@ -242,12 +243,11 @@
                     areaNumber = locMap[t.id].area_numbers.join(",");
                 }
 
-                // マイルストーンタスクは常に1日に固定
-                const isMilestone = MILESTONE_TEXTS.includes(t.text);
+                const isMilestoneOneDay = MILESTONE_ONE_DAY_TASKS.includes(t.text);
 
                 return {
                     id: t.id, text: t.text, start_date: t.start_date,
-                    duration: isMilestone ? 1 : t.duration, owner: t.owner, project_number: (t.project_number || "").toString().trim(),
+                    duration: isMilestoneOneDay ? 1 : t.duration, owner: t.owner, project_number: (t.project_number || "").toString().trim(),
                     machine: t.machine, unit: t.unit, major_item: t.major_item,
                     sort_order: t.sort_order,
                     sort_order_machine: t.sort_order_machine,

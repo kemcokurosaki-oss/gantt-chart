@@ -476,11 +476,13 @@
         .milestone-circle .gantt_task_content,
         .milestone-diamond .gantt_task_content,
         .milestone-star .gantt_task_content,
+        .milestone-factory-ship .gantt_task_content,
         .milestone-square .gantt_task_content { display: none !important; }
 
         .milestone-circle,
         .milestone-diamond,
         .milestone-star,
+        .milestone-factory-ship,
         .milestone-square {
             background: none !important;
             border: none !important;
@@ -572,6 +574,20 @@
             transform: scale(1.1);
             transition: none;
         }
+
+        /* 工場出荷：各日出荷日列の中央に重ねる ★（JS で .gantt_data_area に配置） */
+        .factory-shipment-star-mark {
+            position: absolute;
+            z-index: 6;
+            font-size: 18px;
+            line-height: 1;
+            color: #2E7D32;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+            pointer-events: none;
+            transform: translate(-50%, -50%);
+            font-weight: bold;
+        }
+
         /* リソース画面内の神戸送り開始日はバーではなく🚚マークで表示 */
         .resource-cell-bar.parts-delivery-resource {
             background: none !important;
@@ -1304,6 +1320,28 @@
         .resource-bar.milestone-star { background: none !important; border: none !important; }
         .resource-bar.milestone-star .resource-bar-text { display: none; }
         .resource-bar.milestone-star::before { content: "★"; color: #2E7D32; font-size: 22px; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); text-shadow: 1px 1px 2px rgba(0,0,0,0.2); }
+        /* 工場出荷：上段と同様に日数ぶん ★（子要素で配置） */
+        .resource-cell-bar.milestone-factory-ship-resource,
+        .resource-bar.milestone-factory-ship-resource { background: none !important; border: none !important; overflow: visible !important; }
+        .resource-cell-bar.milestone-factory-ship-resource .resource-bar-text,
+        .resource-bar.milestone-factory-ship-resource .resource-bar-text { display: none !important; }
+        .resource-cell-bar.milestone-factory-ship-resource .resource-factory-ship-stars,
+        .resource-bar.milestone-factory-ship-resource .resource-factory-ship-stars {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+        }
+        .resource-cell-bar.milestone-factory-ship-resource .resource-factory-ship-star,
+        .resource-bar.milestone-factory-ship-resource .resource-factory-ship-star {
+            position: absolute;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            color: #2E7D32;
+            font-size: 18px;
+            line-height: 1;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+            font-weight: bold;
+        }
         .resource-bar.milestone-square { background: none !important; border: none !important; }
         .resource-bar.milestone-square .resource-bar-text { display: none; }
         .resource-bar.milestone-square::before { content: "▲"; color: #FBAD4F; font-size: 20px; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); text-shadow: 1px 1px 2px rgba(0,0,0,0.1); }
