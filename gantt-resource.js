@@ -812,11 +812,11 @@
                             return;
                         }
                         const realId = task.original_id || tid;
-                        const upd = {
+                        const upd = Object.assign({
                             start_date: startDb1,
                             duration: dur1,
                             end_date: inclusiveEndDateToDb(s1, dur1)
-                        };
+                        }, (window._editorLastTouchPatch && window._editorLastTouchPatch()) || {});
                         try {
                             const { error } = await supabaseClient.from("tasks").update(upd).eq("id", realId);
                             if (error) throw error;

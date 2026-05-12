@@ -367,10 +367,10 @@
                         task.duration = Math.max(1, newDur);
                         // end_dateはduration変更のみのため直接Supabaseに保存
                         const realId = task.original_id || taskId;
-                        await supabaseClient.from('tasks').update({
+                        await supabaseClient.from('tasks').update(Object.assign({
                             duration: task.duration,
                             end_date: inclusiveEndDateToDb(task.start_date, task.duration)
-                        }).eq('id', realId);
+                        }, (window._editorLastTouchPatch && window._editorLastTouchPatch()) || {})).eq('id', realId);
                         // 変更履歴を記録
                         if (typeof window.logChange === 'function') {
                             window.logChange(task.project_number || '', task.machine || '', task.unit || '', task.text || '', '終了日を変更');

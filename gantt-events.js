@@ -390,6 +390,7 @@
                 } else {
                     updatePayload.sort_order = t.sort_order;
                 }
+                Object.assign(updatePayload, (window._editorLastTouchPatch && window._editorLastTouchPatch()) || {});
                 return supabaseClient
                     .from('tasks')
                     .update(updatePayload)
@@ -421,7 +422,7 @@
             ) || (completedProjects || []).find(t =>
                 (t.project_number || "").toString().trim() === _pn && (t.customer_name || t.project_details)
             );
-            const newTaskData = {
+            const newTaskData = Object.assign({
                 text: item.text,
                 start_date: dateToDb(item.start_date),
                 duration: item.duration,
@@ -439,7 +440,7 @@
                 area_number: item.area_number || "",
                 // 出張予定フラグ
                 is_business_trip: currentDisplayMode === 'business_trip' ? true : (item.is_business_trip || false)
-            };
+            }, (window._editorLastTouchPatch && window._editorLastTouchPatch()) || {});
             // 出張予定モードで追加した行は組立／設計工程表からも参照できるよう task_type を付与
             // （通常モードでは task_type を触らず、既存値を保持する）
             if (currentDisplayMode === 'business_trip') {
@@ -769,7 +770,7 @@
             const _captured = (_tripLightboxCapture && _tripLightboxCapture.id === String(realId))
                 ? _tripLightboxCapture : null;
 
-            const updateData = {
+            const updateData = Object.assign({
                 text: item.text,
                 start_date: dateToDb(item.start_date),
                 duration: item.duration,
@@ -793,7 +794,7 @@
                 is_business_trip: currentDisplayMode === 'business_trip' ? true : (item.is_business_trip || false),
                 main_owner: item.main_owner || ""
                 // is_new_task: false // データベースにカラムがない可能性があるため一時的にコメットアウト
-            };
+            }, (window._editorLastTouchPatch && window._editorLastTouchPatch()) || {});
             // 出張予定モードで保存した行は組立／設計工程表からも参照できるよう task_type='business_trip' を付与
             // （通常モードでは task_type を触らず、DB側の既存値を保持する）
             if (currentDisplayMode === 'business_trip') {
@@ -1454,10 +1455,10 @@
                 // Supabaseに保存（end_date はグリッドと同じ包含終了日）
                 const dur = task.duration != null ? Number(task.duration) : 1;
                 await supabaseClient.from('tasks')
-                    .update({
+                    .update(Object.assign({
                         start_date: dateStr,
                         end_date: inclusiveEndDateToDb(gantt.date.str_to_date("%Y-%m-%d")(dateStr), dur)
-                    })
+                    }, (window._editorLastTouchPatch && window._editorLastTouchPatch()) || {}))
                     .eq('id', state.taskId);
                 if (typeof window.markLocalTaskMutation === 'function') window.markLocalTaskMutation(state.taskId);
             }

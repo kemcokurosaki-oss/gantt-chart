@@ -85,6 +85,12 @@
             return EDITOR_NAMES[_currentEditorEmail] || _currentEditorEmail.split('@')[0];
         };
 
+        /** tasks の INSERT/UPDATE に付与（Realtime→change_log.changed_by 用）。編集者名が無いときは付与しない。 */
+        window._editorLastTouchPatch = function() {
+            const n = (window._getCurrentEditorName && window._getCurrentEditorName()) || '';
+            return n ? { last_updated_by: n } : {};
+        };
+
         function _updateUIForAuth(isEditor) {
             _isEditor = isEditor;
             gantt.config.readonly = !isEditor;

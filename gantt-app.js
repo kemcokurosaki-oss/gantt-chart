@@ -234,6 +234,25 @@
             // マイルストーンのうち、読み込み時に duration を常に 1 に固定するタスク（工場出荷は複数日出荷のため除外）
             const MILESTONE_ONE_DAY_TASKS = ["外観検査", "客先立会", "出荷確認会議"];
 
+            /**
+             * DB の start_date と end_date（包含の最終日）からガント用 duration を求める。
+             * 組立工程表側で end_date を更新しても tasks.duration が未更新のまま残ると、全体は旧 duration で描画していた。
+             */
+            function durationFromDbInclusiveEnd(startVal, endVal) {
+                if (startVal == null || endVal == null) return null;
+                const sStr = String(startVal).trim().substring(0, 10);
+                const eStr = String(endVal).trim().substring(0, 10);
+                if (!/^\d{4}-\d{2}-\d{2}$/.test(sStr) || !/^\d{4}-\d{2}-\d{2}$/.test(eStr)) return null;
+                if (eStr < sStr) return null;
+                try {
+                    const s = gantt.date.str_to_date("%Y-%m-%d")(sStr);
+                    const e = gantt.date.str_to_date("%Y-%m-%d")(eStr);
+                    const days = Math.floor((e.getTime() - s.getTime()) / (24 * 60 * 60 * 1000)) + 1;
+                    if (days >= 1 && days <= 5000) return days;
+                } catch (_err) { /* ignore */ }
+                return null;
+            }
+
             const rawTasks = data.map(t => {
                 let areaGroup = t.area_group;
                 let areaNumber = t.area_number;
@@ -244,10 +263,18 @@
                 }
 
                 const isMilestoneOneDay = MILESTONE_ONE_DAY_TASKS.includes(t.text);
+                let durationForGantt = isMilestoneOneDay ? 1 : Number(t.duration);
+                if (!isMilestoneOneDay) {
+                    if (!Number.isFinite(durationForGantt) || durationForGantt < 1) durationForGantt = 1;
+                    if (t.end_date != null && String(t.end_date).trim() !== "") {
+                        const derived = durationFromDbInclusiveEnd(t.start_date, t.end_date);
+                        if (derived != null) durationForGantt = derived;
+                    }
+                }
 
                 return {
                     id: t.id, text: t.text, start_date: t.start_date,
-                    duration: isMilestoneOneDay ? 1 : t.duration, owner: t.owner, project_number: (t.project_number || "").toString().trim(),
+                    duration: durationForGantt, owner: t.owner, project_number: (t.project_number || "").toString().trim(),
                     machine: t.machine, unit: t.unit, major_item: t.major_item,
                     sort_order: t.sort_order,
                     sort_order_machine: t.sort_order_machine,
@@ -704,6 +731,28 @@
 
         // 組立工程表由来の行かどうかを判定（Realtime payload 用）
         // ※ 組立工程表には部署「組立」「電装」が含まれるため、parent が空の判定でも両方を対象にする。
+        function mergeTasksRowForAssemblyWatch(row) {
+            if (!row || row.id == null) return row;
+            const id = String(row.id);
+            const out = Object.assign({}, row);
+            const cached = Array.isArray(window.allTasks)
+                ? window.allTasks.find(function(t) { return String(t.id) === id; })
+                : null;
+            if (!cached) return out;
+            function takeIfEmpty(key, val) {
+                if (out[key] != null && String(out[key]).trim() !== '') return;
+                if (val != null && String(val).trim() !== '') out[key] = val;
+            }
+            takeIfEmpty('parent', cached.parent_name);
+            takeIfEmpty('parent', cached.parent);
+            takeIfEmpty('major_item', cached.major_item);
+            takeIfEmpty('project_number', cached.project_number);
+            takeIfEmpty('machine', cached.machine);
+            takeIfEmpty('unit', cached.unit);
+            takeIfEmpty('text', cached.text);
+            return out;
+        }
+
         function isAssemblyTaskRow(row) {
             if (!row) return false;
             const parent = taskRowParent(row);
@@ -983,7 +1032,10 @@
 
             const { error: uerr } = await supabaseClient
                 .from("tasks")
-                .update({ area_group: area_group, area_number: area_number })
+                .update(Object.assign(
+                    { area_group: area_group, area_number: area_number },
+                    (window._editorLastTouchPatch && window._editorLastTouchPatch()) || {}
+                ))
                 .eq("id", tid);
             if (uerr) {
                 console.error("tasks area update:", uerr);
@@ -1129,7 +1181,10 @@
                 }
             } catch(e) {}
             // Supabaseへの保存はバックグラウンドで実行（常に DB のタスク id）
-            supabaseClient.from('tasks').update({ is_completed: checked }).eq('id', realId)
+            supabaseClient.from('tasks').update(Object.assign(
+                { is_completed: checked },
+                (window._editorLastTouchPatch && window._editorLastTouchPatch()) || {}
+            )).eq('id', realId)
                 .then(({ error }) => {
                     if (error) { console.error("チェックボックス保存エラー:", error); return; }
                     try {
@@ -1160,8 +1215,8 @@
             // 列の更新
             updateGanttColumns();
 
-            // データの再読み込みと再描画
-            await fetchTasks({ useCache: true });
+            // データの再読み込みと再描画（表示モード切替時は必ず DB から取得。useCache だと別タブの更新が反映されない）
+            await fetchTasks();
             hideLoading();
         }
 
@@ -2072,21 +2127,28 @@
                     if (!_isEditor) return;
                     const rawOld = payload.old || null;
                     const p = enrichAssemblyRealtimePayload(payload);
-                    if (Date.now() < _suppressAssemblyBannerUntil) return;
+                    // 自タブで直前に保存した同一 task の echo のみ除外（全体の保存直後4秒で他タブ組立まで無視しない）
                     if (shouldSuppressAssemblyRealtimeByTask(p, rawOld)) return;
-                    const rowNew = p.new || null;
-                    const rowOld = p.old || null;
-                    // 全体工程表が直近に logChange した同一タスクなら記録をスキップ
+
+                    // 組立・設計など別画面の DB 更新をガントに反映（自タブ echo は上で除外済み）
+                    scheduleFetchTasksAfterRemoteTaskChange();
+
+                    const rowNew = mergeTasksRowForAssemblyWatch(p.new || null);
+                    const rowOld = mergeTasksRowForAssemblyWatch(p.old || null);
+                    let skipDuplicateAssemblyLog = false;
                     const _rlRow = rowNew || rowOld;
                     if (_rlRow) {
                         const _rlExp = _recentLocalLogs.get(_makeLocalLogKey(
                             _rlRow.project_number, _rlRow.machine, _rlRow.unit, _rlRow.text));
-                        if (_rlExp != null && Date.now() < _rlExp) return;
+                        if (_rlExp != null && Date.now() < _rlExp) skipDuplicateAssemblyLog = true;
                     }
                     const ev = String(payload.eventType || "").toUpperCase();
+                    const delRow = (ev === "DELETE" && (p.old || rawOld)) ? mergeTasksRowForAssemblyWatch(p.old || rawOld) : null;
                     const isTarget = isAssemblyTaskRow(rowNew) || isAssemblyTaskRow(rowOld)
-                        || (ev === "DELETE" && rawOld && isAssemblyTaskRow(rawOld));
+                        || (ev === "DELETE" && delRow && isAssemblyTaskRow(delRow));
                     if (!isTarget) return;
+                    if (Date.now() < _suppressAssemblyBannerUntil) return;
+                    if (skipDuplicateAssemblyLog) return;
                     showSyncChangeBanner('組立工程表', p.eventType);
                     void logAssemblyRealtimeChange(p);
                 })
@@ -2098,6 +2160,18 @@
                 supabaseClient.removeChannel(_assemblyTaskChannel);
                 _assemblyTaskChannel = null;
             }
+        }
+
+        /** 組立工程表（別タブ）等からの tasks Realtime 後に DB を再取得してガントを同期（連打はデバウンス） */
+        let _assemblyRealtimeFetchTimer = null;
+        function scheduleFetchTasksAfterRemoteTaskChange() {
+            if (_assemblyRealtimeFetchTimer) clearTimeout(_assemblyRealtimeFetchTimer);
+            _assemblyRealtimeFetchTimer = setTimeout(function() {
+                _assemblyRealtimeFetchTimer = null;
+                fetchTasks().catch(function(err) {
+                    console.error('[fetchTasks] tasks Realtime 後の再同期', err);
+                });
+            }, 400);
         }
 
         // 別タブ/別ブラウザから復帰した際に、カレンダーヘッダー文字が消える現象を防ぐ
@@ -2258,11 +2332,11 @@
                 // Supabaseを一括更新
                 await Promise.all(dbUpdates.map(u =>
                     supabaseClient.from('tasks')
-                        .update({
+                        .update(Object.assign({
                             start_date: u.start_date,
                             duration: u.duration,
                             end_date: inclusiveEndDateToDb(u.start_date, u.duration)
-                        })
+                        }, (window._editorLastTouchPatch && window._editorLastTouchPatch()) || {}))
                         .eq('id', u.id)
                 ));
 
@@ -2353,7 +2427,6 @@
         let _syncLogData = []; // 取得した全データをキャッシュ
         let _syncLogFilter = {
             keyword: '',
-            source: '',
             dateFrom: '',
             dateTo: '',
             preset: ''
@@ -2393,7 +2466,6 @@
             const maxDate = dates[dates.length - 1] || '';
             _syncLogFilter = {
                 keyword: '',
-                source: '',
                 dateFrom: minDate,
                 dateTo: maxDate,
                 preset: ''
@@ -2411,24 +2483,11 @@
             return `${y}-${m}-${day}`;
         }
 
-        function _getSourceLabel(row) {
-            const desc = row.description || '';
-            return (row.source || '').trim()
-                || (desc.indexOf('設計工程表') >= 0 ? '設計工程表'
-                : (desc.indexOf('組立工程表') >= 0 ? '組立工程表' : '全体工程表'));
-        }
-
         function _setSyncLogFilterKeyword(value) {
             _syncLogFilter.keyword = (value || '').trim();
             _renderSyncLogTable();
         }
         window.setSyncLogFilterKeyword = _setSyncLogFilterKeyword;
-
-        function _setSyncLogFilterSource(value) {
-            _syncLogFilter.source = value || '';
-            _renderSyncLog();
-        }
-        window.setSyncLogFilterSource = _setSyncLogFilterSource;
 
         function _setSyncLogFilterDateFrom(value) {
             _syncLogFilter.dateFrom = value || '';
@@ -2490,7 +2549,6 @@
                 .filter(Boolean)
                 .sort();
             _syncLogFilter.keyword = '';
-            _syncLogFilter.source = '';
             _syncLogFilter.dateFrom = dates[0] || '';
             _syncLogFilter.dateTo = dates[dates.length - 1] || '';
             _syncLogFilter.preset = '';
@@ -2525,8 +2583,6 @@
         function _getFilteredSyncLogRows() {
             const keyword = (_syncLogFilter.keyword || '').toLowerCase();
             return _syncLogData.filter((row) => {
-                const sourceLabel = _getSourceLabel(row);
-                if (_syncLogFilter.source && sourceLabel !== _syncLogFilter.source) return false;
                 const dateKey = _toDateKey(row.changed_at);
                 if (_syncLogFilter.dateFrom && dateKey && dateKey < _syncLogFilter.dateFrom) return false;
                 if (_syncLogFilter.dateTo && dateKey && dateKey > _syncLogFilter.dateTo) return false;
@@ -2537,8 +2593,7 @@
                     row.unit || '',
                     row.task_text || '',
                     row.description || '',
-                    row.changed_by || '',
-                    sourceLabel
+                    row.changed_by || ''
                 ].join(' ').toLowerCase();
                 return target.indexOf(keyword) >= 0;
             });
@@ -2549,14 +2604,7 @@
             const filterHtml = `<div id="sync-log-filter-wrap" style="position:sticky;top:0;z-index:30;background:#fff;border-bottom:1px solid #dfe5ea;padding:8px 0 8px 0;box-shadow:0 -1px 0 #fff, 0 1px 0 #fff;">
                 <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;">
                     <label style="font-size:12px;color:#555;white-space:nowrap;">キーワード</label>
-                    <input type="text" value="${_syncLogFilter.keyword || ''}" placeholder="工事番号・タスク名・変更内容..." oninput="setSyncLogFilterKeyword(this.value)" style="flex:1;min-width:240px;padding:4px 8px;border:1px solid #ccc;border-radius:4px;font-size:12px;">
-                    <label style="font-size:12px;color:#555;white-space:nowrap;">変更元</label>
-                    <select onchange="setSyncLogFilterSource(this.value)" style="padding:4px 8px;border:1px solid #ccc;border-radius:4px;font-size:12px;">
-                        <option value="" ${_syncLogFilter.source === '' ? 'selected' : ''}>すべて</option>
-                        <option value="全体工程表" ${_syncLogFilter.source === '全体工程表' ? 'selected' : ''}>全体工程表</option>
-                        <option value="設計工程表" ${_syncLogFilter.source === '設計工程表' ? 'selected' : ''}>設計工程表</option>
-                        <option value="組立工程表" ${_syncLogFilter.source === '組立工程表' ? 'selected' : ''}>組立工程表</option>
-                    </select>
+                    <input type="text" value="${_syncLogFilter.keyword || ''}" placeholder="工事番号・タスク名・変更内容・変更者..." oninput="setSyncLogFilterKeyword(this.value)" style="flex:1;min-width:280px;padding:4px 8px;border:1px solid #ccc;border-radius:4px;font-size:12px;">
                 </div>
                 <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
                     <label style="font-size:12px;color:#555;white-space:nowrap;">期間</label>
@@ -2596,17 +2644,6 @@
                     String(d.getMinutes()).padStart(2,'0');
             };
 
-            const sourceTextStyle = (label) => {
-                const base = 'font-weight:400;font-size:12px;white-space:nowrap;';
-                if (label === '設計工程表') {
-                    return base + 'color:#0d47a1;';
-                }
-                if (label === '組立工程表') {
-                    return base + 'color:#f57c00;';
-                }
-                return base + 'color:#2e7d32;';
-            };
-
             const thStickyTop = Math.max(0, Number(_syncLogTableHeaderStickyTop) || 0);
             const thSticky = `position:sticky;top:${thStickyTop}px;z-index:6;background:#eceff1;background-clip:padding-box;box-shadow:0 2px 3px rgba(0,0,0,0.12);`;
             const thSep = 'border-top:2px solid #cfd8dc;border-bottom:2px solid #cfd8dc;';
@@ -2617,12 +2654,11 @@
                 machine: 68,
                 unit: 76,
                 taskText: 156,
-                description: 264,
-                source: 88,
-                changedBy: 64
+                description: 352,
+                changedBy: 96
             };
             const SYNC_LOG_TABLE_WIDTH_PX = SYNC_LOG_COL_PX.changedAt + SYNC_LOG_COL_PX.projectNo + SYNC_LOG_COL_PX.machine +
-                SYNC_LOG_COL_PX.unit + SYNC_LOG_COL_PX.taskText + SYNC_LOG_COL_PX.description + SYNC_LOG_COL_PX.source + SYNC_LOG_COL_PX.changedBy;
+                SYNC_LOG_COL_PX.unit + SYNC_LOG_COL_PX.taskText + SYNC_LOG_COL_PX.description + SYNC_LOG_COL_PX.changedBy;
             const w = SYNC_LOG_COL_PX;
             let tableHtml = `<table style="width:${SYNC_LOG_TABLE_WIDTH_PX}px;margin:0;border-collapse:separate;border-spacing:0;font-size:12px;table-layout:fixed;">
                 <colgroup>
@@ -2632,7 +2668,6 @@
                     <col style="width:${w.unit}px" />
                     <col style="width:${w.taskText}px" />
                     <col style="width:${w.description}px" />
-                    <col style="width:${w.source}px" />
                     <col style="width:${w.changedBy}px" />
                 </colgroup>
                 <thead>
@@ -2643,7 +2678,6 @@
                         <th style="padding:6px 10px;text-align:left;white-space:nowrap;${thSep}${thSticky}">ユニット</th>
                         <th style="padding:6px 10px;text-align:left;${cellWrap}${thSep}${thSticky}">タスク名</th>
                         <th style="padding:6px 10px;text-align:left;${cellWrap}${thSep}${thSticky}">変更箇所</th>
-                        <th style="padding:6px 8px;text-align:left;white-space:nowrap;${thSep}${thSticky}">変更元</th>
                         <th style="padding:6px 8px;text-align:left;white-space:nowrap;${thSep}${thSticky}">変更者</th>
                     </tr>
                 </thead>
@@ -2651,8 +2685,6 @@
 
             filteredRows.forEach((row, i) => {
                 const bg = i % 2 === 0 ? '#fff' : '#fafafa';
-                const sourceLabel = _getSourceLabel(row);
-                const sourceCell = `<span style="${sourceTextStyle(sourceLabel)}">${sourceLabel}</span>`;
                 tableHtml += `<tr style="background:${bg};">
                     <td style="padding:6px 10px;border-bottom:1px solid #eee;white-space:nowrap;color:#666;">${fmtDt(row.changed_at)}</td>
                     <td style="padding:6px 10px;border-bottom:1px solid #eee;font-weight:bold;white-space:nowrap;">${row.project_number || ''}</td>
@@ -2660,7 +2692,6 @@
                     <td style="padding:6px 10px;border-bottom:1px solid #eee;white-space:nowrap;">${row.unit || ''}</td>
                     <td style="padding:6px 10px;border-bottom:1px solid #eee;${cellWrap}">${row.task_text || ''}</td>
                     <td style="padding:6px 10px;border-bottom:1px solid #eee;color:#000;${cellWrap}">${row.description || ''}</td>
-                    <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:left;vertical-align:top;">${sourceCell}</td>
                     <td style="padding:6px 8px;border-bottom:1px solid #eee;white-space:nowrap;color:#555;">${row.changed_by || ''}</td>
                 </tr>`;
             });
