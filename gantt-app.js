@@ -1348,6 +1348,30 @@
             gantt.scrollTo(scrollState.x, scrollState.y);
         }
 
+        /** 工事一覧ホバー用ツールチップ（ラベル＋行ごと色分けで種別を判別しやすく） */
+        function fillProjectListTooltip(tooltipEl, info, salesPerson) {
+            tooltipEl.replaceChildren();
+            const rows = [
+                { label: "客先名", value: (info.customer || "").trim(), kind: "customer" },
+                { label: "工事名", value: (info.details || "").trim(), kind: "project" },
+                { label: "営業担当", value: (salesPerson || "").trim(), kind: "sales" }
+            ];
+            rows.forEach(r => {
+                if (!r.value) return;
+                const row = document.createElement("div");
+                row.className = "custom-tooltip-row custom-tooltip-row--" + r.kind;
+                const lab = document.createElement("span");
+                lab.className = "custom-tooltip-label";
+                lab.textContent = r.label;
+                const val = document.createElement("span");
+                val.className = "custom-tooltip-value";
+                val.textContent = r.value;
+                row.appendChild(lab);
+                row.appendChild(val);
+                tooltipEl.appendChild(row);
+            });
+        }
+
         function updateProjectList(tasks) {
             const listEl = document.getElementById('project_list');
             const projectInfoMap = {};
@@ -1382,9 +1406,10 @@
                 item.className = `project-item ${currentFilter === p ? 'active' : ''}`;
                 item.innerText = p;
                 const info = projectInfoMap[p];
-                if (info.customer || info.details) {
+                const salesPerson = _salesPersonMap[p] || "";
+                if (info.customer || info.details || salesPerson) {
                     item.onmouseenter = (e) => {
-                        tooltip.innerText = `${info.customer}\n${info.details}`.trim();
+                        fillProjectListTooltip(tooltip, info, salesPerson);
                         tooltip.style.display = 'block';
                         
                         // ボタンの位置を取得
