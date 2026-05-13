@@ -1348,6 +1348,96 @@
             gantt.scrollTo(scrollState.x, scrollState.y);
         }
 
+        /** 出張予定行か（全体工程表・設計工程表由来の出張を含む） */
+        function _isBusinessTripTaskRow(t) {
+            const val = t && t.is_business_trip;
+            return val === true || val === 'true' || val === 'TRUE';
+        }
+
+        /** 工番ごとに社内工程・出張予定の有無（工事一覧のマーク用） */
+        function _buildProjectKindMap(tasks) {
+            const map = {};
+            (tasks || []).forEach(function(t) {
+                const pn = (t.project_number || "").toString().trim();
+                if (!pn) return;
+                if (!map[pn]) map[pn] = { shanai: false, trip: false };
+                if (_isBusinessTripTaskRow(t)) map[pn].trip = true;
+                else map[pn].shanai = true;
+            });
+            return map;
+        }
+
+        /** 案内オーバーレイを左グリッド列（.gantt_grid）の矩形に合わせて中央表示（横スクロールでは追従しない） */
+        function _layoutGanttEmptyNoticeOverGrid() {
+            const wrap = document.querySelector(".gantt-main-wrap");
+            if (!wrap) return;
+            const grid = document.querySelector("#gantt_here .gantt_grid");
+            ["shanai-empty-notice", "trip-empty-notice"].forEach(function(id) {
+                const el = document.getElementById(id);
+                if (!el) return;
+                if (!el.classList.contains("is-visible")) {
+                    el.style.left = "";
+                    el.style.top = "";
+                    el.style.width = "";
+                    el.style.height = "";
+                    el.style.right = "";
+                    el.style.bottom = "";
+                    return;
+                }
+                const wr = wrap.getBoundingClientRect();
+                const target = grid || wrap;
+                const tr = target.getBoundingClientRect();
+                el.style.left = (tr.left - wr.left) + "px";
+                el.style.top = (tr.top - wr.top) + "px";
+                el.style.width = tr.width + "px";
+                el.style.height = tr.height + "px";
+                el.style.right = "auto";
+                el.style.bottom = "auto";
+            });
+        }
+        window._layoutGanttEmptyNoticeOverGrid = _layoutGanttEmptyNoticeOverGrid;
+        window._layoutGanttEmptyNoticeOverDataArea = _layoutGanttEmptyNoticeOverGrid;
+
+        function _scheduleLayoutGanttEmptyNotices() {
+            requestAnimationFrame(function() {
+                requestAnimationFrame(function() {
+                    if (typeof window._layoutGanttEmptyNoticeOverGrid === "function") {
+                        window._layoutGanttEmptyNoticeOverGrid();
+                    }
+                });
+            });
+        }
+
+        /** 工程表／出張シートで、左で選んだ工番に片方の工程しかないときの案内を表示 */
+        function _updateGanttEmptyNotices() {
+            const shanaiEl = document.getElementById("shanai-empty-notice");
+            const tripEl = document.getElementById("trip-empty-notice");
+            if (shanaiEl) shanaiEl.classList.remove("is-visible");
+            if (tripEl) tripEl.classList.remove("is-visible");
+            if (currentFilter) {
+                const tasks = window.allTasks;
+                if (Array.isArray(tasks)) {
+                    const pNum = String(currentFilter).trim();
+                    let hasShanai = false;
+                    let hasTrip = false;
+                    for (let i = 0; i < tasks.length; i++) {
+                        const t = tasks[i];
+                        if (String(t.project_number || "").trim() !== pNum) continue;
+                        if (_isBusinessTripTaskRow(t)) hasTrip = true;
+                        else hasShanai = true;
+                    }
+                    const mode = typeof currentDisplayMode !== "undefined" ? currentDisplayMode : "process";
+                    if (mode === "business_trip") {
+                        if (!hasTrip && hasShanai && tripEl) tripEl.classList.add("is-visible");
+                    } else {
+                        if (!hasShanai && hasTrip && shanaiEl) shanaiEl.classList.add("is-visible");
+                    }
+                }
+            }
+            _scheduleLayoutGanttEmptyNotices();
+        }
+        window._updateShanaiEmptyNotice = _updateGanttEmptyNotices;
+
         /** 工事一覧ホバー用ツールチップ（ラベル＋行ごと色分けで種別を判別しやすく） */
         function fillProjectListTooltip(tooltipEl, info, salesPerson) {
             tooltipEl.replaceChildren();
@@ -1374,6 +1464,7 @@
 
         function updateProjectList(tasks) {
             const listEl = document.getElementById('project_list');
+            const projectKindMap = _buildProjectKindMap(tasks);
             const projectInfoMap = {};
             tasks.forEach(t => {
                 if (!t.project_number) return;
@@ -1404,7 +1495,14 @@
             projects.forEach(p => {
                 const item = document.createElement('div');
                 item.className = `project-item ${currentFilter === p ? 'active' : ''}`;
-                item.innerText = p;
+                const numEl = document.createElement('span');
+                numEl.className = 'project-item__num';
+                numEl.textContent = p;
+                const kind = projectKindMap[p] || { shanai: false, trip: false };
+                if (kind.trip && !kind.shanai) {
+                    item.classList.add('project-item--trip-only');
+                }
+                item.appendChild(numEl);
                 const info = projectInfoMap[p];
                 const salesPerson = _salesPersonMap[p] || "";
                 if (info.customer || info.details || salesPerson) {
@@ -1434,6 +1532,7 @@
                 item.onclick = () => filterByProject(p);
                 listEl.appendChild(item);
             });
+            if (typeof window._updateShanaiEmptyNotice === 'function') window._updateShanaiEmptyNotice();
         }
 
         const _lastProjectFilterOpenedVirtualIds = new Set();
@@ -1453,6 +1552,7 @@
             if (typeof updateProjectList === 'function') {
                 updateProjectList(window.allTasks); 
             }
+            if (typeof window._updateShanaiEmptyNotice === 'function') window._updateShanaiEmptyNotice();
         }
         function filterByMajorItem(major) {
             const scrollState = gantt.getScrollState();

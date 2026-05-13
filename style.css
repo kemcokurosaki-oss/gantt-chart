@@ -101,9 +101,41 @@
         .sidebar-title { padding: 8px; font-weight: bold; background: #1a252f; font-size: 12px; cursor: pointer; transition: 0.2s; }
         .sidebar-title:hover { background: #34495e; }
         .project-list { flex: 1; overflow-y: auto; }
-        .project-item { padding: 6px 8px; border-bottom: 1px solid #34495e; cursor: pointer; font-size: 13px; transition: 0.2s; font-weight: bold; }
+        .project-item { padding: 6px 8px; border-bottom: 1px solid #34495e; cursor: pointer; font-size: 13px; transition: background 0.2s, transform 0.1s ease-out, box-shadow 0.1s ease-out, filter 0.1s ease-out; font-weight: bold; display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 0; position: relative; }
+        .project-item--trip-only .project-item__num { color: #9EC5A6; }
+        .project-item--trip-only.active .project-item__num { color: #9EC5A6; }
+        .project-item__num { flex: 1; min-width: 0; width: 100%; text-align: center; line-height: 1.2; transform: translateX(-5px); }
+        .gantt-main-wrap { flex: 1; min-height: 0; width: 100%; position: relative; display: flex; flex-direction: column; }
+        .gantt-main-wrap #gantt_here { flex: 1; min-height: 0; width: 100%; }
+        .gantt-main-wrap .shanai-empty-notice {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+            z-index: 6;
+            box-sizing: border-box;
+        }
+        .gantt-main-wrap .shanai-empty-notice.is-visible { display: flex; }
+        .shanai-empty-notice__box { max-width: 360px; margin: 0 16px; padding: 14px 18px; background: rgba(255,255,255,0.96); border: 1px solid #bdc3c7; border-radius: 8px; box-shadow: 0 4px 18px rgba(0,0,0,0.12); text-align: center; pointer-events: none; }
+        .shanai-empty-notice__title { font-size: 15px; font-weight: bold; color: #2c3e50; margin-bottom: 8px; }
+        .shanai-empty-notice__sub { font-size: 12px; color: #555; line-height: 1.45; }
         .project-item:hover { background: #34495e; }
+        .project-item:active {
+            transform: translateY(2px);
+            box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.28);
+            filter: brightness(0.92);
+        }
         .project-item.active { background: #3498db; color: white; border-left: 5px solid #fff; }
+        .project-item.active:active {
+            transform: translateY(2px);
+            filter: brightness(0.88);
+            box-shadow: inset 0 4px 10px rgba(0, 0, 0, 0.22);
+        }
         .sidebar-title { display: flex; align-items: center; justify-content: space-between; }
         .project-group-filter-btn { background: none; border: none; color: #ecf0f1; cursor: pointer; font-size: 11px; padding: 2px 4px; line-height: 1; opacity: 0.7; flex-shrink: 0; }
         .project-group-filter-btn:hover { opacity: 1; }

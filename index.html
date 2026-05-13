@@ -143,8 +143,22 @@
                 <div id="project_list" class="project-list"></div>
             </div>
             <div class="chart-container">
-                <!-- メインガントチャート -->
-                <div id="gantt_here" style="width: 100%; flex: 1; min-height: 0;"></div>
+                <div class="gantt-main-wrap">
+                    <!-- メインガントチャート -->
+                    <div id="gantt_here" style="width: 100%; flex: 1; min-height: 0;"></div>
+                    <div id="shanai-empty-notice" class="shanai-empty-notice" role="status" aria-live="polite">
+                        <div class="shanai-empty-notice__box">
+                            <div class="shanai-empty-notice__title">社内工程はありません</div>
+                            <div class="shanai-empty-notice__sub">この工事番号は出張予定のみ登録されています。<br />出張予定ボタンから表示できます。</div>
+                        </div>
+                    </div>
+                    <div id="trip-empty-notice" class="shanai-empty-notice trip-empty-notice" role="status" aria-live="polite">
+                        <div class="shanai-empty-notice__box">
+                            <div class="shanai-empty-notice__title">出張予定はありません</div>
+                            <div class="shanai-empty-notice__sub">この工事番号は社内工程のみ登録されています。<br />工程表へ戻るボタンから表示できます。</div>
+                        </div>
+                    </div>
+                </div>
 
                 <!-- 独立したリソースパネル -->
                 <div id="resource_panel" style="display: none; height: 250px; border-top: 2px solid #ccc; background: #fff; flex-direction: column; position: absolute; bottom: 0; left: 0; right: 0;">

@@ -1414,6 +1414,8 @@
         gantt.attachEvent("onGanttRender", function() {
             renderPartsMarks();
             renderFactoryShipmentStars();
+            if (typeof window._updateShanaiEmptyNotice === "function") window._updateShanaiEmptyNotice();
+            if (typeof window._layoutGanttEmptyNoticeOverGrid === "function") window._layoutGanttEmptyNoticeOverGrid();
         });
 
         // ドラッグ移動
