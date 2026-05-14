@@ -1723,6 +1723,20 @@
         .help-highlight { position: fixed; z-index: 200001; pointer-events: all; cursor: help; border-radius: 4px; box-shadow: 0 0 0 2px rgba(255,255,255,0.55), 0 0 8px 2px rgba(100,170,255,0.45); transition: box-shadow 0.18s; }
         .help-highlight:hover { box-shadow: 0 0 0 3px #fff, 0 0 18px 6px rgba(80,160,255,0.9); }
         .help-tip { position: fixed; z-index: 200002; pointer-events: none; background: #fff; border: 2px solid #1565c0; border-radius: 6px; padding: 7px 10px; min-width: 150px; max-width: 240px; box-shadow: 0 3px 14px rgba(0,0,0,0.35); font-size: 11px; font-family: 'メイリオ', Meiryo, sans-serif; line-height: 1.5; color: #333; opacity: 0; visibility: hidden; transition: opacity 0.15s; }
+        .help-tip.help-tip--wide { max-width: min(420px, calc(100vw - 24px)); }
+        .help-tip.help-tip--detail-mapping { max-width: min(560px, calc(100vw - 24px)); }
+        .help-tip.help-tip--sidebar-list { max-width: min(540px, calc(100vw - 24px)); }
+        /* 使い方ガイド：マーク凡例（ヘッダー #mark-legend と同色・同サイズ） */
+        .help-tip .help-tip-mark-shape {
+            line-height: 1;
+            vertical-align: middle;
+            display: inline-block;
+            font-size: 17px;
+        }
+        .help-tip .help-tip-mark-shape--circle { color: #d32f2f; }
+        .help-tip .help-tip-mark-shape--tri { color: #FBAD4F; }
+        .help-tip .help-tip-mark-shape--dia { color: #1976D2; }
+        .help-tip .help-tip-mark-shape--star { color: #2E7D32; }
         .help-tip.tip-visible { opacity: 1; visibility: visible; }
         .help-tip-title { font-weight: bold; font-size: 12px; color: #1565c0; margin-bottom: 3px; }
         .help-tip::before { content: ''; position: absolute; top: -8px; left: 12px; width: 0; height: 0; border-left: 7px solid transparent; border-right: 7px solid transparent; border-bottom: 8px solid #1565c0; }

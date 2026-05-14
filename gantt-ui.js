@@ -976,23 +976,26 @@
 
         // ===== ヘルプモード =====
         var HELP_TIPS = [
-            { id: 'new_project_btn',       title: '新規受注',         text: '新しい工事番号を登録します\n（要ログイン）' },
-            { id: 'reset_filter_btn',      title: '表示リセット',     text: '部署フィルタ・担当者フィルタ・工事番号フィルタを\nすべて解除して全表示に戻します' },
-            { id: 'kanryo-btn',            title: '完了済み',         text: '完了済み工番の一覧を表示\n過去の工事を参照できます\n（要ログイン）' },
-            { id: 'mark-legend',           title: 'マーク凡例',       text: '🚚 部品送り開始日\n● 外観検査\n▲ 客先立会\n◆ 出荷確認会議\n★ 工場出荷\nガントチャート上に表示されるマークの意味' },
-            { id: 'help_btn',              title: '使い方ガイド',     text: 'このヘルプを表示します\nもう一度クリックで閉じます', closeOnClick: true },
-            { id: 'auth_btn',              title: 'ログイン',         text: '編集者としてログイン\nログイン後は追加・編集・削除が可能になります' },
-            { id: 'sort_process_btn',      title: '工程別表示',       text: '部署の工程順にタスクを並べて表示\nデフォルトの表示モードです' },
-            { id: 'sort_machine_btn',      title: '機械別表示',       text: '機械番号ごとにタスクをまとめて表示\n機械単位の進捗確認に便利です' },
-            { id: 'zoom_days_btn',         title: '日単位',           text: '1日単位でガントチャートを表示\n詳細なスケジュールの確認に' },
-            { id: 'zoom_weeks_btn',        title: '週単位',           text: '1週単位で広い範囲を一覧表示\n全体スケジュールの把握に' },
+            { id: 'new_project_btn',       title: '新規受注',         text: '新しい工事番号を登録します\n（要ログイン）', noBullets: true },
+            { id: 'reset_filter_btn',      title: '表示リセット',     text: 'ページを再読み込みし、すべての表示条件を<br>初期状態に戻します', noBullets: true },
+            { id: 'kanryo-btn',            title: '完了済み',         text: '完了済み工番の一覧を表示\n過去の工事を参照できます\n（要ログイン）', noBullets: true },
+            { id: 'mark-legend',           title: 'マーク凡例',       text: '<span>🚚</span> 部品送り開始日<br><span class="help-tip-mark-shape help-tip-mark-shape--circle">●</span> 外観検査<br><span class="help-tip-mark-shape help-tip-mark-shape--tri">▲</span> 客先立会<br><span class="help-tip-mark-shape help-tip-mark-shape--dia">◆</span> 出荷確認会議<br><span class="help-tip-mark-shape help-tip-mark-shape--star">★</span> 工場出荷', noBullets: true },
+            { id: 'help_btn',              title: '使い方ガイド',     text: '各所の説明吹き出しを表示します\n背景の暗い部分をクリックで閉じます', closeOnClick: true, noBullets: true },
+            { id: 'auth_btn',              title: 'ログイン',         text: '編集者としてログイン\nログイン後は追加・編集・削除が可能になります', noBullets: true },
+            { id: 'sort_process_btn',      title: '工程別表示',       text: '部署の工程順にタスクを並べて表示\nデフォルトの表示モードです', noBullets: true },
+            { id: 'sort_machine_btn',      title: '機械別表示',       text: '機械番号ごとにタスクをまとめて表示\n機械単位の進捗確認に便利です', noBullets: true },
+            { id: 'zoom_days_btn',         title: '日単位',           text: '1日単位でガントチャートを表示\n詳細なスケジュールの確認に', noBullets: true },
+            { id: 'zoom_weeks_btn',        title: '週単位',           text: '1週単位で広い範囲を一覧表示\n全体スケジュールの把握に', noBullets: true },
             { id: 'scroll_today_btn',      title: '今日へ移動',       text: 'ガントチャートを今日の日付へスクロール' },
-            { id: 'search-filter-toggle',  title: '検索フィルター',   text: '機械番号・タスク名・担当者で絞り込み\nクリックで検索パネルを開閉\n⚠️担当未定ボタンで未割当タスクを一覧表示' },
-            { id: 'major-filter-select',   title: '部署別フィルタ',   text: '選択した部署のタスクだけを表示\nバーの色も部署ごとに色分けされます' },
-            { id: 'resource-dept-select',  title: '部署別リソース',   text: '選択した部署の担当者ごとの\nリソース状況を下部パネルに表示' },
-            { id: 'location_resource_btn', title: '組立場所',         text: '組立エリアの場所別リソースを表示\nE1/E2などのエリアで確認できます' },
-            { id: 'sort_business_trip_btn',title: '出張予定',         text: '出張タスクの一覧と\n担当者ごとのスケジュールを表示' },
-            { id: 'sync_log_btn',          title: '更新履歴',         text: '過去1ヶ月間のタスク追加・変更・削除の\n履歴を一覧表示します\n誰が・いつ・どのタスクを変更したかを確認できます' },
+            { id: 'dept_link_design',      title: '設計・工程表',     text: '設計部門の工程表サイトを別タブで開きます\nログインはリンク先で行います' },
+            { id: 'dept_link_assembly',    title: '組立・工程表',     text: '組立部門の工程表サイトを別タブで開きます\nログインはリンク先で行います（組立部員のみログイン可）' },
+            { id: 'dept_link_operations',  title: '操業・工程表',     text: '操業部門の工程表は準備中です\n公開・有効化後にここから開けるようになります' },
+            { id: 'search-filter-toggle',  title: '検索フィルター',   text: '機械名・タスク名・担当者で絞り込み\nクリックで検索パネルを開閉\n⚠️担当未定ボタンで未割当タスクを一覧表示' },
+            { id: 'major-filter-btn',      title: '部署別フィルタ',   text: 'チェックで複数部署を指定できます\n該当部署のタスクだけガントに表示\nバー色は部署ごとの色分けのまま\n右上に「○○を表示中」と表示されます\n「全部署（リセット）」で解除' },
+            { id: 'resource-dept-select',  title: '部署別リソース',   text: '選択した部署の担当者ごとのリソース状況を<br>下部パネルに表示<br>(ガント本体の絞り込みは「部署別フィルタ」)', noBullets: true },
+            { id: 'location_resource_btn', title: '組立場所',         text: '組立エリアの場所別リソースを表示\nE1/E2などのエリアで確認できます', noBullets: true },
+            { id: 'sort_business_trip_btn',title: '出張予定',         text: '出張タスクのみの表示に切り替え<br>(「工程表へ戻る」で通常の工程表へ)', noBullets: true },
+            { id: 'sync_log_btn',          title: '更新履歴',         text: '過去1ヶ月間のタスク追加・変更・削除の\n履歴を一覧表示します\n誰が・いつ・どのタスクを変更したかを確認できます', noBullets: true },
         ];
 
         function openHelp() {
@@ -1019,7 +1022,11 @@
             if (sidebarEl) {
                 var sr = sidebarEl.getBoundingClientRect();
                 if (sr.width > 0 && sr.height > 0) {
-                    addHelpItem(container, { title: '工事一覧', text: 'クリックで工事を選択・フィルタ\n工事番号と状態が一覧表示されます\n▼ボタンで2000番台などに絞り込み可' }, sr);
+                    addHelpItem(container, {
+                        title: '工事一覧',
+                        text: '工番をクリック → その工事だけ表示\n「工事一覧」ボタン → 表示リセットと同じ\n▶→「すべて／2000番台／その他／営業担当」で一覧を絞り込み\n工番にマウスを載せると客先名・工事名・営業担当の吹き出し\n出張だけの工番→工番を緑で表示',
+                        wide: 'sidebar'
+                    }, sr);
                 }
             }
 
@@ -1037,18 +1044,33 @@
             if (gridEl) {
                 var gridR = gridEl.getBoundingClientRect();
                 if (gridR.width > 0 && gridR.height > 0) {
-                    addHelpItem(container, { title: 'グリッド（左側の表）', text: 'セルをクリック\n　→ タスク開始日へ自動スクロール\n担当者未定のタスク → 赤字で表示\n完了済みのタスク → グレーで表示' }, gridR);
+                    addHelpItem(container, { title: 'グリッド（左側の表）', text: 'セルをクリック → タスク開始日へ自動スクロール\n▶→詳細工程を表示\n担当者未定のタスク → 赤で表示\n完了済みのタスク → グレーで表示', wide: true }, gridR);
                 }
             }
 
-            // 🔍ボタン（詳細工程表リンク）— グリッド内の最初の1件を代表として表示
+            // 🔍ボタン（詳細工程表／仕様書フォルダ）— グリッド内の最初の1件を代表として表示
             var detailBtn = document.querySelector('.gantt_grid .zoom-btn');
             if (detailBtn) {
                 var dbr = detailBtn.getBoundingClientRect();
                 if (dbr.width > 0 && dbr.height > 0) {
-                    addHelpItem(container, { title: '🔍 詳細工程表を開く', text: '見出し行（長納期品手配・出図＆部品手配）に\n表示されるボタン\nクリックで詳細工程表を別タブで開きます' }, dbr);
+                    addHelpItem(container, {
+                        title: '🔍 詳細工程表・関連リンク',
+                        text: '受注→社内製作仕様書\n長納期品手配→設計工程表(長納期品ページ)\n出図＆部品手配→設計工程表(図面ページ)',
+                        wide: 'detail'
+                    }, dbr);
                 }
             }
+        }
+
+        /** 吹き出し本文：改行で複数行のときは各行先頭に「・」を付ける（noBullets のときは付けない） */
+        function formatHelpTipText(raw, noBullets) {
+            if (raw == null || raw === '') return '';
+            if (noBullets) {
+                return String(raw).split(/\n/).map(function(l) { return l.replace(/^\s+|\s+$/g, ''); }).filter(function(l) { return l.length > 0; }).join('<br>');
+            }
+            var lines = String(raw).split(/\n/).map(function(l) { return l.replace(/^\s+|\s+$/g, ''); }).filter(function(l) { return l.length > 0; });
+            if (lines.length <= 1) return lines[0] || '';
+            return lines.map(function(l) { return '・' + l; }).join('<br>');
         }
 
         function addHelpItem(container, tip, rect) {
@@ -1066,7 +1088,10 @@
 
             var tipDiv = document.createElement('div');
             tipDiv.className = 'help-tip';
-            tipDiv.innerHTML = '<div class="help-tip-title">' + (tip.title || '') + '</div>' + tip.text.replace(/\n/g, '<br>');
+            if (tip.wide === true) tipDiv.classList.add('help-tip--wide');
+            if (tip.wide === 'detail') tipDiv.classList.add('help-tip--detail-mapping');
+            if (tip.wide === 'sidebar') tipDiv.classList.add('help-tip--sidebar-list');
+            tipDiv.innerHTML = '<div class="help-tip-title">' + (tip.title || '') + '</div>' + formatHelpTipText(tip.text, tip.noBullets);
             container.appendChild(tipDiv);
 
             requestAnimationFrame(function() {
