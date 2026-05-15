@@ -182,7 +182,11 @@
                 errEl.style.display = 'block';
             } else {
                 document.getElementById('setpw_overlay').classList.remove('open');
-                history.replaceState(null, '', window.location.pathname + window.location.search);
+                // type パラメータを削除（リロード時に再度ダイアログが出ないようにする）
+                const _sp = new URLSearchParams(window.location.search);
+                _sp.delete('type');
+                const _newSrch = _sp.toString() ? '?' + _sp.toString() : '';
+                history.replaceState(null, '', window.location.pathname + _newSrch);
             }
         }
 
