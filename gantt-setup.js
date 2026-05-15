@@ -187,7 +187,9 @@
         }
 
         supabaseClient.auth.onAuthStateChange((_event, session) => {
-            if (_event === 'PASSWORD_RECOVERY' || (_event === 'SIGNED_IN' && (_pageInitType === 'invite' || _pageInitType === 'recovery'))) {
+            const _needsPasswordSet = _pageInitType === 'invite' || _pageInitType === 'recovery';
+            if (_event === 'PASSWORD_RECOVERY' ||
+                ((_event === 'SIGNED_IN' || _event === 'INITIAL_SESSION') && session && _needsPasswordSet)) {
                 openSetPasswordDialog();
             } else {
                 const email = session?.user?.email || '';
