@@ -747,23 +747,34 @@
             }
         });
 
-        // 編集内容をデータベースに保存
-        gantt.attachEvent("onAfterTaskUpdate", async function(id, item) {
+        // 保存状態インジケーター制御
+        let _saveStatusTimer = null;
+        function _showSaveStatus(state) {
+            const el = document.getElementById('save-status');
+            if (!el) return;
+            if (_saveStatusTimer) { clearTimeout(_saveStatusTimer); _saveStatusTimer = null; }
+            if (state === 'saving') {
+                el.textContent = '保存中...';
+                el.style.color = '#999';
+            } else if (state === 'success') {
+                el.textContent = '✓ 保存完了';
+                el.style.color = '#27ae60';
+                _saveStatusTimer = setTimeout(function() { el.textContent = ''; }, 2000);
+            } else if (state === 'error') {
+                el.textContent = '⚠ 保存失敗';
+                el.style.color = '#e74c3c';
+            }
+        }
+
+        // 編集内容をデータベースに保存（バックグラウンド・UIブロックなし）
+        gantt.attachEvent("onAfterTaskUpdate", function(id, item) {
             if (item.$virtual) return; // 見出し行は仮想的なものなので保存対象外
-            showLoading();
 
             const realId = item.original_id || id;
 
-            // 変更前のデータを取得（fetchTasks前なのでallTasksはまだ旧データ）
+            // 変更前のデータを取得（allTasks はまだ旧データ）
             const oldTask = (window.allTasks || []).find(t => String(t.id) === String(realId));
 
-            // 工事番号から客先名・工事名を自動補完（allTasks → completedProjects の順に検索）
-            const _pn = (item.project_number || "").toString().trim();
-            const _projectRef = (window.allTasks || []).find(t =>
-                t.project_number === _pn && (t.customer_name || t.project_details)
-            ) || (completedProjects || []).find(t =>
-                (t.project_number || "").toString().trim() === _pn && (t.customer_name || t.project_details)
-            );
             // onBeforeLightboxSave でキャプチャした値があればそれを優先（map_to タイミング問題の対策）
             // ※ 同一保存で onAfterTaskUpdate が2回発火するため、ここではクリアしない
             // （_tripLightboxCapture は次の onBeforeLightboxSave で自動的にリセットされる）
@@ -785,72 +796,100 @@
                     : (item.project_details ?? ""),
                 machine: item.machine,
                 unit: item.unit,
-                major_item: item.major_item, // 色分け項目を保存
-                parent: item.parent_name, // 見出し名をparentカラムに保存
-                // 組立場所のカラムを追加
+                major_item: item.major_item,
+                parent: item.parent_name,
                 area_group: item.area_group || "",
                 area_number: item.area_number || "",
-                // 出張予定フラグ（出張予定モード時は強制的にtrue、それ以外は既存値を維持）
                 is_business_trip: currentDisplayMode === 'business_trip' ? true : (item.is_business_trip || false),
                 main_owner: item.main_owner || ""
-                // is_new_task: false // データベースにカラムがない可能性があるため一時的にコメットアウト
             }, (window._editorLastTouchPatch && window._editorLastTouchPatch()) || {});
-            // 出張予定モードで保存した行は組立／設計工程表からも参照できるよう task_type='business_trip' を付与
-            // （通常モードでは task_type を触らず、DB側の既存値を保持する）
             if (currentDisplayMode === 'business_trip') {
                 updateData.task_type = 'business_trip';
             }
 
-            // デバッグログの追加
             console.log("Sending to Supabase (Update):", updateData, "Real ID:", realId);
 
-            // 1. タスク本体の更新
-            const { error: taskError } = await supabaseClient
-                .from('tasks')
-                .update(updateData)
-                .eq('id', realId);
-
-            if (taskError) {
-                console.error("Update error:", taskError);
-                alert("保存に失敗しました。");
-                hideLoading();
-                return;
-            }
-            if (typeof window.markLocalTaskMutation === 'function') window.markLocalTaskMutation(realId);
-
-            // 変更履歴を記録
-            if (oldTask && typeof window.logChange === 'function') {
-                const newStartDb = dateToDb(item.start_date);
-                const oldStartDb = (oldTask.start_date instanceof Date)
-                    ? dateToDb(oldTask.start_date)
-                    : (oldTask.start_date || '').substring(0, 10);
-                const changes = [];
-                if ((oldTask.text || '') !== (item.text || '')) changes.push('タスク名を変更');
-                const startChanged = oldStartDb !== newStartDb;
-                const durChanged = Number(oldTask.duration) !== Number(item.duration);
-                if (startChanged && durChanged) changes.push('開始日・終了日を変更');
-                else if (startChanged) changes.push('開始日を変更');
-                else if (durChanged) changes.push('終了日を変更');
-                const ownerStrChanged = (oldTask.owner || '') !== (item.owner || '');
-                const mainOwnerChanged = String(oldTask.main_owner || '').trim() !== String(item.main_owner || '').trim();
-                if (ownerStrChanged || mainOwnerChanged) changes.push('担当者を変更');
-                if ((oldTask.machine || '') !== (item.machine || '')) changes.push('機械を変更');
-                if ((oldTask.unit || '') !== (item.unit || '')) changes.push('ユニットを変更');
-                if (String(oldTask.major_item || '') !== String(item.major_item || '')) changes.push('部署を変更');
-                if (String(oldTask.parent_name || '') !== String(item.parent_name || '')) changes.push('見出しを変更');
-                const oldAg = String(oldTask.area_group || '').trim();
-                const oldAn = String(oldTask.area_number || '').trim();
-                const newAg = String(item.area_group || '').trim();
-                const newAn = String(item.area_number || '').trim();
-                if (oldAg !== newAg || oldAn !== newAn) changes.push('場所を変更');
-                if (changes.length > 0) {
-                    window.logChange(item.project_number, item.machine, item.unit, item.text, changes.join('・'));
+            // window.allTasks をローカルで即時更新（次の編集での差分検出に使用）
+            if (window.allTasks) {
+                const _idx = window.allTasks.findIndex(t => String(t.id) === String(realId));
+                if (_idx !== -1) {
+                    window.allTasks[_idx] = Object.assign({}, window.allTasks[_idx], updateData, { parent_name: item.parent_name });
                 }
             }
 
-            // 成功したらデータを再取得して allTasks と画面を更新
-            await fetchTasks();
-            hideLoading();
+            _showSaveStatus('saving');
+
+            // バックグラウンドで保存（fetchTasks不要・UIをブロックしない）
+            supabaseClient.from('tasks').update(updateData).eq('id', realId)
+                .then(function(_ref) {
+                    var taskError = _ref.error;
+                    if (taskError) {
+                        console.error("Update error:", taskError);
+                        // allTasks を元に戻す
+                        if (oldTask && window.allTasks) {
+                            const _ri = window.allTasks.findIndex(t => String(t.id) === String(realId));
+                            if (_ri !== -1) window.allTasks[_ri] = oldTask;
+                        }
+                        // ガントチャートのタスクを元の値に戻す
+                        if (oldTask && gantt.isTaskExists(id)) {
+                            try {
+                                Object.assign(gantt.getTask(id), {
+                                    text: oldTask.text,
+                                    start_date: oldTask.start_date instanceof Date ? oldTask.start_date : new Date(oldTask.start_date),
+                                    duration: oldTask.duration,
+                                    owner: oldTask.owner,
+                                    project_number: oldTask.project_number,
+                                    customer_name: oldTask.customer_name,
+                                    project_details: oldTask.project_details,
+                                    machine: oldTask.machine,
+                                    unit: oldTask.unit,
+                                    major_item: oldTask.major_item,
+                                    area_group: oldTask.area_group,
+                                    area_number: oldTask.area_number,
+                                    is_business_trip: oldTask.is_business_trip,
+                                    main_owner: oldTask.main_owner,
+                                    parent_name: oldTask.parent_name
+                                });
+                                gantt.refreshTask(id);
+                            } catch(e) {}
+                        }
+                        _showSaveStatus('error');
+                        return;
+                    }
+                    if (typeof window.markLocalTaskMutation === 'function') window.markLocalTaskMutation(realId);
+
+                    // 変更履歴を記録
+                    if (oldTask && typeof window.logChange === 'function') {
+                        const newStartDb = dateToDb(item.start_date);
+                        const oldStartDb = (oldTask.start_date instanceof Date)
+                            ? dateToDb(oldTask.start_date)
+                            : (oldTask.start_date || '').substring(0, 10);
+                        const changes = [];
+                        if ((oldTask.text || '') !== (item.text || '')) changes.push('タスク名を変更');
+                        const startChanged = oldStartDb !== newStartDb;
+                        const durChanged = Number(oldTask.duration) !== Number(item.duration);
+                        if (startChanged && durChanged) changes.push('開始日・終了日を変更');
+                        else if (startChanged) changes.push('開始日を変更');
+                        else if (durChanged) changes.push('終了日を変更');
+                        const ownerStrChanged = (oldTask.owner || '') !== (item.owner || '');
+                        const mainOwnerChanged = String(oldTask.main_owner || '').trim() !== String(item.main_owner || '').trim();
+                        if (ownerStrChanged || mainOwnerChanged) changes.push('担当者を変更');
+                        if ((oldTask.machine || '') !== (item.machine || '')) changes.push('機械を変更');
+                        if ((oldTask.unit || '') !== (item.unit || '')) changes.push('ユニットを変更');
+                        if (String(oldTask.major_item || '') !== String(item.major_item || '')) changes.push('部署を変更');
+                        if (String(oldTask.parent_name || '') !== String(item.parent_name || '')) changes.push('見出しを変更');
+                        const oldAg = String(oldTask.area_group || '').trim();
+                        const oldAn = String(oldTask.area_number || '').trim();
+                        const newAg = String(item.area_group || '').trim();
+                        const newAn = String(item.area_number || '').trim();
+                        if (oldAg !== newAg || oldAn !== newAn) changes.push('場所を変更');
+                        if (changes.length > 0) {
+                            window.logChange(item.project_number, item.machine, item.unit, item.text, changes.join('・'));
+                        }
+                    }
+
+                    _showSaveStatus('success');
+                });
         });
 
         // 保存ボタンが押された瞬間に実行されるイベント
@@ -861,31 +900,28 @@
             const isNewTask = !!(_taskObj && _taskObj._is_new_task);
 
             (async () => {
-                showLoading();
                 try {
                     if (!isNewTask && typeof window.persistTaskLocations === "function") {
-                        // 既存タスク: 組立場所を保存してから updateTask → onAfterTaskUpdate が Supabase 更新・fetchTasks を担う
-                        // 設計・組立工程表由来の出張タスクは gantt の id がプレフィックス付きのため、本物の DB ID（original_id）を使う
+                        // 組立場所の保存中だけローディングを表示
+                        showLoading();
                         const realIdForLoc = (_taskObj && _taskObj.original_id) || (item && item.original_id) || id;
                         const ok = await window.persistTaskLocations(realIdForLoc, item.locations);
-                        if (!ok) { hideLoading(); return; }
+                        hideLoading();
+                        if (!ok) return;
                     }
 
                     if (!isNewTask) {
+                        // onAfterTaskUpdate がバックグラウンドで Supabase に保存する（fetchTasks不要）
                         gantt.updateTask(id);
                     }
                     // 新規タスクは onAfterTaskAdd が Supabase 保存・changeTaskId・fetchTasks をすべて担う
-                    // ここで fetchTasks を呼ぶと gantt.parse がテンポラリIDを消し changeTaskId が失敗するため呼ばない
-                    if (!isNewTask) {
-                        await fetchTasks();
-                    }
                 } catch (e) {
                     console.error("Lightbox save error:", e);
                     hideLoading();
                 }
             })();
-            
-            // ③ 最後に必ず true を返してライトボックスを閉じる
+
+            // 最後に必ず true を返してライトボックスを閉じる
             return true;
         });
 
