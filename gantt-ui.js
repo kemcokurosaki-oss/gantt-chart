@@ -338,9 +338,6 @@
                         closeIE();
                         return;
                     }
-                    if (oldKey !== newKey && typeof window.logChange === "function") {
-                        window.logChange(task.project_number || "", task.machine || "", task.unit || "", task.text || "", "場所を変更");
-                    }
                     closeIE();
                     await fetchTasks();
                     return;
@@ -371,10 +368,6 @@
                             duration: task.duration,
                             end_date: inclusiveEndDateToDb(task.start_date, task.duration)
                         }, (window._editorLastTouchPatch && window._editorLastTouchPatch()) || {})).eq('id', realId);
-                        // 変更履歴を記録
-                        if (typeof window.logChange === 'function') {
-                            window.logChange(task.project_number || '', task.machine || '', task.unit || '', task.text || '', '終了日を変更');
-                        }
                         closeIE();
                         await fetchTasks();
                         return;
@@ -721,13 +714,6 @@
                     if (locInserts.length > 0) {
                         await supabaseClient.from('task_locations').insert(locInserts);
                     }
-                }
-
-                // 変更履歴を記録
-                if (typeof window.logChange === 'function') {
-                    await Promise.all(tasks.map(function(t) {
-                        return window.logChange(t.project_number || '', t.machine || '', t.unit || '', t.text || '', 'タスクをコピーしました');
-                    }));
                 }
 
                 clearSelection();

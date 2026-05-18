@@ -477,11 +477,6 @@
                     await window.persistTaskLocations(newId, item.locations);
                 }
 
-                // 変更履歴を記録
-                if (typeof window.logChange === 'function') {
-                    window.logChange(item.project_number || '', item.machine || '', item.unit || '', item.text || '', 'タスクを追加しました');
-                }
-
                 // 画面を最新状態に更新（changeTaskId の成否にかかわらず必ず実行）
                 await fetchTasks();
                 hideLoading();
@@ -742,9 +737,6 @@
             else if (startChanged) changes.push('開始日を変更');
             else if (durChanged)   changes.push('終了日を変更');
             _dragOldState = null;
-            if (changes.length > 0 && typeof window.logChange === 'function') {
-                window.logChange(task.project_number || '', task.machine || '', task.unit || '', task.text || '', changes.join('・'));
-            }
         });
 
         // 保存失敗モーダル表示
@@ -875,9 +867,6 @@
                         const newAg = String(item.area_group || '').trim();
                         const newAn = String(item.area_number || '').trim();
                         if (oldAg !== newAg || oldAn !== newAn) changes.push('場所を変更');
-                        if (changes.length > 0) {
-                            window.logChange(item.project_number, item.machine, item.unit, item.text, changes.join('・'));
-                        }
                     }
 
                     _showSaveStatus('success');
@@ -945,29 +934,6 @@
                 alert("削除に失敗しました。" + (rpcErr ? " change_log_task_delete_trigger.sql（RPC 含む）を Supabase で実行済みか確認してください。" : ""));
                 hideLoading();
             } else {
-                /* RPC 成功時は change_log は DB トリガーのみ（gantt の item で組立判定がズレると logChange と二重になるため） */
-                if (rpcErr && typeof window.logChange === 'function') {
-                    const trigAssembly = typeof window.isAssemblyTaskRowForChangeLog === 'function'
-                        && window.isAssemblyTaskRowForChangeLog(item);
-                    if (!trigAssembly) {
-                        await window.logChange(
-                            item.project_number || '',
-                            item.machine || '',
-                            item.unit || '',
-                            item.text || '',
-                            'タスクを削除しました'
-                        );
-                    } else {
-                        await window.logChange(
-                            item.project_number || '',
-                            item.machine || '',
-                            item.unit || '',
-                            item.text || '',
-                            'タスクを削除しました',
-                            '全体工程表'
-                        );
-                    }
-                }
                 await fetchTasks();
                 hideLoading();
             }

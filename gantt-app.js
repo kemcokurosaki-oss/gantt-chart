@@ -1187,13 +1187,6 @@
             )).eq('id', realId)
                 .then(({ error }) => {
                     if (error) { console.error("チェックボックス保存エラー:", error); return; }
-                    try {
-                        const task = gantt.getTask(id);
-                        if (task && typeof window.logChange === 'function') {
-                            window.logChange(task.project_number, task.machine, task.unit, task.text,
-                                checked ? '完了に変更' : '未完了に変更');
-                        }
-                    } catch(e) {}
                 });
         };
 
@@ -2051,8 +2044,6 @@
                 if (templateTable === 'task_template') {
                     _newlyCreatedProject = projectNumber;
                 }
-                // 変更履歴を記録
-                logChange(projectNumber, '', '', '', '新規受注を追加しました');
                 // 画面更新
                 fetchTasks();
             }
@@ -2075,17 +2066,118 @@
         }
 
         // 編集者：公開ボタン押下
+        function _buildPublishDiffLog(prevTasks, nextTasks, alreadyLoggedKeys) {
+            const editorName = (window._getCurrentEditorName && window._getCurrentEditorName()) || '';
+            const COMPARE_FIELDS = [
+                { key: 'text',             label: 'タスク名を変更' },
+                { key: 'start_date',       label: '開始日を変更' },
+                { key: 'end_date',         label: '終了日を変更' },
+                { key: 'owner',            label: '担当者を変更' },
+                { key: 'major_item',       label: '部署を変更' },
+                { key: 'parent',           label: '見出しを変更' },
+                { key: 'machine',          label: '機械名を変更' },
+                { key: 'unit',             label: 'ユニットを変更' },
+                { key: 'project_number',   label: '工事番号を変更' },
+            ];
+            const prevMap = new Map(prevTasks.map(t => [String(t.id), t]));
+            const nextMap = new Map(nextTasks.map(t => [String(t.id), t]));
+            const rows = [];
+
+            const makeRow = (task, desc) => ({
+                source:         '全体工程表',
+                changed_by:     task.last_updated_by || editorName,
+                project_number: (task.project_number || '').toString(),
+                machine:        (task.machine        || '').toString(),
+                unit:           (task.unit           || '').toString(),
+                task_text:      (task.text           || '').toString(),
+                description:    desc
+            });
+            const logKey = t => [
+                (t.project_number || ''), (t.machine || ''), (t.unit || ''), (t.text || '')
+            ].join('\x00').toLowerCase();
+            const isAlreadyLogged = t =>
+                alreadyLoggedKeys && isAssemblyTaskRow(t) && alreadyLoggedKeys.has(logKey(t));
+
+            // 追加検出
+            for (const [id, t] of nextMap) {
+                if (!prevMap.has(id) && !isAlreadyLogged(t)) rows.push(makeRow(t, 'タスクを追加しました'));
+            }
+
+            // 変更検出
+            for (const [id, newT] of nextMap) {
+                const oldT = prevMap.get(id);
+                if (!oldT) continue;
+                if (isAlreadyLogged(newT)) continue;
+                const changes = [];
+                for (const { key, label } of COMPARE_FIELDS) {
+                    const ov = oldT[key] == null ? '' : String(oldT[key]);
+                    const nv = newT[key] == null ? '' : String(newT[key]);
+                    if (ov !== nv) changes.push(label);
+                }
+                // 完了フラグ
+                if (String(oldT.is_completed) !== String(newT.is_completed)) {
+                    changes.push(newT.is_completed ? '完了に変更' : '未完了に変更');
+                }
+                // 場所（area_group / area_number をまとめて1件）
+                const areaChanged = ['area_group', 'area_number'].some(k =>
+                    (oldT[k] == null ? '' : String(oldT[k])) !== (newT[k] == null ? '' : String(newT[k]))
+                );
+                if (areaChanged) changes.push('場所を変更');
+                // 出張フラグ
+                if (String(oldT.is_business_trip) !== String(newT.is_business_trip)) {
+                    changes.push(newT.is_business_trip ? '出張予定に変更' : '出張予定を解除');
+                }
+                if (changes.length > 0) rows.push(makeRow(newT, changes.join('・')));
+            }
+            return rows;
+        }
+
         async function publishNow() {
             const btn = document.getElementById('publish_btn');
             btn.classList.add('publishing');
             btn.textContent = '更新中...';
             const now = new Date().toISOString();
 
-            // 現在のタスクデータをスナップショットとして保存
-            const [{ data: taskSnap }, { data: locSnap }] = await Promise.all([
+            // 前回スナップショット・前回公開日時・現在タスクを並行取得
+            const [{ data: taskSnap }, { data: locSnap }, { data: prevSnapRow }, { data: prevAtRow }] = await Promise.all([
                 supabaseClient.from('tasks').select('*').order('sort_order', { ascending: true }),
-                supabaseClient.from('task_locations').select('*')
+                supabaseClient.from('task_locations').select('*'),
+                supabaseClient.from('app_settings').select('value').eq('key', 'published_tasks').maybeSingle(),
+                supabaseClient.from('app_settings').select('value').eq('key', 'published_at').maybeSingle()
             ]);
+
+            // 前回公開以降に組立工程表が既に記録済みのタスクキーを取得（二重記録防止）
+            let alreadyLoggedKeys = null;
+            if (prevAtRow && prevAtRow.value) {
+                try {
+                    const { data: recentLogs } = await supabaseClient
+                        .from('change_log')
+                        .select('project_number, machine, unit, task_text')
+                        .eq('source', '組立工程表')
+                        .gte('changed_at', prevAtRow.value);
+                    if (recentLogs && recentLogs.length > 0) {
+                        alreadyLoggedKeys = new Set(recentLogs.map(r =>
+                            [r.project_number || '', r.machine || '', r.unit || '', r.task_text || ''].join('\x00').toLowerCase()
+                        ));
+                    }
+                } catch(e) {
+                    console.warn('既存ログ取得エラー:', e);
+                }
+            }
+
+            // 前回スナップショットとの差分を change_log に記録
+            if (prevSnapRow) {
+                try {
+                    const prevTasks = JSON.parse(prevSnapRow.value || '[]');
+                    const logRows = _buildPublishDiffLog(prevTasks, taskSnap || [], alreadyLoggedKeys);
+                    if (logRows.length > 0) {
+                        await supabaseClient.from('change_log').insert(logRows);
+                    }
+                } catch(e) {
+                    console.warn('変更履歴の差分記録エラー:', e);
+                }
+            }
+
             await supabaseClient.from('app_settings').upsert([
                 { key: 'published_tasks', value: JSON.stringify(taskSnap  || []) },
                 { key: 'published_locs',  value: JSON.stringify(locSnap   || []) }
