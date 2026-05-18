@@ -261,6 +261,20 @@
         </div>
     </div>
 
+    <!-- ===== 保存失敗モーダル ===== -->
+    <div id="save-error-modal-overlay">
+        <div id="save-error-modal">
+            <div id="save-error-modal-header">⚠ 保存失敗</div>
+            <div id="save-error-modal-body">
+                <p id="save-error-modal-msg"></p>
+                <p style="font-size:12px; color:#666; margin-top:8px;">該当タスクの内容は変更前の値に戻されました。</p>
+            </div>
+            <div id="save-error-modal-footer">
+                <button id="save-error-modal-ok" onclick="document.getElementById('save-error-modal-overlay').classList.remove('visible')">OK</button>
+            </div>
+        </div>
+    </div>
+
     <div id="kanryo-modal-overlay" onclick="closeKanryoModal(event)">
         <div id="kanryo-modal">
             <div id="kanryo-modal-header">

@@ -747,22 +747,13 @@
             }
         });
 
-        // 保存状態インジケーター制御
-        let _saveStatusTimer = null;
-        function _showSaveStatus(state) {
-            const el = document.getElementById('save-status');
-            if (!el) return;
-            if (_saveStatusTimer) { clearTimeout(_saveStatusTimer); _saveStatusTimer = null; }
-            if (state === 'saving') {
-                el.textContent = '保存中...';
-                el.style.color = '#999';
-            } else if (state === 'success') {
-                el.textContent = '✓ 保存完了';
-                el.style.color = '#27ae60';
-                _saveStatusTimer = setTimeout(function() { el.textContent = ''; }, 2000);
-            } else if (state === 'error') {
-                el.textContent = '⚠ 保存失敗';
-                el.style.color = '#e74c3c';
+        // 保存失敗モーダル表示
+        function _showSaveStatus(state, detail) {
+            if (state === 'error') {
+                const msg = document.getElementById('save-error-modal-msg');
+                if (msg) msg.textContent = (detail || '') + ' の保存に失敗しました。';
+                const overlay = document.getElementById('save-error-modal-overlay');
+                if (overlay) overlay.classList.add('visible');
             }
         }
 
@@ -853,7 +844,8 @@
                                 gantt.refreshTask(id);
                             } catch(e) {}
                         }
-                        _showSaveStatus('error');
+                        var _errDetail = [item.project_number, item.machine, item.text].filter(Boolean).join(' ');
+                        _showSaveStatus('error', _errDetail);
                         return;
                     }
                     if (typeof window.markLocalTaskMutation === 'function') window.markLocalTaskMutation(realId);
