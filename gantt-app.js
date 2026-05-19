@@ -2079,8 +2079,9 @@
                 { key: 'unit',             label: 'ユニットを変更' },
                 { key: 'project_number',   label: '工事番号を変更' },
             ];
-            const prevMap = new Map(prevTasks.map(t => [String(t.id), t]));
-            const nextMap = new Map(nextTasks.map(t => [String(t.id), t]));
+            const _isDetailed = t => (t.is_detailed === true || String(t.is_detailed).toLowerCase() === "true" || String(t.is_detailed).toLowerCase() === "t" || String(t.is_detailed) === "1");
+            const prevMap = new Map(prevTasks.filter(t => !_isDetailed(t)).map(t => [String(t.id), t]));
+            const nextMap = new Map(nextTasks.filter(t => !_isDetailed(t)).map(t => [String(t.id), t]));
             const rows = [];
 
             const makeRow = (task, desc) => ({
