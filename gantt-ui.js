@@ -361,6 +361,7 @@
                         const endInclusive = new Date(y, m - 1, d);
                         const newDur = Math.round((endInclusive - startNorm) / (1000 * 60 * 60 * 24)) + 1;
                         task.duration = Math.max(1, newDur);
+                        task.end_date = gantt.calculateEndDate(task.start_date, task.duration);
                     }
                 }
 
