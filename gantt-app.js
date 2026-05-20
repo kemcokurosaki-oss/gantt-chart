@@ -1484,7 +1484,10 @@
             }
             listEl.innerHTML = "";
             let tooltip = document.getElementById('custom_project_tooltip') || document.createElement('div');
-            tooltip.id = 'custom_project_tooltip'; tooltip.className = 'custom-tooltip'; document.body.appendChild(tooltip);
+            tooltip.id = 'custom_project_tooltip'; tooltip.className = 'custom-tooltip';
+            tooltip.style.pointerEvents = 'none';
+            document.body.appendChild(tooltip);
+            tooltip.style.display = 'none';
             projects.forEach(p => {
                 const item = document.createElement('div');
                 item.className = `project-item ${currentFilter === p ? 'active' : ''}`;
@@ -1499,28 +1502,25 @@
                 const info = projectInfoMap[p];
                 const salesPerson = _salesPersonMap[p] || "";
                 if (info.customer || info.details || salesPerson) {
-                    item.onmouseenter = (e) => {
+                    numEl.onmouseenter = (e) => {
                         fillProjectListTooltip(tooltip, info, salesPerson);
                         tooltip.style.display = 'block';
-                        
-                        // ボタンの位置を取得
-                        const rect = item.getBoundingClientRect();
-                        let x = rect.right + 10; // ボタンの右側に10pxの隙間
-                        let y = rect.top;        // 基本はボタンの上端に合わせる
-                        
-                        // 画面下端で見切れる場合の調整
+
+                        const rect = numEl.getBoundingClientRect();
+                        let x = rect.right + 10;
+                        let y = rect.top;
+
                         const tooltipHeight = tooltip.offsetHeight;
                         const windowHeight = window.innerHeight;
-                        
+
                         if (y + tooltipHeight > windowHeight) {
-                            // 下に見切れる場合は、吹き出しの下端が画面下から10pxの位置に来るように上げる
                             y = windowHeight - tooltipHeight - 10;
                         }
-                        
+
                         tooltip.style.left = x + 'px';
                         tooltip.style.top = y + 'px';
                     };
-                    item.onmouseleave = () => tooltip.style.display = 'none';
+                    numEl.onmouseleave = () => tooltip.style.display = 'none';
                 }
                 item.onclick = () => filterByProject(p);
                 listEl.appendChild(item);
