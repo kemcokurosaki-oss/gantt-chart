@@ -1,3 +1,14 @@
+        // + ボタンが押された行のタスクIDを記録（挿入位置の計算に使用）
+        var _pendingInsertAfterId = null;
+        document.addEventListener("mousedown", function(e) {
+            var btn = e.target.classList && e.target.classList.contains("gantt_add")
+                ? e.target
+                : (e.target.closest ? e.target.closest(".gantt_add") : null);
+            if (!btn) { return; }
+            var row = btn.closest ? btn.closest("[task_id]") : null;
+            _pendingInsertAfterId = row ? row.getAttribute("task_id") : null;
+        }, true);
+
         gantt.attachEvent("onLightboxChange", function(id, name, value) {
             if (name === "major_item") {
                 const task = gantt.getTask(id);
@@ -445,6 +456,25 @@
             // （通常モードでは task_type を触らず、既存値を保持する）
             if (currentDisplayMode === 'business_trip') {
                 newTaskData.task_type = 'business_trip';
+            }
+
+            // + を押した行の直下に挿入（sort_order を計算して設定）
+            if (item._insertAfterId) {
+                const allT = window.allTasks || [];
+                const srcTask = allT.find(t => String(t.id) === String(item._insertAfterId));
+                if (srcTask && srcTask.sort_order != null) {
+                    const srcOrder = Number(srcTask.sort_order);
+                    // srcOrder より大きい sort_order を持つタスクを +1 シフト
+                    const toShift = allT.filter(t => t.sort_order != null && Number(t.sort_order) > srcOrder);
+                    if (toShift.length > 0) {
+                        await Promise.all(toShift.map(t =>
+                            supabaseClient.from('tasks')
+                                .update({ sort_order: Number(t.sort_order) + 1 })
+                                .eq('id', t.id)
+                        ));
+                    }
+                    newTaskData.sort_order = srcOrder + 1;
+                }
             }
 
             // デバッグログの追加
@@ -943,6 +973,9 @@
         gantt.attachEvent("onTaskCreated", function(task){
             // 新規タスクであることをフラグで記録（onLightboxSaveで新規/既存を確実に判別するため）
             task._is_new_task = true;
+            // + を押した行の直下に挿入するための情報を記録
+            task._insertAfterId = _pendingInsertAfterId;
+            _pendingInsertAfterId = null;
             if (task.parent) {
                 const parentTask = gantt.getTask(task.parent);
                 // 親が仮想行（見出し行）の場合、その情報を引き継ぐ
