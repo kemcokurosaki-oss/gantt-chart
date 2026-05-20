@@ -933,6 +933,17 @@
             const { error } = await supabaseClient.from('completed_projects').insert(newEntry);
             if (error) { alert('保存に失敗しました: ' + error.message); return; }
             completedProjects.push(newEntry);
+            try {
+                await supabaseClient.from('change_log').insert({
+                    source: '全体工程表',
+                    changed_by: (window._getCurrentEditorName && window._getCurrentEditorName()) || '',
+                    project_number: pNum,
+                    machine: '',
+                    unit: '',
+                    task_text: '',
+                    description: '完了済みに移動'
+                });
+            } catch(e) { console.warn('完了済み移動の履歴保存エラー:', e); }
             gantt.render();
             updateProjectList(window.allTasks || []);
             if (typeof updateResourceVisibility === 'function') updateResourceVisibility();
@@ -944,6 +955,17 @@
             const { error } = await supabaseClient.from('completed_projects').delete().eq('project_number', pNum);
             if (error) { alert('削除に失敗しました: ' + error.message); return; }
             completedProjects = completedProjects.filter(cp => cp.project_number !== pNum);
+            try {
+                await supabaseClient.from('change_log').insert({
+                    source: '全体工程表',
+                    changed_by: (window._getCurrentEditorName && window._getCurrentEditorName()) || '',
+                    project_number: pNum,
+                    machine: '',
+                    unit: '',
+                    task_text: '',
+                    description: '完了済みから復元'
+                });
+            } catch(e) { console.warn('完了済み復元の履歴保存エラー:', e); }
             gantt.render();
             updateProjectList(window.allTasks || []);
             if (typeof updateResourceVisibility === 'function') updateResourceVisibility();
