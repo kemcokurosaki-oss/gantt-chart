@@ -171,6 +171,7 @@
         gantt.config.open_tree_initially = false;
         gantt.config.order_branch = true;
         gantt.config.order_branch_free = true;
+        gantt.config.smart_rendering = true; // 表示範囲外の行をスキップしてドラッグを軽くする
 
         // ===== 列幅ドラッグリサイズ（担当・場所のみ） =====
         (function() {
@@ -367,12 +368,13 @@
         })();
         // ===== 列幅ドラッグリサイズ ここまで =====
 
-        // ドラッグによる並べ替え順序の保存
-        gantt.attachEvent("onRowDragEnd", async function(id, target) {
-            // fetchTasks が展開状態を記憶・復元するようになったため、
-            // ここでの重複した記憶処理は不要ですが、念のため fetchTasks を呼ぶだけで十分です。
-            
-            // 全タスクの現在の表示順序を取得して保存
+        // 行ドラッグ中はonGanttRenderの重い処理をスキップするためフラグ管理
+        gantt.attachEvent("onBeforeRowDragMove", function() { _rowDragging = true; return true; });
+
+        // ドラッグによる並べ替え順序の保存（バックグラウンド・UIブロックなし）
+        gantt.attachEvent("onRowDragEnd", function(id, target) {
+            _rowDragging = false;
+            // 全タスクの現在の表示順序を取得
             const tasks = [];
             const count = gantt.getTaskCount();
             const processedOriginalIds = new Set();
@@ -393,10 +395,23 @@
                 }
             }
 
-            // Supabaseの各タスクの順序を一括更新
-            const promises = tasks.map(t => {
+            // window.allTasks のメモリ内 sort_order を即時更新（再描画不要）
+            const isMachine = currentDisplayMode === 'machine';
+            tasks.forEach(function(t) {
+                const existing = (window.allTasks || []).find(function(a) { return String(a.id) === String(t.id); });
+                if (existing) {
+                    if (isMachine) {
+                        existing.sort_order_machine = t.sort_order_machine;
+                    } else {
+                        existing.sort_order = t.sort_order;
+                    }
+                }
+            });
+
+            // Supabaseへの保存はバックグラウンドで実行（fetchTasks不要・再描画なし）
+            const promises = tasks.map(function(t) {
                 const updatePayload = {};
-                if (currentDisplayMode === 'machine') {
+                if (isMachine) {
                     updatePayload.sort_order_machine = t.sort_order_machine;
                 } else {
                     updatePayload.sort_order = t.sort_order;
@@ -408,19 +423,22 @@
                     .eq('id', t.id);
             });
 
-            try {
-                await Promise.all(promises);
-                if (typeof window.markLocalTaskMutation === 'function') {
-                    tasks.forEach(t => window.markLocalTaskMutation(t.id));
-                }
-                console.log("Sort order saved successfully");
+            const saveStatus = document.getElementById('save-status');
+            if (saveStatus) { saveStatus.textContent = '並替え保存中...'; saveStatus.style.color = '#999'; }
 
-                // 常に最新のSupabaseデータを反映するため、データを再取得して allTasks と画面を更新
-                await fetchTasks();
-            } catch (error) {
+            // ドラッグ終了後にマークを再配置（フラグ解除済みのため描画される）
+            renderPartsMarks();
+            renderFactoryShipmentStars();
+
+            Promise.all(promises).then(function() {
+                if (typeof window.markLocalTaskMutation === 'function') {
+                    tasks.forEach(function(t) { window.markLocalTaskMutation(t.id); });
+                }
+                if (saveStatus) { saveStatus.textContent = ''; }
+            }).catch(function(error) {
                 console.error("Error saving sort order:", error);
-                alert("並び順の保存に失敗しました。");
-            }
+                if (saveStatus) { saveStatus.textContent = '並替え保存失敗'; saveStatus.style.color = '#e74c3c'; }
+            });
         });
 
         // 新規タスク作成時の保存処理
@@ -1335,6 +1353,7 @@
 
         // ========== 神戸送り開始日マーク（ドラッグ可能・Supabase永続化） ==========
         let _markDragState = null;
+        let _rowDragging = false;
 
         /** 工場出荷：duration 日数ぶん、各日の列の中央に ★ を重ね描画 */
         function renderFactoryShipmentStars() {
@@ -1437,8 +1456,9 @@
             });
         }
 
-        // ガント再描画のたびにマークを再配置
+        // ガント再描画のたびにマークを再配置（行ドラッグ中はスキップして描画コスト削減）
         gantt.attachEvent("onGanttRender", function() {
+            if (_rowDragging) return;
             renderPartsMarks();
             renderFactoryShipmentStars();
             if (typeof window._updateShanaiEmptyNotice === "function") window._updateShanaiEmptyNotice();
