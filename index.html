@@ -29,7 +29,7 @@
                 </span>
                 <span style="margin-left:auto; display:flex; align-items:center; gap:4px;">
                     <button onclick="openSyncLogModal()" id="sync_log_btn" title="更新履歴">📋 更新履歴</button>
-                    <button id="help_btn" onclick="openHelp()" title="使い方ガイド">？使い方ガイド</button>
+                    <button id="help_btn" onclick="openHelp()" title="ヒント表示">💡 ヒント表示</button>
                     <button id="auth_btn" onclick="handleAuthBtn()" style="margin-left:4px;">ログイン</button>
                 </span>
             </div>
@@ -356,6 +356,9 @@
 
 <!-- ヘルプモード コンテナ -->
 <div id="help_tips_container"></div>
+
+<!-- 操作マニュアルボタン（ヒント表示中のみ表示） -->
+<button id="guide_btn" onclick="window.open('guide.html', '_blank')" title="操作マニュアルを開く" style="display:none;">📖 操作マニュアルを開く</button>
 
 <!-- 同期履歴モーダル -->
 <div id="sync-log-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:9000;" onclick="closeSyncLogModal(event)">

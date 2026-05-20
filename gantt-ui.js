@@ -978,6 +978,16 @@
             var helpBtn = document.getElementById('help_btn');
             if (helpBtn.classList.contains('help-active')) return;
             helpBtn.classList.add('help-active');
+            var guideBtn = document.getElementById('guide_btn');
+            guideBtn.style.display = '';
+            requestAnimationFrame(function() {
+                var syncBtn = document.getElementById('sync_log_btn');
+                if (syncBtn) {
+                    var r = syncBtn.getBoundingClientRect();
+                    guideBtn.style.top  = (r.top + r.height / 2) + 'px';
+                    guideBtn.style.left = (r.left - guideBtn.offsetWidth - 12) + 'px';
+                }
+            });
             var container = document.getElementById('help_tips_container');
             container.innerHTML = '<div id="help_overlay_bg"></div>';
             document.getElementById('help_overlay_bg').addEventListener('click', closeHelp);
@@ -1094,6 +1104,7 @@
 
         function closeHelp() {
             document.getElementById('help_btn').classList.remove('help-active');
+            document.getElementById('guide_btn').style.display = 'none';
             var container = document.getElementById('help_tips_container');
             container.classList.remove('open');
             container.innerHTML = '';
