@@ -356,21 +356,11 @@
                     const val = document.getElementById('inline-edit-date-input').value;
                     if (val) {
                         const [y, m, d] = val.split('-').map(Number);
-                        // ローカル時刻でstart_dateを正規化してカレンダー日数で算出
                         const startNorm = new Date(task.start_date);
                         startNorm.setHours(0, 0, 0, 0);
                         const endInclusive = new Date(y, m - 1, d);
                         const newDur = Math.round((endInclusive - startNorm) / (1000 * 60 * 60 * 24)) + 1;
                         task.duration = Math.max(1, newDur);
-                        // end_dateはduration変更のみのため直接Supabaseに保存
-                        const realId = task.original_id || taskId;
-                        await supabaseClient.from('tasks').update(Object.assign({
-                            duration: task.duration,
-                            end_date: inclusiveEndDateToDb(task.start_date, task.duration)
-                        }, (window._editorLastTouchPatch && window._editorLastTouchPatch()) || {})).eq('id', realId);
-                        closeIE();
-                        await fetchTasks();
-                        return;
                     }
                 }
 
