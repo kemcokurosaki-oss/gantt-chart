@@ -331,6 +331,8 @@
                 return 5;
             };
             const isPureNumeric = (s) => /^\d+$/.test(s);
+            // "YYYY-MM-DD" をローカル深夜0時の Date に変換（new Date("YYYY-MM-DD") はUTC深夜0時になりタイムゾーン分ずれるため）
+            const parseLocalDate = (str) => { if (str == null) return new Date(str); const match = String(str).trim().match(/^(\d{4})-(\d{2})-(\d{2})/); if (!match) return new Date(str); return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3])); };
 
             const projects = [...new Set(rawTasks.map(t => t.project_number))]
                 .filter(Boolean)
@@ -401,7 +403,7 @@
                             let minStart = null;
                             let maxEnd = null;
                             tasksInMachine.forEach(t => {
-                                const start = new Date(t.start_date);
+                                const start = parseLocalDate(t.start_date);
                                 const end = gantt.calculateEndDate(start, t.duration);
                                 if (!minStart || start < minStart) minStart = start;
                                 if (!maxEnd || end > maxEnd) maxEnd = end;
@@ -487,16 +489,16 @@
                                 const drawingTasks = taskByParent["出図＆部品手配"];
 
                                 if (orderTasks && orderTasks.length > 0 && drawingTasks && drawingTasks.length > 0) {
-                                    const orderStart = new Date(orderTasks[0].start_date);
+                                    const orderStart = parseLocalDate(orderTasks[0].start_date);
                                     minStart = gantt.calculateEndDate(orderStart, orderTasks[0].duration);
-                                    maxEnd = new Date(drawingTasks[0].start_date);
+                                    maxEnd = parseLocalDate(drawingTasks[0].start_date);
                                 }
                             }
 
                             if (!minStart || !maxEnd) {
                                 tasksInParent.forEach(t => {
                                     assignedTaskIds.add(t.id);
-                                    const start = new Date(t.start_date);
+                                    const start = parseLocalDate(t.start_date);
                                     const end = gantt.calculateEndDate(start, t.duration);
                                     if (!minStart || start < minStart) minStart = start;
                                     if (!maxEnd || end > maxEnd) maxEnd = end;
@@ -538,7 +540,7 @@
                         let minStart = null;
                         let maxEnd = null;
                         unassignedTasks.forEach(t => {
-                            const start = new Date(t.start_date);
+                            const start = parseLocalDate(t.start_date);
                             const end = gantt.calculateEndDate(start, t.duration);
                             if (!minStart || start < minStart) minStart = start;
                             if (!maxEnd || end > maxEnd) maxEnd = end;
