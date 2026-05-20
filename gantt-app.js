@@ -2300,6 +2300,8 @@
             const rowOld = payload.old || null;
             const row = rowNew || rowOld;
             if (!row) return;
+            const _isDetailedRow = r => r && (r.is_detailed === true || String(r.is_detailed).toLowerCase() === 'true' || String(r.is_detailed).toLowerCase() === 't' || String(r.is_detailed) === '1');
+            if (_isDetailedRow(row)) return;
             /* DELETE の change_log は DB トリガー（change_log_task_delete_trigger.sql）が
                OLD 行の内容で挿入する。Realtime の薄い payload では空欄になりやすいため。 */
             if (ev === "DELETE") {
@@ -2735,7 +2737,30 @@
 
         function _getFilteredSyncLogRows() {
             const keyword = (_syncLogFilter.keyword || '').toLowerCase();
+            const _isDetailedVal = v => (v === true || String(v).toLowerCase() === 'true' || String(v).toLowerCase() === 't' || String(v) === '1');
+            const detailedKeys = new Set();
+            if (Array.isArray(window.allTasks)) {
+                for (const t of window.allTasks) {
+                    if (_isDetailedVal(t.is_detailed)) {
+                        detailedKeys.add([
+                            (t.project_number || '').toLowerCase(),
+                            (t.machine || '').toLowerCase(),
+                            (t.unit || '').toLowerCase(),
+                            (t.text || '').toLowerCase()
+                        ].join('\x00'));
+                    }
+                }
+            }
             return _syncLogData.filter((row) => {
+                if (detailedKeys.size > 0) {
+                    const rowKey = [
+                        (row.project_number || '').toLowerCase(),
+                        (row.machine || '').toLowerCase(),
+                        (row.unit || '').toLowerCase(),
+                        (row.task_text || '').toLowerCase()
+                    ].join('\x00');
+                    if (detailedKeys.has(rowKey)) return false;
+                }
                 const dateKey = _toDateKey(row.changed_at);
                 if (_syncLogFilter.dateFrom && dateKey && dateKey < _syncLogFilter.dateFrom) return false;
                 if (_syncLogFilter.dateTo && dateKey && dateKey > _syncLogFilter.dateTo) return false;
