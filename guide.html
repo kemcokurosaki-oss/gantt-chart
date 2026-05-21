@@ -16,15 +16,24 @@
             line-height: 1.6;
         }
 
+        /* 固定ヘッダーラッパー */
+        .sticky-wrapper {
+            position: sticky;
+            top: 0;
+            z-index: 200;
+            box-shadow: 0 3px 12px rgba(0,0,0,0.25);
+        }
+
         /* ヘッダー */
         .page-header {
             background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
             color: #fff;
             padding: 28px 40px 24px;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+        .page-header__inner {
+            max-width: 940px;
+            margin: 0 auto;
+            padding-left: 40px;
         }
         .page-header h1 {
             font-size: 22px;
@@ -34,7 +43,7 @@
         .page-header p {
             font-size: 13px;
             color: #bdc3cb;
-            margin-top: 4px;
+            margin-top: 6px;
         }
 
         /* ナビゲーション */
@@ -42,10 +51,15 @@
             background: #fff;
             border-bottom: 1px solid #e0e6ef;
             padding: 10px 40px;
+            font-size: 12px;
+        }
+        .toc__inner {
+            max-width: 940px;
+            margin: 0 auto;
+            padding-left: 40px;
             display: flex;
             flex-wrap: wrap;
             gap: 6px 16px;
-            font-size: 12px;
         }
         .toc a {
             color: #3498db;
@@ -238,32 +252,38 @@
             padding: 24px;
         }
 
-        /* スクロールマージン（アンカー用） */
+        /* スクロールマージン（アンカー用・JS で動的更新） */
         [id] { scroll-margin-top: 120px; }
     </style>
 </head>
 <body>
 
+<div class="sticky-wrapper">
 <header class="page-header">
-    <h1>📖 工程表 操作ガイド</h1>
-    <p>閲覧者向け操作説明書 — 工事工程表の基本的な見方・操作方法をまとめています</p>
+    <div class="page-header__inner">
+        <h1>📖 工程表 操作ガイド</h1>
+        <p>閲覧者向け操作説明書 — 工事工程表の基本的な見方・操作方法をまとめています</p>
+    </div>
 </header>
 
 <nav class="toc">
-    <a href="#screen">① 画面構成</a>
-    <a href="#gantt">② ガントチャートの見方</a>
-    <a href="#display">③ 表示の切替</a>
-    <a href="#project-list">④ 工事一覧</a>
-    <a href="#grid">⑤ グリッド（左側の表）</a>
-    <a href="#detail-link">⑥ 詳細工程表・関連リンク</a>
-    <a href="#search">⑦ 検索フィルター</a>
-    <a href="#dept-filter">⑧ 部署別フィルタ</a>
-    <a href="#resource">⑨ 部署別リソース</a>
-    <a href="#location">⑩ 組立場所</a>
-    <a href="#trip">⑪ 出張予定</a>
-    <a href="#history">⑫ 更新履歴</a>
-    <a href="#dept-links">⑬ 各部工程表リンク</a>
+    <div class="toc__inner">
+        <a href="#screen">① 画面構成</a>
+        <a href="#gantt">② ガントチャートの見方</a>
+        <a href="#display">③ 表示の切替</a>
+        <a href="#project-list">④ 工事一覧</a>
+        <a href="#grid">⑤ グリッド（左側の表）</a>
+        <a href="#detail-link">⑥ 詳細工程表・関連リンク</a>
+        <a href="#search">⑦ 検索フィルター</a>
+        <a href="#dept-filter">⑧ 部署別フィルタ</a>
+        <a href="#resource">⑨ 部署別リソース</a>
+        <a href="#location">⑩ 組立場所</a>
+        <a href="#trip">⑪ 出張予定</a>
+        <a href="#history">⑫ 更新履歴</a>
+        <a href="#dept-links">⑬ 各部工程表リンク</a>
+    </div>
 </nav>
+</div><!-- /.sticky-wrapper -->
 
 <main class="content">
 
@@ -700,6 +720,19 @@
 <footer>
     工事工程表 操作ガイド
 </footer>
+
+<script>
+    function updateScrollMargin() {
+        const wrapper = document.querySelector('.sticky-wrapper');
+        if (!wrapper) return;
+        const h = wrapper.getBoundingClientRect().height;
+        document.querySelectorAll('[id]').forEach(el => {
+            el.style.scrollMarginTop = (h + 8) + 'px';
+        });
+    }
+    window.addEventListener('load', updateScrollMargin);
+    window.addEventListener('resize', updateScrollMargin);
+</script>
 
 </body>
 </html>
