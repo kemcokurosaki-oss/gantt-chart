@@ -542,6 +542,17 @@
             });
 
             container.innerHTML = html;
+
+            // パネル高さを表示行数に自動調整（ドラッグリサイズは引き続き有効）
+            const _panel = document.getElementById("resource_panel");
+            if (_panel) {
+                const ROW_H = 27;
+                const totalRows = ownerRows.length + 1; // データ行(担当者+未定) + ヘッダー行
+                const autoH = totalRows * ROW_H + 26;   // +26: border-top(2px) + 横スクロールバー(17px) + バッファ(7px)
+                const maxAutoH = Math.min(500, Math.floor(window.innerHeight * 0.6));
+                _panel.style.height = Math.min(autoH, maxAutoH) + "px";
+            }
+
             initResourceBarTooltip(container);
             initResourceBarDragAndResize(container);
             initResourceBarInlineFieldMenu(container);
