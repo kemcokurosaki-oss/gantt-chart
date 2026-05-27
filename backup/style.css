@@ -456,7 +456,8 @@
             background-color: #fff !important;
             border-right: 1px solid #ebebeb !important;
         }
-        .gantt_group_row { background-color: #dce8ef !important; font-weight: bold !important; font-size: 12.5px !important; } /* 見出し行 */
+        .gantt_group_row { background-color: #dce8ef !important; font-weight: bold !important; font-size: 12.5px !important; } /* 大見出し行（機械） */
+        .gantt_unit_row { background-color: #edf4f8 !important; font-weight: bold !important; font-size: 12.5px !important; } /* 小見出し行（ユニット） */
         
         /* 白の子タスク行のインデント・ツリーアイコンを非表示（水色の見出し行は除外） */
         .gantt_row_task:not(.gantt_group_row) .gantt_tree_indent,
@@ -1535,6 +1536,14 @@
             min-width: 12px !important;
             margin: 0 !important;
             padding: 0 !important;
+        }
+        /* ユニット小見出し行：タスク名カラムを少し左にずらす */
+        #gantt_here .gantt_unit_row .gantt_cell:nth-child(4) {
+            padding-left: 3px !important;
+        }
+        /* 大見出し行（機械）：タスク名をチェックボックス列から始める（transformでレイアウトに影響しない） */
+        #gantt_here .gantt_group_row:not(.gantt_unit_row) .gantt_cell:nth-child(4) {
+            transform: translateX(-22px) !important;
         }
         /* 見出し行のみ：タスク名列は「…」省略せず全文表示（右隣の列の上に重ねる） */
         #gantt_here .gantt_group_row .gantt_cell:nth-child(4) {

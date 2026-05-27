@@ -1051,6 +1051,9 @@
 
             if(task.$virtual) {
                 css += " gantt_group_row hide_add_button";
+                if (String(task.id).includes('_u_')) {
+                    css += " gantt_unit_row";
+                }
             } else if (!task.owner || task.owner.trim() === "") {
                 css += " unassigned-row";
             }
