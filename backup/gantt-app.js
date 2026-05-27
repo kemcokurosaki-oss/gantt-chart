@@ -411,7 +411,7 @@
                         if (!parentsMap[parentKey]) {
                             parentsMap[parentKey] = {
                                 id: parentKey,
-                                text: mName === "設定なし" ? pNum : mName,
+                                text: mName === "設定なし" ? "" : mName,
                                 project_number: pNum,
                                 machine: mName === "設定なし" ? "" : mName,
                                 major_item: "",
