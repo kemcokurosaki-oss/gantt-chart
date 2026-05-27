@@ -1,0 +1,326 @@
+
+// ===== ユニット別工程モーダル（カスタムGantt表示） =====
+(function() {
+    'use strict';
+    var _uData = [];   // 現在保持している全対象タスク
+
+    // ────────────────────────────────────────
+    //  公開API
+    // ────────────────────────────────────────
+    window.openUnitDetail = function(taskId) {
+        var task;
+        try { task = gantt.getTask(taskId); } catch(e) { return; }
+        if (!task) return;
+        var pno = String(task.project_number || '').trim();
+        if (!pno) { alert("工事番号が見つかりません"); return; }
+
+        var targets = ["出図＆部品手配", "組立全体"];
+        var tasks = (window.allTasks || []).filter(function(t) {
+            return String(t.project_number || '').trim() === pno
+                && targets.indexOf(String(t.parent_name || '').trim()) !== -1
+                && String(t.unit || '').trim() !== '';
+        });
+        if (!tasks.length) { alert("ユニットが設定されたタスクがありません"); return; }
+
+        _uData = tasks;
+
+        var machines = [], units = [];
+        tasks.forEach(function(t) {
+            var m = String(t.machine || '').trim();
+            var u = String(t.unit   || '').trim();
+            if (m && machines.indexOf(m) === -1) machines.push(m);
+            if (u && units.indexOf(u)   === -1) units.push(u);
+        });
+        machines.sort(); units.sort();
+
+        document.getElementById('unit-detail-modal-title').textContent = 'ユニット別工程 — 工番: ' + pno;
+        _buildFilterBar(machines, units);
+        document.getElementById('unit-detail-overlay').style.display = 'flex';
+
+        // 2フレーム待ってから描画（モーダルのサイズ確定後）
+        requestAnimationFrame(function() {
+            requestAnimationFrame(function() { _render(tasks); });
+        });
+    };
+
+    window.closeUnitDetailModal = function(e) {
+        if (e && e.target !== document.getElementById('unit-detail-overlay')) return;
+        document.getElementById('unit-detail-overlay').style.display = 'none';
+    };
+
+    window._unitModalFilter = function() {
+        var ms = document.getElementById('unit-detail-machine-sel');
+        var us = document.getElementById('unit-detail-unit-sel');
+        var sm = ms ? ms.value : '', su = us ? us.value : '';
+        _render(_uData.filter(function(t) {
+            return (!sm || String(t.machine || '').trim() === sm)
+                && (!su || String(t.unit    || '').trim() === su);
+        }));
+    };
+
+    // ────────────────────────────────────────
+    //  フィルターバー
+    // ────────────────────────────────────────
+    function _buildFilterBar(machines, units) {
+        var html = '<span style="font-size:12px;color:#555;font-weight:bold;">絞り込み</span>'
+            + _sel('unit-detail-machine-sel', '機械', machines)
+            + _sel('unit-detail-unit-sel',    'ユニット', units);
+        document.getElementById('unit-detail-filter-bar').innerHTML = html;
+    }
+    function _sel(id, label, opts) {
+        var h = '<label style="font-size:12px;display:flex;align-items:center;gap:4px;">'
+            + _esc(label)
+            + '<select id="' + id + '" onchange="_unitModalFilter()" style="font-size:12px;">'
+            + '<option value="">すべて</option>';
+        opts.forEach(function(o) { h += '<option value="' + _esc(o) + '">' + _esc(o) + '</option>'; });
+        return h + '</select></label>';
+    }
+
+    // ────────────────────────────────────────
+    //  メインレンダリング
+    // ────────────────────────────────────────
+    function _render(tasks) {
+        var container = document.getElementById('unit-detail-gantt-container');
+        if (!container) return;
+
+        if (!tasks.length) {
+            container.innerHTML = '<p style="text-align:center;color:#999;padding:24px 0;">該当するタスクがありません</p>';
+            return;
+        }
+
+        var rd = _buildRowData(tasks);
+        if (!rd.rows.length || !rd.gMin) {
+            container.innerHTML = '<p style="text-align:center;color:#999;padding:24px 0;">表示できるタスクがありません</p>';
+            return;
+        }
+
+        container.innerHTML = _buildHtml(rd);
+        _attachScrollSync(container);
+    }
+
+    // ────────────────────────────────────────
+    //  行データ構築（機械→ユニット→タスク）
+    // ────────────────────────────────────────
+    function _buildRowData(tasks) {
+        var PHASE_ORDER = { "出図＆部品手配": 0, "組立全体": 1 };
+
+        // 機械→ユニットでグループ化
+        var mMap = {};
+        tasks.forEach(function(t) {
+            var m = String(t.machine || '').trim() || '（機械なし）';
+            var u = String(t.unit   || '').trim();
+            if (!mMap[m])    mMap[m] = {};
+            if (!mMap[m][u]) mMap[m][u] = [];
+            mMap[m][u].push(t);
+        });
+
+        var rows = [], gMin = null, gMax = null;
+
+        Object.keys(mMap).sort().forEach(function(mName) {
+            var mIdx = rows.length;
+            rows.push({ type: 'machine', indent: 0, text: mName, sd: null, ed: null });
+
+            Object.keys(mMap[mName]).sort().forEach(function(uName) {
+                var uIdx = rows.length;
+                rows.push({ type: 'unit', indent: 1, text: uName, sd: null, ed: null });
+
+                var sorted = mMap[mName][uName].slice().sort(function(a, b) {
+                    var pa = PHASE_ORDER[String(a.parent_name || '')] != null ? PHASE_ORDER[String(a.parent_name || '')] : 99;
+                    var pb = PHASE_ORDER[String(b.parent_name || '')] != null ? PHASE_ORDER[String(b.parent_name || '')] : 99;
+                    if (pa !== pb) return pa - pb;
+                    var da = _parseD(a.start_date) || new Date(0);
+                    var db = _parseD(b.start_date) || new Date(0);
+                    return da - db;
+                });
+
+                sorted.forEach(function(t) {
+                    var sd = _parseD(t.start_date);
+                    if (!sd) return;
+                    var dur = Math.max(Number(t.duration) || 1, 1);
+                    var ed;
+                    try   { ed = gantt.calculateEndDate(new Date(sd), dur); }
+                    catch (e) { ed = new Date(sd.getTime() + dur * 24 * 3600000); }
+
+                    // 集計：ユニット行・機械行に日程を反映
+                    if (!rows[uIdx].sd || sd < rows[uIdx].sd) rows[uIdx].sd = new Date(sd);
+                    if (!rows[uIdx].ed || ed > rows[uIdx].ed) rows[uIdx].ed = new Date(ed);
+                    if (!rows[mIdx].sd || sd < rows[mIdx].sd) rows[mIdx].sd = new Date(sd);
+                    if (!rows[mIdx].ed || ed > rows[mIdx].ed) rows[mIdx].ed = new Date(ed);
+                    if (!gMin || sd < gMin) gMin = new Date(sd);
+                    if (!gMax || ed > gMax) gMax = new Date(ed);
+
+                    rows.push({
+                        type:  'task', indent: 2,
+                        text:  String(t.text       || ''),
+                        owner: String(t.owner      || ''),
+                        phase: String(t.parent_name || ''),
+                        sd: new Date(sd), ed: new Date(ed)
+                    });
+                });
+            });
+        });
+
+        return { rows: rows, gMin: gMin, gMax: gMax };
+    }
+
+    // ────────────────────────────────────────
+    //  HTML生成
+    // ────────────────────────────────────────
+    function _buildHtml(rd) {
+        var rows = rd.rows, gMin = rd.gMin, gMax = rd.gMax;
+
+        var ROW_H       = 27;
+        var SCALE_H     = 52;   // 26px × 2行
+        var PX_PER_WEEK = 22;
+        var MS_WEEK     = 7 * 24 * 3600000;
+
+        // タイムライン範囲を月頭・月末に揃える
+        var tStart = new Date(gMin.getFullYear(), gMin.getMonth(), 1);
+        var tEnd   = new Date(gMax.getFullYear(), gMax.getMonth() + 2, 1);
+
+        // タイムラインの基準日（月曜始まり）
+        var fMon = new Date(tStart);
+        var dow  = fMon.getDay();
+        fMon.setDate(fMon.getDate() - (dow === 0 ? 6 : dow - 1));
+
+        // 週カラムの開始日リスト
+        var weeks = [], wk = new Date(fMon);
+        while (wk < tEnd) { weeks.push(new Date(wk)); wk.setDate(wk.getDate() + 7); }
+        var totalW = weeks.length * PX_PER_WEEK;
+
+        // x座標計算
+        function getX(d) {
+            return Math.max(0, Math.round((d.getTime() - fMon.getTime()) / MS_WEEK * PX_PER_WEEK));
+        }
+
+        // 月ヘッダー（何週分かを計算）
+        var months = [], curM = -1, curY = -1, mFrom = 0;
+        weeks.forEach(function(w, i) {
+            var mo = w.getMonth(), yr = w.getFullYear();
+            if (mo !== curM || yr !== curY) {
+                if (curM >= 0) months.push({ yr: curY, mo: curM, from: mFrom, to: i });
+                curM = mo; curY = yr; mFrom = i;
+            }
+        });
+        months.push({ yr: curY, mo: curM, from: mFrom, to: weeks.length });
+
+        var fmt = gantt.date.date_to_str("%y/%m/%d");
+
+        // グリッド列幅
+        var GN = 200, GO = 65, GS = 72, GE = 72;
+
+        var h = '<div class="ugantt-wrap">';
+
+        // ── グリッドパネル ──
+        h += '<div class="ugantt-grid-panel">';
+
+        // ヘッダー（スケールと同じ高さ）
+        h += '<div class="ugantt-grid-head" style="height:' + SCALE_H + 'px;">';
+        h += '<div class="ugantt-hcell" style="width:' + GN + 'px;">タスク名</div>';
+        h += '<div class="ugantt-hcell" style="width:' + GO + 'px;">担当</div>';
+        h += '<div class="ugantt-hcell" style="width:' + GS + 'px;">開始日</div>';
+        h += '<div class="ugantt-hcell" style="width:' + GE + 'px;">終了日</div>';
+        h += '</div>';
+
+        // ボディ
+        h += '<div class="ugantt-grid-body" id="ugantt-gbody">';
+        rows.forEach(function(r) {
+            var cls = 'ugantt-row' + (r.type === 'machine' ? ' ugrow-machine' : r.type === 'unit' ? ' ugrow-unit' : '');
+            var pad = r.indent * 16;
+            var sdStr = '', edStr = '';
+            if (r.type === 'task' && r.sd) sdStr = fmt(r.sd);
+            if (r.type === 'task' && r.ed) {
+                var dispEd = new Date(r.ed.getTime()); dispEd.setDate(dispEd.getDate() - 1);
+                edStr = fmt(dispEd);
+            }
+            h += '<div class="' + cls + '" style="height:' + ROW_H + 'px;">';
+            h += '<div class="ugantt-gcell" style="width:' + GN + 'px;"><span style="padding-left:' + pad + 'px">' + _esc(r.text) + '</span></div>';
+            h += '<div class="ugantt-gcell" style="width:' + GO + 'px;">' + _esc(r.type === 'task' ? (r.owner || '') : '') + '</div>';
+            h += '<div class="ugantt-gcell ugantt-gcell-center" style="width:' + GS + 'px;">' + sdStr + '</div>';
+            h += '<div class="ugantt-gcell ugantt-gcell-center" style="width:' + GE + 'px;">' + edStr + '</div>';
+            h += '</div>';
+        });
+        h += '</div>'; // grid-body
+        h += '</div>'; // grid-panel
+
+        // ── タイムラインパネル ──
+        h += '<div class="ugantt-tl-panel" id="ugantt-tl">';
+
+        // スケールヘッダー（sticky）
+        h += '<div class="ugantt-scale" style="width:' + totalW + 'px;">';
+        // 月行
+        h += '<div class="ugantt-scale-row">';
+        months.forEach(function(m) {
+            var w = (m.to - m.from) * PX_PER_WEEK;
+            h += '<div class="ugantt-sc-month" style="width:' + w + 'px;">' + m.yr + '年' + (m.mo + 1) + '月</div>';
+        });
+        h += '</div>';
+        // 週行
+        h += '<div class="ugantt-scale-row">';
+        weeks.forEach(function(w) {
+            h += '<div class="ugantt-sc-week" style="width:' + PX_PER_WEEK + 'px;">' + w.getDate() + '</div>';
+        });
+        h += '</div>';
+        h += '</div>'; // scale
+
+        // バーエリア
+        h += '<div class="ugantt-bars" style="width:' + totalW + 'px;">';
+        rows.forEach(function(r) {
+            var rowCls = 'ugantt-bar-row' + (r.type === 'machine' ? ' ugrow-machine' : r.type === 'unit' ? ' ugrow-unit' : '');
+            h += '<div class="' + rowCls + '" style="height:' + ROW_H + 'px;">';
+            if (r.sd && r.ed) {
+                var bL  = getX(r.sd);
+                var bW  = Math.max(getX(r.ed) - bL, 4);
+                var bTop = Math.floor((ROW_H - 14) / 2);
+                var bCls = 'ugantt-bar';
+                if      (r.type === 'machine')           bCls += ' ubar-machine';
+                else if (r.type === 'unit')              bCls += ' ubar-unit';
+                else if (r.phase === '出図＆部品手配')    bCls += ' ubar-drawing';
+                else if (r.phase === '組立全体')          bCls += ' ubar-assembly';
+                else                                     bCls += ' ubar-other';
+                h += '<div class="' + bCls + '" style="left:' + bL + 'px;top:' + bTop + 'px;width:' + bW + 'px;">';
+                if (r.type === 'task') h += '<span class="ugantt-bar-txt">' + _esc(r.text) + '</span>';
+                h += '</div>';
+            }
+            h += '</div>';
+        });
+        h += '</div>'; // bars
+
+        h += '</div>'; // tl-panel
+        h += '</div>'; // wrap
+
+        return h;
+    }
+
+    // ────────────────────────────────────────
+    //  縦スクロール同期
+    // ────────────────────────────────────────
+    function _attachScrollSync(container) {
+        var gb = document.getElementById('ugantt-gbody');
+        var tl = document.getElementById('ugantt-tl');
+        if (!gb || !tl) return;
+        var lock = false;
+        gb.addEventListener('scroll', function() {
+            if (lock) return; lock = true; tl.scrollTop = this.scrollTop; lock = false;
+        });
+        tl.addEventListener('scroll', function() {
+            if (lock) return; lock = true; gb.scrollTop = this.scrollTop; lock = false;
+        });
+    }
+
+    // ────────────────────────────────────────
+    //  ユーティリティ
+    // ────────────────────────────────────────
+    function _parseD(v) {
+        if (!v) return null;
+        if (v instanceof Date) return new Date(v.getTime());
+        var d = new Date(String(v).substring(0, 10) + 'T00:00:00');
+        return isNaN(d.getTime()) ? null : d;
+    }
+
+    function _esc(s) {
+        return String(s)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+})();

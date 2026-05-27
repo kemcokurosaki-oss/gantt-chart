@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>工程表 操作ガイド</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+            font-size: 14px;
+            background: #f4f6f9;
+            color: #2c3e50;
+            line-height: 1.6;
+        }
+
+        /* 固定ヘッダーラッパー */
+        .sticky-wrapper {
+            position: sticky;
+            top: 0;
+            z-index: 200;
+            box-shadow: 0 3px 12px rgba(0,0,0,0.25);
+        }
+
+        /* ヘッダー */
+        .page-header {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: #fff;
+            padding: 28px 40px 24px;
+        }
+        .page-header__inner {
+            max-width: 940px;
+            margin: 0 auto;
+            padding-left: 40px;
+        }
+        .page-header h1 {
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+        }
+        .page-header p {
+            font-size: 13px;
+            color: #bdc3cb;
+            margin-top: 6px;
+        }
+
+        /* ナビゲーション */
+        .toc {
+            background: #fff;
+            border-bottom: 1px solid #e0e6ef;
+            padding: 10px 40px;
+            font-size: 12px;
+        }
+        .toc__inner {
+            max-width: 940px;
+            margin: 0 auto;
+            padding-left: 40px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px 16px;
+        }
+        .toc a {
+            color: #3498db;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+        .toc a:hover { text-decoration: underline; }
+
+        /* メインコンテンツ */
+        .content {
+            max-width: 860px;
+            margin: 32px auto 60px;
+            padding: 0 24px;
+        }
+
+        /* セクション */
+        .section {
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+            margin-bottom: 24px;
+            overflow: hidden;
+        }
+        .section-header {
+            background: #f0f4f8;
+            border-left: 4px solid #3498db;
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .section-header .icon { font-size: 18px; line-height: 1; }
+        .section-header h2 {
+            font-size: 15px;
+            font-weight: 700;
+            color: #2c3e50;
+        }
+        .section-body { padding: 16px 20px 20px; }
+
+        /* 操作説明テーブル */
+        .op-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        .op-table th {
+            background: #f8fafc;
+            color: #5a6a7e;
+            font-weight: 700;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            padding: 7px 12px;
+            border-bottom: 2px solid #e0e6ef;
+            text-align: left;
+            white-space: nowrap;
+        }
+        .op-table td {
+            padding: 9px 12px;
+            border-bottom: 1px solid #f0f4f8;
+            vertical-align: top;
+        }
+        .op-table tr:last-child td { border-bottom: none; }
+        .op-table tr:hover td { background: #fafcff; }
+        .op-table td:first-child {
+            white-space: nowrap;
+            font-weight: 500;
+            color: #2c3e50;
+            width: 200px;
+        }
+
+        /* 操作キー */
+        .op-key {
+            display: inline-block;
+            background: #eaf2fb;
+            color: #1a6faa;
+            border: 1px solid #b8d8f0;
+            border-radius: 4px;
+            padding: 1px 8px;
+            font-size: 12px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+        .op-key--click { background: #eafaf1; color: #1a7a47; border-color: #a8dfc0; }
+        .op-key--dbl   { background: #fef9e7; color: #8a6d00; border-color: #f5d76e; }
+
+        /* 凡例カード */
+        .legend-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 10px;
+            margin-top: 4px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #f8fafc;
+            border: 1px solid #e0e6ef;
+            border-radius: 6px;
+            padding: 9px 12px;
+        }
+        .legend-mark {
+            font-size: 20px;
+            line-height: 1;
+            flex-shrink: 0;
+            width: 26px;
+            text-align: center;
+        }
+        .legend-mark--circle { color: #d32f2f; }
+        .legend-mark--tri    { color: #FBAD4F; }
+        .legend-mark--dia    { color: #1976D2; }
+        .legend-mark--star   { color: #2E7D32; }
+        .legend-label { font-size: 13px; font-weight: 500; }
+
+        /* カラーバー（部署色） */
+        .dept-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 8px;
+            margin-top: 4px;
+        }
+        .dept-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+        }
+        .dept-color {
+            width: 28px;
+            height: 14px;
+            border-radius: 3px;
+            flex-shrink: 0;
+        }
+
+        /* ヒント */
+        .tip-box {
+            background: #eafaf1;
+            border: 1px solid #a8dfc0;
+            border-radius: 6px;
+            padding: 10px 14px;
+            font-size: 13px;
+            color: #1a6640;
+            margin-top: 12px;
+            display: flex;
+            gap: 8px;
+            align-items: flex-start;
+        }
+        .tip-box::before { content: "💡"; flex-shrink: 0; }
+
+        .note-box {
+            background: #fef9e7;
+            border: 1px solid #f5d76e;
+            border-radius: 6px;
+            padding: 10px 14px;
+            font-size: 13px;
+            color: #7a6000;
+            margin-top: 12px;
+            display: flex;
+            gap: 8px;
+            align-items: flex-start;
+        }
+        .note-box::before { content: "⚠️"; flex-shrink: 0; }
+
+        /* 段落テキスト */
+        .desc { font-size: 13px; color: #5a6a7e; margin-bottom: 12px; }
+
+        /* ラベル装飾 */
+        .lbl {
+            display: inline-block;
+            background: #3498db;
+            color: #fff;
+            border-radius: 4px;
+            padding: 1px 7px;
+            font-size: 11px;
+            font-weight: 700;
+            vertical-align: middle;
+            margin-right: 2px;
+        }
+        .lbl--green  { background: #27ae60; }
+        .lbl--orange { background: #e67e22; }
+        .lbl--gray   { background: #95a5a6; }
+        .lbl--red    { background: #e74c3c; }
+
+        /* フッター */
+        footer {
+            text-align: center;
+            font-size: 12px;
+            color: #aab4be;
+            padding: 24px;
+        }
+
+        /* スクロールマージン（アンカー用・JS で動的更新） */
+        [id] { scroll-margin-top: 120px; }
+    </style>
+</head>
+<body>
+
+<div class="sticky-wrapper">
+<header class="page-header">
+    <div class="page-header__inner">
+        <h1>📖 工程表 操作ガイド</h1>
+        <p>閲覧者向け操作説明書 — 工事工程表の基本的な見方・操作方法をまとめています</p>
+    </div>
+</header>
+
+<nav class="toc">
+    <div class="toc__inner">
+        <a href="#screen">① 画面構成</a>
+        <a href="#gantt">② ガントチャートの見方</a>
+        <a href="#display">③ 表示の切替</a>
+        <a href="#project-list">④ 工事一覧</a>
+        <a href="#grid">⑤ グリッド（左側の表）</a>
+        <a href="#detail-link">⑥ 詳細工程表・関連リンク</a>
+        <a href="#search">⑦ 検索フィルター</a>
+        <a href="#dept-filter">⑧ 部署別フィルタ</a>
+        <a href="#resource">⑨ 部署別リソース</a>
+        <a href="#location">⑩ 組立場所</a>
+        <a href="#trip">⑪ 出張予定</a>
+        <a href="#history">⑫ 更新履歴</a>
+        <a href="#dept-links">⑬ 各部工程表リンク</a>
+    </div>
+</nav>
+</div><!-- /.sticky-wrapper -->
+
+<main class="content">
+
+    <!-- ① 画面構成 -->
+    <section class="section" id="screen">
+        <div class="section-header">
+            <span class="icon">🖥️</span>
+            <h2>① 画面構成</h2>
+        </div>
+        <div class="section-body">
+            <table class="op-table">
+                <thead>
+                    <tr><th>エリア</th><th>内容</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>ヘッダー上段</td>
+                        <td>マーク凡例 / 更新履歴 / 使い方ガイド / 操作ガイド / ログインボタン</td>
+                    </tr>
+                    <tr>
+                        <td>ヘッダー下段</td>
+                        <td>表示リセット / 表示順（工程別・機械別）/ 表示切替（日単位・週単位・今日へ移動）/ 各部工程表リンク</td>
+                    </tr>
+                    <tr>
+                        <td>ツールバー</td>
+                        <td>検索フィルター / 部署別フィルタ / 部署別リソース / 組立場所 / 出張予定</td>
+                    </tr>
+                    <tr>
+                        <td>工事一覧（左）</td>
+                        <td>工事番号の一覧。クリックで特定の工事に絞り込めます</td>
+                    </tr>
+                    <tr>
+                        <td>ガントチャート（右）</td>
+                        <td>タスクの期間をバーで表示。左側がグリッド（表）、右側がタイムライン</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- ② ガントチャートの見方 -->
+    <section class="section" id="gantt">
+        <div class="section-header">
+            <span class="icon">📊</span>
+            <h2>② ガントチャートの見方</h2>
+        </div>
+        <div class="section-body">
+            <p class="desc">タイムライン上のバーはタスクの期間を表します。バーの色は担当部署ごとに異なります。</p>
+
+            <p style="font-size:13px; font-weight:700; margin-bottom:8px;">バーの色（部署）</p>
+            <div class="dept-grid">
+                <div class="dept-item"><div class="dept-color" style="background:#85C1E9; border:1px solid #5DADE2;"></div>設計</div>
+                <div class="dept-item"><div class="dept-color" style="background:#82E0AA; border:1px solid #58D68D;"></div>製管・品証</div>
+                <div class="dept-item"><div class="dept-color" style="background:#F7DC6F; border:1px solid #F4D03F;"></div>組立</div>
+                <div class="dept-item"><div class="dept-color" style="background:#D7BDE2; border:1px solid #AF7AC5;"></div>電装</div>
+                <div class="dept-item"><div class="dept-color" style="background:#F1948A; border:1px solid #EC7063;"></div>操業</div>
+                <div class="dept-item"><div class="dept-color" style="background:#F8A5C2; border:1px solid #F46B8A;"></div>電技</div>
+                <div class="dept-item"><div class="dept-color" style="background:#BCAAA4; border:1px solid #8D6E63;"></div>明石</div>
+                <div class="dept-item"><div class="dept-color" style="background:#FBAD4F; border:1px solid #F8941D;"></div>営業</div>
+            </div>
+
+            <p style="font-size:13px; font-weight:700; margin-top:16px; margin-bottom:8px;">マーク記号の意味</p>
+            <div class="legend-grid">
+                <div class="legend-item">
+                    <span class="legend-mark">🚚</span>
+                    <span class="legend-label">部品送り開始日</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-mark legend-mark--circle">●</span>
+                    <span class="legend-label">外観検査</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-mark legend-mark--tri">▲</span>
+                    <span class="legend-label">客先立会</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-mark legend-mark--dia">◆</span>
+                    <span class="legend-label">出荷確認会議</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-mark legend-mark--star">★</span>
+                    <span class="legend-label">工場出荷</span>
+                </div>
+            </div>
+
+            <div class="tip-box">
+                マーク記号は該当工程の予定日にタイムライン上に表示されます。画面上部の凡例とあわせてご確認ください。
+            </div>
+        </div>
+    </section>
+
+    <!-- ③ 表示の切替 -->
+    <section class="section" id="display">
+        <div class="section-header">
+            <span class="icon">🔄</span>
+            <h2>③ 表示の切替</h2>
+        </div>
+        <div class="section-body">
+            <table class="op-table">
+                <thead>
+                    <tr><th>ボタン</th><th>操作内容</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="op-key">工程別</span></td>
+                        <td>部署の工程順にタスクを並べて表示します（デフォルト）</td>
+                    </tr>
+                    <tr>
+                        <td><span class="op-key">機械別</span></td>
+                        <td>機械番号ごとにタスクをまとめて表示します。機械単位の進捗確認に便利です</td>
+                    </tr>
+                    <tr>
+                        <td><span class="op-key">日単位</span></td>
+                        <td>1日単位でガントチャートを表示します。詳細なスケジュールの確認に適しています</td>
+                    </tr>
+                    <tr>
+                        <td><span class="op-key">週単位</span></td>
+                        <td>1週単位で広い範囲を一覧表示します。全体スケジュールの把握に適しています</td>
+                    </tr>
+                    <tr>
+                        <td><span class="op-key">今日へ移動</span></td>
+                        <td>ガントチャートのタイムラインを今日の日付へスクロールします</td>
+                    </tr>
+                    <tr>
+                        <td><span class="op-key" style="background:#e67e22; border-color:#d35400; color:#fff;">表示リセット</span></td>
+                        <td>ページを再読み込みし、フィルターや絞り込みを含むすべての表示条件を初期状態に戻します</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- ④ 工事一覧 -->
+    <section class="section" id="project-list">
+        <div class="section-header">
+            <span class="icon">📋</span>
+            <h2>④ 工事一覧（左サイドバー）</h2>
+        </div>
+        <div class="section-body">
+            <table class="op-table">
+                <thead>
+                    <tr><th>操作</th><th>内容</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="op-key op-key--click">工番をクリック</span></td>
+                        <td>その工事番号のタスクだけをガントチャートに表示します</td>
+                    </tr>
+                    <tr>
+                        <td><span class="op-key op-key--click">「工事一覧」をクリック</span></td>
+                        <td>絞り込みを解除してすべての工事を表示します（表示リセットと同じ）</td>
+                    </tr>
+                    <tr>
+                        <td><span class="op-key">▶ ボタン</span></td>
+                        <td>工事番号のフィルターメニューを開きます。「すべて」「2000番台」「その他」「営業担当」で絞り込めます</td>
+                    </tr>
+                    <tr>
+                        <td>工番にマウスを重ねる</td>
+                        <td>客先名・工事名・営業担当の詳細情報がポップアップで表示されます</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="tip-box">
+                工番が<strong style="color:#27ae60;">緑色</strong>で表示されている場合、その工事は出張予定のみ登録されています（社内工程なし）。
+            </div>
+        </div>
+    </section>
+
+    <!-- ⑤ グリッド -->
+    <section class="section" id="grid">
+        <div class="section-header">
+            <span class="icon">📝</span>
+            <h2>⑤ グリッド（左側の表）</h2>
+        </div>
+        <div class="section-body">
+            <p class="desc">ガントチャートの左側にある表エリアです。工番・タスク名・機械・担当者・開始日・終了日などが表示されています。</p>
+            <table class="op-table">
+                <thead>
+                    <tr><th>操作</th><th>内容</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="op-key op-key--click">セルをクリック</span></td>
+                        <td>そのタスクの開始日へタイムラインが自動スクロールします</td>
+                    </tr>
+                    <tr>
+                        <td><span class="op-key">▶ をクリック</span></td>
+                        <td>詳細工程（子タスク）を展開または折りたたみます</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <p style="font-size:13px; font-weight:700; margin-top:16px; margin-bottom:8px;">タスクの色による状態表示</p>
+            <table class="op-table">
+                <thead>
+                    <tr><th>表示</th><th>意味</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span style="background:#ffe0e0; color:#c0392b; font-weight:700; padding:2px 8px; border-radius:3px;">赤背景</span></td>
+                        <td>担当者が未定のタスクです</td>
+                    </tr>
+                    <tr>
+                        <td><span style="background:#f0f0f0; color:#999; font-weight:700; padding:2px 8px; border-radius:3px;">グレー背景</span></td>
+                        <td>完了済みのタスクです</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- ⑥ 詳細工程表・関連リンク -->
+    <section class="section" id="detail-link">
+        <div class="section-header">
+            <span class="icon">🔍</span>
+            <h2>⑥ 詳細工程表・関連リンク</h2>
+        </div>
+        <div class="section-body">
+            <p class="desc">グリッドの左端に表示される <strong>🔍 ボタン</strong> を押すと、そのタスクに関連する詳細資料や工程表を別タブで開けます。</p>
+            <table class="op-table">
+                <thead>
+                    <tr><th>タスク</th><th>開くページ</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>受注</td>
+                        <td>社内製作仕様書</td>
+                    </tr>
+                    <tr>
+                        <td>長納期品手配</td>
+                        <td>設計工程表（長納期品ページ）</td>
+                    </tr>
+                    <tr>
+                        <td>出図&amp;部品手配</td>
+                        <td>設計工程表（図面ページ）</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- ⑦ 検索フィルター -->
+    <section class="section" id="search">
+        <div class="section-header">
+            <span class="icon">🔎</span>
+            <h2>⑦ 検索フィルター</h2>
+        </div>
+        <div class="section-body">
+            <p class="desc">ツールバーの <strong>▼ 検索</strong> ボタンを押すと検索パネルが開きます。</p>
+            <table class="op-table">
+                <thead>
+                    <tr><th>検索種別</th><th>内容</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>機械検索</td>
+                        <td>機械名（部分一致）でガントチャートを絞り込みます</td>
+                    </tr>
+                    <tr>
+                        <td>タスク検索</td>
+                        <td>タスク名（部分一致）で絞り込みます</td>
+                    </tr>
+                    <tr>
+                        <td>担当検索</td>
+                        <td>担当者名（部分一致）で絞り込みます</td>
+                    </tr>
+                    <tr>
+                        <td>⚠️ 担当未定ボタン</td>
+                        <td>担当者が未割当のタスクだけを一覧表示します</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="tip-box">
+                絞り込みを解除するには <strong>表示リセット</strong> ボタンを押してください。
+            </div>
+        </div>
+    </section>
+
+    <!-- ⑧ 部署別フィルタ -->
+    <section class="section" id="dept-filter">
+        <div class="section-header">
+            <span class="icon">🏢</span>
+            <h2>⑧ 部署別フィルタ</h2>
+        </div>
+        <div class="section-body">
+            <p class="desc">表示したい部署にチェックを入れると、その部署のタスクだけをガントチャートに表示します。複数部署の同時選択も可能です。</p>
+            <table class="op-table">
+                <thead>
+                    <tr><th>操作</th><th>内容</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>部署にチェック</td>
+                        <td>チェックした部署のタスクのみ表示。画面右上に「○○を表示中」と表示されます</td>
+                    </tr>
+                    <tr>
+                        <td>全部署（リセット）</td>
+                        <td>フィルターを解除してすべての部署を表示します</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="note-box">
+                バーの色は部署ごとの色分けのまま維持されます。「部署別リソース」とは独立した機能です。
+            </div>
+        </div>
+    </section>
+
+    <!-- ⑨ 部署別リソース -->
+    <section class="section" id="resource">
+        <div class="section-header">
+            <span class="icon">👥</span>
+            <h2>⑨ 部署別リソース</h2>
+        </div>
+        <div class="section-body">
+            <p class="desc">ツールバーの <strong>部署別リソース</strong> ドロップダウンから部署を選択すると、その部署の担当者ごとのリソース状況（担当タスク一覧）が画面下部のパネルに表示されます。</p>
+            <table class="op-table">
+                <thead>
+                    <tr><th>操作</th><th>内容</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>部署を選択</td>
+                        <td>選択した部署の担当者別リソースパネルが下部に表示されます</td>
+                    </tr>
+                    <tr>
+                        <td>パネル上部の × ボタン</td>
+                        <td>リソースパネルを閉じます</td>
+                    </tr>
+                    <tr>
+                        <td>パネル上端をドラッグ</td>
+                        <td>パネルの高さを調整できます</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="note-box">
+                ガント本体の絞り込みは「部署別フィルタ」で行います。「部署別リソース」はリソース確認用の別パネルです。
+            </div>
+        </div>
+    </section>
+
+    <!-- ⑩ 組立場所 -->
+    <section class="section" id="location">
+        <div class="section-header">
+            <span class="icon">📍</span>
+            <h2>⑩ 組立場所</h2>
+        </div>
+        <div class="section-body">
+            <p class="desc">ツールバーの <strong>組立場所</strong> ボタンを押すと、組立エリアの場所別リソースを画面下部に表示します。E1・E2などのエリアごとに状況を確認できます。</p>
+        </div>
+    </section>
+
+    <!-- ⑪ 出張予定 -->
+    <section class="section" id="trip">
+        <div class="section-header">
+            <span class="icon">✈️</span>
+            <h2>⑪ 出張予定</h2>
+        </div>
+        <div class="section-body">
+            <p class="desc">ツールバーの <strong>出張予定</strong> ボタンを押すと、出張タスクのみの表示に切り替わります。</p>
+            <table class="op-table">
+                <thead>
+                    <tr><th>操作</th><th>内容</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="op-key">出張予定</span> ボタン</td>
+                        <td>出張タスクのみをガントチャートに表示します</td>
+                    </tr>
+                    <tr>
+                        <td><span class="op-key">工程表へ戻る</span> ボタン</td>
+                        <td>通常の工程表表示に戻ります</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- ⑫ 更新履歴 -->
+    <section class="section" id="history">
+        <div class="section-header">
+            <span class="icon">📋</span>
+            <h2>⑫ 更新履歴</h2>
+        </div>
+        <div class="section-body">
+            <p class="desc">ヘッダー右上の <strong>📋 更新履歴</strong> ボタンを押すと、過去1ヶ月間のタスク変更履歴が一覧表示されます。</p>
+            <table class="op-table">
+                <thead>
+                    <tr><th>確認できる内容</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>タスクの追加・変更・削除の履歴</td></tr>
+                    <tr><td>変更した担当者と変更日時</td></tr>
+                    <tr><td>どの工番・機械・タスクが変更されたか</td></tr>
+                </tbody>
+            </table>
+            <div class="tip-box">
+                工程表が更新されると、画面上部に「🔔 工程表が更新されました」という通知バナーが自動で表示されます。
+            </div>
+        </div>
+    </section>
+
+    <!-- ⑬ 各部工程表リンク -->
+    <section class="section" id="dept-links">
+        <div class="section-header">
+            <span class="icon">🔗</span>
+            <h2>⑬ 各部工程表リンク</h2>
+        </div>
+        <div class="section-body">
+            <p class="desc">ヘッダー右端のボタンから各部門の工程表サイトを別タブで開けます。</p>
+            <table class="op-table">
+                <thead>
+                    <tr><th>ボタン</th><th>内容</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>📐 設計</td>
+                        <td>設計部門の工程表サイトを別タブで開きます</td>
+                    </tr>
+                    <tr>
+                        <td>🔧 組立</td>
+                        <td>組立部門の工程表サイトを別タブで開きます（組立部員のみ閲覧可）</td>
+                    </tr>
+                    <tr>
+                        <td>⚙️ 操業</td>
+                        <td>準備中です。公開後にここから開けるようになります</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+</main>
+
+<footer>
+    工事工程表 操作ガイド
+</footer>
+
+<script>
+    function updateScrollMargin() {
+        const wrapper = document.querySelector('.sticky-wrapper');
+        if (!wrapper) return;
+        const h = wrapper.getBoundingClientRect().height;
+        document.querySelectorAll('[id]').forEach(el => {
+            el.style.scrollMarginTop = (h + 8) + 'px';
+        });
+    }
+    window.addEventListener('load', updateScrollMargin);
+    window.addEventListener('resize', updateScrollMargin);
+</script>
+
+</body>
+</html>

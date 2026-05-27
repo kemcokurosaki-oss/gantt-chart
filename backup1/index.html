@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>工程表</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='12' fill='%2322c55e'/><text x='50' y='74' font-family='sans-serif' font-size='65' font-weight='bold' fill='white' text-anchor='middle'>全</text></svg>">
+    <link rel="stylesheet" href="https://cdn.dhtmlx.com/gantt/edge/dhtmlxgantt.css">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.dhtmlx.com/gantt/edge/dhtmlxgantt.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="main-container">
+        <div class="header-panel">
+            <div class="input-row">
+                <button class="btn-add" id="new_project_btn" onclick="toggleNewProjectForm()" disabled>新規受注</button>
+                <button id="kanryo-btn" class="btn-add" onclick="openKanryoModal('kanri')" disabled style="margin-left:4px;">完了済み</button>
+                <button id="publish_btn" class="btn-update" onclick="publishNow()" style="display:none; margin-left:4px;">🔄 更新</button>
+                <span id="save-status" style="font-size:11px; color:#999; margin-left:4px; font-weight:bold; transition: color 0.2s;"></span>
+                <span id="mark-legend" style="display:flex; align-items:center; gap:4px; font-size: 13px; font-weight: bold; color: #333;">
+                    <span>🚚</span> 部品送り開始日
+                    <span style="margin-left: 10px; color: #d32f2f; font-size: 20px;">●</span> 外観検査
+                    <span style="margin-left: 10px; color: #FBAD4F; font-size: 22px;">▲</span> 客先立会
+                    <span style="margin-left: 10px; color: #1976D2; font-size: 20px;">◆</span> 出荷確認会議
+                    <span style="margin-left: 10px; color: #2E7D32; font-size: 22px;">★</span> 工場出荷
+                </span>
+                <span style="margin-left:auto; display:flex; align-items:center; gap:4px;">
+                    <button onclick="openSyncLogModal()" id="sync_log_btn" title="更新履歴">📋 更新履歴</button>
+                    <button id="help_btn" onclick="openHelp()" title="ヒント表示">💡 ヒント表示</button>
+                    <button id="auth_btn" onclick="handleAuthBtn()" style="margin-left:4px;">ログイン</button>
+                </span>
+            </div>
+            <div class="input-row" style="border-top: 1px solid #eee;">
+                <button id="reset_filter_btn" class="zoom-btn" style="font-size: 12px; background-color:#e67e22; border-color:#d35400; color:#fff; font-weight:bold; margin-right:10px;" onclick="resetFilter()">表示リセット</button>
+                <span style="font-size: 13px;">表示順：</span>
+                <button id="sort_process_btn" class="zoom-btn active" onclick="setDisplayMode('process')">工程別</button>
+                <button id="sort_machine_btn" class="zoom-btn" onclick="setDisplayMode('machine')">機械別</button>
+                <div style="display:flex; align-items:center; gap:6px; margin-left:16px;">
+                    <span style="font-size: 13px;">表示切替:</span>
+                    <button id="zoom_days_btn" class="zoom-btn active" style="font-size: 12px;" onclick="setZoom('days')">日単位</button>
+                    <button id="zoom_weeks_btn" class="zoom-btn" style="font-size: 12px;" onclick="setZoom('weeks')">週単位</button>
+                    <button id="scroll_today_btn" class="zoom-btn" onclick="scrollToToday()" style="background-color: #ebf5ff; border-color: #3498db; color: #3498db; font-size: 12px;">今日へ移動</button>
+                </div>
+                <div style="margin-left:auto; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                    <span id="filter_status" style="font-weight:bold; color:#3498db; font-size: 12px; display:none;"></span>
+                    <div class="dept-schedule-btns" title="別タブで各部の工程表サイトを開きます">
+                        <button type="button" id="dept_link_design" class="dept-link-btn dept-link-btn--design" onclick="openDeptScheduleLink('design')" title="">
+                            <span class="dept-link-btn__icon" aria-hidden="true">📐</span>
+                            <span class="dept-link-btn__text">設計</span>
+                        </button>
+                        <button type="button" id="dept_link_assembly" class="dept-link-btn dept-link-btn--assembly" onclick="openDeptScheduleLink('assembly')" title="">
+                            <span class="dept-link-btn__icon" aria-hidden="true">🔧</span>
+                            <span class="dept-link-btn__text">組立</span>
+                        </button>
+                        <button type="button" id="dept_link_operations" class="dept-link-btn dept-link-btn--operations" disabled title="">
+                            <span class="dept-link-btn__icon" aria-hidden="true">⚙️</span>
+                            <span class="dept-link-btn__text">操業</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="toolbar">
+            <div class="filter-group" style="margin-left: 0; padding-left: 0; border-left: none;">
+                <button id="search-filter-toggle" class="zoom-btn" onclick="toggleSearchFilterPanel()" style="font-size:13px; display:flex; align-items:center; gap:3px;"><svg width="13" height="13" viewBox="0 0 14 14" style="display:block;"><path d="M1 2 Q1 1 2 1 L12 1 Q13 1 13 2 Q13 2.5 11 5 L9 7.5 L9 12 Q9 13 8 12.5 L6 11.5 Q5 11 5 10 L5 7.5 L3 5 Q1 2.5 1 2 Z" fill="currentColor" opacity="0.85"/><rect x="3.5" y="2.5" width="7" height="1.2" rx="0.6" fill="white" opacity="0.5"/></svg> 検索</button>
+            </div>
+
+            <div class="filter-group" style="align-items:center;">
+                <label style="font-size:13px; white-space:nowrap;">部署別フィルタ</label>
+                <div id="major-filter-wrapper" style="position:relative; margin-left:4px;">
+                    <button id="major-filter-btn" onclick="toggleMajorFilterDropdown(event)" class="zoom-btn" style="padding:2px 20px 2px 6px; min-width:76px; text-align:left; position:relative; height:22px; box-sizing:border-box; line-height:18px;">
+                        <span id="major-filter-label">全部署</span><span id="major-filter-arrow" style="position:absolute; right:4px; top:50%; transform:translateY(-50%); font-size:9px; color:#000; pointer-events:none;">▶</span>
+                    </button>
+                    <div id="major-filter-dropdown" style="display:none; position:absolute; top:calc(100% + 1px); left:0; z-index:10001; background:#fff; border:1px solid #ccc; border-radius:3px; box-shadow:0 2px 8px rgba(0,0,0,0.15); padding:4px 0; min-width:110px; white-space:nowrap;">
+                        <div onclick="filterByMajorItem('')" style="padding:3px 10px; cursor:pointer; font-size:12px; color:#888; border-bottom:1px solid #eee;">全部署（リセット）</div>
+                        <label style="display:flex;align-items:center;padding:3px 10px;cursor:pointer;font-size:12px;gap:6px;"><input type="checkbox" id="major-chk-営業" onchange="filterByMajorItem('営業')" style="margin:0;cursor:pointer;"><span>営業</span></label>
+                        <label style="display:flex;align-items:center;padding:3px 10px;cursor:pointer;font-size:12px;gap:6px;"><input type="checkbox" id="major-chk-設計" onchange="filterByMajorItem('設計')" style="margin:0;cursor:pointer;"><span>設計</span></label>
+                        <label style="display:flex;align-items:center;padding:3px 10px;cursor:pointer;font-size:12px;gap:6px;"><input type="checkbox" id="major-chk-製管" onchange="filterByMajorItem('製管')" style="margin:0;cursor:pointer;"><span>製管</span></label>
+                        <label style="display:flex;align-items:center;padding:3px 10px;cursor:pointer;font-size:12px;gap:6px;"><input type="checkbox" id="major-chk-組立" onchange="filterByMajorItem('組立')" style="margin:0;cursor:pointer;"><span>組立</span></label>
+                        <label style="display:flex;align-items:center;padding:3px 10px;cursor:pointer;font-size:12px;gap:6px;"><input type="checkbox" id="major-chk-電装" onchange="filterByMajorItem('電装')" style="margin:0;cursor:pointer;"><span>電装</span></label>
+                        <label style="display:flex;align-items:center;padding:3px 10px;cursor:pointer;font-size:12px;gap:6px;"><input type="checkbox" id="major-chk-品証" onchange="filterByMajorItem('品証')" style="margin:0;cursor:pointer;"><span>品証</span></label>
+                        <label style="display:flex;align-items:center;padding:3px 10px;cursor:pointer;font-size:12px;gap:6px;"><input type="checkbox" id="major-chk-操業" onchange="filterByMajorItem('操業')" style="margin:0;cursor:pointer;"><span>操業</span></label>
+                        <label style="display:flex;align-items:center;padding:3px 10px;cursor:pointer;font-size:12px;gap:6px;"><input type="checkbox" id="major-chk-電技" onchange="filterByMajorItem('電技')" style="margin:0;cursor:pointer;"><span>電技</span></label>
+                        <label style="display:flex;align-items:center;padding:3px 10px;cursor:pointer;font-size:12px;gap:6px;"><input type="checkbox" id="major-chk-明石" onchange="filterByMajorItem('明石')" style="margin:0;cursor:pointer;"><span>明石</span></label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="filter-group" style="align-items:center;">
+                <label style="font-size:13px; white-space:nowrap;">部署別リソース</label>
+                <div id="resource-dept-wrapper" style="position:relative; margin-left:4px;">
+                    <button id="resource-dept-select" onclick="toggleResourceDeptDropdown(event)" class="zoom-btn" style="padding:2px 20px 2px 6px; min-width:76px; text-align:left; position:relative; height:22px; box-sizing:border-box; line-height:18px;">
+                        <span id="resource-dept-label">－</span><span id="resource-dept-arrow" style="position:absolute; right:4px; top:50%; transform:translateY(-50%); font-size:9px; color:#000; pointer-events:none;">▶</span>
+                    </button>
+                    <div id="resource-dept-dropdown" style="display:none; position:absolute; top:calc(100% + 1px); left:0; z-index:10001; background:#fff; border:1px solid #ccc; border-radius:3px; box-shadow:0 2px 8px rgba(0,0,0,0.15); padding:4px 0; min-width:110px; white-space:nowrap;">
+                        <div onclick="selectResourceDept('')" style="padding:3px 10px; cursor:pointer; font-size:12px; color:#888; border-bottom:1px solid #eee;">解除</div>
+                        <div onclick="selectResourceDept('営業')" class="resource-dept-item" data-dept="営業" style="padding:3px 10px; cursor:pointer; font-size:12px;">営業</div>
+                        <div onclick="selectResourceDept('設計')" class="resource-dept-item" data-dept="設計" style="padding:3px 10px; cursor:pointer; font-size:12px;">設計</div>
+                        <div onclick="selectResourceDept('製管')" class="resource-dept-item" data-dept="製管" style="padding:3px 10px; cursor:pointer; font-size:12px;">製管</div>
+                        <div onclick="selectResourceDept('組立')" class="resource-dept-item" data-dept="組立" style="padding:3px 10px; cursor:pointer; font-size:12px;">組立</div>
+                        <div onclick="selectResourceDept('電装')" class="resource-dept-item" data-dept="電装" style="padding:3px 10px; cursor:pointer; font-size:12px;">電装</div>
+                        <div onclick="selectResourceDept('品証')" class="resource-dept-item" data-dept="品証" style="padding:3px 10px; cursor:pointer; font-size:12px;">品証</div>
+                        <div onclick="selectResourceDept('操業')" class="resource-dept-item" data-dept="操業" style="padding:3px 10px; cursor:pointer; font-size:12px;">操業</div>
+                        <div onclick="selectResourceDept('電技')" class="resource-dept-item" data-dept="電技" style="padding:3px 10px; cursor:pointer; font-size:12px;">電技</div>
+                        <div onclick="selectResourceDept('明石')" class="resource-dept-item" data-dept="明石" style="padding:3px 10px; cursor:pointer; font-size:12px;">明石</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="filter-group">
+                <button class="zoom-btn resource-location-btn" id="location_resource_btn" onclick="toggleLocationResource(this)">組立場所</button>
+                <button id="sort_business_trip_btn" class="zoom-btn" onclick="handleBusinessTripBtn()" style="margin-left: 4px;">出張予定</button>
+            </div>
+        </div>
+
+        <div class="content-area">
+            <div class="sidebar">
+                <div class="sidebar-title">
+                    <span onclick="resetFilter()" title="クリックして全表示にリセット" style="cursor:pointer; flex:1;">工事一覧</span>
+                    <button id="project-group-filter-btn" class="project-group-filter-btn" onclick="toggleProjectGroupDropdown(event)" title="工事番号フィルター">▶</button>
+                </div>
+                <div id="project-group-dropdown" class="project-group-dropdown">
+                    <div class="project-group-dropdown-item active" onclick="setProjectGroupFilter('all', this)">すべて</div>
+                    <div class="project-group-dropdown-item" onclick="setProjectGroupFilter('2000', this)">2000番台</div>
+                    <div class="project-group-dropdown-item" onclick="setProjectGroupFilter('other', this)">その他</div>
+                    <div class="project-group-dropdown-item" id="sales-person-menu-item" onclick="toggleSalesPersonSubMenu(event, this)">営業担当 ▶</div>
+                    <div id="sales-person-submenu" style="display:none; background:#243342; border-top:1px solid #3d5166;">
+                        <div class="project-group-dropdown-item sales-person-item" style="padding-left:20px;" onclick="setSalesPersonFilter('専務')">専務</div>
+                        <div class="project-group-dropdown-item sales-person-item" style="padding-left:20px;" onclick="setSalesPersonFilter('銭')">銭</div>
+                        <div class="project-group-dropdown-item sales-person-item" style="padding-left:20px;" onclick="setSalesPersonFilter('麻生')">麻生</div>
+                        <div class="project-group-dropdown-item sales-person-item" style="padding-left:20px;" onclick="setSalesPersonFilter('原田')">原田</div>
+                        <div class="project-group-dropdown-item sales-person-item" style="padding-left:20px;" onclick="setSalesPersonFilter('岡本')">岡本</div>
+                        <div class="project-group-dropdown-item sales-person-item" style="padding-left:20px;" onclick="setSalesPersonFilter('津村')">津村</div>
+                        <div class="project-group-dropdown-item sales-person-item" style="padding-left:20px;" onclick="setSalesPersonFilter('前川')">前川</div>
+                        <div class="project-group-dropdown-item sales-person-item" style="padding-left:20px;" onclick="setSalesPersonFilter('池田')">池田</div>
+                        <div class="project-group-dropdown-item sales-person-item" style="padding-left:20px;" onclick="setSalesPersonFilter('展久')">展久</div>
+                        <div class="project-group-dropdown-item sales-person-item" style="padding-left:20px;" onclick="setSalesPersonFilter('陳')">陳</div>
+                    </div>
+                </div>
+                <div id="project_list" class="project-list"></div>
+            </div>
+            <div class="chart-container">
+                <div class="gantt-main-wrap">
+                    <!-- メインガントチャート -->
+                    <div id="gantt_here" style="width: 100%; flex: 1; min-height: 0;"></div>
+                    <div id="shanai-empty-notice" class="shanai-empty-notice" role="status" aria-live="polite">
+                        <div class="shanai-empty-notice__box">
+                            <div class="shanai-empty-notice__title">社内工程はありません</div>
+                            <div class="shanai-empty-notice__sub">この工事番号は出張予定のみ登録されています。<br />出張予定ボタンから表示できます。</div>
+                        </div>
+                    </div>
+                    <div id="trip-empty-notice" class="shanai-empty-notice trip-empty-notice" role="status" aria-live="polite">
+                        <div class="shanai-empty-notice__box">
+                            <div class="shanai-empty-notice__title">出張予定はありません</div>
+                            <div class="shanai-empty-notice__sub">この工事番号は社内工程のみ登録されています。<br />工程表へ戻るボタンから表示できます。</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 独立したリソースパネル -->
+                <div id="resource_panel" style="display: none; height: 250px; border-top: 2px solid #ccc; background: #fff; flex-direction: column; position: absolute; bottom: 0; left: 0; right: 0;">
+                    <div id="resource_resizer" style="height: 5px; cursor: ns-resize; background: #eee; width: 100%; position: absolute; top: -3px; z-index: 100; transition: background 0.2s;" onmouseover="this.style.background='#3498db'" onmouseout="this.style.background='#eee'"></div>
+                    <div id="resource_header_bar" class="resource-header-bar" style="display: none;">
+                        <span id="resource_title">リソース状況（担当者で選択）</span>
+                        <button type="button" class="resource-header-close" id="resource_close_btn" title="リソース画面を閉じる" aria-label="閉じる">×</button>
+                    </div>
+
+                    <div class="resource-content" style="flex: 1; overflow: auto;">
+                        <div id="resource_content_inner" class="resource-content-inner">
+                            <!-- ここにJSでHTMLが挿入される -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- 完了済工番モーダル -->
+    <!-- ===== 検索フィルターポップアップ ===== -->
+    <div id="search-filter-popup" style="position:fixed; display:none; background:#fff; border-radius:6px; box-shadow:0 4px 16px rgba(0,0,0,0.2); border:1px solid #ddd; z-index:10000; padding:12px 14px; min-width:200px;">
+        <div style="font-size:12px; font-weight:bold; color:#555; margin-bottom:8px; border-bottom:1px solid #eee; padding-bottom:6px; display:flex; align-items:center; justify-content:space-between;">
+            <span>検索フィルター</span>
+            <span id="search-filter-loading" style="display:none; align-items:center; gap:4px; color:#3498db; font-size:11px; font-weight:normal;">
+                <span style="display:inline-block; width:10px; height:10px; border:2px solid #bde0f7; border-top-color:#3498db; border-radius:50%; animation:spin 0.7s linear infinite;"></span>
+                処理中...
+            </span>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+            <div>
+                <label style="font-size:11px; color:#777; display:block; margin-bottom:2px;">機械検索</label>
+                <input type="text" id="machine_search" placeholder="機械名を入力..." style="width:100%; padding:3px 6px; border:1px solid #ccc; border-radius:3px; font-size:12px; box-sizing:border-box;" oninput="filterByMachine(this.value)">
+            </div>
+            <div>
+                <label style="font-size:11px; color:#777; display:block; margin-bottom:2px;">タスク検索</label>
+                <input type="text" id="task_search" placeholder="タスク名を入力..." style="width:100%; padding:3px 6px; border:1px solid #ccc; border-radius:3px; font-size:12px; box-sizing:border-box;" oninput="filterByTaskName(this.value)">
+            </div>
+            <div>
+                <label style="font-size:11px; color:#777; display:block; margin-bottom:2px;">担当検索</label>
+                <input type="text" id="owner_search" placeholder="名前を入力..." autocomplete="off" style="width:100%; padding:3px 6px; border:1px solid #ccc; border-radius:3px; font-size:12px; box-sizing:border-box;" oninput="if(!this.value.includes('@'))filterByOwner(this.value)">
+                <button id="unassigned_filter_btn" class="filter-btn" onclick="toggleUnassignedFilter()" style="margin-top:5px; font-size:12px; width:100%;">⚠️ 担当未定</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== 新規受注モーダル ===== -->
+    <div id="new-project-modal-overlay" onclick="closeNewProjectModal(event)">
+        <div id="new-project-modal">
+            <div id="new-project-modal-header">
+                <span>新規受注</span>
+                <button onclick="closeNewProjectModal()" style="background:none; border:none; color:#fff; font-size:16px; cursor:pointer; line-height:1;">✕</button>
+            </div>
+            <div id="new-project-modal-body">
+                <div>
+                    <label>工事番号</label>
+                    <input type="text" id="project_number" placeholder="例: 3001">
+                </div>
+                <div>
+                    <label>客先名</label>
+                    <input type="text" id="customer_name_input" placeholder="客先名">
+                </div>
+                <div>
+                    <label>工事名</label>
+                    <input type="text" id="project_details_input" placeholder="工事名">
+                </div>
+                <div>
+                    <label>営業担当</label>
+                    <select id="sales_person_input" style="width:100%; padding:4px 6px; border:1px solid #ccc; border-radius:4px; font-size:13px;">
+                        <option value="">選択してください</option>
+                        <option value="専務">専務</option>
+                        <option value="銭">銭</option>
+                        <option value="麻生">麻生</option>
+                        <option value="原田">原田</option>
+                        <option value="岡本">岡本</option>
+                        <option value="津村">津村</option>
+                        <option value="前川">前川</option>
+                        <option value="池田">池田</option>
+                        <option value="展久">展久</option>
+                        <option value="陳">陳</option>
+                    </select>
+                </div>
+                <div>
+                    <label>受注日</label>
+                    <input type="date" id="order_date">
+                </div>
+                <div>
+                    <label>出荷日</label>
+                    <input type="date" id="shipping_date">
+                </div>
+                <div>
+                    <label>仕様書フォルダURL</label>
+                    <input type="url" id="spec_folder_url_input" placeholder="SharePointフォルダURL（任意）">
+                </div>
+            </div>
+            <div id="new-project-modal-footer">
+                <button onclick="closeNewProjectModal()" style="padding:5px 14px; border:1px solid #ccc; border-radius:4px; cursor:pointer; font-size:12px; background:#fff;">キャンセル</button>
+                <button class="btn-add" onclick="addProjectFromTemplate()">追加</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== 保存失敗モーダル ===== -->
+    <div id="save-error-modal-overlay">
+        <div id="save-error-modal">
+            <div id="save-error-modal-header">⚠ 保存失敗</div>
+            <div id="save-error-modal-body">
+                <p id="save-error-modal-msg"></p>
+                <p style="font-size:12px; color:#666; margin-top:8px;">該当タスクの内容は変更前の値に戻されました。</p>
+            </div>
+            <div id="save-error-modal-footer">
+                <button id="save-error-modal-ok" onclick="document.getElementById('save-error-modal-overlay').classList.remove('visible')">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="kanryo-modal-overlay" onclick="closeKanryoModal(event)">
+        <div id="kanryo-modal">
+            <div id="kanryo-modal-header">
+                <span>完了済み工事番号</span>
+                <button id="kanryo-close-btn" onclick="closeKanryoModal()">✕</button>
+            </div>
+            <div id="kanryo-modal-tabs">
+                <div class="kanryo-tab active" id="kanryo-tab-kanri" onclick="switchKanryoTab('kanri')">管理</div>
+                <div class="kanryo-tab" id="kanryo-tab-ichiran" onclick="switchKanryoTab('ichiran')">一覧</div>
+            </div>
+            <div id="kanryo-modal-body"></div>
+        </div>
+    </div>
+
+<!-- ===== パスワード設定ダイアログ ===== -->
+<div id="setpw_overlay">
+    <div id="setpw_dialog">
+        <h2>パスワードを設定してください</h2>
+        <p>初回ログイン用パスワードを設定します</p>
+        <input type="password" id="setpw_pw1" placeholder="新しいパスワード（8文字以上）">
+        <input type="password" id="setpw_pw2" placeholder="パスワードを再入力"
+               onkeydown="if(event.key==='Enter') doSetPassword()">
+        <div id="setpw_error"></div>
+        <button id="setpw_btn_submit" onclick="doSetPassword()">パスワードを設定する</button>
+    </div>
+</div>
+
+<!-- ===== ログインダイアログ ===== -->
+<div id="login_overlay">
+    <div id="login_dialog">
+        <h2>工事工程表 ログイン</h2>
+        <input type="email" id="login_email" placeholder="メールアドレス" autocomplete="email">
+        <input type="password" id="login_password" placeholder="パスワード" autocomplete="current-password"
+               onkeydown="if(event.key==='Enter') doLogin()">
+        <div id="login_error"></div>
+        <button id="login_btn_submit" onclick="doLogin()">ログイン</button>
+        <button id="login_btn_cancel" onclick="closeLoginDialog()">キャンセル</button>
+    </div>
+</div>
+
+<!-- コピー項目選択モーダル -->
+<div id="copy-fields-overlay">
+    <div id="copy-fields-dialog">
+        <h3>コピーする項目を選択</h3>
+        <div id="copy-fields-list"></div>
+        <div class="dialog-btns">
+            <button class="btn-confirm-cancel" id="copy-fields-cancel-btn">キャンセル</button>
+            <button class="btn-confirm-copy" id="copy-fields-ok-btn">コピー実行</button>
+        </div>
+    </div>
+</div>
+
+
+<!-- 更新通知バナー（閲覧者向け・5秒で自動消去） -->
+<div id="update-banner" style="display:none;">
+    <span id="update-banner-msg">🔔 工程表が更新されました</span>
+</div>
+
+<!-- 削除確認モーダル -->
+<div id="delete-confirm-overlay">
+    <div id="delete-confirm-dialog">
+        <h3>タスクの削除</h3>
+        <p id="delete-confirm-msg"></p>
+        <div class="dialog-btns">
+            <button class="btn-confirm-cancel" id="delete-confirm-cancel-btn">キャンセル</button>
+            <button class="btn-confirm-delete" id="delete-confirm-ok-btn">削除する</button>
+        </div>
+    </div>
+</div>
+
+<!-- ローディングオーバーレイ -->
+<div id="loading-overlay" class="visible">
+    <div class="loading-spinner">
+        <div></div><div></div><div></div><div></div>
+        <div></div><div></div><div></div><div></div>
+    </div>
+    <span class="loading-label">Loading</span>
+</div>
+
+<!-- ヘルプモード コンテナ -->
+<div id="help_tips_container"></div>
+
+<!-- 操作マニュアルボタン（ヒント表示中のみ表示） -->
+<button id="guide_btn" onclick="window.open('guide.html', '_blank')" title="操作マニュアルを開く" style="display:none;">📖 操作マニュアルを開く</button>
+
+<!-- 同期履歴モーダル -->
+<div id="sync-log-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:9000;" onclick="closeSyncLogModal(event)">
+    <div id="sync-log-modal" style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:#fff; border-radius:6px; box-shadow:0 4px 20px rgba(0,0,0,0.3); width:980px; max-width:96vw; height:80vh; display:flex; flex-direction:column; overflow:hidden;">
+        <div id="sync-log-modal-header" style="flex-shrink:0;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;background:#fff;">
+            <span style="font-size:14px; font-weight:bold;">📋 更新履歴（過去1ヶ月）</span>
+            <button onclick="closeSyncLogModal()" style="background:none; border:none; font-size:18px; cursor:pointer; color:#666;">✕</button>
+        </div>
+        <div id="sync-log-content" style="overflow-y:auto; overflow-x:auto; min-height:0; margin:0; padding:0 16px 12px 16px; flex:1; font-size:13px; background:#fff; isolation:isolate;">
+            <div style="color:#999; text-align:center; padding:20px;">読み込み中...</div>
+        </div>
+    </div>
+</div>
+
+    <!-- ユニット別工程モーダル -->
+    <div id="unit-detail-overlay" onclick="closeUnitDetailModal(event)">
+        <div id="unit-detail-modal">
+            <div id="unit-detail-modal-header">
+                <span id="unit-detail-modal-title">ユニット別工程</span>
+                <button class="unit-detail-close-btn" onclick="closeUnitDetailModal()">✕</button>
+            </div>
+            <div id="unit-detail-filter-bar"></div>
+            <div id="unit-detail-gantt-container"></div>
+        </div>
+    </div>
+
+    <script src="gantt-setup.js"></script>
+    <script src="gantt-events.js"></script>
+    <script src="gantt-resource.js"></script>
+    <script src="gantt-app.js"></script>
+    <script src="gantt-ui.js"></script>
+</body>

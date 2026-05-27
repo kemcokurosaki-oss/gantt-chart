@@ -1,0 +1,228 @@
+
+// ===== ユニット別工程モーダル（Gantt表示） =====
+(function() {
+    'use strict';
+    var _uGantt       = null;   // 2つ目のGanttインスタンス
+    var _uData        = [];     // 現在表示中の全タスク
+
+    window.openUnitDetail = function(taskId) {
+        var task;
+        try { task = gantt.getTask(taskId); } catch(e) { return; }
+        if (!task) return;
+        var pno = String(task.project_number || '').trim();
+        if (!pno) { alert("工事番号が見つかりません"); return; }
+
+        var targets = ["出図＆部品手配", "組立全体"];
+        var tasks = (window.allTasks || []).filter(function(t) {
+            return String(t.project_number || '').trim() === pno
+                && targets.indexOf(String(t.parent_name || '').trim()) !== -1
+                && String(t.unit || '').trim() !== '';
+        });
+        if (!tasks.length) { alert("ユニットが設定されたタスクがありません"); return; }
+
+        _uData = tasks;
+
+        // 機械・ユニットの選択肢収集
+        var machines = [], units = [];
+        tasks.forEach(function(t) {
+            var m = String(t.machine || '').trim();
+            var u = String(t.unit   || '').trim();
+            if (m && machines.indexOf(m) === -1) machines.push(m);
+            if (u && units.indexOf(u)   === -1) units.push(u);
+        });
+        machines.sort(); units.sort();
+
+        document.getElementById('unit-detail-modal-title').textContent = 'ユニット別工程 — 工番: ' + pno;
+        _uBuildFilter(machines, units);
+        document.getElementById('unit-detail-overlay').style.display = 'flex';
+
+        // モーダル表示後（2フレーム後）にGanttを初期化／更新
+        requestAnimationFrame(function() {
+            requestAnimationFrame(function() { _uLoad(tasks); });
+        });
+    };
+
+    window.closeUnitDetailModal = function(e) {
+        if (e && e.target !== document.getElementById('unit-detail-overlay')) return;
+        document.getElementById('unit-detail-overlay').style.display = 'none';
+    };
+
+    window._unitModalFilter = function() {
+        var ms = document.getElementById('unit-detail-machine-sel');
+        var us = document.getElementById('unit-detail-unit-sel');
+        var sm = ms ? ms.value : '', su = us ? us.value : '';
+        var filtered = _uData.filter(function(t) {
+            return (!sm || String(t.machine || '').trim() === sm)
+                && (!su || String(t.unit    || '').trim() === su);
+        });
+        if (_uGantt) _uLoad(filtered);
+    };
+
+    // フィルターバー構築
+    function _uBuildFilter(machines, units) {
+        var html = '<span style="font-size:12px;color:#555;font-weight:bold;">絞り込み</span>';
+        html += _mkSel('unit-detail-machine-sel', '機械', machines);
+        html += _mkSel('unit-detail-unit-sel', 'ユニット', units);
+        document.getElementById('unit-detail-filter-bar').innerHTML = html;
+    }
+    function _mkSel(id, label, opts) {
+        var h = '<label style="font-size:12px;display:flex;align-items:center;gap:4px;">'
+            + label + '<select id="' + id + '" onchange="_unitModalFilter()" style="font-size:12px;">'
+            + '<option value="">すべて</option>';
+        opts.forEach(function(o) { h += '<option value="' + _esc(o) + '">' + _esc(o) + '</option>'; });
+        return h + '</select></label>';
+    }
+
+    // Ganttインスタンスの初期化（初回のみ）
+    function _uGetOrCreate() {
+        if (_uGantt) return _uGantt;
+        if (typeof Gantt === 'undefined' || typeof Gantt.getGanttInstance !== 'function') {
+            console.warn('[UnitGantt] Gantt.getGanttInstance が利用できません');
+            return null;
+        }
+        var g = Gantt.getGanttInstance();
+
+        g.config.readonly          = true;
+        g.config.row_height        = 27;
+        g.config.bar_height        = 20;
+        g.config.scale_height      = 52;
+        g.config.open_tree_initially = true;
+        g.config.drag_move         = false;
+        g.config.drag_resize       = false;
+        g.config.drag_links        = false;
+        g.config.show_links        = false;
+        g.config.indent            = 12;
+        g.config.min_column_width  = 20;
+        g.config.grid_width        = 390;
+
+        var fmt = g.date.date_to_str("%y/%m/%d");
+
+        g.config.columns = [
+            { name: "text",       label: "タスク名", width: 180, tree: true },
+            { name: "owner",      label: "担当",     width: 65,  align: "center",
+                template: function(obj) { return obj.$virtual ? "" : (obj.owner || ""); } },
+            { name: "start_date", label: "開始日",   width: 72,  align: "center",
+                template: function(t)  { return t.$virtual ? "" : fmt(t.start_date); } },
+            { name: "end_date",   label: "終了日",   width: 72,  align: "center",
+                template: function(t) {
+                    if (t.$virtual) return "";
+                    var d = g.calculateEndDate(t.start_date, t.duration);
+                    d.setDate(d.getDate() - 1);
+                    return fmt(d);
+                }}
+        ];
+
+        g.config.scales = [
+            { unit: "month", step: 1, format: "%Y年%m月" },
+            { unit: "week",  step: 1, format: "%d" }
+        ];
+
+        // タスクバーの色（工程別）
+        g.templates.task_class = function(start, end, task) {
+            var p = String(task.phase || '');
+            if (p === '出図＆部品手配') return 'ubar-drawing';
+            if (p === '組立全体')       return 'ubar-assembly';
+            return '';
+        };
+
+        // グリッド行の背景色（階層別）
+        g.templates.grid_row_class = function(start, end, task) {
+            if (task.$level === 0) return 'ugrow-machine';
+            if (task.$level === 1) return 'ugrow-unit';
+            return 'ugrow-task';
+        };
+
+        g.init('unit-detail-gantt-container');
+        _uGantt = g;
+        return g;
+    }
+
+    // データをGanttに読み込む
+    function _uLoad(tasks) {
+        var g = _uGetOrCreate();
+        if (!g) return;
+
+        var PHASE_ORDER = { "出図＆部品手配": 0, "組立全体": 1 };
+        var str2d = g.date.str_to_date("%Y-%m-%d");
+
+        function toD(v) {
+            if (!v) return null;
+            if (v instanceof Date) return new Date(v.getTime());
+            try { return str2d(String(v).substring(0, 10)); } catch(e2) { return null; }
+        }
+
+        // 機械 → ユニット でグループ化
+        var mMap = {};
+        tasks.forEach(function(t) {
+            var m = String(t.machine || '').trim() || '（機械なし）';
+            var u = String(t.unit   || '').trim();
+            if (!mMap[m])    mMap[m] = {};
+            if (!mMap[m][u]) mMap[m][u] = [];
+            mMap[m][u].push(t);
+        });
+
+        var data = [], cnt = 1;
+        var gMin = null, gMax = null;
+        var projectType = (g.config.types && g.config.types.project)
+            ? g.config.types.project : 'project';
+
+        Object.keys(mMap).sort().forEach(function(mName) {
+            var mId = 'um' + cnt++;
+            // 機械行（project型：子タスクから日付を自動算出）
+            data.push({ id: mId, text: mName, parent: 0, type: projectType, open: true });
+
+            Object.keys(mMap[mName]).sort().forEach(function(uName) {
+                var uId = 'uu' + cnt++;
+                // ユニット行（project型）
+                data.push({ id: uId, text: uName, parent: mId, type: projectType, open: true });
+
+                // タスク：工程順 → 開始日順 でソート
+                var sorted = mMap[mName][uName].slice().sort(function(a, b) {
+                    var pa = PHASE_ORDER[String(a.parent_name || '')] !== undefined
+                        ? PHASE_ORDER[String(a.parent_name || '')] : 99;
+                    var pb = PHASE_ORDER[String(b.parent_name || '')] !== undefined
+                        ? PHASE_ORDER[String(b.parent_name || '')] : 99;
+                    if (pa !== pb) return pa - pb;
+                    var da = toD(a.start_date) || new Date(0);
+                    var db = toD(b.start_date) || new Date(0);
+                    return da - db;
+                });
+
+                sorted.forEach(function(t) {
+                    var sd = toD(t.start_date);
+                    if (!sd) return;
+                    var dur = Math.max(Number(t.duration) || 1, 1);
+                    var ed = g.calculateEndDate(sd, dur);
+                    if (!gMin || sd < gMin) gMin = new Date(sd);
+                    if (!gMax || ed > gMax) gMax = new Date(ed);
+                    data.push({
+                        id:         'ut' + cnt++,
+                        text:       String(t.text       || ''),
+                        parent:     uId,
+                        start_date: sd,
+                        duration:   dur,
+                        owner:      String(t.owner      || ''),
+                        phase:      String(t.parent_name || '')
+                    });
+                });
+            });
+        });
+
+        if (!gMin) { g.clearAll(); return; }
+
+        // 表示範囲：月単位でパディング
+        var s = new Date(gMin); s.setDate(1);
+        var e = new Date(gMax); e.setMonth(e.getMonth() + 1); e.setDate(1);
+        g.config.start_date = s;
+        g.config.end_date   = e;
+
+        g.clearAll();
+        g.parse({ data: data, links: [] });
+    }
+
+    function _esc(s) {
+        return String(s)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+})();
