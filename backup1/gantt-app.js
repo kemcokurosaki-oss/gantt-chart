@@ -3151,7 +3151,8 @@
             });
             sh += '</div><div class="ugantt-scale-row">';
             days.forEach(function(d) {
-                var cls = 'ugantt-sc-day' + ((d.getDay() === 0 || d.getDay() === 6) ? ' ugantt-sc-day-wk' : '');
+                var dow = d.getDay();
+                var cls = 'ugantt-sc-day' + (dow === 6 ? ' ugantt-sc-day-sat' : dow === 0 ? ' ugantt-sc-day-sun' : '');
                 sh += '<div class="' + cls + '" style="width:' + PX_DAY + 'px;">' + d.getDate() + '</div>';
             });
             sh += '</div></div>';

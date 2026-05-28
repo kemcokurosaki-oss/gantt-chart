@@ -1839,19 +1839,19 @@
         .ugantt-tl-panel { flex: 1; overflow: auto; position: relative; min-width: 0; background: #fafafa; }
         .ugantt-scale {
             position: sticky; top: 0; z-index: 5;
-            background: #fff; border-bottom: 2px solid #b0bec5;
+            background: #2c3e50; border-bottom: 2px solid #1a252f;
         }
         .ugantt-scale-row { display: flex; height: 26px; }
         .ugantt-sc-month {
             flex-shrink: 0; text-align: center; font-size: 11px; font-weight: bold;
-            border-right: 1px solid #ccc; display: flex; align-items: center;
-            justify-content: center; background: #f5f5f5;
+            border-right: 1px solid #3d5166; display: flex; align-items: center;
+            justify-content: center; background: #2c3e50; color: #fff;
             overflow: hidden; white-space: nowrap;
         }
         .ugantt-sc-week {
-            flex-shrink: 0; text-align: center; font-size: 10px; color: #666;
-            border-right: 1px solid #e8e8e8; display: flex; align-items: center;
-            justify-content: center; background: #fafafa;
+            flex-shrink: 0; text-align: center; font-size: 10px; color: #b0c4d4;
+            border-right: 1px solid #3d5166; display: flex; align-items: center;
+            justify-content: center; background: #37526b;
         }
         .ugantt-bars { position: relative; }
         .ugantt-bar-row {
@@ -1905,8 +1905,9 @@
         /* 日単位スケールセル */
         .ugantt-sc-day {
             display: inline-flex; align-items: center; justify-content: center;
-            height: 26px; font-size: 10px; color: #444;
-            border-right: 1px solid #dde; box-sizing: border-box;
-            flex-shrink: 0; overflow: hidden;
+            height: 26px; font-size: 10px; color: #b0c4d4;
+            border-right: 1px solid #3d5166; box-sizing: border-box;
+            flex-shrink: 0; overflow: hidden; background: #2c3e50;
         }
-        .ugantt-sc-day-wk { background: #f0f0f0; color: #aaa; }
+        .ugantt-sc-day-sat { color: #90caf9; }
+        .ugantt-sc-day-sun { color: #ef9a9a; }
