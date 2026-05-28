@@ -1842,6 +1842,7 @@
             background: #2c3e50; border-bottom: 2px solid #1a252f;
         }
         .ugantt-scale-row { display: flex; height: 26px; }
+        .ugantt-scale-row:first-child { border-bottom: 1px solid #3d5166; }
         .ugantt-sc-month {
             flex-shrink: 0; text-align: center; font-size: 11px; font-weight: bold;
             border-right: 1px solid #3d5166; display: flex; align-items: center;
@@ -1851,7 +1852,7 @@
         .ugantt-sc-week {
             flex-shrink: 0; text-align: center; font-size: 10px; color: #b0c4d4;
             border-right: 1px solid #3d5166; display: flex; align-items: center;
-            justify-content: center; background: #37526b;
+            justify-content: center; background: #2c3e50;
         }
         .ugantt-bars { position: relative; }
         .ugantt-bar-row {
