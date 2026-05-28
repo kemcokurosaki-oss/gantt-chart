@@ -1814,7 +1814,8 @@
         .ugantt-hcell {
             flex-shrink: 0; color: #fff; padding: 0 5px; font-size: 12px;
             border-right: 1px solid #3d5166; display: flex; align-items: center;
-            overflow: hidden; white-space: nowrap;
+            justify-content: center; overflow: hidden; white-space: nowrap;
+            box-sizing: border-box;
         }
         .ugantt-grid-body {
             flex: 1; overflow-y: scroll; overflow-x: hidden;

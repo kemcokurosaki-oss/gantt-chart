@@ -2931,7 +2931,7 @@
 (function() {
     'use strict';
     var _uData    = [];      // 現在保持している全対象タスク
-    var _viewMode = 'week';  // 'week' | 'day'
+    var _viewMode = 'day';   // 'week' | 'day'
 
     // ────────────────────────────────────────
     //  公開API
@@ -2962,7 +2962,7 @@
         });
         machines.sort(); units.sort();
 
-        document.getElementById('unit-detail-modal-title').textContent = 'ユニット別工程 — 工番: ' + pno;
+        document.getElementById('unit-detail-modal-title').textContent = pno + ' ユニット別工程';
         _buildFilterBar(machines, units);
         document.getElementById('unit-detail-overlay').style.display = 'flex';
 
@@ -3005,7 +3005,6 @@
         var html = '<button id="ugantt-btn-day"  class="ugantt-view-btn' + dActive + '" onclick="_unitModalSetView(\'day\')">日</button>'
             + '<button id="ugantt-btn-week" class="ugantt-view-btn' + wActive + '" onclick="_unitModalSetView(\'week\')">週</button>'
             + '<span style="font-size:12px;color:#bbb;margin:0 4px;">|</span>'
-            + '<span style="font-size:12px;color:#555;font-weight:bold;">絞り込み</span>'
             + _sel('unit-detail-machine-sel', '機械', machines)
             + _sel('unit-detail-unit-sel',    'ユニット', units);
         document.getElementById('unit-detail-filter-bar').innerHTML = html;
@@ -3113,7 +3112,7 @@
         var ROW_H   = 27;
         var SCALE_H = 52;
         var fmt     = gantt.date.date_to_str("%y/%m/%d");
-        var GN = 200, GO = 65, GS = 72, GE = 72;
+        var GN = 150, GO = 115, GS = 72, GE = 72;
 
         var MS_DAY  = 24 * 3600000;
         var tStart  = new Date(gMin.getFullYear(), gMin.getMonth(), 1);
