@@ -2930,7 +2930,8 @@
 // ===== ユニット別工程モーダル（カスタムGantt表示） =====
 (function() {
     'use strict';
-    var _uData = [];   // 現在保持している全対象タスク
+    var _uData    = [];      // 現在保持している全対象タスク
+    var _viewMode = 'week';  // 'week' | 'day'
 
     // ────────────────────────────────────────
     //  公開API
@@ -2965,7 +2966,6 @@
         _buildFilterBar(machines, units);
         document.getElementById('unit-detail-overlay').style.display = 'flex';
 
-        // 2フレーム待ってから描画（モーダルのサイズ確定後）
         requestAnimationFrame(function() {
             requestAnimationFrame(function() { _render(tasks); });
         });
@@ -2986,11 +2986,26 @@
         }));
     };
 
+    window._unitModalSetView = function(mode) {
+        if (_viewMode === mode) return;
+        _viewMode = mode;
+        var wb = document.getElementById('ugantt-btn-week');
+        var db = document.getElementById('ugantt-btn-day');
+        if (wb) wb.classList.toggle('active', mode === 'week');
+        if (db) db.classList.toggle('active', mode === 'day');
+        window._unitModalFilter();
+    };
+
     // ────────────────────────────────────────
     //  フィルターバー
     // ────────────────────────────────────────
     function _buildFilterBar(machines, units) {
-        var html = '<span style="font-size:12px;color:#555;font-weight:bold;">絞り込み</span>'
+        var wActive = _viewMode === 'week' ? ' active' : '';
+        var dActive = _viewMode === 'day'  ? ' active' : '';
+        var html = '<button id="ugantt-btn-day"  class="ugantt-view-btn' + dActive + '" onclick="_unitModalSetView(\'day\')">日</button>'
+            + '<button id="ugantt-btn-week" class="ugantt-view-btn' + wActive + '" onclick="_unitModalSetView(\'week\')">週</button>'
+            + '<span style="font-size:12px;color:#bbb;margin:0 4px;">|</span>'
+            + '<span style="font-size:12px;color:#555;font-weight:bold;">絞り込み</span>'
             + _sel('unit-detail-machine-sel', '機械', machines)
             + _sel('unit-detail-unit-sel',    'ユニット', units);
         document.getElementById('unit-detail-filter-bar').innerHTML = html;
@@ -3032,7 +3047,6 @@
     function _buildRowData(tasks) {
         var PHASE_ORDER = { "出図＆部品手配": 0, "組立全体": 1 };
 
-        // 機械→ユニットでグループ化
         var mMap = {};
         tasks.forEach(function(t) {
             var m = String(t.machine || '').trim() || '（機械なし）';
@@ -3069,7 +3083,6 @@
                     try   { ed = gantt.calculateEndDate(new Date(sd), dur); }
                     catch (e) { ed = new Date(sd.getTime() + dur * 24 * 3600000); }
 
-                    // 集計：ユニット行・機械行に日程を反映
                     if (!rows[uIdx].sd || sd < rows[uIdx].sd) rows[uIdx].sd = new Date(sd);
                     if (!rows[uIdx].ed || ed > rows[uIdx].ed) rows[uIdx].ed = new Date(ed);
                     if (!rows[mIdx].sd || sd < rows[mIdx].sd) rows[mIdx].sd = new Date(sd);
@@ -3093,65 +3106,115 @@
     }
 
     // ────────────────────────────────────────
-    //  HTML生成
+    //  HTML生成（週/日 モード対応）
     // ────────────────────────────────────────
     function _buildHtml(rd) {
         var rows = rd.rows, gMin = rd.gMin, gMax = rd.gMax;
+        var ROW_H   = 27;
+        var SCALE_H = 52;
+        var fmt     = gantt.date.date_to_str("%y/%m/%d");
+        var GN = 200, GO = 65, GS = 72, GE = 72;
 
-        var ROW_H       = 27;
-        var SCALE_H     = 52;   // 26px × 2行
-        var PX_PER_WEEK = 22;
-        var MS_WEEK     = 7 * 24 * 3600000;
+        var MS_DAY  = 24 * 3600000;
+        var tStart  = new Date(gMin.getFullYear(), gMin.getMonth(), 1);
+        var tEnd, gridPx;
 
-        // タイムライン範囲を月頭・月末に揃える
-        var tStart = new Date(gMin.getFullYear(), gMin.getMonth(), 1);
-        var tEnd   = new Date(gMax.getFullYear(), gMax.getMonth() + 2, 1);
+        var totalW, getX, scaleHtml;
 
-        // タイムラインの基準日（月曜始まり）
-        var fMon = new Date(tStart);
-        var dow  = fMon.getDay();
-        fMon.setDate(fMon.getDate() - (dow === 0 ? 6 : dow - 1));
+        if (_viewMode === 'day') {
+            // ── 日単位 ──
+            tEnd   = new Date(gMax.getFullYear(), gMax.getMonth() + 1, 1); // 翌月初まで
+            var PX_DAY = 18;
+            gridPx = PX_DAY;
+            var days = [], dc = new Date(tStart);
+            while (dc < tEnd) { days.push(new Date(dc)); dc.setDate(dc.getDate() + 1); }
+            totalW = days.length * PX_DAY;
 
-        // 週カラムの開始日リスト
-        var weeks = [], wk = new Date(fMon);
-        while (wk < tEnd) { weeks.push(new Date(wk)); wk.setDate(wk.getDate() + 7); }
-        var totalW = weeks.length * PX_PER_WEEK;
+            getX = function(d) {
+                return Math.max(0, Math.round((d.getTime() - tStart.getTime()) / MS_DAY * PX_DAY));
+            };
 
-        // x座標計算
-        function getX(d) {
-            return Math.max(0, Math.round((d.getTime() - fMon.getTime()) / MS_WEEK * PX_PER_WEEK));
+            // 月集計
+            var dMonths = [], dCurM = -1, dCurY = -1, dFrom = 0;
+            days.forEach(function(d, i) {
+                var mo = d.getMonth(), yr = d.getFullYear();
+                if (mo !== dCurM || yr !== dCurY) {
+                    if (dCurM >= 0) dMonths.push({ yr: dCurY, mo: dCurM, cnt: i - dFrom });
+                    dCurM = mo; dCurY = yr; dFrom = i;
+                }
+            });
+            dMonths.push({ yr: dCurY, mo: dCurM, cnt: days.length - dFrom });
+
+            var sh = '<div class="ugantt-scale" style="width:' + totalW + 'px;">';
+            sh += '<div class="ugantt-scale-row">';
+            dMonths.forEach(function(m) {
+                sh += '<div class="ugantt-sc-month" style="width:' + (m.cnt * PX_DAY) + 'px;">' + m.yr + '年' + (m.mo + 1) + '月</div>';
+            });
+            sh += '</div><div class="ugantt-scale-row">';
+            days.forEach(function(d) {
+                var cls = 'ugantt-sc-day' + ((d.getDay() === 0 || d.getDay() === 6) ? ' ugantt-sc-day-wk' : '');
+                sh += '<div class="' + cls + '" style="width:' + PX_DAY + 'px;">' + d.getDate() + '</div>';
+            });
+            sh += '</div></div>';
+            scaleHtml = sh;
+
+        } else {
+            // ── 週単位 ──
+            tEnd   = new Date(gMax.getFullYear(), gMax.getMonth() + 2, 1); // 翌月末まで（翌々月初 = 翌月末）
+            var PX_WEEK  = 22;
+            gridPx = PX_WEEK;
+            var MS_WEEK  = 7 * MS_DAY;
+            var fMon = new Date(tStart);
+            var fdow = fMon.getDay();
+            fMon.setDate(fMon.getDate() - (fdow === 0 ? 6 : fdow - 1));
+
+            var weeks = [], wk = new Date(fMon);
+            while (wk < tEnd) { weeks.push(new Date(wk)); wk.setDate(wk.getDate() + 7); }
+            totalW = weeks.length * PX_WEEK;
+
+            getX = function(d) {
+                return Math.max(0, Math.round((d.getTime() - fMon.getTime()) / MS_WEEK * PX_WEEK));
+            };
+
+            var wMonths = [], wCurM = -1, wCurY = -1, wFrom = 0;
+            weeks.forEach(function(w, i) {
+                var mo = w.getMonth(), yr = w.getFullYear();
+                if (mo !== wCurM || yr !== wCurY) {
+                    if (wCurM >= 0) wMonths.push({ yr: wCurY, mo: wCurM, from: wFrom, to: i });
+                    wCurM = mo; wCurY = yr; wFrom = i;
+                }
+            });
+            wMonths.push({ yr: wCurY, mo: wCurM, from: wFrom, to: weeks.length });
+
+            var ws = '<div class="ugantt-scale" style="width:' + totalW + 'px;">';
+            ws += '<div class="ugantt-scale-row">';
+            wMonths.forEach(function(m) {
+                ws += '<div class="ugantt-sc-month" style="width:' + ((m.to - m.from) * PX_WEEK) + 'px;">' + m.yr + '年' + (m.mo + 1) + '月</div>';
+            });
+            ws += '</div><div class="ugantt-scale-row">';
+            weeks.forEach(function(w) {
+                ws += '<div class="ugantt-sc-week" style="width:' + PX_WEEK + 'px;">' + w.getDate() + '</div>';
+            });
+            ws += '</div></div>';
+            scaleHtml = ws;
         }
 
-        // 月ヘッダー（何週分かを計算）
-        var months = [], curM = -1, curY = -1, mFrom = 0;
-        weeks.forEach(function(w, i) {
-            var mo = w.getMonth(), yr = w.getFullYear();
-            if (mo !== curM || yr !== curY) {
-                if (curM >= 0) months.push({ yr: curY, mo: curM, from: mFrom, to: i });
-                curM = mo; curY = yr; mFrom = i;
-            }
-        });
-        months.push({ yr: curY, mo: curM, from: mFrom, to: weeks.length });
-
-        var fmt = gantt.date.date_to_str("%y/%m/%d");
-
-        // グリッド列幅
-        var GN = 200, GO = 65, GS = 72, GE = 72;
+        var MAJOR_COLOR = {
+            '設計': 'task-blue', '製管': 'task-green', '品証': 'task-green',
+            '組立': 'task-yellow', '電装': 'task-purple', '操業': 'task-red',
+            '電技': 'task-teal', '明石': 'task-brown', '営業': 'task-orange'
+        };
 
         var h = '<div class="ugantt-wrap">';
 
-        // ── グリッドパネル ──
+        // グリッドパネル
         h += '<div class="ugantt-grid-panel">';
-
-        // ヘッダー（スケールと同じ高さ）
         h += '<div class="ugantt-grid-head" style="height:' + SCALE_H + 'px;">';
         h += '<div class="ugantt-hcell" style="width:' + GN + 'px;">タスク名</div>';
         h += '<div class="ugantt-hcell" style="width:' + GO + 'px;">担当</div>';
         h += '<div class="ugantt-hcell" style="width:' + GS + 'px;">開始日</div>';
         h += '<div class="ugantt-hcell" style="width:' + GE + 'px;">終了日</div>';
         h += '</div>';
-
-        // ボディ
         h += '<div class="ugantt-grid-body" id="ugantt-gbody">';
         rows.forEach(function(r) {
             var cls = 'ugantt-row' + (r.type === 'machine' ? ' ugrow-machine' : r.type === 'unit' ? ' ugrow-unit' : '');
@@ -3169,43 +3232,19 @@
             h += '<div class="ugantt-gcell ugantt-gcell-center" style="width:' + GE + 'px;">' + edStr + '</div>';
             h += '</div>';
         });
-        h += '</div>'; // grid-body
-        h += '</div>'; // grid-panel
+        h += '</div></div>'; // grid-body / grid-panel
 
-        // ── タイムラインパネル ──
-        h += '<div class="ugantt-tl-panel" id="ugantt-tl">';
-
-        // スケールヘッダー（sticky）
-        h += '<div class="ugantt-scale" style="width:' + totalW + 'px;">';
-        // 月行
-        h += '<div class="ugantt-scale-row">';
-        months.forEach(function(m) {
-            var w = (m.to - m.from) * PX_PER_WEEK;
-            h += '<div class="ugantt-sc-month" style="width:' + w + 'px;">' + m.yr + '年' + (m.mo + 1) + '月</div>';
-        });
-        h += '</div>';
-        // 週行
-        h += '<div class="ugantt-scale-row">';
-        weeks.forEach(function(w) {
-            h += '<div class="ugantt-sc-week" style="width:' + PX_PER_WEEK + 'px;">' + w.getDate() + '</div>';
-        });
-        h += '</div>';
-        h += '</div>'; // scale
-
-        // バーエリア
+        // タイムラインパネル
+        h += '<div class="ugantt-tl-panel" id="ugantt-tl" style="max-width:' + totalW + 'px;">';
+        h += scaleHtml;
         h += '<div class="ugantt-bars" style="width:' + totalW + 'px;">';
         rows.forEach(function(r) {
             var rowCls = 'ugantt-bar-row' + (r.type === 'machine' ? ' ugrow-machine' : r.type === 'unit' ? ' ugrow-unit' : '');
             h += '<div class="' + rowCls + '" style="height:' + ROW_H + 'px;">';
             if (r.sd && r.ed) {
-                var bL  = getX(r.sd);
-                var bW  = Math.max(getX(r.ed) - bL, 4);
+                var bL   = getX(r.sd);
+                var bW   = Math.max(getX(r.ed) - bL, 4);
                 var bTop = Math.floor((ROW_H - 20) / 2);
-                var MAJOR_COLOR = {
-                    '設計': 'task-blue', '製管': 'task-green', '品証': 'task-green',
-                    '組立': 'task-yellow', '電装': 'task-purple', '操業': 'task-red',
-                    '電技': 'task-teal', '明石': 'task-brown', '営業': 'task-orange'
-                };
                 var bCls = 'ugantt-bar';
                 if      (r.type === 'machine') bCls += ' ubar-machine';
                 else if (r.type === 'unit')    bCls += ' ubar-unit';
@@ -3216,10 +3255,7 @@
             }
             h += '</div>';
         });
-        h += '</div>'; // bars
-
-        h += '</div>'; // tl-panel
-        h += '</div>'; // wrap
+        h += '</div></div></div>'; // bars / tl-panel / wrap
 
         return h;
     }

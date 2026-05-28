@@ -1823,7 +1823,7 @@
         .ugantt-grid-body::-webkit-scrollbar { display: none; }
         .ugantt-row {
             display: flex; border-bottom: 1px solid #e0e0e0;
-            align-items: center; box-sizing: border-box;
+            align-items: center; box-sizing: border-box; background: #fafafa;
         }
         .ugantt-row.ugrow-machine { background: #eceff1; font-weight: bold; }
         .ugantt-row.ugrow-unit    { background: #f1f8e9; font-weight: bold; }
@@ -1835,7 +1835,7 @@
         }
         .ugantt-gcell-center { justify-content: center; }
         /* タイムラインパネル */
-        .ugantt-tl-panel { flex: 1; overflow: auto; position: relative; min-width: 0; }
+        .ugantt-tl-panel { flex: 1; overflow: auto; position: relative; min-width: 0; background: #fafafa; }
         .ugantt-scale {
             position: sticky; top: 0; z-index: 5;
             background: #fff; border-bottom: 2px solid #b0bec5;
@@ -1844,7 +1844,8 @@
         .ugantt-sc-month {
             flex-shrink: 0; text-align: center; font-size: 11px; font-weight: bold;
             border-right: 1px solid #ccc; display: flex; align-items: center;
-            justify-content: center; background: #f5f5f5; overflow: hidden;
+            justify-content: center; background: #f5f5f5;
+            overflow: hidden; white-space: nowrap;
         }
         .ugantt-sc-week {
             flex-shrink: 0; text-align: center; font-size: 10px; color: #666;
@@ -1854,7 +1855,7 @@
         .ugantt-bars { position: relative; }
         .ugantt-bar-row {
             position: relative; border-bottom: 1px solid #e0e0e0;
-            box-sizing: border-box;
+            box-sizing: border-box; background: #fafafa;
         }
         .ugantt-bar-row.ugrow-machine { background: #eceff1; }
         .ugantt-bar-row.ugrow-unit    { background: #f1f8e9; }
@@ -1888,3 +1889,23 @@
             font-family: inherit; line-height: 1.5; white-space: nowrap;
         }
         .unit-detail-btn:hover { background: #c8e6c9; }
+        /* 週/日 切り替えボタン */
+        .ugantt-view-btn {
+            padding: 3px 10px; font-size: 12px; cursor: pointer;
+            background: #fff; color: #555;
+            border: 1px solid #bbb; border-radius: 4px;
+            font-family: "メイリオ", Meiryo, sans-serif;
+            transition: background 0.15s, color 0.15s;
+        }
+        .ugantt-view-btn:hover { background: #e8f0fe; color: #1a56db; border-color: #1a56db; }
+        .ugantt-view-btn.active {
+            background: #1a56db; color: #fff; border-color: #1a56db; font-weight: bold;
+        }
+        /* 日単位スケールセル */
+        .ugantt-sc-day {
+            display: inline-flex; align-items: center; justify-content: center;
+            height: 26px; font-size: 10px; color: #444;
+            border-right: 1px solid #dde; box-sizing: border-box;
+            flex-shrink: 0; overflow: hidden;
+        }
+        .ugantt-sc-day-wk { background: #f0f0f0; color: #aaa; }
