@@ -3240,7 +3240,7 @@
         rows.forEach(function(r) {
             var rowCls = 'ugantt-bar-row' + (r.type === 'machine' ? ' ugrow-machine' : r.type === 'unit' ? ' ugrow-unit' : '');
             h += '<div class="' + rowCls + '" style="height:' + ROW_H + 'px;">';
-            if (r.sd && r.ed) {
+            if (r.sd && r.ed && r.type === 'task') {
                 var bL   = getX(r.sd);
                 var bW   = Math.max(getX(r.ed) - bL, 4);
                 var bTop = Math.floor((ROW_H - 20) / 2);
