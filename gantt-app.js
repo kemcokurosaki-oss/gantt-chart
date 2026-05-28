@@ -174,6 +174,12 @@
                 ? data.filter(t => t.task_type === 'business_trip' && t.is_archived !== true)
                 : [];
             if (data) data = data.filter(t => t.task_type !== 'business_trip');
+            // 操業工程表専用タスク（操業工程表で作成した planning/operation/field_trip）は全体工程表に表示しない
+            // 全体工程表で作成した操業タスク（task_type=null）と出張タスクはそのまま表示する
+            if (data) data = data.filter(t =>
+                !(String(t.major_item || '').trim() === '操業' &&
+                  ['planning', 'operation', 'field_trip'].includes(t.task_type))
+            );
             if (designTripData && designTripData.length > 0) {
                 // 全体工程表の既存タスクから工事番号→客先名/工事名のマップを作成
                 const projectInfoMap = {};
