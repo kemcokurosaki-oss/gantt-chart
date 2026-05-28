@@ -2088,8 +2088,12 @@
                 { key: 'project_number',   label: '工事番号を変更' },
             ];
             const _isDetailed = t => (t.is_detailed === true || String(t.is_detailed).toLowerCase() === "true" || String(t.is_detailed).toLowerCase() === "t" || String(t.is_detailed) === "1");
-            const prevMap = new Map(prevTasks.filter(t => !_isDetailed(t)).map(t => [String(t.id), t]));
-            const nextMap = new Map(nextTasks.filter(t => !_isDetailed(t)).map(t => [String(t.id), t]));
+            // 全体工程表の表示フィルターと同じ条件で除外：major_item='操業' かつ task_type が operation/planning/field_trip のタスクは履歴から除外
+            const _isOperationExcluded = t =>
+                String(t.major_item || '').trim() === '操業' &&
+                ['planning', 'operation', 'field_trip'].includes(String(t.task_type || '').toLowerCase());
+            const prevMap = new Map(prevTasks.filter(t => !_isDetailed(t) && !_isOperationExcluded(t)).map(t => [String(t.id), t]));
+            const nextMap = new Map(nextTasks.filter(t => !_isDetailed(t) && !_isOperationExcluded(t)).map(t => [String(t.id), t]));
             const rows = [];
 
             const makeRow = (task, desc) => ({
