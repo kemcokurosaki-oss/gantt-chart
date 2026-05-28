@@ -3152,7 +3152,9 @@
             sh += '</div><div class="ugantt-scale-row">';
             days.forEach(function(d) {
                 var dow = d.getDay();
-                var cls = 'ugantt-sc-day' + (dow === 6 ? ' ugantt-sc-day-sat' : dow === 0 ? ' ugantt-sc-day-sun' : '');
+                var ds = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+                var isHoliday = typeof holidaySet !== 'undefined' && holidaySet.has(ds);
+                var cls = 'ugantt-sc-day' + (dow === 6 ? ' ugantt-sc-day-sat' : (dow === 0 || isHoliday) ? ' ugantt-sc-day-sun' : '');
                 sh += '<div class="' + cls + '" style="width:' + PX_DAY + 'px;">' + d.getDate() + '</div>';
             });
             sh += '</div></div>';
