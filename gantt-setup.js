@@ -11,12 +11,20 @@
         // createClient呼び出し前にURLのtype情報を保存（Supabaseがhashを処理・クリアする前に取得）
         const _pageInitType = new URLSearchParams(window.location.hash.replace('#', '?')).get('type')
                            || new URLSearchParams(window.location.search).get('type');
+        // localStorage が Tracking Prevention でブロックされる場合のフォールバック
+        const _memStore = {};
+        const _authStorage = {
+            getItem:    k => { try { return localStorage.getItem(k); } catch(e) { return _memStore[k] ?? null; } },
+            setItem:    (k, v) => { try { localStorage.setItem(k, v); } catch(e) { _memStore[k] = v; } },
+            removeItem: k => { try { localStorage.removeItem(k); } catch(e) { delete _memStore[k]; } }
+        };
         const supabaseClient = supabase.createClient(S_URL, S_KEY, {
             auth: {
                 flowType: 'implicit',      // PKCEはfile://でiframeが使えないためimplicitに切り替え
                 persistSession: true,
                 detectSessionInUrl: true,  // パスワードリセット等のURL認証は引き続き使用
-                autoRefreshToken: true
+                autoRefreshToken: true,
+                storage: _authStorage
             }
         });
 
