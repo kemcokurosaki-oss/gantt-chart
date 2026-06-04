@@ -114,7 +114,7 @@ async function main() {
 
   // 未送信の通知を取得
   const notifications = await supabaseFetch(
-    'approval_notifications?emailed_at=is.null&select=id,request_id,recipient_id,notification_type'
+    'approval_notifications?emailed_at=is.null&select=id,request_id,recipient_id,recipient_email,notification_type'
   );
   console.log(`未送信通知: ${notifications.length}件`);
 
@@ -130,29 +130,47 @@ async function main() {
   );
   const reqMap = Object.fromEntries(requests.map(r => [r.id, r]));
 
-  // プロフィール（メールアドレス）を一括取得
-  const recipientIds = [...new Set(notifications.map(n => n.recipient_id))];
-  const profiles = await supabaseFetch(
-    `profiles?id=in.(${recipientIds.join(',')})&select=id,name,email`
-  );
-  const profileMap = Object.fromEntries(profiles.map(p => [p.id, p]));
+  // profiles のメールアドレスを一括取得（recipient_idがある場合のみ）
+  const recipientIds = [...new Set(
+    notifications.map(n => n.recipient_id).filter(Boolean)
+  )];
+  let profileMap = {};
+  if (recipientIds.length > 0) {
+    const profiles = await supabaseFetch(
+      `profiles?id=in.(${recipientIds.join(',')})&select=id,name,email`
+    );
+    profileMap = Object.fromEntries(profiles.map(p => [p.id, p]));
+  }
 
   let successCount = 0;
   let skipCount    = 0;
   let errorCount   = 0;
 
   for (const notif of notifications) {
-    const profile = profileMap[notif.recipient_id];
-    const req     = reqMap[notif.request_id];
+    const req = reqMap[notif.request_id];
 
-    if (!profile?.email) {
-      console.log(`スキップ: recipient_id=${notif.recipient_id} (メールアドレスなし)`);
+    // 宛先メールアドレスと名前を決定
+    // recipient_email がある場合はそちらを優先（notification_recipients の外部宛先）
+    let actualEmail, toName;
+    if (notif.recipient_email) {
+      actualEmail = notif.recipient_email;
+      toName      = '担当者';
+    } else if (notif.recipient_id) {
+      const profile = profileMap[notif.recipient_id];
+      if (!profile?.email) {
+        console.log(`スキップ: recipient_id=${notif.recipient_id} (メールアドレスなし)`);
+        skipCount++;
+        continue;
+      }
+      actualEmail = profile.email;
+      toName      = profile.name || '担当者';
+    } else {
+      console.log(`スキップ: id=${notif.id} (宛先なし)`);
       skipCount++;
       continue;
     }
 
-    const toEmail = TEST_MODE ? TEST_EMAIL : profile.email;
-    const toName  = profile.name || '担当者';
+    const toEmail = TEST_MODE ? TEST_EMAIL : actualEmail;
 
     try {
       const mail = buildEmail(notif.notification_type, req, toName);

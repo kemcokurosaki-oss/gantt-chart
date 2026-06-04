@@ -1577,21 +1577,8 @@ async function submitInspection() {
             .single();
         if (error) throw error;
 
-        // 通知先: 組立staff + assembly_director(常務) + 製管staff
-        const { data: recipients } = await db
-            .from('profiles')
-            .select('id')
-            .or('department.eq.組立,department.eq.製管,role.eq.assembly_director');
-
-        if (recipients?.length > 0) {
-            await db.from('approval_notifications').insert(
-                recipients.map(r => ({
-                    request_id:        req.id,
-                    recipient_id:      r.id,
-                    notification_type: 'inspection_invite'
-                }))
-            );
-        }
+        // フロー3通知（設計・営業・技戦含む）
+        await recordFlowNotifications(req.id, 'inspection');
 
         closeInspectionModal();
         await refreshAll();
@@ -1705,21 +1692,8 @@ async function submitShipping() {
             .single();
         if (error) throw error;
 
-        // 通知先: 組立staff + 製管staff + assembly_director + logistics
-        const { data: recipients } = await db
-            .from('profiles')
-            .select('id')
-            .or('department.eq.組立,department.eq.製管,role.eq.assembly_director,role.eq.logistics');
-
-        if (recipients?.length > 0) {
-            await db.from('approval_notifications').insert(
-                recipients.map(r => ({
-                    request_id:        req.id,
-                    recipient_id:      r.id,
-                    notification_type: 'completed'
-                }))
-            );
-        }
+        // フロー4通知（設計・営業・物流・技戦含む）
+        await recordFlowNotifications(req.id, 'shipping');
 
         closeShippingModal();
         await refreshAll();
@@ -1733,33 +1707,120 @@ async function submitShipping() {
 }
 
 // ===== Notifications =====
+
+// フロー別通知ルール定義
+const NOTIFY_RULES = {
+    // フロー1完了: 組立担当者・品保・製管 ＋ 営業staff・設計全員
+    assembly: {
+        notifType: 'completed',
+        profiles: [
+            { department: '組立', role: 'staff' },
+            { role: 'quality' },
+            { department: '製管', role: 'staff' }
+        ],
+        external: [
+            { department: '営業', role: 'staff' },
+            { department: '設計' }
+        ]
+    },
+    // フロー2完了: 試運転担当者・品保・製管・常務 ＋ 営業staff・設計全員
+    test_run: {
+        notifType: 'completed',
+        profiles: [
+            { department: '操業', role: 'staff' },
+            { role: 'quality' },
+            { department: '製管', role: 'staff' },
+            { role: 'assembly_director' }
+        ],
+        external: [
+            { department: '営業', role: 'staff' },
+            { department: '設計' }
+        ]
+    },
+    // フロー3案内: 組立・試運転・製管・常務 ＋ 設計全員・営業staff・技戦
+    inspection: {
+        notifType: 'inspection_invite',
+        profiles: [
+            { department: '組立', role: 'staff' },
+            { department: '操業', role: 'staff' },
+            { department: '製管', role: 'staff' },
+            { role: 'assembly_director' }
+        ],
+        external: [
+            { department: '設計' },
+            { department: '営業', role: 'staff' },
+            { department: '技戦' }
+        ]
+    },
+    // フロー4発行: 製管・常務・組立・操業・品保 ＋ 物流・設計・営業全員・技戦
+    shipping: {
+        notifType: 'completed',
+        profiles: [
+            { department: '製管', role: 'staff' },
+            { role: 'assembly_director' },
+            { department: '組立', role: 'staff' },
+            { department: '操業', role: 'staff' },
+            { role: 'quality' }
+        ],
+        external: [
+            { department: '物流' },
+            { department: '設計' },
+            { department: '営業' },
+            { department: '技戦' }
+        ]
+    }
+};
+
+async function recordFlowNotifications(requestId, flowType) {
+    const rules = NOTIFY_RULES[flowType];
+    if (!rules) return;
+
+    const inserts = [];
+
+    // profiles から宛先を取得
+    const profileIds = new Set();
+    for (const rule of rules.profiles) {
+        let query = db.from('profiles').select('id');
+        if (rule.department) query = query.eq('department', rule.department);
+        if (rule.role)       query = query.eq('role', rule.role);
+        const { data } = await query;
+        (data || []).forEach(p => profileIds.add(p.id));
+    }
+    profileIds.forEach(id => inserts.push({
+        request_id:        requestId,
+        recipient_id:      id,
+        notification_type: rules.notifType
+    }));
+
+    // notification_recipients から宛先を取得
+    const extEmails = new Set();
+    for (const rule of rules.external) {
+        let query = db.from('notification_recipients').select('email').eq('active', true);
+        if (rule.department) query = query.eq('department', rule.department);
+        if (rule.role)       query = query.eq('role', rule.role);
+        const { data } = await query;
+        (data || []).map(r => r.email).filter(Boolean).forEach(e => extEmails.add(e));
+    }
+    extEmails.forEach(email => inserts.push({
+        request_id:        requestId,
+        recipient_email:   email,
+        notification_type: rules.notifType
+    }));
+
+    if (inserts.length > 0) {
+        await db.from('approval_notifications').insert(inserts);
+    }
+}
+
+// フロー1・2の全承認完了時に呼び出す
 async function recordNotifications(requestId) {
     const { data: req } = await db
         .from('approval_requests')
-        .select('test_run')
+        .select('flow_type')
         .eq('id', requestId)
         .single();
     if (!req) return;
-
-    let targetRoles = ['quality', 'staff'];
-    if (req.test_run) {
-        targetRoles.push('operations_manager', 'operations_director');
-    }
-
-    const { data: recipients } = await db
-        .from('profiles')
-        .select('id')
-        .in('role', targetRoles);
-
-    if (!recipients || recipients.length === 0) return;
-
-    await db.from('approval_notifications').insert(
-        recipients.map(r => ({
-            request_id:        requestId,
-            recipient_id:      r.id,
-            notification_type: 'completed'
-        }))
-    );
+    await recordFlowNotifications(requestId, req.flow_type);
 }
 
 // ===== Helpers =====
