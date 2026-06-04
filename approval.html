@@ -775,18 +775,17 @@ async function bootApp(session) {
     document.getElementById('user_name_display').textContent =
         `${profile.name}（${ROLE_LABELS[profile.role] || profile.role}）`;
 
-    // ロールに応じてタブ・ボタンを切り替え
-    applyRoleLayout(profile.role);
-
     // 黒崎のみ開発用ロール切替バーを表示
     if (currentUser.email === 'e-kurosaki@kusakabe.com') {
         document.getElementById('dev_bar').style.display = 'flex';
-        // devBarが表示される場合はstickyTopの位置を下げる
         document.getElementById('sticky_top').style.top = '72px';
     }
 
     await loadProjects();
     await refreshAll();
+
+    // データ読み込み後にレイアウトを適用（タブ・ボタンが確実に正しい状態になる）
+    applyRoleLayout(profile.role);
     ui.send('READY');
 }
 
