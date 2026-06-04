@@ -392,15 +392,16 @@
     </div>
     <!-- 開発用ロール切替バー（黒崎のみ表示） -->
     <div class="dev-bar" id="dev_bar" style="display:none;">
-        🛠 開発用ロール切替：
+        🛠 デモ用ロール切替：
         <select id="dev_role_select" onchange="switchDevRole(this.value)">
-            <option value="">── 実際のロール ──</option>
-            <option value="staff">staff（組立担当者）</option>
-            <option value="assembly_manager">assembly_manager（組立課長）</option>
-            <option value="assembly_director">assembly_director（組立部長）</option>
-            <option value="operations_manager">operations_manager（操業課長）</option>
-            <option value="operations_director">operations_director（操業部長）</option>
-            <option value="quality">quality（品質保証課）</option>
+            <option value="">── 製管スタッフ（黒崎の実際の画面）──</option>
+            <option value="staff_kumitate">組立担当者</option>
+            <option value="staff_shiunten">試運転担当者（操業）</option>
+            <option value="assembly_manager">組立課長</option>
+            <option value="assembly_director">組立部長</option>
+            <option value="operations_manager">操業課長</option>
+            <option value="operations_director">操業部長</option>
+            <option value="quality">品質保証課</option>
         </select>
         <span id="dev_role_label" style="font-weight:bold;"></span>
     </div>
@@ -597,35 +598,45 @@ let currentUser    = null;
 let currentProfile = null;
 let projectsMap    = {}; // project_number → { customer_name, project_details }
 let currentTab          = 'pending';
-let devRole             = ''; // 開発用ロール上書き（空文字 = 実際のロールを使用）
-let currentDetailFlowType = ''; // 詳細モーダルで開いている申請のflow_type
+let devRole = ''; // 開発用ロール上書き
+let devDept = ''; // 開発用部署上書き
+let currentDetailFlowType = '';
 
-function getEffectiveRole() {
-    return devRole || currentProfile?.role || '';
-}
+// デモ用ロール→{role, department} マッピング
+const DEV_ROLE_MAP = {
+    staff_kumitate:      { role: 'staff',               department: '組立' },
+    staff_shiunten:      { role: 'staff',               department: '操業' },
+    assembly_manager:    { role: 'assembly_manager',    department: '組立' },
+    assembly_director:   { role: 'assembly_director',   department: '組立' },
+    operations_manager:  { role: 'operations_manager',  department: '操業' },
+    operations_director: { role: 'operations_director', department: '操業' },
+    quality:             { role: 'quality',             department: '品証' }
+};
+
+function getEffectiveRole() { return devRole || currentProfile?.role || ''; }
+function getEffectiveDept() { return devDept || currentProfile?.department || ''; }
 
 // 承認者ロール一覧
 const APPROVER_ROLES = ['assembly_manager','assembly_director','operations_manager','operations_director'];
 
 function applyRoleLayout(role) {
+    const dept        = getEffectiveDept();
     const isApprover  = APPROVER_ROLES.includes(role);
-    const isQuality   = role === 'quality';  // 品保：申請者＆承認者の両方
-    const isApplicant = role === 'staff';
+    const isQuality   = role === 'quality';
+    // 組立・操業 staffのみ申請可（製管などは進捗一覧のみ）
+    const isApplicant = role === 'staff' && (dept === '組立' || dept === '操業');
+    const isViewOnly  = role === 'staff' && !isApplicant; // 製管など
 
     // タブの表示制御
     document.getElementById('tab_pending').style.display  = (isApprover || isQuality) ? '' : 'none';
     document.getElementById('tab_mine').style.display     = (isApplicant || isQuality) ? '' : 'none';
-    document.getElementById('tab_progress').style.display = ''; // 全員に進捗一覧を表示
+    document.getElementById('tab_progress').style.display = ''; // 全員
 
-    // 申請ボタン（ロール・部署で表示を切り替え）
+    // 申請ボタン
     if (isApplicant || isQuality) {
         document.getElementById('new_btn_area').style.display = 'block';
-        const dept = currentProfile?.department || '';
-        // 組立担当者: フロー1 / 操業担当者: フロー2 / 品保: フロー3・4
-        // devMode時はstaffロールで両方表示（テスト用）
-        const isDev = !!devRole;
-        document.getElementById('btn_assembly').style.display   = (!isQuality && (dept === '組立' || isDev)) ? '' : 'none';
-        document.getElementById('btn_test_run').style.display   = (!isQuality && (dept === '操業' || isDev)) ? '' : 'none';
+        document.getElementById('btn_assembly').style.display   = (!isQuality && dept === '組立') ? '' : 'none';
+        document.getElementById('btn_test_run').style.display   = (!isQuality && dept === '操業') ? '' : 'none';
         document.getElementById('btn_inspection').style.display = isQuality ? '' : 'none';
         document.getElementById('btn_shipping').style.display   = isQuality ? '' : 'none';
     } else {
@@ -633,19 +644,28 @@ function applyRoleLayout(role) {
     }
 
     // デフォルトタブ
-    if (isApprover) {
-        switchTab('pending');   // 承認者 → 承認待ち
-    } else {
-        switchTab('mine');      // 申請者・品保 → 自分の申請
-    }
+    if (isApprover)       switchTab('pending');   // 承認者 → 承認待ち
+    else if (isViewOnly)  switchTab('progress');  // 製管など → 進捗一覧のみ
+    else                  switchTab('mine');      // 申請者・品保 → 自分の申請
 }
 
-async function switchDevRole(role) {
-    devRole = role;
-    const label = document.getElementById('dev_role_label');
-    label.textContent = role ? `▶ ${ROLE_LABELS[role] || role} として表示中` : '';
+async function switchDevRole(value) {
+    const map = DEV_ROLE_MAP[value];
+    devRole = map ? map.role       : '';
+    devDept = map ? map.department : '';
 
-    // ロール切替時にレイアウトを再適用
+    const DEMO_LABELS = {
+        staff_kumitate:      '組立担当者',
+        staff_shiunten:      '試運転担当者（操業）',
+        assembly_manager:    '組立課長',
+        assembly_director:   '組立部長',
+        operations_manager:  '操業課長',
+        operations_director: '操業部長',
+        quality:             '品質保証課'
+    };
+    const label = document.getElementById('dev_role_label');
+    label.textContent = value ? `▶ ${DEMO_LABELS[value] || value} として表示中` : '';
+
     applyRoleLayout(getEffectiveRole());
     await refreshAll();
 }
