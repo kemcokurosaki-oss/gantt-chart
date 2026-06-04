@@ -1,0 +1,1819 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>承認フロー管理</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', 'Noto Sans JP', sans-serif; background: #f0f2f5; color: #333; font-size: 14px; }
+
+        /* ===== Header ===== */
+        .header {
+            background: #1e3a5f;
+            color: #fff;
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+            position: sticky;
+            top: 0;
+            z-index: 300;
+        }
+        .header h1 { font-size: 15px; font-weight: bold; letter-spacing: 0.5px; }
+        .header-user { font-size: 12px; display: flex; align-items: center; gap: 12px; }
+
+        /* ===== Dev Role Switcher ===== */
+        .dev-bar {
+            background: #7d3c98;
+            color: #fff;
+            padding: 5px 20px;
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            position: sticky;
+            top: 44px;
+            z-index: 299;
+        }
+        .dev-bar select {
+            font-size: 11px;
+            padding: 2px 6px;
+            border-radius: 3px;
+            border: none;
+            background: rgba(255,255,255,0.2);
+            color: #fff;
+            cursor: pointer;
+        }
+        .dev-bar select option { color: #333; background: #fff; }
+
+        /* ===== Main ===== */
+        .main { max-width: 860px; margin: 20px auto; padding: 0 16px 40px; }
+
+        /* ===== Sticky Tab Area ===== */
+        .sticky-top {
+            position: sticky;
+            top: 44px; /* ヘッダーの高さ分（devBar有時は上書き） */
+            z-index: 200;
+            background: #f0f2f5;
+            padding-top: 12px;
+        }
+        .dev-bar ~ #app .sticky-top { top: 72px; }
+
+        /* ===== Tabs ===== */
+        .tabs { display: flex; border-bottom: 2px solid #ddd; margin-bottom: 0; gap: 0; }
+        .tab {
+            padding: 9px 22px;
+            cursor: pointer;
+            font-size: 13px;
+            border: none;
+            background: none;
+            color: #888;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: color 0.15s;
+        }
+        .tab.active { color: #1e3a5f; border-bottom-color: #1e3a5f; font-weight: bold; }
+        .tab:hover:not(.active) { color: #555; }
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 18px;
+            height: 18px;
+            padding: 0 4px;
+            background: #e74c3c;
+            color: #fff;
+            border-radius: 9px;
+            font-size: 10px;
+            font-weight: bold;
+        }
+
+        /* ===== Cards ===== */
+        .card {
+            background: #fff;
+            border-radius: 8px;
+            padding: 14px 16px;
+            margin-bottom: 10px;
+            border: 1px solid #e8e8e8;
+            cursor: pointer;
+            transition: box-shadow 0.15s, border-color 0.15s;
+        }
+        .card:hover { box-shadow: 0 3px 12px rgba(0,0,0,0.1); border-color: #c8d8e8; }
+        .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 5px; }
+        .card-title { font-size: 14px; font-weight: bold; color: #1e3a5f; }
+        .card-meta { font-size: 12px; color: #999; margin-top: 3px; }
+        .card-note { font-size: 12px; color: #666; margin-top: 7px; padding-top: 7px; border-top: 1px solid #f5f5f5; }
+
+        /* ===== Status Badges ===== */
+        .status-badge {
+            font-size: 11px;
+            padding: 2px 9px;
+            border-radius: 10px;
+            font-weight: bold;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .s-pending   { background: #fff3cd; color: #856404; }
+        .s-submitted { background: #fff3cd; color: #856404; }
+        .s-in_review { background: #d1ecf1; color: #0c5460; }
+        .s-approved  { background: #d4edda; color: #155724; }
+        .s-rejected  { background: #f8d7da; color: #721c24; }
+
+        /* ===== Buttons ===== */
+        .btn {
+            padding: 7px 16px;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: bold;
+            transition: opacity 0.15s;
+        }
+        .btn:disabled { opacity: 0.55; cursor: not-allowed; }
+        .btn-primary   { background: #1e3a5f; color: #fff; }
+        .btn-primary:hover:not(:disabled)  { background: #2a5080; }
+        .btn-success   { background: #27ae60; color: #fff; }
+        .btn-success:hover:not(:disabled)  { background: #219a52; }
+        .btn-danger    { background: #e74c3c; color: #fff; }
+        .btn-danger:hover:not(:disabled)   { background: #c0392b; }
+        .btn-secondary { background: #95a5a6; color: #fff; }
+        .btn-secondary:hover:not(:disabled){ background: #7f8c8d; }
+        .btn-sm { padding: 4px 10px; font-size: 12px; }
+
+        /* ===== New Request Area ===== */
+        .new-btn-area { margin-bottom: 16px; }
+
+        /* ===== Modal ===== */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.45);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-overlay.open { display: flex; }
+        .modal {
+            background: #fff;
+            border-radius: 8px;
+            width: 520px;
+            max-width: 95vw;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+            display: flex;
+            flex-direction: column;
+        }
+        .modal-header {
+            padding: 13px 18px;
+            background: #1e3a5f;
+            color: #fff;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-radius: 8px 8px 0 0;
+            flex-shrink: 0;
+        }
+        .modal-header h2 { font-size: 14px; font-weight: bold; }
+        .modal-close { background: none; border: none; color: #fff; font-size: 20px; cursor: pointer; line-height: 1; padding: 0 2px; }
+        .modal-body { padding: 18px; flex: 1; overflow-y: auto; }
+        .modal-footer {
+            padding: 12px 18px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            border-top: 1px solid #eee;
+            flex-shrink: 0;
+        }
+
+        /* ===== Form ===== */
+        .form-group { margin-bottom: 14px; }
+        .form-group label {
+            display: block;
+            font-size: 11px;
+            color: #666;
+            margin-bottom: 4px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        .form-group select,
+        .form-group input[type="text"],
+        .form-group textarea {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 13px;
+            transition: border-color 0.15s;
+        }
+        .form-group select:focus,
+        .form-group input[type="text"]:focus,
+        .form-group textarea:focus { border-color: #1e3a5f; outline: none; }
+        .form-group textarea { resize: vertical; min-height: 80px; }
+        .form-hint { font-size: 11px; color: #aaa; margin-top: 3px; }
+        .project-info-box {
+            background: #f8f9fa;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            padding: 8px 10px;
+            font-size: 13px;
+            color: #333;
+        }
+
+        /* ===== Radio ===== */
+        .radio-group { display: flex; gap: 24px; margin-top: 4px; }
+        .radio-group label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            color: #333;
+            font-weight: normal;
+            text-transform: none;
+            letter-spacing: 0;
+        }
+        .radio-group input[type="radio"] { margin: 0; cursor: pointer; }
+
+        /* ===== Info Table ===== */
+        .info-table { width: 100%; border-collapse: collapse; margin-bottom: 14px; }
+        .info-table td { padding: 5px 0; vertical-align: top; }
+        .info-table td:first-child {
+            font-size: 11px;
+            color: #999;
+            width: 80px;
+            font-weight: bold;
+            padding-right: 8px;
+        }
+        .info-table td:last-child { font-size: 13px; color: #333; font-weight: bold; }
+        .section-divider { border: none; border-top: 1px solid #eee; margin: 14px 0; }
+        .section-title { font-size: 11px; color: #999; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+
+        /* ===== Approval Steps ===== */
+        .steps-list { display: flex; flex-direction: column; gap: 0; }
+        .step-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 10px 0;
+            border-bottom: 1px solid #f5f5f5;
+        }
+        .step-item:last-child { border-bottom: none; }
+        .step-circle {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+        .sc-pending  { background: #fff3cd; color: #856404; }
+        .sc-approved { background: #d4edda; color: #155724; }
+        .sc-rejected { background: #f8d7da; color: #721c24; }
+        .sc-waiting  { background: #e9ecef; color: #6c757d; }
+        .step-detail { flex: 1; }
+        .step-label { font-size: 11px; color: #aaa; }
+        .step-name  { font-size: 13px; font-weight: bold; margin-top: 1px; }
+        .step-comment { font-size: 11px; color: #888; margin-top: 2px; font-style: italic; }
+        .step-date  { font-size: 11px; color: #bbb; margin-top: 1px; }
+
+        /* ===== Login ===== */
+        #login_overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: #1e3a5f;
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+        }
+        #login_overlay.visible { display: flex; }
+        #login_dialog {
+            background: #fff;
+            border-radius: 10px;
+            padding: 32px 28px;
+            width: 340px;
+            box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+        }
+        #login_dialog h2 { font-size: 17px; margin-bottom: 6px; text-align: center; color: #1e3a5f; }
+        #login_dialog p { font-size: 12px; color: #aaa; text-align: center; margin-bottom: 20px; }
+        #login_dialog input {
+            width: 100%;
+            padding: 9px 12px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 13px;
+        }
+        #login_error { color: #e74c3c; font-size: 12px; margin-bottom: 10px; min-height: 16px; }
+        #login_dialog .login-btn {
+            width: 100%;
+            padding: 10px;
+            background: #1e3a5f;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        #login_dialog .login-btn:hover { background: #2a5080; }
+
+        /* ===== Empty / Loading ===== */
+        .empty { text-align: center; padding: 48px 20px; color: #bbb; }
+        .empty-icon { font-size: 36px; margin-bottom: 8px; }
+        .empty-text { font-size: 13px; }
+        .loading-indicator { text-align: center; padding: 32px; color: #aaa; font-size: 13px; }
+
+        /* ===== Step Progress ===== */
+        .step-progress { display: flex; align-items: flex-start; margin-top: 10px; }
+        .step-node {
+            display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 48px;
+        }
+        .step-circle {
+            width: 26px; height: 26px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 12px; font-weight: bold; flex-shrink: 0;
+        }
+        .sc-done     { background: #27ae60; color: #fff; }
+        .sc-active   { background: #f39c12; color: #fff; }
+        .sc-rejected { background: #e74c3c; color: #fff; }
+        .sc-empty    { background: #e0e0e0; color: #aaa; }
+        .step-label  { font-size: 10px; color: #999; white-space: nowrap; text-align: center; }
+        .step-connector {
+            flex: 1; height: 2px; margin-top: 13px; min-width: 16px;
+        }
+        .sc-line-done    { background: #27ae60; }
+        .sc-line-pending { background: #e0e0e0; }
+
+        /* ===== Progress List ===== */
+        .progress-card { background: #fff; border-radius: 8px; padding: 14px 16px; margin-bottom: 10px; border: 1px solid #e8e8e8; }
+        .progress-card-title { font-size: 14px; font-weight: bold; color: #1e3a5f; margin-bottom: 10px; }
+        .progress-flow-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 12px; }
+        .progress-flow-label { flex: 1; }
+        .progress-flow-date { font-size: 11px; color: #aaa; min-width: 60px; text-align: right; }
+    </style>
+</head>
+<body>
+
+<!-- ===== Login ===== -->
+<div id="login_overlay" class="visible">
+    <div id="login_dialog">
+        <h2>承認フロー管理</h2>
+        <p>メールアドレスとパスワードでログイン</p>
+        <input type="email" id="login_email" placeholder="メールアドレス" autocomplete="email">
+        <input type="password" id="login_password" placeholder="パスワード" autocomplete="current-password"
+               onkeydown="if(event.key==='Enter') doLogin()">
+        <div id="login_error"></div>
+        <button class="login-btn" onclick="doLogin()">ログイン</button>
+    </div>
+</div>
+
+<!-- ===== Main App ===== -->
+<div id="app" style="display:none;">
+    <div class="header">
+        <h1>承認フロー管理</h1>
+        <div class="header-user">
+            <span id="user_name_display"></span>
+            <button class="btn btn-sm" style="background:rgba(255,255,255,0.15); color:#fff; border:1px solid rgba(255,255,255,0.3);"
+                    onclick="doLogout()">ログアウト</button>
+        </div>
+    </div>
+    <!-- 開発用ロール切替バー（黒崎のみ表示） -->
+    <div class="dev-bar" id="dev_bar" style="display:none;">
+        🛠 開発用ロール切替：
+        <select id="dev_role_select" onchange="switchDevRole(this.value)">
+            <option value="">── 実際のロール ──</option>
+            <option value="staff">staff（組立担当者）</option>
+            <option value="assembly_manager">assembly_manager（組立課長）</option>
+            <option value="assembly_director">assembly_director（組立部長）</option>
+            <option value="operations_manager">operations_manager（操業課長）</option>
+            <option value="operations_director">operations_director（操業部長）</option>
+            <option value="quality">quality（品質保証課）</option>
+        </select>
+        <span id="dev_role_label" style="font-weight:bold;"></span>
+    </div>
+
+    <div class="main">
+        <div class="sticky-top" id="sticky_top">
+            <div class="tabs">
+                <button class="tab" id="tab_mine" onclick="switchTab('mine')">自分の申請</button>
+                <button class="tab" id="tab_pending" onclick="switchTab('pending')">
+                    承認待ち <span id="pending_badge" class="badge" style="display:none;"></span>
+                </button>
+                <button class="tab active" id="tab_progress" onclick="switchTab('progress')">進捗一覧</button>
+            </div>
+            <div class="new-btn-area" id="new_btn_area" style="display:none; padding: 10px 0 4px;">
+                <button class="btn btn-primary" id="btn_assembly"   onclick="openSubmitModal('assembly')"  style="display:none;">＋ 組立完了通知を申請</button>
+                <button class="btn btn-primary" id="btn_test_run"   onclick="openSubmitModal('test_run')"  style="display:none; margin-left:8px;">＋ 試運転完了通知を申請</button>
+                <button class="btn btn-primary" id="btn_inspection" onclick="openInspectionModal()"  style="display:none; margin-left:8px;">＋ 外観検査開催案内を作成</button>
+                <button class="btn btn-primary" id="btn_shipping"   onclick="openShippingModal()"    style="display:none; margin-left:8px;">＋ 出荷確認書を作成</button>
+            </div>
+        </div>
+
+        <div style="padding-top: 12px;">
+            <div id="tab_content_pending" ><div class="loading-indicator">読み込み中...</div></div>
+            <div id="tab_content_mine"    style="display:none;"><div class="loading-indicator">読み込み中...</div></div>
+            <div id="tab_content_progress" style="display:none;"><div class="loading-indicator">読み込み中...</div></div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== Submit Modal ===== -->
+<div id="submit_modal" class="modal-overlay">
+    <div class="modal">
+        <div class="modal-header">
+            <h2>組立完了通知 — 申請</h2>
+            <button class="modal-close" onclick="closeSubmitModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label>工事番号 *</label>
+                <select id="submit_project" onchange="onProjectChange()">
+                    <option value="">選択してください</option>
+                </select>
+            </div>
+            <div id="submit_project_info" style="display:none;" class="form-group">
+                <label>工事情報</label>
+                <div class="project-info-box" id="submit_project_detail"></div>
+            </div>
+            <div class="form-group" id="flow_detect_group" style="display:none;">
+                <label>後続フロー（工程表から自動検出）</label>
+                <div id="flow_detect_list" style="background:#f8f9fa; border:1px solid #e0e0e0; border-radius:4px; padding:10px 12px; font-size:13px;"></div>
+                <div class="form-hint">変更する場合は工程表のタスクを修正してください</div>
+            </div>
+            <div class="form-group">
+                <label>コメント（任意）</label>
+                <textarea id="submit_note" placeholder="特記事項があれば記入してください"></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeSubmitModal()">キャンセル</button>
+            <button class="btn btn-primary" id="submit_btn" onclick="submitRequest()">申請する</button>
+        </div>
+    </div>
+</div>
+
+<!-- ===== Inspection Modal (フロー3) ===== -->
+<div id="inspection_modal" class="modal-overlay">
+    <div class="modal">
+        <div class="modal-header">
+            <h2>外観検査開催案内 — 作成</h2>
+            <button class="modal-close" onclick="closeInspectionModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label>工事番号 *</label>
+                <select id="inspection_project" onchange="onInspectionProjectChange()">
+                    <option value="">選択してください</option>
+                </select>
+            </div>
+            <div id="inspection_project_info" style="display:none;" class="form-group">
+                <label>工事情報</label>
+                <div class="project-info-box" id="inspection_project_detail"></div>
+            </div>
+            <div id="inspection_flow_box" style="display:none;" class="form-group">
+                <label>フロー状況</label>
+                <div id="inspection_flow_list" style="background:#f8f9fa; border:1px solid #e0e0e0; border-radius:4px; padding:10px 12px; font-size:13px;"></div>
+            </div>
+            <div class="form-group">
+                <label>外観検査日 *</label>
+                <input type="date" id="inspection_date_input">
+            </div>
+            <div class="form-group">
+                <label>開始時刻</label>
+                <input type="time" id="inspection_time_input">
+            </div>
+            <div class="form-group">
+                <label>場所</label>
+                <input type="text" id="inspection_location_input" placeholder="例: 第1組立工場">
+            </div>
+            <div class="form-group">
+                <label>コメント（任意）</label>
+                <textarea id="inspection_note_input" placeholder="参加者への連絡事項など"></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeInspectionModal()">キャンセル</button>
+            <button class="btn btn-primary" id="inspection_submit_btn" onclick="submitInspection()">案内を送信</button>
+        </div>
+    </div>
+</div>
+
+<!-- ===== Shipping Modal (フロー4) ===== -->
+<div id="shipping_modal" class="modal-overlay">
+    <div class="modal">
+        <div class="modal-header">
+            <h2>出荷確認書 — 作成</h2>
+            <button class="modal-close" onclick="closeShippingModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label>工事番号 *</label>
+                <select id="shipping_project" onchange="onShippingProjectChange()">
+                    <option value="">選択してください</option>
+                </select>
+            </div>
+            <div id="shipping_project_info" style="display:none;" class="form-group">
+                <label>工事情報</label>
+                <div class="project-info-box" id="shipping_project_detail"></div>
+            </div>
+            <div id="shipping_flow_box" style="display:none;" class="form-group">
+                <label>フロー状況</label>
+                <div id="shipping_flow_list" style="background:#f8f9fa; border:1px solid #e0e0e0; border-radius:4px; padding:10px 12px; font-size:13px;"></div>
+            </div>
+            <div class="form-group">
+                <label>確定出荷日 *</label>
+                <input type="date" id="shipping_date_input">
+            </div>
+            <div class="form-group">
+                <label>特記事項（任意）</label>
+                <textarea id="shipping_note_input" placeholder="残件・注意事項など"></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeShippingModal()">キャンセル</button>
+            <button class="btn btn-primary" id="shipping_submit_btn" onclick="submitShipping()">出荷確認書を発行</button>
+        </div>
+    </div>
+</div>
+
+<!-- ===== Detail Modal ===== -->
+<div id="detail_modal" class="modal-overlay">
+    <div class="modal">
+        <div class="modal-header">
+            <h2 id="detail_title">詳細</h2>
+            <button class="modal-close" onclick="closeDetailModal()">×</button>
+        </div>
+        <div class="modal-body" id="detail_body">
+            <div class="loading-indicator">読み込み中...</div>
+        </div>
+        <div class="modal-footer" id="detail_footer">
+            <button class="btn btn-secondary" onclick="closeDetailModal()">閉じる</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// ===== Supabase =====
+const S_URL = "https://dgekjzkrybrswsxlcbvh.supabase.co";
+const S_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRnZWtqemtyeWJyc3dzeGxjYnZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg4ODQ3MjIsImV4cCI6MjA4NDQ2MDcyMn0.BsEj53lV3p76yE9fMPTaLn7ocKTNzYPTqIAnBafYItU";
+
+// Edge のトラッキング防止が localStorage をブロックするためメモリストレージを使用
+const _memStore = {};
+const _memStorage = {
+    getItem:    key       => _memStore[key] ?? null,
+    setItem:    (key, v)  => { _memStore[key] = v; },
+    removeItem: key       => { delete _memStore[key]; }
+};
+
+const db = supabase.createClient(S_URL, S_KEY, {
+    auth: {
+        flowType:      'implicit',
+        persistSession: true,
+        storage:        _memStorage
+    }
+});
+
+// ===== UI State（XStateの代わりにシンプルな状態管理） =====
+const ui = {
+    state: 'loading',
+    send(event) { console.log(`UI: ${this.state} → ${event}`); }
+};
+
+// ===== App State =====
+let currentUser    = null;
+let currentProfile = null;
+let projectsMap    = {}; // project_number → { customer_name, project_details }
+let currentTab          = 'pending';
+let devRole             = ''; // 開発用ロール上書き（空文字 = 実際のロールを使用）
+let currentDetailFlowType = ''; // 詳細モーダルで開いている申請のflow_type
+
+function getEffectiveRole() {
+    return devRole || currentProfile?.role || '';
+}
+
+// 承認者ロール一覧
+const APPROVER_ROLES = ['assembly_manager','assembly_director','operations_manager','operations_director'];
+
+function applyRoleLayout(role) {
+    const isApprover  = APPROVER_ROLES.includes(role);
+    const isQuality   = role === 'quality';  // 品保：申請者＆承認者の両方
+    const isApplicant = role === 'staff';
+
+    // タブの表示制御
+    document.getElementById('tab_pending').style.display  = (isApprover || isQuality) ? '' : 'none';
+    document.getElementById('tab_mine').style.display     = (isApplicant || isQuality) ? '' : 'none';
+    document.getElementById('tab_progress').style.display = ''; // 全員に進捗一覧を表示
+
+    // 申請ボタン（ロール・部署で表示を切り替え）
+    if (isApplicant || isQuality) {
+        document.getElementById('new_btn_area').style.display = 'block';
+        const dept = currentProfile?.department || '';
+        // 組立担当者: フロー1 / 操業担当者: フロー2 / 品保: フロー3・4
+        // devMode時はstaffロールで両方表示（テスト用）
+        const isDev = !!devRole;
+        document.getElementById('btn_assembly').style.display   = (!isQuality && (dept === '組立' || isDev)) ? '' : 'none';
+        document.getElementById('btn_test_run').style.display   = (!isQuality && (dept === '操業' || isDev)) ? '' : 'none';
+        document.getElementById('btn_inspection').style.display = isQuality ? '' : 'none';
+        document.getElementById('btn_shipping').style.display   = isQuality ? '' : 'none';
+    } else {
+        document.getElementById('new_btn_area').style.display = 'none';
+    }
+
+    // デフォルトタブ
+    if (isApprover) {
+        switchTab('pending');   // 承認者 → 承認待ち
+    } else {
+        switchTab('mine');      // 申請者・品保 → 自分の申請
+    }
+}
+
+async function switchDevRole(role) {
+    devRole = role;
+    const label = document.getElementById('dev_role_label');
+    label.textContent = role ? `▶ ${ROLE_LABELS[role] || role} として表示中` : '';
+
+    // ロール切替時にレイアウトを再適用
+    applyRoleLayout(getEffectiveRole());
+    await refreshAll();
+}
+
+// ===== Constants =====
+const FLOW_LABELS = {
+    assembly:   '組立完了通知',
+    test_run:   '試運転完了通知',
+    inspection: '外観検査開催案内',
+    shipping:   '出荷確認書'
+};
+
+const ROLE_LABELS = {
+    assembly_manager:    '組立課長',
+    assembly_director:   '組立部長',
+    operations_manager:  '操業課長',
+    operations_director: '操業部長',
+    quality:             '品質保証課',
+    staff:               '担当者',
+    logistics:           '物流'
+};
+
+const STATUS_LABELS = {
+    submitted: '課長承認待ち',
+    in_review: '部長承認待ち',
+    approved:  '承認完了',
+    rejected:  '却下'
+};
+
+const STATUS_CLASSES = {
+    submitted: 's-submitted',
+    in_review: 's-in_review',
+    approved:  's-approved',
+    rejected:  's-rejected'
+};
+
+// ===== Auth =====
+async function doLogin() {
+    const email    = document.getElementById('login_email').value.trim();
+    const password = document.getElementById('login_password').value;
+    const errEl    = document.getElementById('login_error');
+    errEl.textContent = '';
+
+    const { data, error } = await db.auth.signInWithPassword({ email, password });
+    if (error) {
+        errEl.textContent = 'ログインに失敗しました。';
+        return;
+    }
+    // sessionStorageにトークンを保存（追跡防止回避のため自前で管理）
+    sessionStorage.setItem('ap_access_token',  data.session.access_token);
+    sessionStorage.setItem('ap_refresh_token', data.session.refresh_token);
+    await bootApp(data.session);
+}
+
+async function doLogout() {
+    sessionStorage.removeItem('ap_access_token');
+    sessionStorage.removeItem('ap_refresh_token');
+    await db.auth.signOut();
+    location.reload();
+}
+
+async function bootApp(session) {
+    currentUser = session.user;
+
+    // セッションを明示的にセット（メモリストレージ経由で確実に反映）
+    await db.auth.setSession({
+        access_token:  session.access_token,
+        refresh_token: session.refresh_token
+    });
+
+    // アクセストークンを直接使ってprofiles全件取得（デバッグ用）
+    const resAll = await fetch(
+        `${S_URL}/rest/v1/profiles?select=id,name,email`,
+        {
+            headers: {
+                'apikey':        S_KEY,
+                'Authorization': `Bearer ${session.access_token}`,
+                'Accept':        'application/json'
+            }
+        }
+    );
+    const allRows = await resAll.json();
+    console.log('全profiles:', JSON.stringify(allRows));
+    console.log('ログイン中のUID:', currentUser.id);
+
+    // UID一致で検索
+    const profile = Array.isArray(allRows)
+        ? allRows.find(r => r.id === currentUser.id) || null
+        : null;
+
+    document.getElementById('login_error').textContent =
+        `[DEBUG] 全${Array.isArray(allRows) ? allRows.length : 0}件 / UID:${currentUser.id} / 一致:${profile ? profile.name : 'なし'}`;
+
+    if (!profile) {
+        document.getElementById('login_error').textContent =
+            `プロフィールが未登録です。(uid: ${currentUser.id})`;
+        await db.auth.signOut();
+        return;
+    }
+
+    currentProfile = profile;
+    document.getElementById('login_overlay').classList.remove('visible');
+    document.getElementById('app').style.display = 'block';
+    document.getElementById('user_name_display').textContent =
+        `${profile.name}（${ROLE_LABELS[profile.role] || profile.role}）`;
+
+    // ロールに応じてタブ・ボタンを切り替え
+    applyRoleLayout(profile.role);
+
+    // 黒崎のみ開発用ロール切替バーを表示
+    if (currentUser.email === 'e-kurosaki@kusakabe.com') {
+        document.getElementById('dev_bar').style.display = 'flex';
+        // devBarが表示される場合はstickyTopの位置を下げる
+        document.getElementById('sticky_top').style.top = '72px';
+    }
+
+    await loadProjects();
+    await refreshAll();
+    ui.send('READY');
+}
+
+// ===== Projects =====
+async function loadProjects() {
+    // 完了済み工事番号を取得
+    const { data: completed } = await db
+        .from('completed_projects')
+        .select('project_number');
+    const completedSet = new Set(
+        (completed || []).map(c => (c.project_number || '').toString().trim())
+    );
+
+    // sort_order付きでタスクを取得（工程表と同じ並び順にするため）
+    const { data: tasks } = await db
+        .from('tasks')
+        .select('project_number, customer_name, project_details, text, sort_order')
+        .not('project_number', 'is', null)
+        .order('sort_order', { ascending: true });
+
+    if (!tasks) return;
+
+    // 工事番号ごとに情報を収集（既存アプリと同じく複数タスクから補完）
+    tasks.forEach(t => {
+        const num = (t.project_number || '').toString().trim();
+        if (!num || completedSet.has(num)) return;
+        if (!projectsMap[num]) {
+            projectsMap[num] = { customer_name: '', project_details: '' };
+        }
+        if (!projectsMap[num].customer_name   && t.customer_name)   projectsMap[num].customer_name   = t.customer_name;
+        if (!projectsMap[num].project_details && t.project_details) projectsMap[num].project_details = t.project_details;
+        // タスク名でフロー対象工番を収集
+        const taskText = (t.text || '').trim();
+        if (taskText === '機械組立') assemblyProjectNums.add(num);
+        if (taskText === '外観検査') inspectionProjectNums.add(num);
+        if (taskText === '試運転')   testRunProjectNums.add(num);
+        if (taskText === '工場出荷') shippingProjectNums.add(num);
+    });
+
+    // 工程表のサイドバーと同じ並び順（辞書順）でプルダウンを作成
+    const sel  = document.getElementById('submit_project');
+    const nums = Object.keys(projectsMap).sort();
+
+    nums.forEach(num => {
+        const opt   = document.createElement('option');
+        opt.value   = num;
+        const p     = projectsMap[num];
+        const label = [p.customer_name, p.project_details].filter(Boolean).join('　');
+        opt.textContent = num + (label ? `　${label}` : '');
+        sel.appendChild(opt);
+    });
+}
+
+let detectedFlows = { inspection: false, test_run: false }; // 自動検出結果
+const inspectionProjectNums = new Set(); // 外観検査タスクがある工番
+const assemblyProjectNums   = new Set(); // 機械組立タスクがある工番
+const testRunProjectNums    = new Set(); // 試運転タスクがある工番
+const shippingProjectNums   = new Set(); // 工場出荷タスクがある工番
+
+async function onProjectChange() {
+    const num    = document.getElementById('submit_project').value;
+    const infoEl = document.getElementById('submit_project_info');
+    const flowEl = document.getElementById('flow_detect_group');
+
+    if (!num) {
+        infoEl.style.display = 'none';
+        flowEl.style.display = 'none';
+        return;
+    }
+
+    // 工事情報表示
+    const p = projectsMap[num] || {};
+    document.getElementById('submit_project_detail').innerHTML =
+        `<span style="color:#888;font-size:11px;">客先</span> ${esc(p.customer_name || '—')}　<span style="color:#888;font-size:11px;">工事名</span> ${esc(p.project_details || '—')}`;
+    infoEl.style.display = 'block';
+
+    // タスク存在チェック
+    const { data: tasks } = await db
+        .from('tasks')
+        .select('text')
+        .eq('project_number', num);
+
+    const taskNames = (tasks || []).map(t => (t.text || '').trim());
+    detectedFlows.inspection = taskNames.includes('外観検査');
+    detectedFlows.test_run   = taskNames.includes('試運転');
+    const hasShipping        = taskNames.includes('工場出荷');
+
+    // この工番の承認済みフローを取得
+    const { data: doneReqs } = await db
+        .from('approval_requests')
+        .select('flow_type, updated_at')
+        .eq('project_number', num)
+        .eq('status', 'approved');
+    const doneFlows = new Set((doneReqs || []).map(r => r.flow_type));
+
+    // 全フロー定義（工番のタスクに応じて存在するフローのみ）
+    const ALL_FLOWS = [
+        { type: 'assembly',   label: '組立完了通知',    exists: true },
+        { type: 'inspection', label: '外観検査開催案内', exists: detectedFlows.inspection },
+        { type: 'test_run',   label: '試運転完了通知',   exists: detectedFlows.test_run },
+        { type: 'shipping',   label: '出荷確認書',       exists: hasShipping }
+    ].filter(f => f.exists);
+
+    // 承認済み / 今回 / 後続 に分類
+    const doneList     = ALL_FLOWS.filter(f => f.type !== currentFlowType && doneFlows.has(f.type));
+    const upcomingList = ALL_FLOWS.filter(f => f.type !== currentFlowType && !doneFlows.has(f.type));
+
+    const doneHtml = doneList.length > 0 ? `
+        <div style="margin-bottom:8px; padding-bottom:8px; border-bottom:1px solid #e8e8e8;">
+            <span style="font-size:11px; color:#888; font-weight:bold;">承認済みフロー</span>
+            <div style="margin-top:4px;">
+                ${doneList.map(f => `
+                <div style="padding:3px 0; color:#27ae60; display:flex; gap:8px; align-items:center;">
+                    <span style="width:20px; text-align:center;">✅</span>
+                    <span>${esc(f.label)}</span>
+                </div>`).join('')}
+            </div>
+        </div>` : '';
+
+    const upcomingHtml = upcomingList.length > 0 ? `
+        <div style="margin-top:8px; padding-top:8px; border-top:1px solid #e8e8e8;">
+            <span style="font-size:11px; color:#888; font-weight:bold;">後続フロー</span>
+            <div style="margin-top:4px;">
+                ${upcomingList.map(f => `
+                <div style="padding:3px 0; color:#aaa; display:flex; gap:8px; align-items:center;">
+                    <span style="width:20px; text-align:center;">──</span>
+                    <span>${esc(f.label)}</span>
+                </div>`).join('')}
+            </div>
+        </div>` : '';
+
+    document.getElementById('flow_detect_list').innerHTML = `
+        ${doneHtml}
+        <div style="${doneList.length > 0 || upcomingList.length > 0 ? 'padding:4px 0;' : ''}">
+            <span style="font-size:11px; color:#888; font-weight:bold;">今回申請</span>
+            <div style="margin-top:4px; display:flex; gap:8px; align-items:center;">
+                <span style="color:#1e3a5f; font-weight:bold;">▶ ${esc(FLOW_LABELS[currentFlowType] || '完了通知')}</span>
+            </div>
+        </div>
+        ${upcomingHtml}
+    `;
+
+    flowEl.style.display = 'block';
+}
+
+// ===== Data Loading =====
+async function refreshAll() {
+    await Promise.all([loadPending(), loadMine(), loadProgress()]);
+}
+
+async function loadPending() {
+    const role = getEffectiveRole();
+    const el   = document.getElementById('tab_content_pending');
+
+    // 承認ステップが自分のロールで pending のものを取得
+    const { data: steps, error } = await db
+        .from('approval_steps')
+        .select(`
+            id, step_order, approver_role, approver_id, status, comment, decided_at,
+            approval_requests ( id, flow_type, status, note, created_at, project_number, test_run, requester_id )
+        `)
+        .eq('approver_role', role)
+        .eq('status', 'pending');
+
+    if (error || !steps) { el.innerHTML = '<div class="empty"><div class="empty-text">データ取得エラー</div></div>'; return; }
+
+    // 今自分が担当すべきステップのみに絞る
+    const actionable = steps.filter(s => {
+        const req = s.approval_requests;
+        if (!req) return false;
+        if (s.step_order === 1 && req.status === 'submitted') return true;
+        if (s.step_order === 2 && req.status === 'in_review')  return true;
+        return false;
+    });
+
+    // バッジ更新
+    const badge = document.getElementById('pending_badge');
+    badge.style.display = actionable.length > 0 ? 'inline-flex' : 'none';
+    badge.textContent   = actionable.length;
+
+    if (actionable.length === 0) {
+        el.innerHTML = '<div class="empty"><div class="empty-icon">✓</div><div class="empty-text">承認待ちの案件はありません</div></div>';
+        return;
+    }
+
+    // 申請者名を一括取得
+    const requesterIds = [...new Set(actionable.map(s => s.approval_requests?.requester_id).filter(Boolean))];
+    const requesterMap = {};
+    if (requesterIds.length > 0) {
+        const { data: prs } = await db.from('profiles').select('id, name').in('id', requesterIds);
+        if (prs) prs.forEach(p => { requesterMap[p.id] = p.name; });
+    }
+
+    el.innerHTML = actionable.map(s => {
+        const req    = s.approval_requests;
+        const pNum   = req.project_number || '—';
+        const pInfo  = projectsMap[pNum]  || {};
+        const label  = pInfo.customer_name || pInfo.project_details || '';
+        const date   = fmtDate(req.created_at);
+        const poster = requesterMap[req.requester_id] || '—';
+        return `
+        <div class="card" onclick="openDetailModal('${req.id}')">
+            <div class="card-header">
+                <div class="card-title">工番 ${pNum}${label ? '  ' + label : ''}</div>
+                <span class="status-badge s-pending">承認依頼</span>
+            </div>
+            <div class="card-meta">${FLOW_LABELS[req.flow_type] || req.flow_type}　|　申請者: ${poster}　|　${date}</div>
+            ${req.note ? `<div class="card-note">${esc(req.note)}</div>` : ''}
+        </div>`;
+    }).join('');
+}
+
+async function loadMine() {
+    const el = document.getElementById('tab_content_mine');
+    const { data: reqs } = await db
+        .from('approval_requests')
+        .select('id, flow_type, status, note, created_at, updated_at, project_number, approval_steps(id, step_order, approver_role, status, decided_at)')
+        .eq('requester_id', currentUser.id)
+        .order('created_at', { ascending: false });
+
+    if (!reqs || reqs.length === 0) {
+        el.innerHTML = '<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">申請中の案件はありません</div></div>';
+        return;
+    }
+
+    const STEP_ROLE_LABELS = {
+        assembly_manager: '課長', assembly_director: '部長',
+        operations_manager: '操業課長', operations_director: '操業部長',
+        quality: '品保'
+    };
+
+    el.innerHTML = reqs.map(req => {
+        const pNum  = req.project_number || '—';
+        const pInfo = projectsMap[pNum]  || {};
+        const label = [pInfo.customer_name, pInfo.project_details].filter(Boolean).join('　');
+        const steps = (req.approval_steps || []).sort((a, b) => a.step_order - b.step_order);
+
+        // ステップ進捗ノードを構築
+        const nodes = [{ label: '申請', done: true, rejected: false }];
+        if (steps.length > 0) {
+            steps.forEach(s => {
+                const isActive = s.status === 'pending' &&
+                    ((s.step_order === 1 && req.status === 'submitted') ||
+                     (s.step_order === 2 && req.status === 'in_review'));
+                nodes.push({
+                    label:    STEP_ROLE_LABELS[s.approver_role] || s.approver_role,
+                    done:     s.status === 'approved',
+                    active:   isActive,
+                    rejected: s.status === 'rejected'
+                });
+            });
+            nodes.push({ label: '完了', done: req.status === 'approved', rejected: false });
+        } else {
+            // フロー3/4（承認ステップなし）
+            nodes.push({ label: '送信済み', done: req.status === 'approved', rejected: false });
+        }
+
+        const progressHtml = nodes.map((n, i) => {
+            const cls  = n.rejected ? 'sc-rejected' : n.done ? 'sc-done' : n.active ? 'sc-active' : 'sc-empty';
+            const icon = n.rejected ? '✗' : n.done ? '✓' : n.active ? '…' : '○';
+            const line = i < nodes.length - 1
+                ? `<div class="step-connector ${(n.done && !n.rejected) ? 'sc-line-done' : 'sc-line-pending'}"></div>`
+                : '';
+            return `<div class="step-node"><div class="step-circle ${cls}">${icon}</div><div class="step-label">${esc(n.label)}</div></div>${line}`;
+        }).join('');
+
+        return `
+        <div class="card" onclick="openDetailModal('${req.id}')">
+            <div class="card-header">
+                <div class="card-title">工番 ${esc(pNum)}${label ? '　' + esc(label) : ''}</div>
+            </div>
+            <div class="card-meta">${FLOW_LABELS[req.flow_type] || req.flow_type}　|　${fmtDate(req.created_at)}</div>
+            <div class="step-progress">${progressHtml}</div>
+            ${req.note ? `<div class="card-note">${esc(req.note)}</div>` : ''}
+        </div>`;
+    }).join('');
+}
+
+async function loadProgress() {
+    const el = document.getElementById('tab_content_progress');
+
+    // 全申請レコードを取得
+    const { data: allReqs } = await db
+        .from('approval_requests')
+        .select('project_number, flow_type, status, has_inspection, test_run, updated_at')
+        .order('updated_at', { ascending: false });
+
+    // 工番ごとにグループ化
+    const projectFlows = {};
+    (allReqs || []).forEach(req => {
+        const num = req.project_number;
+        if (!num) return;
+        if (!projectFlows[num]) projectFlows[num] = { hasInspection: false, hasTestRun: false, flows: {} };
+        projectFlows[num].flows[req.flow_type] = req;
+        if (req.flow_type === 'assembly') {
+            projectFlows[num].hasInspection = req.has_inspection;
+            projectFlows[num].hasTestRun    = req.test_run;
+        }
+    });
+
+    // タスク情報から全対象工番を追加（未申請工番も含む）
+    assemblyProjectNums.forEach(num => {
+        if (!projectFlows[num]) projectFlows[num] = { hasInspection: false, hasTestRun: false, flows: {} };
+    });
+    inspectionProjectNums.forEach(num => {
+        if (!projectFlows[num]) projectFlows[num] = { hasInspection: true, hasTestRun: false, flows: {} };
+        else projectFlows[num].hasInspection = true;
+    });
+    testRunProjectNums.forEach(num => {
+        if (!projectFlows[num]) projectFlows[num] = { hasInspection: false, hasTestRun: true, flows: {} };
+        else projectFlows[num].hasTestRun = true;
+    });
+    shippingProjectNums.forEach(num => {
+        if (!projectFlows[num]) projectFlows[num] = { hasInspection: false, hasTestRun: false, flows: {} };
+    });
+
+    const allNums = Object.keys(projectFlows).sort();
+
+    if (allNums.length === 0) {
+        el.innerHTML = '<div class="empty"><div class="empty-icon">📊</div><div class="empty-text">承認フローの記録がありません</div></div>';
+        return;
+    }
+
+    const FLOW_DEFS = [
+        { type: 'assembly',   label: '組立完了通知' },
+        { type: 'inspection', label: '外観検査開催案内' },
+        { type: 'test_run',   label: '試運転完了通知' },
+        { type: 'shipping',   label: '出荷確認書' }
+    ];
+
+    const html = allNums.map(num => {
+        const data  = projectFlows[num];
+        const pInfo = projectsMap[num] || {};
+        const label = [pInfo.customer_name, pInfo.project_details].filter(Boolean).join('　');
+
+        // 適用フロー（フラグまたは実リクエスト存在で表示）
+        const applicable = FLOW_DEFS.filter(f => {
+            if (f.type === 'assembly' || f.type === 'shipping') return true;
+            if (f.type === 'inspection') return data.hasInspection || !!data.flows['inspection'];
+            if (f.type === 'test_run')   return data.hasTestRun   || !!data.flows['test_run'];
+            return false;
+        });
+
+        const flowRows = applicable.map(f => {
+            const req = data.flows[f.type];
+            let icon, color, dateStr;
+            if (!req)                          { icon = '──'; color = '#ccc';     dateStr = '未'; }
+            else if (req.status === 'approved') { icon = '✅'; color = '#27ae60'; dateStr = fmtDate(req.updated_at); }
+            else if (req.status === 'rejected') { icon = '❌'; color = '#e74c3c'; dateStr = '却下'; }
+            else                                { icon = '⏳'; color = '#f39c12'; dateStr = '承認中'; }
+            return `<div class="progress-flow-row">
+                <span style="color:${color}; width:22px; text-align:center; flex-shrink:0;">${icon}</span>
+                <span class="progress-flow-label" style="color:${color === '#ccc' ? '#bbb' : '#444'};">${esc(f.label)}</span>
+                <span class="progress-flow-date">${dateStr}</span>
+            </div>`;
+        }).join('');
+
+        return `<div class="progress-card">
+            <div class="progress-card-title">工番 ${esc(num)}${label ? '　' + esc(label) : ''}</div>
+            ${flowRows}
+        </div>`;
+    }).join('');
+
+    el.innerHTML = html;
+}
+
+// ===== Tab Switch =====
+function switchTab(tab) {
+    currentTab = tab;
+    ['pending', 'mine', 'progress'].forEach(t => {
+        const tabEl     = document.getElementById(`tab_${t}`);
+        const contentEl = document.getElementById(`tab_content_${t}`);
+        if (tabEl)     tabEl.classList.toggle('active', t === tab);
+        if (contentEl) contentEl.style.display = t === tab ? 'block' : 'none';
+    });
+    // 申請ボタンは「自分の申請」タブのみ表示
+    const newBtnArea = document.getElementById('new_btn_area');
+    if (newBtnArea) newBtnArea.style.display = tab === 'mine' ? 'block' : 'none';
+}
+
+// ===== Submit Modal =====
+let currentFlowType = 'assembly';
+
+function openSubmitModal(flowType = 'assembly') {
+    currentFlowType = flowType;
+    document.getElementById('submit_project').value = '';
+    document.getElementById('submit_project_info').style.display = 'none';
+    document.getElementById('flow_detect_group').style.display = 'none';
+    document.getElementById('submit_note').value = '';
+    detectedFlows = { inspection: false, test_run: false };
+
+    // モーダルタイトルをフロー種別で切り替え
+    const titleEl = document.querySelector('#submit_modal .modal-header h2');
+    titleEl.textContent = flowType === 'test_run' ? '試運転完了通知 — 申請' : '組立完了通知 — 申請';
+
+    document.getElementById('submit_modal').classList.add('open');
+    ui.send('OPEN_SUBMIT');
+}
+
+function closeSubmitModal() {
+    document.getElementById('submit_modal').classList.remove('open');
+    ui.send('CLOSE');
+}
+
+async function submitRequest() {
+    const projectNum = document.getElementById('submit_project').value;
+    if (!projectNum) { alert('工事番号を選択してください'); return; }
+
+    const note    = document.getElementById('submit_note').value.trim();
+    const btn     = document.getElementById('submit_btn');
+    btn.disabled  = true;
+    btn.textContent = '申請中...';
+
+    try {
+        // フロー別の設定
+        const FLOW_CONFIG = {
+            assembly: {
+                step1: 'assembly_manager',
+                step2: 'assembly_director',
+                msg:   '組立課長に通知が届きます。'
+            },
+            test_run: {
+                step1: 'operations_manager',
+                step2: 'operations_director',
+                msg:   '操業課長に通知が届きます。'
+            }
+        };
+        const cfg = FLOW_CONFIG[currentFlowType];
+
+        // 1. 申請レコード作成
+        const { data: req, error: e1 } = await db
+            .from('approval_requests')
+            .insert({
+                project_number: projectNum,
+                flow_type:      currentFlowType,
+                status:         'submitted',
+                requester_id:   currentUser.id,
+                note:           note || null,
+                test_run:       detectedFlows.test_run,
+                has_inspection: detectedFlows.inspection
+            })
+            .select()
+            .single();
+        if (e1) throw e1;
+
+        // 2. 承認ステップ作成
+        const { error: e2 } = await db
+            .from('approval_steps')
+            .insert([
+                { request_id: req.id, step_order: 1, approver_role: cfg.step1, status: 'pending' },
+                { request_id: req.id, step_order: 2, approver_role: cfg.step2, status: 'pending' }
+            ]);
+        if (e2) throw e2;
+
+        // 3. Step1承認者に通知記録
+        const { data: step1Approvers } = await db
+            .from('profiles').select('id').eq('role', cfg.step1);
+        if (step1Approvers?.length > 0) {
+            await db.from('approval_notifications').insert(
+                step1Approvers.map(a => ({
+                    request_id: req.id, recipient_id: a.id, notification_type: 'approval_request'
+                }))
+            );
+        }
+
+        closeSubmitModal();
+        await refreshAll();
+        switchTab('mine');
+        ui.send('SAVED');
+        alert(`申請しました。\n${cfg.msg}`);
+    } catch (e) {
+        alert('申請に失敗しました: ' + e.message);
+    } finally {
+        btn.disabled    = false;
+        btn.textContent = '申請する';
+    }
+}
+
+// ===== Detail Modal =====
+async function openDetailModal(requestId) {
+    document.getElementById('detail_modal').classList.add('open');
+    document.getElementById('detail_body').innerHTML   = '<div class="loading-indicator">読み込み中...</div>';
+    document.getElementById('detail_footer').innerHTML = '<button class="btn btn-secondary" onclick="closeDetailModal()">閉じる</button>';
+    ui.send('OPEN_DETAIL');
+
+    const { data: req } = await db
+        .from('approval_requests')
+        .select(`*, approval_steps ( id, step_order, approver_role, approver_id, status, comment, decided_at )`)
+        .eq('id', requestId)
+        .single();
+
+    // 申請者名を別途取得
+    let requesterName = '—', requesterDept = '—';
+    if (req?.requester_id) {
+        const { data: rp } = await db.from('profiles').select('name, department').eq('id', req.requester_id).single();
+        if (rp) { requesterName = rp.name; requesterDept = rp.department; }
+    }
+
+    if (!req) {
+        document.getElementById('detail_body').innerHTML = '<div class="empty"><div class="empty-text">データが見つかりません</div></div>';
+        return;
+    }
+
+    const steps  = (req.approval_steps || []).sort((a, b) => a.step_order - b.step_order);
+    currentDetailFlowType = req.flow_type || '';
+    const pNum   = req.project_number || '—';
+    const pInfo  = projectsMap[pNum]  || {};
+    const cls    = STATUS_CLASSES[req.status] || 's-pending';
+    const slbl   = STATUS_LABELS[req.status]  || req.status;
+
+    // 自分が担当すべきステップか確認
+    const myStep = steps.find(s =>
+        s.approver_role === getEffectiveRole() &&
+        s.status        === 'pending' &&
+        ((s.step_order === 1 && req.status === 'submitted') ||
+         (s.step_order === 2 && req.status === 'in_review'))
+    );
+    const isMyRequest = req.requester_id === currentUser.id;
+
+    // プロフィール名を取得
+    const approverIds = steps.filter(s => s.approver_id).map(s => s.approver_id);
+    let approverNames = {};
+    if (approverIds.length > 0) {
+        const { data: prs } = await db.from('profiles').select('id, name').in('id', approverIds);
+        if (prs) prs.forEach(p => { approverNames[p.id] = p.name; });
+    }
+
+    const stepsHtml = steps.map(s => {
+        let icon, sc;
+        if      (s.status === 'approved') { icon = '✓'; sc = 'sc-approved'; }
+        else if (s.status === 'rejected') { icon = '✗'; sc = 'sc-rejected'; }
+        else if (s.status === 'pending' &&
+                 ((s.step_order === 1 && req.status === 'submitted') ||
+                  (s.step_order === 2 && req.status === 'in_review')))
+                                          { icon = '⏳'; sc = 'sc-pending'; }
+        else                              { icon = '—';  sc = 'sc-waiting'; }
+
+        const who  = s.approver_id ? (approverNames[s.approver_id] || '—') : '—';
+        const when = s.decided_at  ? fmtDate(s.decided_at) : '';
+
+        return `
+        <div class="step-item">
+            <div class="step-circle ${sc}">${icon}</div>
+            <div class="step-detail">
+                <div class="step-label">Step${s.step_order}　${ROLE_LABELS[s.approver_role] || s.approver_role}</div>
+                ${s.approver_id ? `<div class="step-name">${esc(who)}</div>` : '<div class="step-name" style="color:#bbb;">未決</div>'}
+                ${s.comment     ? `<div class="step-comment">"${esc(s.comment)}"</div>` : ''}
+                ${when          ? `<div class="step-date">${when}</div>` : ''}
+            </div>
+        </div>`;
+    }).join('');
+
+    document.getElementById('detail_title').textContent = FLOW_LABELS[req.flow_type] || req.flow_type;
+    document.getElementById('detail_body').innerHTML = `
+        <table class="info-table">
+            <tr><td>工事番号</td><td>${esc(pNum)}</td></tr>
+            ${pInfo.customer_name   ? `<tr><td>客先</td><td>${esc(pInfo.customer_name)}</td></tr>`   : ''}
+            ${pInfo.project_details ? `<tr><td>工事名</td><td>${esc(pInfo.project_details)}</td></tr>` : ''}
+            <tr><td>申請者</td><td>${esc(requesterName)}（${esc(requesterDept)}）</td></tr>
+            ${req.flow_type === 'assembly' ? `<tr><td>試運転</td><td>${req.test_run ? 'あり' : 'なし'}</td></tr>` : ''}
+            <tr><td>申請日</td><td>${fmtDate(req.created_at)}</td></tr>
+            <tr><td>状態</td><td><span class="status-badge ${cls}">${slbl}</span></td></tr>
+        </table>
+        ${req.note ? `<div style="background:#f8f9fa; border-radius:4px; padding:10px 12px; font-size:13px; color:#555; margin-bottom:14px;">${esc(req.note)}</div>` : ''}
+        <hr class="section-divider">
+        <div class="section-title">承認ステップ</div>
+        <div class="steps-list">${stepsHtml}</div>
+        ${myStep ? `
+        <hr class="section-divider">
+        <div class="form-group">
+            <label>コメント${myStep ? '' : '（任意）'}</label>
+            <textarea id="approval_comment" placeholder="承認・却下の理由など（却下時は必須）"></textarea>
+        </div>` : ''}
+    `;
+
+    // フッターボタン
+    const footer = document.getElementById('detail_footer');
+    if (myStep) {
+        footer.innerHTML = `
+            <button class="btn btn-secondary" onclick="closeDetailModal()">閉じる</button>
+            <button class="btn btn-danger"    onclick="rejectStep('${req.id}','${myStep.id}')">却下する</button>
+            <button class="btn btn-success"   onclick="approveStep('${req.id}','${myStep.id}',${myStep.step_order})">承認する</button>
+        `;
+    } else if (isMyRequest && req.status === 'rejected') {
+        footer.innerHTML = `
+            <button class="btn btn-secondary" onclick="closeDetailModal()">閉じる</button>
+            <button class="btn btn-primary"   onclick="resubmit('${req.id}')">再申請する</button>
+        `;
+    }
+}
+
+function closeDetailModal() {
+    document.getElementById('detail_modal').classList.remove('open');
+    ui.send('CLOSE');
+}
+
+// ===== Approve =====
+async function approveStep(requestId, stepId, stepOrder) {
+    const comment  = (document.getElementById('approval_comment')?.value || '').trim();
+    const nextStatus = stepOrder === 1 ? 'in_review' : 'approved';
+
+    try {
+        await db.from('approval_steps').update({
+            status:      'approved',
+            approver_id: currentUser.id,
+            comment:     comment || null,
+            decided_at:  new Date().toISOString()
+        }).eq('id', stepId);
+
+        await db.from('approval_requests').update({
+            status:     nextStatus,
+            updated_at: new Date().toISOString()
+        }).eq('id', requestId);
+
+        if (nextStatus === 'in_review') {
+            // Step1承認 → Step2承認者に通知
+            const STEP2_ROLES = { assembly: 'assembly_director', test_run: 'operations_director' };
+            const step2Role = STEP2_ROLES[currentDetailFlowType];
+            if (step2Role) {
+                const { data: step2Approvers } = await db.from('profiles').select('id').eq('role', step2Role);
+                if (step2Approvers?.length > 0) {
+                    await db.from('approval_notifications').insert(
+                        step2Approvers.map(a => ({
+                            request_id: requestId, recipient_id: a.id, notification_type: 'approval_request'
+                        }))
+                    );
+                }
+            }
+        }
+
+        if (nextStatus === 'approved') {
+            await recordNotifications(requestId);
+        }
+
+        closeDetailModal();
+        await refreshAll();
+        ui.send('SAVED');
+
+        const STEP2_LABEL = {
+            assembly: '組立部長',
+            test_run: '操業部長'
+        };
+        const nextLabel = STEP2_LABEL[currentDetailFlowType] || '上位承認者';
+        const msg = stepOrder === 1
+            ? `承認しました。${nextLabel}に通知されます。`
+            : '全承認が完了しました。関係者に通知が送られます。';
+        alert(msg);
+    } catch (e) {
+        alert('承認処理に失敗しました: ' + e.message);
+    }
+}
+
+// ===== Reject =====
+async function rejectStep(requestId, stepId) {
+    const comment = (document.getElementById('approval_comment')?.value || '').trim();
+    if (!comment) { alert('却下する場合はコメントを入力してください。'); return; }
+
+    try {
+        await db.from('approval_steps').update({
+            status:      'rejected',
+            approver_id: currentUser.id,
+            comment:     comment,
+            decided_at:  new Date().toISOString()
+        }).eq('id', stepId);
+
+        await db.from('approval_requests').update({
+            status:     'rejected',
+            updated_at: new Date().toISOString()
+        }).eq('id', requestId);
+
+        // 申請者に却下通知を記録
+        const { data: rejReq } = await db.from('approval_requests')
+            .select('requester_id').eq('id', requestId).single();
+        if (rejReq?.requester_id) {
+            await db.from('approval_notifications').insert({
+                request_id: requestId, recipient_id: rejReq.requester_id, notification_type: 'rejected'
+            });
+        }
+
+        closeDetailModal();
+        await refreshAll();
+        ui.send('SAVED');
+        alert('却下しました。申請者に通知されます。');
+    } catch (e) {
+        alert('処理に失敗しました: ' + e.message);
+    }
+}
+
+// ===== Resubmit =====
+async function resubmit(requestId) {
+    if (!confirm('再申請しますか？承認ステップがリセットされます。')) return;
+    try {
+        await db.from('approval_steps').update({
+            status:      'pending',
+            approver_id: null,
+            comment:     null,
+            decided_at:  null
+        }).eq('request_id', requestId);
+
+        await db.from('approval_requests').update({
+            status:     'submitted',
+            updated_at: new Date().toISOString()
+        }).eq('id', requestId);
+
+        closeDetailModal();
+        await refreshAll();
+        alert('再申請しました。');
+    } catch (e) {
+        alert('再申請に失敗しました: ' + e.message);
+    }
+}
+
+// ===== フロー3: 外観検査開催案内 =====
+let inspectionProjectsLoaded = false;
+
+function openInspectionModal() {
+    document.getElementById('inspection_project').value = '';
+    document.getElementById('inspection_project_info').style.display = 'none';
+    document.getElementById('inspection_flow_box').style.display    = 'none';
+    document.getElementById('inspection_date_input').value     = '';
+    document.getElementById('inspection_time_input').value     = '';
+    document.getElementById('inspection_location_input').value = '';
+    document.getElementById('inspection_note_input').value     = '';
+
+    // 外観検査タスクがある工番のみプルダウンに表示
+    if (!inspectionProjectsLoaded) {
+        const sel = document.getElementById('inspection_project');
+        Object.keys(projectsMap)
+            .filter(num => inspectionProjectNums.has(num))
+            .forEach(num => {
+                const opt = document.createElement('option');
+                opt.value = num;
+                const p   = projectsMap[num];
+                const lbl = [p.customer_name, p.project_details].filter(Boolean).join('　');
+                opt.textContent = num + (lbl ? `　${lbl}` : '');
+                sel.appendChild(opt);
+            });
+        inspectionProjectsLoaded = true;
+    }
+
+    document.getElementById('inspection_modal').classList.add('open');
+}
+
+function closeInspectionModal() {
+    document.getElementById('inspection_modal').classList.remove('open');
+}
+
+async function onInspectionProjectChange() {
+    const num = document.getElementById('inspection_project').value;
+    if (!num) {
+        document.getElementById('inspection_project_info').style.display = 'none';
+        document.getElementById('inspection_flow_box').style.display    = 'none';
+        return;
+    }
+
+    // 工事情報
+    const p = projectsMap[num] || {};
+    document.getElementById('inspection_project_detail').innerHTML =
+        `<span style="color:#888;font-size:11px;">客先</span> ${esc(p.customer_name || '—')}　<span style="color:#888;font-size:11px;">工事名</span> ${esc(p.project_details || '—')}`;
+    document.getElementById('inspection_project_info').style.display = 'block';
+
+    // この工番の承認済みフローを確認
+    const { data: doneReqs } = await db
+        .from('approval_requests')
+        .select('flow_type, updated_at')
+        .eq('project_number', num)
+        .eq('status', 'approved');
+    const doneFlows = new Set((doneReqs || []).map(r => r.flow_type));
+
+    const assemblyDone = doneFlows.has('assembly');
+    document.getElementById('inspection_flow_list').innerHTML = `
+        <div style="padding:2px 0; color:${assemblyDone ? '#27ae60' : '#e74c3c'};">
+            ${assemblyDone ? '✅' : '⚠'}　組立完了通知　${assemblyDone ? '承認済み' : '未承認'}
+        </div>
+        <div style="padding:2px 0; color:#1e3a5f; font-weight:bold;">
+            ▶　外観検査開催案内（今回）
+        </div>
+    `;
+    document.getElementById('inspection_flow_box').style.display = 'block';
+}
+
+async function submitInspection() {
+    const num      = document.getElementById('inspection_project').value;
+    const dateVal  = document.getElementById('inspection_date_input').value;
+    const timeVal  = document.getElementById('inspection_time_input').value;
+    const location = document.getElementById('inspection_location_input').value.trim();
+    const note     = document.getElementById('inspection_note_input').value.trim();
+
+    if (!num)     { alert('工事番号を選択してください'); return; }
+    if (!dateVal) { alert('外観検査日を入力してください'); return; }
+
+    const btn = document.getElementById('inspection_submit_btn');
+    btn.disabled = true;
+    btn.textContent = '送信中...';
+
+    try {
+        // 承認ステップなし → 直接 approved で登録
+        const { data: req, error } = await db
+            .from('approval_requests')
+            .insert({
+                project_number:       num,
+                flow_type:            'inspection',
+                status:               'approved',
+                requester_id:         currentUser.id,
+                note:                 note || null,
+                inspection_date:      dateVal,
+                inspection_time:      timeVal || null,
+                inspection_location:  location || null
+            })
+            .select()
+            .single();
+        if (error) throw error;
+
+        // 通知先: 組立staff + assembly_director(常務) + 製管staff
+        const { data: recipients } = await db
+            .from('profiles')
+            .select('id')
+            .or('department.eq.組立,department.eq.製管,role.eq.assembly_director');
+
+        if (recipients?.length > 0) {
+            await db.from('approval_notifications').insert(
+                recipients.map(r => ({
+                    request_id:        req.id,
+                    recipient_id:      r.id,
+                    notification_type: 'inspection_invite'
+                }))
+            );
+        }
+
+        closeInspectionModal();
+        await refreshAll();
+        alert('外観検査開催案内を送信しました。');
+    } catch (e) {
+        alert('送信に失敗しました: ' + e.message);
+    } finally {
+        btn.disabled    = false;
+        btn.textContent = '案内を送信';
+    }
+}
+
+// ===== フロー4: 出荷確認書 =====
+let shippingProjectsLoaded = false;
+
+function openShippingModal() {
+    document.getElementById('shipping_project').value = '';
+    document.getElementById('shipping_project_info').style.display = 'none';
+    document.getElementById('shipping_flow_box').style.display     = 'none';
+    document.getElementById('shipping_date_input').value  = '';
+    document.getElementById('shipping_note_input').value  = '';
+
+    if (!shippingProjectsLoaded) {
+        const sel  = document.getElementById('shipping_project');
+        // 工場出荷タスクがある工番を表示
+        Object.keys(projectsMap).sort().forEach(num => {
+            const opt = document.createElement('option');
+            opt.value = num;
+            const p   = projectsMap[num];
+            const lbl = [p.customer_name, p.project_details].filter(Boolean).join('　');
+            opt.textContent = num + (lbl ? `　${lbl}` : '');
+            sel.appendChild(opt);
+        });
+        shippingProjectsLoaded = true;
+    }
+
+    document.getElementById('shipping_modal').classList.add('open');
+}
+
+function closeShippingModal() {
+    document.getElementById('shipping_modal').classList.remove('open');
+}
+
+async function onShippingProjectChange() {
+    const num = document.getElementById('shipping_project').value;
+    if (!num) {
+        document.getElementById('shipping_project_info').style.display = 'none';
+        document.getElementById('shipping_flow_box').style.display     = 'none';
+        return;
+    }
+
+    const p = projectsMap[num] || {};
+    document.getElementById('shipping_project_detail').innerHTML =
+        `<span style="color:#888;font-size:11px;">客先</span> ${esc(p.customer_name || '—')}　<span style="color:#888;font-size:11px;">工事名</span> ${esc(p.project_details || '—')}`;
+    document.getElementById('shipping_project_info').style.display = 'block';
+
+    // 承認済みフロー確認
+    const { data: doneReqs } = await db
+        .from('approval_requests')
+        .select('flow_type, updated_at')
+        .eq('project_number', num)
+        .eq('status', 'approved');
+    const doneFlows = new Set((doneReqs || []).map(r => r.flow_type));
+
+    const rows = [
+        { type: 'assembly',   label: '組立完了通知' },
+        { type: 'inspection', label: '外観検査開催案内' },
+        { type: 'test_run',   label: '試運転完了通知' }
+    ].filter(f => doneFlows.has(f.type) || f.type === 'assembly');
+
+    const rowsHtml = rows.map(f => {
+        const done  = doneFlows.has(f.type);
+        return `<div style="padding:2px 0; color:${done ? '#27ae60' : '#bbb'};">
+            ${done ? '✅' : '──'}　${esc(f.label)}　${done ? '承認済み' : ''}
+        </div>`;
+    }).join('');
+
+    document.getElementById('shipping_flow_list').innerHTML = `
+        ${rowsHtml}
+        <div style="padding:2px 0; color:#1e3a5f; font-weight:bold; margin-top:4px;">
+            ▶　出荷確認書（今回）
+        </div>
+    `;
+    document.getElementById('shipping_flow_box').style.display = 'block';
+}
+
+async function submitShipping() {
+    const num      = document.getElementById('shipping_project').value;
+    const dateVal  = document.getElementById('shipping_date_input').value;
+    const note     = document.getElementById('shipping_note_input').value.trim();
+
+    if (!num)     { alert('工事番号を選択してください'); return; }
+    if (!dateVal) { alert('確定出荷日を入力してください'); return; }
+
+    const btn = document.getElementById('shipping_submit_btn');
+    btn.disabled    = true;
+    btn.textContent = '発行中...';
+
+    try {
+        const { data: req, error } = await db
+            .from('approval_requests')
+            .insert({
+                project_number:          num,
+                flow_type:               'shipping',
+                status:                  'approved',
+                requester_id:            currentUser.id,
+                note:                    note || null,
+                confirmed_shipping_date: dateVal
+            })
+            .select()
+            .single();
+        if (error) throw error;
+
+        // 通知先: 組立staff + 製管staff + assembly_director + logistics
+        const { data: recipients } = await db
+            .from('profiles')
+            .select('id')
+            .or('department.eq.組立,department.eq.製管,role.eq.assembly_director,role.eq.logistics');
+
+        if (recipients?.length > 0) {
+            await db.from('approval_notifications').insert(
+                recipients.map(r => ({
+                    request_id:        req.id,
+                    recipient_id:      r.id,
+                    notification_type: 'completed'
+                }))
+            );
+        }
+
+        closeShippingModal();
+        await refreshAll();
+        alert('出荷確認書を発行しました。関係者に通知が送られます。');
+    } catch (e) {
+        alert('発行に失敗しました: ' + e.message);
+    } finally {
+        btn.disabled    = false;
+        btn.textContent = '出荷確認書を発行';
+    }
+}
+
+// ===== Notifications =====
+async function recordNotifications(requestId) {
+    const { data: req } = await db
+        .from('approval_requests')
+        .select('test_run')
+        .eq('id', requestId)
+        .single();
+    if (!req) return;
+
+    let targetRoles = ['quality', 'staff'];
+    if (req.test_run) {
+        targetRoles.push('operations_manager', 'operations_director');
+    }
+
+    const { data: recipients } = await db
+        .from('profiles')
+        .select('id')
+        .in('role', targetRoles);
+
+    if (!recipients || recipients.length === 0) return;
+
+    await db.from('approval_notifications').insert(
+        recipients.map(r => ({
+            request_id:        requestId,
+            recipient_id:      r.id,
+            notification_type: 'completed'
+        }))
+    );
+}
+
+// ===== Helpers =====
+function fmtDate(iso) {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleDateString('ja-JP', { year: 'numeric', month: 'numeric', day: 'numeric' });
+}
+
+function esc(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+let _profilesCache = null;
+async function getProfileByRole(role) {
+    if (!_profilesCache) {
+        const { data } = await db.from('profiles').select('*');
+        _profilesCache = data || [];
+    }
+    return _profilesCache.find(p => p.role === role);
+}
+
+// ===== Auth Listener =====
+db.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_OUT') {
+        document.getElementById('login_overlay').classList.add('visible');
+        document.getElementById('app').style.display = 'none';
+        currentUser    = null;
+        currentProfile = null;
+    }
+});
+
+// ===== ページロード時にセッションを復元 =====
+(async () => {
+    const accessToken  = sessionStorage.getItem('ap_access_token');
+    const refreshToken = sessionStorage.getItem('ap_refresh_token');
+    if (!accessToken) return; // 未ログイン → ログイン画面のまま
+
+    const { data, error } = await db.auth.setSession({
+        access_token:  accessToken,
+        refresh_token: refreshToken
+    });
+    if (error || !data.session) {
+        // トークン期限切れなど → ログイン画面へ
+        sessionStorage.removeItem('ap_access_token');
+        sessionStorage.removeItem('ap_refresh_token');
+        return;
+    }
+    await bootApp(data.session);
+})();
+</script>
+</body>
+</html>
