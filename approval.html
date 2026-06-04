@@ -1525,9 +1525,32 @@ async function resubmit(requestId) {
             updated_at: new Date().toISOString()
         }).eq('id', requestId);
 
+        // Step1承認者に再申請通知を記録
+        const { data: step1 } = await db
+            .from('approval_steps')
+            .select('approver_role')
+            .eq('request_id', requestId)
+            .eq('step_order', 1)
+            .single();
+        if (step1?.approver_role) {
+            const { data: approvers } = await db
+                .from('profiles')
+                .select('id')
+                .eq('role', step1.approver_role);
+            if (approvers?.length > 0) {
+                await db.from('approval_notifications').insert(
+                    approvers.map(a => ({
+                        request_id:        requestId,
+                        recipient_id:      a.id,
+                        notification_type: 'approval_request'
+                    }))
+                );
+            }
+        }
+
         closeDetailModal();
         await refreshAll();
-        alert('再申請しました。');
+        alert('再申請しました。承認者に通知されます。');
     } catch (e) {
         alert('再申請に失敗しました: ' + e.message);
     }
