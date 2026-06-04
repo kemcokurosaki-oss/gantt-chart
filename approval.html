@@ -646,9 +646,19 @@ function applyRoleLayout(role) {
     }
 
     // デフォルトタブ
-    if (isApprover)       switchTab('pending');   // 承認者 → 承認待ち
-    else if (isViewOnly)  switchTab('progress');  // 製管など → 進捗一覧のみ
-    else                  switchTab('mine');      // 申請者・品保 → 自分の申請
+    if (isApprover)      switchTab('pending');
+    else if (isViewOnly) switchTab('progress');
+    else                 switchTab('mine');
+
+    // 製管など進捗一覧のみのロールは確実に申請ボタンを非表示・内容をクリア
+    if (isViewOnly) {
+        document.getElementById('new_btn_area').style.display        = 'none';
+        document.getElementById('tab_content_mine').innerHTML        = '';
+        document.getElementById('tab_content_mine').style.display    = 'none';
+        document.getElementById('tab_content_pending').innerHTML     = '';
+        document.getElementById('tab_content_pending').style.display = 'none';
+        document.getElementById('tab_content_progress').style.display = 'block';
+    }
 }
 
 async function switchDevRole(value) {
@@ -939,18 +949,10 @@ async function refreshAll() {
     const isQuality   = role === 'quality';
     const isApplicant = role === 'staff' && (dept === '組立' || dept === '操業');
 
-    const loads = [loadProgress()]; // 全員が進捗一覧を読み込む
+    const loads = [];
+    loads.push(loadProgress()); // 全員が進捗一覧を読み込む
     if (isApprover || isQuality) loads.push(loadPending());
     if (isApplicant || isQuality) loads.push(loadMine());
-
-    // 不要なタブのコンテンツをクリア
-    if (!isApprover && !isQuality) {
-        document.getElementById('tab_content_pending').innerHTML = '';
-    }
-    if (!isApplicant && !isQuality) {
-        document.getElementById('tab_content_mine').innerHTML = '';
-        document.getElementById('tab_content_mine').style.display = 'none';
-    }
 
     await Promise.all(loads);
 }
