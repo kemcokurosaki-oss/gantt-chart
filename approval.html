@@ -602,16 +602,18 @@ let devRole = ''; // 開発用ロール上書き
 let devDept = ''; // 開発用部署上書き
 let currentDetailFlowType = '';
 
-// デモ用ロール→{role, department} マッピング
+// デモ用ロール→{role, department, flowTypes} マッピング
+// flowTypes: 自分の申請タブで表示するフロー種別（デモ用フィルタ）
 const DEV_ROLE_MAP = {
-    staff_kumitate:      { role: 'staff',               department: '組立' },
-    staff_shiunten:      { role: 'staff',               department: '操業' },
-    assembly_manager:    { role: 'assembly_manager',    department: '組立' },
-    assembly_director:   { role: 'assembly_director',   department: '組立' },
-    operations_manager:  { role: 'operations_manager',  department: '操業' },
-    operations_director: { role: 'operations_director', department: '操業' },
-    quality:             { role: 'quality',             department: '品証' }
+    staff_kumitate:      { role: 'staff',               department: '組立', flowTypes: ['assembly'] },
+    staff_shiunten:      { role: 'staff',               department: '操業', flowTypes: ['test_run'] },
+    assembly_manager:    { role: 'assembly_manager',    department: '組立', flowTypes: [] },
+    assembly_director:   { role: 'assembly_director',   department: '組立', flowTypes: [] },
+    operations_manager:  { role: 'operations_manager',  department: '操業', flowTypes: [] },
+    operations_director: { role: 'operations_director', department: '操業', flowTypes: [] },
+    quality:             { role: 'quality',             department: '品証', flowTypes: ['inspection', 'shipping'] }
 };
+let devFlowTypes = []; // デモ用: 自分の申請タブのフロー絞り込み
 
 function getEffectiveRole() { return devRole || currentProfile?.role || ''; }
 function getEffectiveDept() { return devDept || currentProfile?.department || ''; }
@@ -650,9 +652,10 @@ function applyRoleLayout(role) {
 }
 
 async function switchDevRole(value) {
-    const map = DEV_ROLE_MAP[value];
-    devRole = map ? map.role       : '';
-    devDept = map ? map.department : '';
+    const map    = DEV_ROLE_MAP[value];
+    devRole      = map ? map.role       : '';
+    devDept      = map ? map.department : '';
+    devFlowTypes = map ? (map.flowTypes || []) : [];
 
     const DEMO_LABELS = {
         staff_kumitate:      '組立担当者',
@@ -998,11 +1001,18 @@ async function loadPending() {
 
 async function loadMine() {
     const el = document.getElementById('tab_content_mine');
-    const { data: reqs } = await db
+    let query = db
         .from('approval_requests')
         .select('id, flow_type, status, note, created_at, updated_at, project_number, approval_steps(id, step_order, approver_role, status, decided_at)')
         .eq('requester_id', currentUser.id)
         .order('created_at', { ascending: false });
+
+    // デモ用: ロールに対応するフロー種別のみ表示
+    if (devFlowTypes.length > 0) {
+        query = query.in('flow_type', devFlowTypes);
+    }
+
+    const { data: reqs } = await query;
 
     if (!reqs || reqs.length === 0) {
         el.innerHTML = '<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">申請中の案件はありません</div></div>';
