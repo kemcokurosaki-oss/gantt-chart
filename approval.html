@@ -330,6 +330,12 @@
         }
         #login_dialog .login-btn:hover { background: #2a5080; }
 
+        /* ===== View-Only Mode（製管など進捗一覧のみ） ===== */
+        .is-view-only #tab_content_mine    { display: none !important; }
+        .is-view-only #tab_content_pending { display: none !important; }
+        .is-view-only #new_btn_area        { display: none !important; }
+        .is-view-only #tab_content_progress { display: block !important; }
+
         /* ===== Empty / Loading ===== */
         .empty { text-align: center; padding: 48px 20px; color: #bbb; }
         .empty-icon { font-size: 36px; margin-bottom: 8px; }
@@ -650,14 +656,15 @@ function applyRoleLayout(role) {
     else if (isViewOnly) switchTab('progress');
     else                 switchTab('mine');
 
-    // 製管など進捗一覧のみのロールは確実に申請ボタンを非表示・内容をクリア
+    // CSSクラスで進捗一覧のみモードを強制適用
+    const appEl = document.getElementById('app');
     if (isViewOnly) {
-        document.getElementById('new_btn_area').style.display        = 'none';
-        document.getElementById('tab_content_mine').innerHTML        = '';
-        document.getElementById('tab_content_mine').style.display    = 'none';
-        document.getElementById('tab_content_pending').innerHTML     = '';
-        document.getElementById('tab_content_pending').style.display = 'none';
-        document.getElementById('tab_content_progress').style.display = 'block';
+        appEl.classList.add('is-view-only');
+        document.getElementById('tab_content_mine').innerHTML    = '';
+        document.getElementById('tab_content_pending').innerHTML = '';
+        switchTab('progress');
+    } else {
+        appEl.classList.remove('is-view-only');
     }
 }
 
