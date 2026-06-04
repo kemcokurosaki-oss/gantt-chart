@@ -180,7 +180,7 @@ async function main() {
         to:      toEmail,
         subject: TEST_MODE ? `[TEST] ${mail.subject}` : mail.subject,
         text:    TEST_MODE
-          ? `【テスト送信】本来の宛先: ${profile.email}\n\n${mail.text}`
+          ? `【テスト送信】本来の宛先: ${actualEmail}\n\n${mail.text}`
           : mail.text,
       });
 
