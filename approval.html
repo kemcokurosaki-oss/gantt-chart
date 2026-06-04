@@ -933,7 +933,26 @@ async function onProjectChange() {
 
 // ===== Data Loading =====
 async function refreshAll() {
-    await Promise.all([loadPending(), loadMine(), loadProgress()]);
+    const role        = getEffectiveRole();
+    const dept        = getEffectiveDept();
+    const isApprover  = APPROVER_ROLES.includes(role);
+    const isQuality   = role === 'quality';
+    const isApplicant = role === 'staff' && (dept === '組立' || dept === '操業');
+
+    const loads = [loadProgress()]; // 全員が進捗一覧を読み込む
+    if (isApprover || isQuality) loads.push(loadPending());
+    if (isApplicant || isQuality) loads.push(loadMine());
+
+    // 不要なタブのコンテンツをクリア
+    if (!isApprover && !isQuality) {
+        document.getElementById('tab_content_pending').innerHTML = '';
+    }
+    if (!isApplicant && !isQuality) {
+        document.getElementById('tab_content_mine').innerHTML = '';
+        document.getElementById('tab_content_mine').style.display = 'none';
+    }
+
+    await Promise.all(loads);
 }
 
 async function loadPending() {
