@@ -1708,108 +1708,129 @@ async function submitShipping() {
 
 // ===== Notifications =====
 
-// フロー別通知ルール定義
-const NOTIFY_RULES = {
-    // フロー1完了: 組立担当者・品保・製管 ＋ 営業staff・設計全員
-    assembly: {
-        notifType: 'completed',
-        profiles: [
-            { department: '組立', role: 'staff' },
-            { role: 'quality' },
-            { department: '製管', role: 'staff' }
-        ],
-        external: [
-            { department: '営業', role: 'staff' },
-            { department: '設計' }
-        ]
-    },
-    // フロー2完了: 試運転担当者・品保・製管・常務 ＋ 営業staff・設計全員
-    test_run: {
-        notifType: 'completed',
-        profiles: [
-            { department: '操業', role: 'staff' },
-            { role: 'quality' },
-            { department: '製管', role: 'staff' },
-            { role: 'assembly_director' }
-        ],
-        external: [
-            { department: '営業', role: 'staff' },
-            { department: '設計' }
-        ]
-    },
-    // フロー3案内: 組立・試運転・製管・常務 ＋ 設計全員・営業staff・技戦
-    inspection: {
-        notifType: 'inspection_invite',
-        profiles: [
-            { department: '組立', role: 'staff' },
-            { department: '操業', role: 'staff' },
-            { department: '製管', role: 'staff' },
-            { role: 'assembly_director' }
-        ],
-        external: [
-            { department: '設計' },
-            { department: '営業', role: 'staff' },
-            { department: '技戦' }
-        ]
-    },
-    // フロー4発行: 製管・常務・組立・操業・品保 ＋ 物流・設計・営業全員・技戦
-    shipping: {
-        notifType: 'completed',
-        profiles: [
-            { department: '製管', role: 'staff' },
-            { role: 'assembly_director' },
-            { department: '組立', role: 'staff' },
-            { department: '操業', role: 'staff' },
-            { role: 'quality' }
-        ],
-        external: [
-            { department: '物流' },
-            { department: '設計' },
-            { department: '営業' },
-            { department: '技戦' }
-        ]
-    }
-};
-
 async function recordFlowNotifications(requestId, flowType) {
-    const rules = NOTIFY_RULES[flowType];
-    if (!rules) return;
+    // 工番を取得
+    const { data: req } = await db.from('approval_requests').select('project_number').eq('id', requestId).single();
+    const projectNum = req?.project_number;
+    if (!projectNum) return;
 
-    const inserts = [];
+    // 工番のタスクオーナーを取得
+    const { data: tasks } = await db.from('tasks').select('text, owner, major_item').eq('project_number', projectNum);
+    const findOwner = (taskName, majorItem) =>
+        (tasks || []).find(t => t.text === taskName && (!majorItem || String(t.major_item || '').trim() === majorItem))?.owner || null;
 
-    // profiles から宛先を取得
+    const kumitateOwner = findOwner('機械組立');
+    const shiuntenOwner = findOwner('試運転');
+    const sekkeiOwner   = findOwner('出図', '設計');
+
+    // 営業担当者をapp_settingsから取得
+    const { data: sData } = await db.from('app_settings').select('value').eq('key', 'sales_person_map').single();
+    const salesOwner = (sData?.value ? JSON.parse(sData.value) : {})[projectNum] || null;
+
     const profileIds = new Set();
-    for (const rule of rules.profiles) {
-        let query = db.from('profiles').select('id');
-        if (rule.department) query = query.eq('department', rule.department);
-        if (rule.role)       query = query.eq('role', rule.role);
-        const { data } = await query;
+    const extEmails  = new Set();
+
+    // profiles から部署/ロールで追加
+    const addP = async (filters) => {
+        let q = db.from('profiles').select('id');
+        if (filters.department) q = q.eq('department', filters.department);
+        if (filters.role)       q = q.eq('role', filters.role);
+        const { data } = await q;
         (data || []).forEach(p => profileIds.add(p.id));
-    }
-    profileIds.forEach(id => inserts.push({
-        request_id:        requestId,
-        recipient_id:      id,
-        notification_type: rules.notifType
-    }));
-
-    // notification_recipients から宛先を取得
-    const extEmails = new Set();
-    for (const rule of rules.external) {
-        let query = db.from('notification_recipients').select('email').eq('active', true);
-        if (rule.department) query = query.eq('department', rule.department);
-        if (rule.role)       query = query.eq('role', rule.role);
-        const { data } = await query;
+    };
+    // profiles から名前で追加（工番の担当者）
+    const addPbyName = async (name) => {
+        if (!name) return;
+        const { data } = await db.from('profiles').select('id').eq('name', name);
+        (data || []).forEach(p => profileIds.add(p.id));
+    };
+    // notification_recipients から部署/ロールで追加
+    const addE = async (filters) => {
+        let q = db.from('notification_recipients').select('email').eq('active', true);
+        if (filters.department) q = q.eq('department', filters.department);
+        if (filters.role)       q = q.eq('role', filters.role);
+        const { data } = await q;
         (data || []).map(r => r.email).filter(Boolean).forEach(e => extEmails.add(e));
-    }
-    extEmails.forEach(email => inserts.push({
-        request_id:        requestId,
-        recipient_email:   email,
-        notification_type: rules.notifType
-    }));
+    };
+    // notification_recipients から名前で追加（工番の担当者）
+    const addEbyName = async (name) => {
+        if (!name) return;
+        const { data } = await db.from('notification_recipients').select('email').eq('name', name).eq('active', true);
+        (data || []).map(r => r.email).filter(Boolean).forEach(e => extEmails.add(e));
+    };
 
-    if (inserts.length > 0) {
-        await db.from('approval_notifications').insert(inserts);
+    let notifType = 'completed';
+
+    switch (flowType) {
+        case 'assembly':
+            // 固定: 品保・製管
+            await addP({ role: 'quality' });
+            await addP({ department: '製管', role: 'staff' });
+            // 工番担当者（profiles）: 組立
+            await addPbyName(kumitateOwner);
+            // 工番担当者（外部）: 営業・設計staff
+            await addEbyName(salesOwner);
+            await addEbyName(sekkeiOwner);
+            // 設計管理職は必須
+            await addE({ department: '設計', role: 'manager' });
+            await addE({ department: '設計', role: 'director' });
+            break;
+
+        case 'test_run':
+            // 固定: 品保・製管・常務
+            await addP({ role: 'quality' });
+            await addP({ department: '製管', role: 'staff' });
+            await addP({ role: 'assembly_director' });
+            // 工番担当者（profiles）: 試運転
+            await addPbyName(shiuntenOwner);
+            // 工番担当者（外部）: 営業・設計staff
+            await addEbyName(salesOwner);
+            await addEbyName(sekkeiOwner);
+            // 設計管理職は必須
+            await addE({ department: '設計', role: 'manager' });
+            await addE({ department: '設計', role: 'director' });
+            break;
+
+        case 'inspection':
+            notifType = 'inspection_invite';
+            // 固定: 製管・常務・技戦
+            await addP({ department: '製管', role: 'staff' });
+            await addP({ role: 'assembly_director' });
+            // 工番担当者（profiles）: 組立・試運転
+            await addPbyName(kumitateOwner);
+            await addPbyName(shiuntenOwner);
+            // 工番担当者（外部）: 営業・設計staff
+            await addEbyName(salesOwner);
+            await addEbyName(sekkeiOwner);
+            // 設計管理職・技戦は必須
+            await addE({ department: '設計', role: 'manager' });
+            await addE({ department: '設計', role: 'director' });
+            await addE({ department: '技戦' });
+            break;
+
+        case 'shipping':
+            // 固定: 製管・常務・品保・操業全員（staff＋manager＋director）
+            await addP({ department: '製管', role: 'staff' });
+            await addP({ role: 'assembly_director' });
+            await addP({ role: 'quality' });
+            await addP({ department: '操業', role: 'staff' });
+            await addP({ role: 'operations_manager' });
+            await addP({ role: 'operations_director' });
+            // 工番担当者（profiles）: 組立
+            await addPbyName(kumitateOwner);
+            // 外部全員: 物流・設計全員・営業全員・技戦
+            await addE({ department: '物流' });
+            await addE({ department: '設計' });
+            await addE({ department: '営業' });
+            await addE({ department: '技戦' });
+            break;
     }
+
+    const inserts = [
+        ...[...profileIds].map(id    => ({ request_id: requestId, recipient_id:    id,    notification_type: notifType })),
+        ...[...extEmails ].map(email => ({ request_id: requestId, recipient_email: email, notification_type: notifType }))
+    ];
+    if (inserts.length > 0) await db.from('approval_notifications').insert(inserts);
 }
 
 // フロー1・2の全承認完了時に呼び出す
