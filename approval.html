@@ -1781,7 +1781,7 @@ async function recordFlowNotifications(requestId, flowType) {
             await addP({ role: 'quality' });
             await addP({ department: '製管', role: 'staff' });
             await addP({ role: 'assembly_director' });
-            // 工番担当者（profiles）: 試運転
+            // 工番担当者（profiles）: 操業（試運転タスクのowner）
             await addPbyName(shiuntenOwner);
             // 工番担当者（外部）: 営業・設計staff
             await addEbyName(salesOwner);
@@ -1796,7 +1796,7 @@ async function recordFlowNotifications(requestId, flowType) {
             // 固定: 製管・常務・技戦
             await addP({ department: '製管', role: 'staff' });
             await addP({ role: 'assembly_director' });
-            // 工番担当者（profiles）: 組立・試運転
+            // 工番担当者（profiles）: 組立・操業（試運転タスクのowner）
             await addPbyName(kumitateOwner);
             await addPbyName(shiuntenOwner);
             // 工番担当者（外部）: 営業・設計staff
@@ -1809,15 +1809,12 @@ async function recordFlowNotifications(requestId, flowType) {
             break;
 
         case 'shipping':
-            // 固定: 製管・常務・品保・操業全員（staff＋manager＋director）
+            // 固定: 製管・常務・品保・操業全員・組立全員
             await addP({ department: '製管', role: 'staff' });
             await addP({ role: 'assembly_director' });
             await addP({ role: 'quality' });
-            await addP({ department: '操業', role: 'staff' });
-            await addP({ role: 'operations_manager' });
-            await addP({ role: 'operations_director' });
-            // 工番担当者（profiles）: 組立
-            await addPbyName(kumitateOwner);
+            await addP({ department: '操業' }); // 操業全員（staff＋課長＋部長）
+            await addP({ department: '組立' });  // 組立全員（staff＋課長＋部長）
             // 外部全員: 物流・設計全員・営業全員・技戦
             await addE({ department: '物流' });
             await addE({ department: '設計' });
