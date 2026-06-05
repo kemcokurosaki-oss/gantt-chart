@@ -394,6 +394,16 @@
         #shipping_meeting_modal .modal-body,
         #shipping_modal .modal-body { overflow-y: auto; flex: 1; }
 
+        /* ===== Recipients Preview ===== */
+        .recipient-list { max-height: 200px; overflow-y: auto; border: 1px solid #e0e0e0; border-radius: 4px; padding: 6px 10px; background: #fafafa; }
+        .recipient-item { display: flex; align-items: center; gap: 8px; padding: 4px 0; border-bottom: 1px solid #f5f5f5; font-size: 12px; }
+        .recipient-item:last-child { border-bottom: none; }
+        .recipient-name { font-weight: bold; min-width: 80px; }
+        .recipient-email { color: #888; flex: 1; }
+        .recipient-tag { font-size: 10px; padding: 1px 6px; border-radius: 8px; background: #e8f0fe; color: #1e3a5f; }
+        .extra-recipient-item { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 12px; }
+        .extra-recipient-item button { background: none; border: none; color: #e74c3c; cursor: pointer; font-size: 14px; }
+
         /* ===== Accordion Progress ===== */
         .progress-card { cursor: pointer; user-select: none; }
         .progress-card-header { display: flex; justify-content: space-between; align-items: center; }
@@ -565,9 +575,27 @@
                 <label>コメント（任意）</label>
                 <textarea id="inspection_note_input" placeholder="参加者への連絡事項など"></textarea>
             </div>
+            <!-- Step2: 宛先確認 -->
+            <div id="inspection_recipients_step" style="display:none;">
+                <hr class="section-divider">
+                <div class="section-title">送付先一覧</div>
+                <div class="recipient-list" id="inspection_recipients_list"></div>
+                <hr class="section-divider">
+                <div class="section-title">宛先を追加（任意）</div>
+                <div style="display:flex; gap:6px; margin-bottom:6px;">
+                    <input type="text" id="inspection_extra_name" placeholder="名前" style="flex:1; padding:5px 8px; border:1px solid #ccc; border-radius:4px; font-size:12px;">
+                    <input type="text" id="inspection_extra_email" placeholder="メールアドレス" style="flex:2; padding:5px 8px; border:1px solid #ccc; border-radius:4px; font-size:12px;">
+                    <button class="btn btn-sm btn-secondary" onclick="addExtraRecipient('inspection')">追加</button>
+                </div>
+                <div id="inspection_extra_list"></div>
+            </div>
         </div>
-        <div class="modal-footer">
+        <div class="modal-footer" id="inspection_footer_step1">
             <button class="btn btn-secondary" onclick="closeInspectionModal()">キャンセル</button>
+            <button class="btn btn-primary" onclick="showRecipientsStep('inspection')">宛先を確認する →</button>
+        </div>
+        <div class="modal-footer" id="inspection_footer_step2" style="display:none;">
+            <button class="btn btn-secondary" onclick="showFormStep('inspection')">← 戻る</button>
             <button class="btn btn-primary" id="inspection_submit_btn" onclick="submitInspection()">案内を送信</button>
         </div>
     </div>
@@ -618,9 +646,27 @@
                 <label>コメント（任意）</label>
                 <textarea id="sm_note_input" placeholder="参加者への連絡事項など"></textarea>
             </div>
+            <!-- Step2: 宛先確認 -->
+            <div id="sm_recipients_step" style="display:none;">
+                <hr class="section-divider">
+                <div class="section-title">送付先一覧</div>
+                <div class="recipient-list" id="sm_recipients_list"></div>
+                <hr class="section-divider">
+                <div class="section-title">宛先を追加（任意）</div>
+                <div style="display:flex; gap:6px; margin-bottom:6px;">
+                    <input type="text" id="sm_extra_name" placeholder="名前" style="flex:1; padding:5px 8px; border:1px solid #ccc; border-radius:4px; font-size:12px;">
+                    <input type="text" id="sm_extra_email" placeholder="メールアドレス" style="flex:2; padding:5px 8px; border:1px solid #ccc; border-radius:4px; font-size:12px;">
+                    <button class="btn btn-sm btn-secondary" onclick="addExtraRecipient('sm')">追加</button>
+                </div>
+                <div id="sm_extra_list"></div>
+            </div>
         </div>
-        <div class="modal-footer">
+        <div class="modal-footer" id="sm_footer_step1">
             <button class="btn btn-secondary" onclick="closeShippingMeetingModal()">キャンセル</button>
+            <button class="btn btn-primary" onclick="showRecipientsStep('sm')">宛先を確認する →</button>
+        </div>
+        <div class="modal-footer" id="sm_footer_step2" style="display:none;">
+            <button class="btn btn-secondary" onclick="showFormStep('sm')">← 戻る</button>
             <button class="btn btn-primary" id="sm_submit_btn" onclick="submitShippingMeeting()">案内を送信</button>
         </div>
     </div>
@@ -1804,6 +1850,149 @@ async function _getMachineDoneFlows(projectNum, machine) {
     return new Set((data || []).map(r => r.flow_type));
 }
 
+// ===== 宛先確認ステップ（フロー3・5共通） =====
+const extraRecipients = { inspection: [], sm: [] };
+
+async function showRecipientsStep(type) {
+    const prefix = type === 'inspection' ? 'inspection' : 'sm';
+    const projectNum = document.getElementById(`${prefix}_project`).value;
+    const machines   = getSelectedMachines(`${prefix}_machine_list`);
+    const dateVal    = document.getElementById(`${prefix}_date_input`).value;
+
+    if (!projectNum)          { alert('工事番号を選択してください'); return; }
+    if (machines.length === 0) { alert('機械を選択してください'); return; }
+    if (!dateVal)             { alert('開催日を入力してください'); return; }
+
+    // 宛先を取得して表示
+    const recipients = await _fetchFlowRecipients(projectNum, machines, type === 'inspection' ? 'inspection' : 'shipping_meeting');
+    renderRecipientsList(prefix, recipients);
+
+    // ステップ切替
+    document.getElementById(`${prefix}_recipients_step`).style.display = 'block';
+    document.getElementById(`${prefix}_footer_step1`).style.display    = 'none';
+    document.getElementById(`${prefix}_footer_step2`).style.display    = '';
+}
+
+function showFormStep(prefix) {
+    document.getElementById(`${prefix}_recipients_step`).style.display = 'none';
+    document.getElementById(`${prefix}_footer_step1`).style.display    = '';
+    document.getElementById(`${prefix}_footer_step2`).style.display    = 'none';
+}
+
+async function _fetchFlowRecipients(projectNum, machineNames, flowType) {
+    const result = { profiles: [], external: [] };
+
+    // タスクオーナーを取得（全選択機械の合算）
+    const { data: allTasks } = await db.from('tasks')
+        .select('text, owner, major_item').eq('project_number', projectNum).in('machine', machineNames);
+    const findOwner = (taskName, majorItem) =>
+        (allTasks || []).find(t => t.text === taskName && (!majorItem || String(t.major_item || '').trim() === majorItem))?.owner || null;
+
+    const kumitateOwner = findOwner('機械組立');
+    const shiuntenOwner = findOwner('試運転');
+    const sekkeiOwner   = findOwner('出図', '設計');
+    const { data: sData } = await db.from('app_settings').select('value').eq('key', 'sales_person_map').single();
+    const salesOwner = (sData?.value ? JSON.parse(sData.value) : {})[projectNum] || null;
+
+    // profiles からの宛先
+    const profileRules = [
+        { department: '製管', role: 'staff' },
+        { role: 'assembly_director' }
+    ];
+    const ownerNames = [kumitateOwner, shiuntenOwner].filter(Boolean);
+
+    for (const rule of profileRules) {
+        let q = db.from('profiles').select('id, name, email, role, department');
+        if (rule.department) q = q.eq('department', rule.department);
+        if (rule.role)       q = q.eq('role', rule.role);
+        const { data } = await q;
+        (data || []).forEach(p => { if (!result.profiles.find(x => x.id === p.id)) result.profiles.push(p); });
+    }
+    for (const name of ownerNames) {
+        if (!name) continue;
+        const { data } = await db.from('profiles').select('id, name, email, role, department').eq('name', name);
+        (data || []).forEach(p => { if (!result.profiles.find(x => x.id === p.id)) result.profiles.push(p); });
+    }
+
+    // 外部宛先
+    const extRules = [
+        { department: '設計' },
+        { department: '技戦' }
+    ];
+    for (const rule of extRules) {
+        let q = db.from('notification_recipients').select('name, email, department, role').eq('active', true);
+        if (rule.department) q = q.eq('department', rule.department);
+        const { data } = await q;
+        (data || []).filter(r => r.email).forEach(r => {
+            if (!result.external.find(x => x.email === r.email)) result.external.push(r);
+        });
+    }
+    // 営業担当者（工番の担当者）
+    if (salesOwner) {
+        const { data } = await db.from('notification_recipients').select('name, email, department').eq('name', salesOwner).eq('active', true);
+        (data || []).filter(r => r.email).forEach(r => {
+            if (!result.external.find(x => x.email === r.email)) result.external.push(r);
+        });
+    }
+    // 設計担当者（工番の担当者）
+    if (sekkeiOwner) {
+        const { data } = await db.from('notification_recipients').select('name, email, department').eq('name', sekkeiOwner).eq('active', true);
+        (data || []).filter(r => r.email).forEach(r => {
+            if (!result.external.find(x => x.email === r.email)) result.external.push(r);
+        });
+    }
+
+    return result;
+}
+
+function renderRecipientsList(prefix, recipients) {
+    const listEl = document.getElementById(`${prefix}_recipients_list`);
+    const ROLE_MAP = { assembly_director: '組立部長', assembly_manager: '組立課長', quality: '品保', staff: '' };
+
+    const profileRows = recipients.profiles.map(p => `
+        <div class="recipient-item">
+            <span class="recipient-name">${esc(p.name || '—')}</span>
+            <span class="recipient-email">${esc(p.email || '—')}</span>
+            <span class="recipient-tag">${esc(p.department || '')}${ROLE_MAP[p.role] ? '・' + ROLE_MAP[p.role] : ''}</span>
+        </div>`).join('');
+
+    const extRows = recipients.external.map(r => `
+        <div class="recipient-item">
+            <span class="recipient-name">${esc(r.name || '—')}</span>
+            <span class="recipient-email">${esc(r.email || '—')}</span>
+            <span class="recipient-tag">${esc(r.department || '')}</span>
+        </div>`).join('');
+
+    listEl.innerHTML = profileRows + extRows || '<div style="color:#aaa;font-size:12px;padding:8px;">宛先なし</div>';
+}
+
+function addExtraRecipient(prefix) {
+    const nameEl  = document.getElementById(`${prefix}_extra_name`);
+    const emailEl = document.getElementById(`${prefix}_extra_email`);
+    const name  = nameEl.value.trim();
+    const email = emailEl.value.trim();
+    if (!email) { alert('メールアドレスを入力してください'); return; }
+
+    extraRecipients[prefix].push({ name: name || email, email });
+    nameEl.value = ''; emailEl.value = '';
+    renderExtraList(prefix);
+}
+
+function removeExtraRecipient(prefix, index) {
+    extraRecipients[prefix].splice(index, 1);
+    renderExtraList(prefix);
+}
+
+function renderExtraList(prefix) {
+    const el = document.getElementById(`${prefix}_extra_list`);
+    el.innerHTML = extraRecipients[prefix].map((r, i) => `
+        <div class="extra-recipient-item">
+            <span style="font-weight:bold;min-width:80px;font-size:12px;">${esc(r.name)}</span>
+            <span style="color:#888;flex:1;font-size:12px;">${esc(r.email)}</span>
+            <button onclick="removeExtraRecipient('${prefix}', ${i})">×</button>
+        </div>`).join('');
+}
+
 // ===== フロー3: 外観検査開催案内 =====
 let inspectionProjectsLoaded = false;
 
@@ -1813,6 +2002,11 @@ function openInspectionModal() {
     document.getElementById('inspection_machine_group').style.display = 'none';
     document.getElementById('inspection_machine_list').innerHTML      = '';
     document.getElementById('inspection_flow_box').style.display      = 'none';
+    document.getElementById('inspection_recipients_step').style.display = 'none';
+    document.getElementById('inspection_footer_step1').style.display    = '';
+    document.getElementById('inspection_footer_step2').style.display    = 'none';
+    extraRecipients.inspection = [];
+    document.getElementById('inspection_extra_list').innerHTML = '';
     document.getElementById('inspection_date_input').value     = '';
     document.getElementById('inspection_time_input').value     = '';
     document.getElementById('inspection_location_input').value = '';
@@ -1896,6 +2090,12 @@ async function submitInspection() {
             }).select().single();
             if (error) throw error;
             await recordFlowNotifications(req.id, 'inspection');
+            // 追加宛先を挿入
+            if (extraRecipients.inspection.length > 0) {
+                await db.from('approval_notifications').insert(
+                    extraRecipients.inspection.map(r => ({ request_id: req.id, recipient_email: r.email, notification_type: 'inspection_invite' }))
+                );
+            }
         }
 
         closeInspectionModal();
@@ -1918,6 +2118,11 @@ function openShippingMeetingModal() {
     document.getElementById('sm_machine_group').style.display = 'none';
     document.getElementById('sm_machine_list').innerHTML      = '';
     document.getElementById('sm_flow_box').style.display      = 'none';
+    document.getElementById('sm_recipients_step').style.display = 'none';
+    document.getElementById('sm_footer_step1').style.display    = '';
+    document.getElementById('sm_footer_step2').style.display    = 'none';
+    extraRecipients.sm = [];
+    document.getElementById('sm_extra_list').innerHTML = '';
     document.getElementById('sm_date_input').value     = '';
     document.getElementById('sm_time_input').value     = '';
     document.getElementById('sm_location_input').value = '';
@@ -1995,6 +2200,11 @@ async function submitShippingMeeting() {
             }).select().single();
             if (error) throw error;
             await recordFlowNotifications(req.id, 'shipping_meeting');
+            if (extraRecipients.sm.length > 0) {
+                await db.from('approval_notifications').insert(
+                    extraRecipients.sm.map(r => ({ request_id: req.id, recipient_email: r.email, notification_type: 'shipping_meeting_invite' }))
+                );
+            }
         }
         closeShippingMeetingModal();
         await refreshAll();
