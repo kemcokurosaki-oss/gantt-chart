@@ -384,6 +384,8 @@
         .machine-checkbox-bar { display: flex; gap: 6px; margin-bottom: 4px; }
         .btn-xs { padding: 2px 8px; font-size: 11px; border-radius: 3px; border: 1px solid #ccc; background: #f5f5f5; cursor: pointer; }
         .btn-xs:hover { background: #e8e8e8; }
+        /* モーダル本体のmin-heightでリサイズ防止 */
+        .modal { min-height: 420px; }
 
         /* ===== Accordion Progress ===== */
         .progress-card { cursor: pointer; user-select: none; }
@@ -490,8 +492,7 @@
             <div class="form-group" id="submit_machine_group" style="display:none;">
                 <label>機械名 *（複数選択可）</label>
                 <div class="machine-checkbox-bar">
-                    <button type="button" class="btn-xs" onclick="selectAllMachines('submit_machine_list')">全選択</button>
-                    <button type="button" class="btn-xs" onclick="clearAllMachines('submit_machine_list')">全解除</button>
+                    <button type="button" class="btn-xs" id="submit_machine_toggle" onclick="toggleAllMachines('submit_machine_list', this)">全選択</button>
                 </div>
                 <div class="machine-checkbox-list" id="submit_machine_list"></div>
             </div>
@@ -533,8 +534,7 @@
             <div class="form-group" id="inspection_machine_group" style="display:none;">
                 <label>機械名 *（複数選択可）</label>
                 <div class="machine-checkbox-bar">
-                    <button type="button" class="btn-xs" onclick="selectAllMachines('inspection_machine_list')">全選択</button>
-                    <button type="button" class="btn-xs" onclick="clearAllMachines('inspection_machine_list')">全解除</button>
+                    <button type="button" class="btn-xs" onclick="toggleAllMachines('inspection_machine_list', this)">全選択</button>
                 </div>
                 <div class="machine-checkbox-list" id="inspection_machine_list"></div>
             </div>
@@ -587,8 +587,7 @@
             <div class="form-group" id="sm_machine_group" style="display:none;">
                 <label>機械名 *（複数選択可）</label>
                 <div class="machine-checkbox-bar">
-                    <button type="button" class="btn-xs" onclick="selectAllMachines('sm_machine_list')">全選択</button>
-                    <button type="button" class="btn-xs" onclick="clearAllMachines('sm_machine_list')">全解除</button>
+                    <button type="button" class="btn-xs" onclick="toggleAllMachines('sm_machine_list', this)">全選択</button>
                 </div>
                 <div class="machine-checkbox-list" id="sm_machine_list"></div>
             </div>
@@ -641,8 +640,7 @@
             <div class="form-group" id="shipping_machine_group" style="display:none;">
                 <label>機械名 *（複数選択可）</label>
                 <div class="machine-checkbox-bar">
-                    <button type="button" class="btn-xs" onclick="selectAllMachines('shipping_machine_list')">全選択</button>
-                    <button type="button" class="btn-xs" onclick="clearAllMachines('shipping_machine_list')">全解除</button>
+                    <button type="button" class="btn-xs" onclick="toggleAllMachines('shipping_machine_list', this)">全選択</button>
                 </div>
                 <div class="machine-checkbox-list" id="shipping_machine_list"></div>
             </div>
@@ -1743,14 +1741,12 @@ function getSelectedMachines(listId) {
     return [...document.querySelectorAll(`#${listId} input[type="checkbox"]:checked`)].map(cb => cb.value);
 }
 
-function selectAllMachines(listId) {
-    document.querySelectorAll(`#${listId} input[type="checkbox"]`).forEach(cb => { cb.checked = true; });
-    document.querySelector(`#${listId} input[type="checkbox"]`)?.dispatchEvent(new Event('change'));
-}
-
-function clearAllMachines(listId) {
-    document.querySelectorAll(`#${listId} input[type="checkbox"]`).forEach(cb => { cb.checked = false; });
-    document.querySelector(`#${listId} input[type="checkbox"]`)?.dispatchEvent(new Event('change'));
+function toggleAllMachines(listId, btn) {
+    const checkboxes = [...document.querySelectorAll(`#${listId} input[type="checkbox"]`)];
+    const allChecked = checkboxes.every(cb => cb.checked);
+    checkboxes.forEach(cb => { cb.checked = !allChecked; });
+    btn.textContent = allChecked ? '全選択' : '全解除';
+    checkboxes[0]?.dispatchEvent(new Event('change'));
 }
 
 async function _getMachineDoneFlows(projectNum, machine) {
