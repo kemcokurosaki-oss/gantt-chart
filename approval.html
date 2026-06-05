@@ -1474,12 +1474,20 @@ async function submitRequest() {
             }).select().single();
             if (e1) throw e1;
 
-            await db.from('approval_steps').insert([
-                { request_id: req.id, step_order: 1, approver_role: cfg.step1, status: 'pending' },
-                { request_id: req.id, step_order: 2, approver_role: cfg.step2, status: 'pending' }
-            ]);
+            // 課長が申請した場合は部長のみ1ステップ、staffは課長→部長の2ステップ
+            const submitterRole = getEffectiveRole();
+            const isManagerSubmit = submitterRole === 'assembly_manager' || submitterRole === 'operations_manager';
+            const step1Role = isManagerSubmit ? cfg.step2 : cfg.step1;
 
-            const { data: step1Approvers } = await db.from('profiles').select('id').eq('role', cfg.step1);
+            const stepsToInsert = isManagerSubmit
+                ? [{ request_id: req.id, step_order: 1, approver_role: cfg.step2, status: 'pending' }]
+                : [
+                    { request_id: req.id, step_order: 1, approver_role: cfg.step1, status: 'pending' },
+                    { request_id: req.id, step_order: 2, approver_role: cfg.step2, status: 'pending' }
+                  ];
+            await db.from('approval_steps').insert(stepsToInsert);
+
+            const { data: step1Approvers } = await db.from('profiles').select('id').eq('role', step1Role);
             if (step1Approvers?.length > 0) {
                 await db.from('approval_notifications').insert(
                     step1Approvers.map(a => ({ request_id: req.id, recipient_id: a.id, notification_type: 'approval_request' }))
@@ -1623,7 +1631,11 @@ function closeDetailModal() {
 // ===== Approve =====
 async function approveStep(requestId, stepId, stepOrder) {
     const comment  = (document.getElementById('approval_comment')?.value || '').trim();
-    const nextStatus = stepOrder === 1 ? 'in_review' : 'approved';
+
+    // 残りの承認ステップがあるか確認（課長申請=1ステップ の場合はstep1で完了）
+    const { data: remaining } = await db.from('approval_steps')
+        .select('id').eq('request_id', requestId).gt('step_order', stepOrder).eq('status', 'pending');
+    const nextStatus = (remaining && remaining.length > 0) ? 'in_review' : 'approved';
 
     try {
         await db.from('approval_steps').update({
@@ -1662,12 +1674,9 @@ async function approveStep(requestId, stepId, stepOrder) {
         await refreshAll();
         ui.send('SAVED');
 
-        const STEP2_LABEL = {
-            assembly: '組立部長',
-            test_run: '操業部長'
-        };
+        const STEP2_LABEL = { assembly: '組立部長', test_run: '操業部長' };
         const nextLabel = STEP2_LABEL[currentDetailFlowType] || '上位承認者';
-        const msg = stepOrder === 1
+        const msg = nextStatus === 'in_review'
             ? `承認しました。${nextLabel}に通知されます。`
             : '全承認が完了しました。関係者に通知が送られます。';
         alert(msg);
