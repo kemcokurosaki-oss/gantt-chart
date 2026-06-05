@@ -1030,7 +1030,7 @@ async function loadMine() {
     const el = document.getElementById('tab_content_mine');
     let query = db
         .from('approval_requests')
-        .select('id, flow_type, status, note, created_at, updated_at, project_number, approval_steps(id, step_order, approver_role, status, decided_at)')
+        .select('id, flow_type, status, note, created_at, updated_at, project_number, is_resubmit, approval_steps(id, step_order, approver_role, status, decided_at)')
         .eq('requester_id', currentUser.id)
         .order('created_at', { ascending: false });
 
@@ -1087,10 +1087,13 @@ async function loadMine() {
             return `<div class="step-node"><div class="step-circle ${cls}">${icon}</div><div class="step-label">${esc(n.label)}</div></div>${line}`;
         }).join('');
 
+        const resubmitBadge = req.is_resubmit
+            ? `<span style="font-size:11px; padding:1px 7px; border-radius:10px; background:#fff3cd; color:#856404; font-weight:bold; margin-left:6px;">再申請</span>`
+            : '';
         return `
         <div class="card" onclick="openDetailModal('${req.id}')">
             <div class="card-header">
-                <div class="card-title">工番 ${esc(pNum)}${label ? '　' + esc(label) : ''}</div>
+                <div class="card-title">工番 ${esc(pNum)}${label ? '　' + esc(label) : ''}${resubmitBadge}</div>
             </div>
             <div class="card-meta">${FLOW_LABELS[req.flow_type] || req.flow_type}　|　${fmtDate(req.created_at)}</div>
             <div class="step-progress">${progressHtml}</div>
@@ -1521,8 +1524,9 @@ async function resubmit(requestId) {
         }).eq('request_id', requestId);
 
         await db.from('approval_requests').update({
-            status:     'submitted',
-            updated_at: new Date().toISOString()
+            status:       'submitted',
+            is_resubmit:  true,
+            updated_at:   new Date().toISOString()
         }).eq('id', requestId);
 
         // Step1承認者に再申請通知を記録
