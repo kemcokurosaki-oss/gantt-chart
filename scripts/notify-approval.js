@@ -91,6 +91,22 @@ function buildEmail(type, req, recipientName) {
           `${note}\n\n※このメールは自動送信です。`,
       };
 
+    case 'shipping_meeting_invite': {
+      const date     = req?.inspection_date     || '未定';
+      const time     = req?.inspection_time     ? ` ${req.inspection_time}` : '';
+      const location = req?.inspection_location || '未定';
+      return {
+        from,
+        subject: `【出荷確認会議開催案内】工番 ${pNum}`,
+        text:
+          `${recipientName} 様\n\n` +
+          `工番 ${pNum} の出荷確認会議を下記のとおり実施します。\n\n` +
+          `日時: ${date}${time}\n` +
+          `場所: ${location}` +
+          `${note}\n\n※このメールは自動送信です。`,
+      };
+    }
+
     case 'inspection_invite': {
       const date     = req?.inspection_date     || '未定';
       const time     = req?.inspection_time     ? ` ${req.inspection_time}` : '';
