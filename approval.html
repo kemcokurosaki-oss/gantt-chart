@@ -1542,7 +1542,7 @@ async function resubmit(requestId) {
                     approvers.map(a => ({
                         request_id:        requestId,
                         recipient_id:      a.id,
-                        notification_type: 'approval_request'
+                        notification_type: 'resubmit'
                     }))
                 );
             }
