@@ -793,7 +793,8 @@ async function bootApp(session) {
         `${profile.name}（${ROLE_LABELS[profile.role] || profile.role}）`;
 
     // 黒崎のみ開発用ロール切替バーを表示
-    if (currentUser.email === 'e-kurosaki@kusakabe.com') {
+    const DEMO_USERS = ['e-kurosaki@kusakabe.com', 's-morimura@kusakabe.com'];
+    if (DEMO_USERS.includes(currentUser.email)) {
         document.getElementById('dev_bar').style.display = 'flex';
         document.getElementById('sticky_top').style.top = '72px';
     }
