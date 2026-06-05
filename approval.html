@@ -368,6 +368,15 @@
         .machine-section:first-child { border-top: none; padding-top: 0; margin-top: 0; }
         .machine-label { font-size: 12px; font-weight: bold; color: #1e3a5f; margin-bottom: 4px; }
 
+        /* ===== Accordion Progress ===== */
+        .progress-card { cursor: pointer; user-select: none; }
+        .progress-card-header { display: flex; justify-content: space-between; align-items: center; }
+        .progress-card-arrow { font-size: 11px; color: #aaa; transition: transform 0.2s; }
+        .progress-card.expanded .progress-card-arrow { transform: rotate(90deg); }
+        .progress-card-summary { font-size: 12px; color: #888; margin-top: 4px; }
+        .progress-card-machines { display: none; margin-top: 10px; border-top: 1px solid #f0f0f0; padding-top: 8px; }
+        .progress-card.expanded .progress-card-machines { display: block; }
+
         /* ===== Progress List ===== */
         .progress-card { background: #fff; border-radius: 8px; padding: 14px 16px; margin-bottom: 10px; border: 1px solid #e8e8e8; }
         .progress-card-title { font-size: 14px; font-weight: bold; color: #1e3a5f; margin-bottom: 10px; }
@@ -1287,13 +1296,41 @@ async function loadProgress() {
             </div>`;
         }).join('');
 
-        return `<div class="progress-card">
-            <div class="progress-card-title">工番 ${esc(num)}${label ? '　' + esc(label) : ''}</div>
-            ${machineSections}
+        // サマリー（完了機械数 / 全機械数）
+        const totalMachines    = machines.length;
+        const completedMachines = machines.filter(m => {
+            const flows = projectData[num][m].flows;
+            return !!flows['shipping'] && flows['shipping'].status === 'approved';
+        }).length;
+        const inProgressMachines = machines.filter(m => {
+            const flows = Object.values(projectData[num][m].flows);
+            return flows.some(f => f.status !== 'approved') || flows.length === 0;
+        }).length - (totalMachines - completedMachines - machines.filter(m =>
+            Object.values(projectData[num][m].flows).some(f => f.status === 'submitted' || f.status === 'in_review')
+        ).length);
+
+        const hasInProgress = machines.some(m =>
+            Object.values(projectData[num][m].flows).some(f => f.status === 'submitted' || f.status === 'in_review')
+        );
+        const summaryColor = completedMachines === totalMachines ? '#27ae60' : hasInProgress ? '#f39c12' : '#aaa';
+        const summaryText  = `${completedMachines}/${totalMachines} 機械 出荷完了` +
+            (hasInProgress ? '　⏳ 承認中あり' : '');
+
+        return `<div class="progress-card" onclick="toggleProgressCard(this)">
+            <div class="progress-card-header">
+                <div class="progress-card-title">工番 ${esc(num)}${label ? '　' + esc(label) : ''}</div>
+                <span class="progress-card-arrow">▶</span>
+            </div>
+            <div class="progress-card-summary" style="color:${summaryColor};">${summaryText}</div>
+            <div class="progress-card-machines">${machineSections}</div>
         </div>`;
     }).join('');
 
     el.innerHTML = html;
+}
+
+function toggleProgressCard(el) {
+    el.classList.toggle('expanded');
 }
 
 // ===== Tab Switch =====
