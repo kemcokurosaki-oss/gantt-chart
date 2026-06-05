@@ -41,8 +41,9 @@ async function supabaseFetch(path, options = {}) {
 
 // ===== メール本文生成 =====
 function buildEmail(type, req, recipientName) {
-  const pNum  = req?.project_number || '—';
-  const flow  = FLOW_LABELS[req?.flow_type] || req?.flow_type || '—';
+  const pNum    = req?.project_number || '—';
+  const machine = req?.machine_name  ? `【${req.machine_name}】` : '';
+  const flow    = FLOW_LABELS[req?.flow_type] || req?.flow_type || '—';
   const note  = req?.note ? `\nコメント: ${req.note}` : '';
   const from  = `"工事工程 通知" <${GMAIL_USER}>`;
 
@@ -50,10 +51,10 @@ function buildEmail(type, req, recipientName) {
     case 'approval_request':
       return {
         from,
-        subject: `【承認依頼】工番 ${pNum}　${flow}`,
+        subject: `【承認依頼】工番 ${pNum}${machine}　${flow}`,
         text:
           `${recipientName} 様\n\n` +
-          `工番 ${pNum} の「${flow}」について承認依頼が届いています。\n` +
+          `工番 ${pNum}${machine} の「${flow}」について承認依頼が届いています。\n` +
           `承認フロー管理システムにログインして承認をお願いします。` +
           `${note}\n\n※このメールは自動送信です。`,
       };
@@ -61,10 +62,10 @@ function buildEmail(type, req, recipientName) {
     case 'resubmit':
       return {
         from,
-        subject: `【再申請】工番 ${pNum}　${flow}`,
+        subject: `【再申請】工番 ${pNum}${machine}　${flow}`,
         text:
           `${recipientName} 様\n\n` +
-          `工番 ${pNum} の「${flow}」が修正のうえ再申請されました。\n` +
+          `工番 ${pNum}${machine} の「${flow}」が修正のうえ再申請されました。\n` +
           `承認フロー管理システムにログインして内容をご確認のうえ承認をお願いします。` +
           `${note}\n\n※このメールは自動送信です。`,
       };
@@ -73,7 +74,7 @@ function buildEmail(type, req, recipientName) {
     case 'completed':
       return {
         from,
-        subject: `【承認完了】工番 ${pNum}　${flow}`,
+        subject: `【承認完了】工番 ${pNum}${machine}　${flow}`,
         text:
           `${recipientName} 様\n\n` +
           `工番 ${pNum} の「${flow}」が承認されました。` +
@@ -83,7 +84,7 @@ function buildEmail(type, req, recipientName) {
     case 'rejected':
       return {
         from,
-        subject: `【却下】工番 ${pNum}　${flow}`,
+        subject: `【却下】工番 ${pNum}${machine}　${flow}`,
         text:
           `${recipientName} 様\n\n` +
           `工番 ${pNum} の「${flow}」が却下されました。\n` +
@@ -153,7 +154,7 @@ async function main() {
   // 申請レコードを一括取得
   const reqIds = [...new Set(notifications.map(n => n.request_id))];
   const requests = await supabaseFetch(
-    `approval_requests?id=in.(${reqIds.join(',')})&select=id,project_number,flow_type,status,note,inspection_date,inspection_time,inspection_location,confirmed_shipping_date`
+    `approval_requests?id=in.(${reqIds.join(',')})&select=id,project_number,machine_name,flow_type,status,note,inspection_date,inspection_time,inspection_location,confirmed_shipping_date`
   );
   const reqMap = Object.fromEntries(requests.map(r => [r.id, r]));
 

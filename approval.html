@@ -363,6 +363,11 @@
         .sc-line-done    { background: #27ae60; }
         .sc-line-pending { background: #e0e0e0; }
 
+        /* ===== Machine Progress ===== */
+        .machine-section { border-top: 1px solid #f0f0f0; padding-top: 8px; margin-top: 8px; }
+        .machine-section:first-child { border-top: none; padding-top: 0; margin-top: 0; }
+        .machine-label { font-size: 12px; font-weight: bold; color: #1e3a5f; margin-bottom: 4px; }
+
         /* ===== Progress List ===== */
         .progress-card { background: #fff; border-radius: 8px; padding: 14px 16px; margin-bottom: 10px; border: 1px solid #e8e8e8; }
         .progress-card-title { font-size: 14px; font-weight: bold; color: #1e3a5f; margin-bottom: 10px; }
@@ -456,6 +461,12 @@
                 <label>工事情報</label>
                 <div class="project-info-box" id="submit_project_detail"></div>
             </div>
+            <div class="form-group" id="submit_machine_group" style="display:none;">
+                <label>機械名 *</label>
+                <select id="submit_machine" onchange="onMachineChange()">
+                    <option value="">選択してください</option>
+                </select>
+            </div>
             <div class="form-group" id="flow_detect_group" style="display:none;">
                 <label>後続フロー（工程表から自動検出）</label>
                 <div id="flow_detect_list" style="background:#f8f9fa; border:1px solid #e0e0e0; border-radius:4px; padding:10px 12px; font-size:13px;"></div>
@@ -490,6 +501,12 @@
             <div id="inspection_project_info" style="display:none;" class="form-group">
                 <label>工事情報</label>
                 <div class="project-info-box" id="inspection_project_detail"></div>
+            </div>
+            <div class="form-group" id="inspection_machine_group" style="display:none;">
+                <label>機械名 *</label>
+                <select id="inspection_machine" onchange="onInspectionMachineChange()">
+                    <option value="">選択してください</option>
+                </select>
             </div>
             <div id="inspection_flow_box" style="display:none;" class="form-group">
                 <label>フロー状況</label>
@@ -537,6 +554,12 @@
                 <label>工事情報</label>
                 <div class="project-info-box" id="sm_project_detail"></div>
             </div>
+            <div class="form-group" id="sm_machine_group" style="display:none;">
+                <label>機械名 *</label>
+                <select id="sm_machine" onchange="onSmMachineChange()">
+                    <option value="">選択してください</option>
+                </select>
+            </div>
             <div id="sm_flow_box" style="display:none;" class="form-group">
                 <label>フロー状況</label>
                 <div id="sm_flow_list" style="background:#f8f9fa; border:1px solid #e0e0e0; border-radius:4px; padding:10px 12px; font-size:13px;"></div>
@@ -582,6 +605,12 @@
             <div id="shipping_project_info" style="display:none;" class="form-group">
                 <label>工事情報</label>
                 <div class="project-info-box" id="shipping_project_detail"></div>
+            </div>
+            <div class="form-group" id="shipping_machine_group" style="display:none;">
+                <label>機械名 *</label>
+                <select id="shipping_machine" onchange="onShippingMachineChange()">
+                    <option value="">選択してください</option>
+                </select>
             </div>
             <div id="shipping_flow_box" style="display:none;" class="form-group">
                 <label>フロー状況</label>
@@ -907,7 +936,7 @@ async function loadProjects() {
     });
 }
 
-let detectedFlows = { inspection: false, test_run: false }; // 自動検出結果
+let detectedFlows = { inspection: false, test_run: false, shippingMeeting: false }; // 自動検出結果
 const inspectionProjectNums    = new Set(); // 外観検査タスクがある工番
 const assemblyProjectNums      = new Set(); // 機械組立タスクがある工番
 const testRunProjectNums       = new Set(); // 試運転タスクがある工番
@@ -917,11 +946,13 @@ const shippingProjectNums      = new Set(); // 工場出荷タスクがある工
 async function onProjectChange() {
     const num    = document.getElementById('submit_project').value;
     const infoEl = document.getElementById('submit_project_info');
+    const machineGroup = document.getElementById('submit_machine_group');
     const flowEl = document.getElementById('flow_detect_group');
 
     if (!num) {
-        infoEl.style.display = 'none';
-        flowEl.style.display = 'none';
+        infoEl.style.display    = 'none';
+        machineGroup.style.display = 'none';
+        flowEl.style.display    = 'none';
         return;
     }
 
@@ -931,34 +962,53 @@ async function onProjectChange() {
         `<span style="color:#888;font-size:11px;">客先</span> ${esc(p.customer_name || '—')}　<span style="color:#888;font-size:11px;">工事名</span> ${esc(p.project_details || '—')}`;
     infoEl.style.display = 'block';
 
-    // タスク存在チェック
-    const { data: tasks } = await db
-        .from('tasks')
-        .select('text')
-        .eq('project_number', num);
+    // この工番の機械一覧を取得（機械組立タスクがある機械のみ）
+    const { data: machineTasks } = await db.from('tasks')
+        .select('machine').eq('project_number', num).eq('text', '機械組立').not('machine', 'is', null);
+    const machines = [...new Set((machineTasks || []).map(t => t.machine).filter(Boolean))].sort();
 
+    const machSel = document.getElementById('submit_machine');
+    machSel.innerHTML = '<option value="">選択してください</option>';
+    machines.forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m; opt.textContent = m;
+        machSel.appendChild(opt);
+    });
+
+    machineGroup.style.display = 'block';
+    flowEl.style.display       = 'none';
+    detectedFlows = { inspection: false, test_run: false, shippingMeeting: false };
+}
+
+async function onMachineChange() {
+    const num     = document.getElementById('submit_project').value;
+    const machine = document.getElementById('submit_machine').value;
+    const flowEl  = document.getElementById('flow_detect_group');
+    if (!machine) { flowEl.style.display = 'none'; return; }
+
+    // 対象機械のタスクを取得してフロー検出
+    const { data: tasks } = await db.from('tasks')
+        .select('text').eq('project_number', num).eq('machine', machine);
     const taskNames = (tasks || []).map(t => (t.text || '').trim());
-    detectedFlows.inspection = taskNames.includes('外観検査');
-    detectedFlows.test_run   = taskNames.includes('試運転');
-    const hasShipping        = taskNames.includes('工場出荷');
 
-    // この工番の承認済みフローを取得
-    const { data: doneReqs } = await db
-        .from('approval_requests')
-        .select('flow_type, updated_at')
-        .eq('project_number', num)
-        .eq('status', 'approved');
+    detectedFlows.inspection     = taskNames.includes('外観検査');
+    detectedFlows.test_run       = taskNames.includes('試運転');
+    detectedFlows.shippingMeeting = taskNames.includes('出荷確認会議');
+    const hasShipping             = taskNames.includes('工場出荷');
+
+    // この機械の承認済みフローを取得
+    const { data: doneReqs } = await db.from('approval_requests')
+        .select('flow_type').eq('project_number', num).eq('machine_name', machine).eq('status', 'approved');
     const doneFlows = new Set((doneReqs || []).map(r => r.flow_type));
 
-    // 全フロー定義（工番のタスクに応じて存在するフローのみ）
     const ALL_FLOWS = [
-        { type: 'assembly',   label: '組立完了通知',    exists: true },
-        { type: 'inspection', label: '外観検査開催案内', exists: detectedFlows.inspection },
-        { type: 'test_run',   label: '試運転完了通知',   exists: detectedFlows.test_run },
-        { type: 'shipping',   label: '出荷確認書',       exists: hasShipping }
+        { type: 'assembly',         label: '組立完了通知',    exists: true },
+        { type: 'inspection',       label: '外観検査開催案内', exists: detectedFlows.inspection },
+        { type: 'test_run',         label: '試運転完了通知',   exists: detectedFlows.test_run },
+        { type: 'shipping_meeting', label: '出荷確認会議開催案内', exists: detectedFlows.shippingMeeting },
+        { type: 'shipping',         label: '出荷確認書',       exists: hasShipping }
     ].filter(f => f.exists);
 
-    // 承認済み / 今回 / 後続 に分類
     const doneList     = ALL_FLOWS.filter(f => f.type !== currentFlowType && doneFlows.has(f.type));
     const upcomingList = ALL_FLOWS.filter(f => f.type !== currentFlowType && !doneFlows.has(f.type));
 
@@ -966,37 +1016,28 @@ async function onProjectChange() {
         <div style="margin-bottom:8px; padding-bottom:8px; border-bottom:1px solid #e8e8e8;">
             <span style="font-size:11px; color:#888; font-weight:bold;">承認済みフロー</span>
             <div style="margin-top:4px;">
-                ${doneList.map(f => `
-                <div style="padding:3px 0; color:#27ae60; display:flex; gap:8px; align-items:center;">
-                    <span style="width:20px; text-align:center;">✅</span>
-                    <span>${esc(f.label)}</span>
+                ${doneList.map(f => `<div style="padding:3px 0; color:#27ae60; display:flex; gap:8px;">
+                    <span style="width:20px; text-align:center;">✅</span><span>${esc(f.label)}</span>
                 </div>`).join('')}
             </div>
         </div>` : '';
-
     const upcomingHtml = upcomingList.length > 0 ? `
         <div style="margin-top:8px; padding-top:8px; border-top:1px solid #e8e8e8;">
             <span style="font-size:11px; color:#888; font-weight:bold;">後続フロー</span>
             <div style="margin-top:4px;">
-                ${upcomingList.map(f => `
-                <div style="padding:3px 0; color:#aaa; display:flex; gap:8px; align-items:center;">
-                    <span style="width:20px; text-align:center;">──</span>
-                    <span>${esc(f.label)}</span>
+                ${upcomingList.map(f => `<div style="padding:3px 0; color:#aaa; display:flex; gap:8px;">
+                    <span style="width:20px; text-align:center;">──</span><span>${esc(f.label)}</span>
                 </div>`).join('')}
             </div>
         </div>` : '';
 
     document.getElementById('flow_detect_list').innerHTML = `
         ${doneHtml}
-        <div style="${doneList.length > 0 || upcomingList.length > 0 ? 'padding:4px 0;' : ''}">
+        <div style="padding:4px 0;">
             <span style="font-size:11px; color:#888; font-weight:bold;">今回申請</span>
-            <div style="margin-top:4px; display:flex; gap:8px; align-items:center;">
-                <span style="color:#1e3a5f; font-weight:bold;">▶ ${esc(FLOW_LABELS[currentFlowType] || '完了通知')}</span>
-            </div>
+            <div style="margin-top:4px;"><span style="color:#1e3a5f; font-weight:bold;">▶ ${esc(FLOW_LABELS[currentFlowType] || '完了通知')}</span></div>
         </div>
-        ${upcomingHtml}
-    `;
-
+        ${upcomingHtml}`;
     flowEl.style.display = 'block';
 }
 
@@ -1025,7 +1066,7 @@ async function loadPending() {
         .from('approval_steps')
         .select(`
             id, step_order, approver_role, approver_id, status, comment, decided_at,
-            approval_requests ( id, flow_type, status, note, created_at, project_number, test_run, requester_id )
+            approval_requests ( id, flow_type, status, note, created_at, project_number, machine_name, test_run, requester_id )
         `)
         .eq('approver_role', role)
         .eq('status', 'pending');
@@ -1072,7 +1113,7 @@ async function loadPending() {
                 <div class="card-title">工番 ${pNum}${label ? '  ' + label : ''}</div>
                 <span class="status-badge s-pending">承認依頼</span>
             </div>
-            <div class="card-meta">${FLOW_LABELS[req.flow_type] || req.flow_type}　|　申請者: ${poster}　|　${date}</div>
+            <div class="card-meta">${FLOW_LABELS[req.flow_type] || req.flow_type}${req.machine_name ? `　【${esc(req.machine_name)}】` : ''}　|　申請者: ${poster}　|　${date}</div>
             ${req.note ? `<div class="card-note">${esc(req.note)}</div>` : ''}
         </div>`;
     }).join('');
@@ -1082,7 +1123,7 @@ async function loadMine() {
     const el = document.getElementById('tab_content_mine');
     let query = db
         .from('approval_requests')
-        .select('id, flow_type, status, note, created_at, updated_at, project_number, is_resubmit, approval_steps(id, step_order, approver_role, status, decided_at)')
+        .select('id, flow_type, status, note, created_at, updated_at, project_number, machine_name, is_resubmit, approval_steps(id, step_order, approver_role, status, decided_at)')
         .eq('requester_id', currentUser.id)
         .order('created_at', { ascending: false });
 
@@ -1142,10 +1183,11 @@ async function loadMine() {
         const resubmitBadge = req.is_resubmit
             ? `<span style="font-size:11px; padding:1px 7px; border-radius:10px; background:#fff3cd; color:#856404; font-weight:bold; margin-left:6px;">再申請</span>`
             : '';
+        const machineLabel = req.machine_name ? `　<span style="font-size:12px; color:#666; font-weight:normal;">【${esc(req.machine_name)}】</span>` : '';
         return `
         <div class="card" onclick="openDetailModal('${req.id}')">
             <div class="card-header">
-                <div class="card-title">工番 ${esc(pNum)}${label ? '　' + esc(label) : ''}${resubmitBadge}</div>
+                <div class="card-title">工番 ${esc(pNum)}${label ? '　' + esc(label) : ''}${machineLabel}${resubmitBadge}</div>
             </div>
             <div class="card-meta">${FLOW_LABELS[req.flow_type] || req.flow_type}　|　${fmtDate(req.created_at)}</div>
             <div class="step-progress">${progressHtml}</div>
@@ -1157,87 +1199,97 @@ async function loadMine() {
 async function loadProgress() {
     const el = document.getElementById('tab_content_progress');
 
-    // 全申請レコードを取得
+    // 全申請レコードを機械名付きで取得
     const { data: allReqs } = await db
         .from('approval_requests')
-        .select('project_number, flow_type, status, has_inspection, test_run, updated_at')
+        .select('project_number, machine_name, flow_type, status, has_inspection, test_run, updated_at')
         .order('updated_at', { ascending: false });
 
-    // 工番ごとにグループ化
-    const projectFlows = {};
+    // 機械ごとのフロー状態チェック用セット（project__machine__taskText）
+    const { data: machineTasks } = await db.from('tasks')
+        .select('project_number, machine, text')
+        .in('text', ['機械組立', '外観検査', '試運転', '出荷確認会議', '工場出荷'])
+        .not('machine', 'is', null);
+
+    const machineTaskSet = new Set(
+        (machineTasks || []).map(t => `${t.project_number}__${t.machine}__${t.text}`)
+    );
+    const hasTask = (num, machine, taskText) => machineTaskSet.has(`${num}__${machine}__${taskText}`);
+
+    // projectNum → machine → { flows, ... }
+    const projectData = {};
+
+    // タスクから機械一覧を構築（未申請機械も含む）
+    (machineTasks || []).filter(t => t.text === '機械組立').forEach(t => {
+        const num = (t.project_number || '').toString().trim();
+        if (!num || !t.machine) return;
+        if (!projectData[num]) projectData[num] = {};
+        if (!projectData[num][t.machine]) projectData[num][t.machine] = { flows: {} };
+    });
+
+    // 申請レコードを反映
     (allReqs || []).forEach(req => {
-        const num = req.project_number;
-        if (!num) return;
-        if (!projectFlows[num]) projectFlows[num] = { hasInspection: false, hasTestRun: false, flows: {} };
-        projectFlows[num].flows[req.flow_type] = req;
-        if (req.flow_type === 'assembly') {
-            projectFlows[num].hasInspection = req.has_inspection;
-            projectFlows[num].hasTestRun    = req.test_run;
-        }
+        const num     = req.project_number;
+        const machine = req.machine_name;
+        if (!num || !machine) return;
+        if (!projectData[num]) projectData[num] = {};
+        if (!projectData[num][machine]) projectData[num][machine] = { flows: {} };
+        projectData[num][machine].flows[req.flow_type] = req;
     });
 
-    // タスク情報から全対象工番を追加（未申請工番も含む）
-    assemblyProjectNums.forEach(num => {
-        if (!projectFlows[num]) projectFlows[num] = { hasInspection: false, hasTestRun: false, flows: {} };
-    });
-    inspectionProjectNums.forEach(num => {
-        if (!projectFlows[num]) projectFlows[num] = { hasInspection: true, hasTestRun: false, flows: {} };
-        else projectFlows[num].hasInspection = true;
-    });
-    testRunProjectNums.forEach(num => {
-        if (!projectFlows[num]) projectFlows[num] = { hasInspection: false, hasTestRun: true, flows: {} };
-        else projectFlows[num].hasTestRun = true;
-    });
-    shippingProjectNums.forEach(num => {
-        if (!projectFlows[num]) projectFlows[num] = { hasInspection: false, hasTestRun: false, flows: {} };
-    });
-
-    const allNums = Object.keys(projectFlows).sort();
-
+    const allNums = Object.keys(projectData).sort();
     if (allNums.length === 0) {
         el.innerHTML = '<div class="empty"><div class="empty-icon">📊</div><div class="empty-text">承認フローの記録がありません</div></div>';
         return;
     }
 
     const FLOW_DEFS = [
-        { type: 'assembly',         label: '組立完了通知' },
-        { type: 'inspection',       label: '外観検査開催案内' },
-        { type: 'test_run',         label: '試運転完了通知' },
-        { type: 'shipping_meeting', label: '出荷確認会議開催案内' },
-        { type: 'shipping',         label: '出荷確認書' }
+        { type: 'assembly',         label: '組立完了通知',        alwaysShow: true },
+        { type: 'inspection',       label: '外観検査開催案内',     alwaysShow: false },
+        { type: 'test_run',         label: '試運転完了通知',       alwaysShow: false },
+        { type: 'shipping_meeting', label: '出荷確認会議開催案内', alwaysShow: false },
+        { type: 'shipping',         label: '出荷確認書',           alwaysShow: true }
     ];
 
     const html = allNums.map(num => {
-        const data  = projectFlows[num];
-        const pInfo = projectsMap[num] || {};
-        const label = [pInfo.customer_name, pInfo.project_details].filter(Boolean).join('　');
+        const pInfo    = projectsMap[num] || {};
+        const label    = [pInfo.customer_name, pInfo.project_details].filter(Boolean).join('　');
+        const machines = Object.keys(projectData[num]).sort();
 
-        // 適用フロー（フラグまたは実リクエスト存在で表示）
-        const applicable = FLOW_DEFS.filter(f => {
-            if (f.type === 'assembly' || f.type === 'shipping') return true;
-            if (f.type === 'inspection')       return data.hasInspection || !!data.flows['inspection'];
-            if (f.type === 'test_run')         return data.hasTestRun   || !!data.flows['test_run'];
-            if (f.type === 'shipping_meeting') return shippingMeetingProjectNums.has(num) || !!data.flows['shipping_meeting'];
-            return false;
-        });
+        const machineSections = machines.map((machine, idx) => {
+            const mData = projectData[num][machine];
 
-        const flowRows = applicable.map(f => {
-            const req = data.flows[f.type];
-            let icon, color, dateStr;
-            if (!req)                          { icon = '──'; color = '#ccc';     dateStr = '未'; }
-            else if (req.status === 'approved') { icon = '✅'; color = '#27ae60'; dateStr = fmtDate(req.updated_at); }
-            else if (req.status === 'rejected') { icon = '❌'; color = '#e74c3c'; dateStr = '却下'; }
-            else                                { icon = '⏳'; color = '#f39c12'; dateStr = '承認中'; }
-            return `<div class="progress-flow-row">
-                <span style="color:${color}; width:22px; text-align:center; flex-shrink:0;">${icon}</span>
-                <span class="progress-flow-label" style="color:${color === '#ccc' ? '#bbb' : '#444'};">${esc(f.label)}</span>
-                <span class="progress-flow-date">${dateStr}</span>
+            const applicable = FLOW_DEFS.filter(f => {
+                if (f.alwaysShow) return true;
+                if (f.type === 'inspection')       return hasTask(num, machine, '外観検査')    || !!mData.flows['inspection'];
+                if (f.type === 'test_run')         return hasTask(num, machine, '試運転')      || !!mData.flows['test_run'];
+                if (f.type === 'shipping_meeting') return hasTask(num, machine, '出荷確認会議') || !!mData.flows['shipping_meeting'];
+                return false;
+            });
+
+            const flowRows = applicable.map(f => {
+                const req = mData.flows[f.type];
+                let icon, color, dateStr;
+                if (!req)                           { icon = '──'; color = '#ccc';     dateStr = '未'; }
+                else if (req.status === 'approved') { icon = '✅'; color = '#27ae60'; dateStr = fmtDate(req.updated_at); }
+                else if (req.status === 'rejected') { icon = '❌'; color = '#e74c3c'; dateStr = '却下'; }
+                else                                { icon = '⏳'; color = '#f39c12'; dateStr = '承認中'; }
+                return `<div class="progress-flow-row">
+                    <span style="color:${color}; width:22px; text-align:center; flex-shrink:0;">${icon}</span>
+                    <span class="progress-flow-label" style="color:${color === '#ccc' ? '#bbb' : '#444'};">${esc(f.label)}</span>
+                    <span class="progress-flow-date">${dateStr}</span>
+                </div>`;
+            }).join('');
+
+            return `<div class="machine-section">
+                <div class="machine-label">【${esc(machine)}】</div>
+                ${flowRows}
             </div>`;
         }).join('');
 
         return `<div class="progress-card">
             <div class="progress-card-title">工番 ${esc(num)}${label ? '　' + esc(label) : ''}</div>
-            ${flowRows}
+            ${machineSections}
         </div>`;
     }).join('');
 
@@ -1265,9 +1317,11 @@ function openSubmitModal(flowType = 'assembly') {
     currentFlowType = flowType;
     document.getElementById('submit_project').value = '';
     document.getElementById('submit_project_info').style.display = 'none';
+    document.getElementById('submit_machine_group').style.display = 'none';
+    document.getElementById('submit_machine').innerHTML = '<option value="">選択してください</option>';
     document.getElementById('flow_detect_group').style.display = 'none';
     document.getElementById('submit_note').value = '';
-    detectedFlows = { inspection: false, test_run: false };
+    detectedFlows = { inspection: false, test_run: false, shippingMeeting: false };
 
     // モーダルタイトルをフロー種別で切り替え
     const titleEl = document.querySelector('#submit_modal .modal-header h2');
@@ -1284,7 +1338,9 @@ function closeSubmitModal() {
 
 async function submitRequest() {
     const projectNum = document.getElementById('submit_project').value;
+    const machineNum = document.getElementById('submit_machine').value;
     if (!projectNum) { alert('工事番号を選択してください'); return; }
+    if (!machineNum)  { alert('機械名を選択してください'); return; }
 
     const note    = document.getElementById('submit_note').value.trim();
     const btn     = document.getElementById('submit_btn');
@@ -1312,6 +1368,7 @@ async function submitRequest() {
             .from('approval_requests')
             .insert({
                 project_number: projectNum,
+                machine_name:   machineNum,
                 flow_type:      currentFlowType,
                 status:         'submitted',
                 requester_id:   currentUser.id,
@@ -1365,7 +1422,7 @@ async function openDetailModal(requestId) {
 
     const { data: req } = await db
         .from('approval_requests')
-        .select(`*, approval_steps ( id, step_order, approver_role, approver_id, status, comment, decided_at )`)
+        .select(`*, machine_name, approval_steps ( id, step_order, approver_role, approver_id, status, comment, decided_at )`)
         .eq('id', requestId)
         .single();
 
@@ -1436,6 +1493,7 @@ async function openDetailModal(requestId) {
             <tr><td>工事番号</td><td>${esc(pNum)}</td></tr>
             ${pInfo.customer_name   ? `<tr><td>客先</td><td>${esc(pInfo.customer_name)}</td></tr>`   : ''}
             ${pInfo.project_details ? `<tr><td>工事名</td><td>${esc(pInfo.project_details)}</td></tr>` : ''}
+            ${req.machine_name ? `<tr><td>機械名</td><td>${esc(req.machine_name)}</td></tr>` : ''}
             <tr><td>申請者</td><td>${esc(requesterName)}（${esc(requesterDept)}）</td></tr>
             ${req.flow_type === 'assembly' ? `<tr><td>試運転</td><td>${req.test_run ? 'あり' : 'なし'}</td></tr>` : ''}
             <tr><td>申請日</td><td>${fmtDate(req.created_at)}</td></tr>
@@ -1614,6 +1672,22 @@ async function resubmit(requestId) {
     }
 }
 
+// ===== 共通ヘルパー =====
+async function _loadMachineSelect(projectNum, selectId) {
+    const { data } = await db.from('tasks')
+        .select('machine').eq('project_number', projectNum).eq('text', '機械組立').not('machine', 'is', null);
+    const machines = [...new Set((data || []).map(t => t.machine).filter(Boolean))].sort();
+    const sel = document.getElementById(selectId);
+    sel.innerHTML = '<option value="">選択してください</option>';
+    machines.forEach(m => { const o = document.createElement('option'); o.value = m; o.textContent = m; sel.appendChild(o); });
+}
+
+async function _getMachineDoneFlows(projectNum, machine) {
+    const { data } = await db.from('approval_requests')
+        .select('flow_type').eq('project_number', projectNum).eq('machine_name', machine).eq('status', 'approved');
+    return new Set((data || []).map(r => r.flow_type));
+}
+
 // ===== フロー3: 外観検査開催案内 =====
 let inspectionProjectsLoaded = false;
 
@@ -1651,46 +1725,42 @@ function closeInspectionModal() {
 
 async function onInspectionProjectChange() {
     const num = document.getElementById('inspection_project').value;
-    if (!num) {
-        document.getElementById('inspection_project_info').style.display = 'none';
-        document.getElementById('inspection_flow_box').style.display    = 'none';
-        return;
-    }
+    document.getElementById('inspection_project_info').style.display  = 'none';
+    document.getElementById('inspection_machine_group').style.display = 'none';
+    document.getElementById('inspection_flow_box').style.display      = 'none';
+    if (!num) return;
 
-    // 工事情報
     const p = projectsMap[num] || {};
     document.getElementById('inspection_project_detail').innerHTML =
         `<span style="color:#888;font-size:11px;">客先</span> ${esc(p.customer_name || '—')}　<span style="color:#888;font-size:11px;">工事名</span> ${esc(p.project_details || '—')}`;
     document.getElementById('inspection_project_info').style.display = 'block';
 
-    // この工番の承認済みフローを確認
-    const { data: doneReqs } = await db
-        .from('approval_requests')
-        .select('flow_type, updated_at')
-        .eq('project_number', num)
-        .eq('status', 'approved');
-    const doneFlows = new Set((doneReqs || []).map(r => r.flow_type));
+    await _loadMachineSelect(num, 'inspection_machine');
+    document.getElementById('inspection_machine_group').style.display = 'block';
+}
 
+async function onInspectionMachineChange() {
+    const num     = document.getElementById('inspection_project').value;
+    const machine = document.getElementById('inspection_machine').value;
+    if (!machine) { document.getElementById('inspection_flow_box').style.display = 'none'; return; }
+    const doneFlows = await _getMachineDoneFlows(num, machine);
     const assemblyDone = doneFlows.has('assembly');
-    document.getElementById('inspection_flow_list').innerHTML = `
-        <div style="padding:2px 0; color:${assemblyDone ? '#27ae60' : '#e74c3c'};">
-            ${assemblyDone ? '✅' : '⚠'}　組立完了通知　${assemblyDone ? '承認済み' : '未承認'}
-        </div>
-        <div style="padding:2px 0; color:#1e3a5f; font-weight:bold;">
-            ▶　外観検査開催案内（今回）
-        </div>
-    `;
+    document.getElementById('inspection_flow_list').innerHTML =
+        `<div style="padding:2px 0; color:${assemblyDone ? '#27ae60' : '#e74c3c'};">${assemblyDone ? '✅' : '⚠'}　組立完了通知　${assemblyDone ? '承認済み' : '未承認'}</div>
+        <div style="padding:2px 0; color:#1e3a5f; font-weight:bold;">▶　外観検査開催案内（今回）</div>`;
     document.getElementById('inspection_flow_box').style.display = 'block';
 }
 
 async function submitInspection() {
     const num      = document.getElementById('inspection_project').value;
+    const machine  = document.getElementById('inspection_machine').value;
     const dateVal  = document.getElementById('inspection_date_input').value;
     const timeVal  = document.getElementById('inspection_time_input').value;
     const location = document.getElementById('inspection_location_input').value.trim();
     const note     = document.getElementById('inspection_note_input').value.trim();
 
     if (!num)     { alert('工事番号を選択してください'); return; }
+    if (!machine) { alert('機械名を選択してください'); return; }
     if (!dateVal) { alert('外観検査日を入力してください'); return; }
 
     const btn = document.getElementById('inspection_submit_btn');
@@ -1703,6 +1773,7 @@ async function submitInspection() {
             .from('approval_requests')
             .insert({
                 project_number:       num,
+                machine_name:         machine,
                 flow_type:            'inspection',
                 status:               'approved',
                 requester_id:         currentUser.id,
@@ -1762,36 +1833,42 @@ function closeShippingMeetingModal() {
 
 async function onSmProjectChange() {
     const num = document.getElementById('sm_project').value;
-    if (!num) {
-        document.getElementById('sm_project_info').style.display = 'none';
-        document.getElementById('sm_flow_box').style.display     = 'none';
-        return;
-    }
+    document.getElementById('sm_project_info').style.display  = 'none';
+    document.getElementById('sm_machine_group').style.display = 'none';
+    document.getElementById('sm_flow_box').style.display      = 'none';
+    if (!num) return;
     const p = projectsMap[num] || {};
     document.getElementById('sm_project_detail').innerHTML =
         `<span style="color:#888;font-size:11px;">客先</span> ${esc(p.customer_name || '—')}　<span style="color:#888;font-size:11px;">工事名</span> ${esc(p.project_details || '—')}`;
     document.getElementById('sm_project_info').style.display = 'block';
+    await _loadMachineSelect(num, 'sm_machine');
+    document.getElementById('sm_machine_group').style.display = 'block';
+}
 
-    const { data: doneReqs } = await db.from('approval_requests').select('flow_type').eq('project_number', num).eq('status', 'approved');
-    const doneFlows = new Set((doneReqs || []).map(r => r.flow_type));
+async function onSmMachineChange() {
+    const num     = document.getElementById('sm_project').value;
+    const machine = document.getElementById('sm_machine').value;
+    if (!machine) { document.getElementById('sm_flow_box').style.display = 'none'; return; }
+    const doneFlows = await _getMachineDoneFlows(num, machine);
     document.getElementById('sm_flow_list').innerHTML = [
         { type: 'assembly', label: '組立完了通知' },
         { type: 'test_run', label: '試運転完了通知' }
     ].map(f => `<div style="padding:2px 0; color:${doneFlows.has(f.type) ? '#27ae60' : '#bbb'};">
         ${doneFlows.has(f.type) ? '✅' : '──'}　${esc(f.label)}　${doneFlows.has(f.type) ? '承認済み' : ''}
-    </div>`).join('') +
-    `<div style="padding:2px 0; color:#1e3a5f; font-weight:bold;">▶　出荷確認会議開催案内（今回）</div>`;
+    </div>`).join('') + `<div style="padding:2px 0; color:#1e3a5f; font-weight:bold;">▶　出荷確認会議開催案内（今回）</div>`;
     document.getElementById('sm_flow_box').style.display = 'block';
 }
 
 async function submitShippingMeeting() {
     const num      = document.getElementById('sm_project').value;
+    const machine  = document.getElementById('sm_machine').value;
     const dateVal  = document.getElementById('sm_date_input').value;
     const timeVal  = document.getElementById('sm_time_input').value;
     const location = document.getElementById('sm_location_input').value.trim();
     const note     = document.getElementById('sm_note_input').value.trim();
 
     if (!num)     { alert('工事番号を選択してください'); return; }
+    if (!machine) { alert('機械名を選択してください'); return; }
     if (!dateVal) { alert('開催日を入力してください'); return; }
 
     const btn = document.getElementById('sm_submit_btn');
@@ -1799,7 +1876,7 @@ async function submitShippingMeeting() {
 
     try {
         const { data: req, error } = await db.from('approval_requests').insert({
-            project_number: num, flow_type: 'shipping_meeting', status: 'approved',
+            project_number: num, machine_name: machine, flow_type: 'shipping_meeting', status: 'approved',
             requester_id: currentUser.id, note: note || null,
             inspection_date: dateVal, inspection_time: timeVal || null,
             inspection_location: location || null
@@ -1850,54 +1927,43 @@ function closeShippingModal() {
 
 async function onShippingProjectChange() {
     const num = document.getElementById('shipping_project').value;
-    if (!num) {
-        document.getElementById('shipping_project_info').style.display = 'none';
-        document.getElementById('shipping_flow_box').style.display     = 'none';
-        return;
-    }
-
+    document.getElementById('shipping_project_info').style.display  = 'none';
+    document.getElementById('shipping_machine_group').style.display = 'none';
+    document.getElementById('shipping_flow_box').style.display      = 'none';
+    if (!num) return;
     const p = projectsMap[num] || {};
     document.getElementById('shipping_project_detail').innerHTML =
         `<span style="color:#888;font-size:11px;">客先</span> ${esc(p.customer_name || '—')}　<span style="color:#888;font-size:11px;">工事名</span> ${esc(p.project_details || '—')}`;
     document.getElementById('shipping_project_info').style.display = 'block';
+    await _loadMachineSelect(num, 'shipping_machine');
+    document.getElementById('shipping_machine_group').style.display = 'block';
+}
 
-    // 承認済みフロー確認
-    const { data: doneReqs } = await db
-        .from('approval_requests')
-        .select('flow_type, updated_at')
-        .eq('project_number', num)
-        .eq('status', 'approved');
-    const doneFlows = new Set((doneReqs || []).map(r => r.flow_type));
-
+async function onShippingMachineChange() {
+    const num     = document.getElementById('shipping_project').value;
+    const machine = document.getElementById('shipping_machine').value;
+    if (!machine) { document.getElementById('shipping_flow_box').style.display = 'none'; return; }
+    const doneFlows = await _getMachineDoneFlows(num, machine);
     const rows = [
-        { type: 'assembly',         label: '組立完了通知' },
-        { type: 'inspection',       label: '外観検査開催案内' },
-        { type: 'test_run',         label: '試運転完了通知' },
-        { type: 'shipping_meeting', label: '出荷確認会議開催案内' }
+        { type: 'assembly', label: '組立完了通知' }, { type: 'inspection', label: '外観検査開催案内' },
+        { type: 'test_run', label: '試運転完了通知' }, { type: 'shipping_meeting', label: '出荷確認会議開催案内' }
     ].filter(f => doneFlows.has(f.type) || f.type === 'assembly');
-
-    const rowsHtml = rows.map(f => {
-        const done  = doneFlows.has(f.type);
-        return `<div style="padding:2px 0; color:${done ? '#27ae60' : '#bbb'};">
-            ${done ? '✅' : '──'}　${esc(f.label)}　${done ? '承認済み' : ''}
-        </div>`;
-    }).join('');
-
-    document.getElementById('shipping_flow_list').innerHTML = `
-        ${rowsHtml}
-        <div style="padding:2px 0; color:#1e3a5f; font-weight:bold; margin-top:4px;">
-            ▶　出荷確認書（今回）
-        </div>
-    `;
+    document.getElementById('shipping_flow_list').innerHTML =
+        rows.map(f => `<div style="padding:2px 0; color:${doneFlows.has(f.type) ? '#27ae60' : '#bbb'};">
+            ${doneFlows.has(f.type) ? '✅' : '──'}　${esc(f.label)}　${doneFlows.has(f.type) ? '承認済み' : ''}
+        </div>`).join('') +
+        `<div style="padding:2px 0; color:#1e3a5f; font-weight:bold; margin-top:4px;">▶　出荷確認書（今回）</div>`;
     document.getElementById('shipping_flow_box').style.display = 'block';
 }
 
 async function submitShipping() {
     const num      = document.getElementById('shipping_project').value;
+    const machine  = document.getElementById('shipping_machine').value;
     const dateVal  = document.getElementById('shipping_date_input').value;
     const note     = document.getElementById('shipping_note_input').value.trim();
 
     if (!num)     { alert('工事番号を選択してください'); return; }
+    if (!machine) { alert('機械名を選択してください'); return; }
     if (!dateVal) { alert('確定出荷日を入力してください'); return; }
 
     const btn = document.getElementById('shipping_submit_btn');
@@ -1909,6 +1975,7 @@ async function submitShipping() {
             .from('approval_requests')
             .insert({
                 project_number:          num,
+                machine_name:            machine,
                 flow_type:               'shipping',
                 status:                  'approved',
                 requester_id:            currentUser.id,
@@ -1936,13 +2003,16 @@ async function submitShipping() {
 // ===== Notifications =====
 
 async function recordFlowNotifications(requestId, flowType) {
-    // 工番を取得
-    const { data: req } = await db.from('approval_requests').select('project_number').eq('id', requestId).single();
+    // 工番・機械名を取得
+    const { data: req } = await db.from('approval_requests').select('project_number, machine_name').eq('id', requestId).single();
     const projectNum = req?.project_number;
+    const machineName = req?.machine_name;
     if (!projectNum) return;
 
-    // 工番のタスクオーナーを取得
-    const { data: tasks } = await db.from('tasks').select('text, owner, major_item').eq('project_number', projectNum);
+    // 対象機械のタスクオーナーを取得（機械名がある場合は機械でフィルタ）
+    let taskQuery = db.from('tasks').select('text, owner, major_item').eq('project_number', projectNum);
+    if (machineName) taskQuery = taskQuery.eq('machine', machineName);
+    const { data: tasks } = await taskQuery;
     const findOwner = (taskName, majorItem) =>
         (tasks || []).find(t => t.text === taskName && (!majorItem || String(t.major_item || '').trim() === majorItem))?.owner || null;
 
