@@ -728,9 +728,9 @@ let currentDetailFlowType = '';
 const DEV_ROLE_MAP = {
     staff_kumitate:      { role: 'staff',               department: '組立', flowTypes: ['assembly'] },
     staff_shiunten:      { role: 'staff',               department: '操業', flowTypes: ['test_run'] },
-    assembly_manager:    { role: 'assembly_manager',    department: '組立', flowTypes: [] },
+    assembly_manager:    { role: 'assembly_manager',    department: '組立', flowTypes: ['assembly'] },
     assembly_director:   { role: 'assembly_director',   department: '組立', flowTypes: [] },
-    operations_manager:  { role: 'operations_manager',  department: '操業', flowTypes: [] },
+    operations_manager:  { role: 'operations_manager',  department: '操業', flowTypes: ['test_run'] },
     operations_director: { role: 'operations_director', department: '操業', flowTypes: [] },
     quality:             { role: 'quality',             department: '品証', flowTypes: ['inspection', 'shipping'] }
 };
@@ -746,8 +746,10 @@ function applyRoleLayout(role) {
     const dept        = getEffectiveDept();
     const isApprover  = APPROVER_ROLES.includes(role);
     const isQuality   = role === 'quality';
-    // 組立・操業 staffのみ申請可（製管などは進捗一覧のみ）
-    const isApplicant = role === 'staff' && (dept === '組立' || dept === '操業');
+    // 組立・操業 staff + 組立課長 + 操業課長 が申請可
+    const isApplicant = (role === 'staff' && (dept === '組立' || dept === '操業'))
+                     || role === 'assembly_manager'
+                     || role === 'operations_manager';
     const isViewOnly  = role === 'staff' && !isApplicant; // 製管など
 
     // タブの表示制御
@@ -758,8 +760,8 @@ function applyRoleLayout(role) {
     // 申請ボタン
     if (isApplicant || isQuality) {
         document.getElementById('new_btn_area').style.display = 'block';
-        document.getElementById('btn_assembly').style.display   = (!isQuality && dept === '組立') ? '' : 'none';
-        document.getElementById('btn_test_run').style.display   = (!isQuality && dept === '操業') ? '' : 'none';
+        document.getElementById('btn_assembly').style.display   = (!isQuality && (dept === '組立' || role === 'assembly_manager'))  ? '' : 'none';
+        document.getElementById('btn_test_run').style.display   = (!isQuality && (dept === '操業' || role === 'operations_manager')) ? '' : 'none';
         document.getElementById('btn_inspection').style.display       = isQuality ? '' : 'none';
         document.getElementById('btn_shipping_meeting').style.display  = isQuality ? '' : 'none';
         document.getElementById('btn_shipping').style.display          = isQuality ? '' : 'none';
