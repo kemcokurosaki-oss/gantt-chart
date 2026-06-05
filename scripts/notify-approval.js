@@ -58,6 +58,17 @@ function buildEmail(type, req, recipientName) {
           `${note}\n\n※このメールは自動送信です。`,
       };
 
+    case 'resubmit':
+      return {
+        from,
+        subject: `【再申請】工番 ${pNum}　${flow}`,
+        text:
+          `${recipientName} 様\n\n` +
+          `工番 ${pNum} の「${flow}」が修正のうえ再申請されました。\n` +
+          `承認フロー管理システムにログインして内容をご確認のうえ承認をお願いします。` +
+          `${note}\n\n※このメールは自動送信です。`,
+      };
+
     case 'approved':
     case 'completed':
       return {
