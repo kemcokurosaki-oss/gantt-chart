@@ -368,6 +368,23 @@
         .machine-section:first-child { border-top: none; padding-top: 0; margin-top: 0; }
         .machine-label { font-size: 12px; font-weight: bold; color: #1e3a5f; margin-bottom: 4px; }
 
+        /* ===== Machine Checkbox ===== */
+        .machine-checkbox-list {
+            max-height: 140px; overflow-y: auto;
+            border: 1px solid #e0e0e0; border-radius: 4px;
+            padding: 6px 8px; background: #fafafa;
+            display: flex; flex-direction: column; gap: 2px;
+        }
+        .machine-checkbox-list label {
+            display: flex; align-items: center; gap: 6px;
+            padding: 2px 0; cursor: pointer; font-size: 13px;
+            color: #333; font-weight: normal; text-transform: none; letter-spacing: 0;
+        }
+        .machine-checkbox-list input[type="checkbox"] { cursor: pointer; }
+        .machine-checkbox-bar { display: flex; gap: 6px; margin-bottom: 4px; }
+        .btn-xs { padding: 2px 8px; font-size: 11px; border-radius: 3px; border: 1px solid #ccc; background: #f5f5f5; cursor: pointer; }
+        .btn-xs:hover { background: #e8e8e8; }
+
         /* ===== Accordion Progress ===== */
         .progress-card { cursor: pointer; user-select: none; }
         .progress-card-header { display: flex; justify-content: space-between; align-items: center; }
@@ -471,10 +488,12 @@
                 <div class="project-info-box" id="submit_project_detail"></div>
             </div>
             <div class="form-group" id="submit_machine_group" style="display:none;">
-                <label>機械名 *</label>
-                <select id="submit_machine" onchange="onMachineChange()">
-                    <option value="">選択してください</option>
-                </select>
+                <label>機械名 *（複数選択可）</label>
+                <div class="machine-checkbox-bar">
+                    <button type="button" class="btn-xs" onclick="selectAllMachines('submit_machine_list')">全選択</button>
+                    <button type="button" class="btn-xs" onclick="clearAllMachines('submit_machine_list')">全解除</button>
+                </div>
+                <div class="machine-checkbox-list" id="submit_machine_list"></div>
             </div>
             <div class="form-group" id="flow_detect_group" style="display:none;">
                 <label>後続フロー（工程表から自動検出）</label>
@@ -512,10 +531,12 @@
                 <div class="project-info-box" id="inspection_project_detail"></div>
             </div>
             <div class="form-group" id="inspection_machine_group" style="display:none;">
-                <label>機械名 *</label>
-                <select id="inspection_machine" onchange="onInspectionMachineChange()">
-                    <option value="">選択してください</option>
-                </select>
+                <label>機械名 *（複数選択可）</label>
+                <div class="machine-checkbox-bar">
+                    <button type="button" class="btn-xs" onclick="selectAllMachines('inspection_machine_list')">全選択</button>
+                    <button type="button" class="btn-xs" onclick="clearAllMachines('inspection_machine_list')">全解除</button>
+                </div>
+                <div class="machine-checkbox-list" id="inspection_machine_list"></div>
             </div>
             <div id="inspection_flow_box" style="display:none;" class="form-group">
                 <label>フロー状況</label>
@@ -564,10 +585,12 @@
                 <div class="project-info-box" id="sm_project_detail"></div>
             </div>
             <div class="form-group" id="sm_machine_group" style="display:none;">
-                <label>機械名 *</label>
-                <select id="sm_machine" onchange="onSmMachineChange()">
-                    <option value="">選択してください</option>
-                </select>
+                <label>機械名 *（複数選択可）</label>
+                <div class="machine-checkbox-bar">
+                    <button type="button" class="btn-xs" onclick="selectAllMachines('sm_machine_list')">全選択</button>
+                    <button type="button" class="btn-xs" onclick="clearAllMachines('sm_machine_list')">全解除</button>
+                </div>
+                <div class="machine-checkbox-list" id="sm_machine_list"></div>
             </div>
             <div id="sm_flow_box" style="display:none;" class="form-group">
                 <label>フロー状況</label>
@@ -616,10 +639,12 @@
                 <div class="project-info-box" id="shipping_project_detail"></div>
             </div>
             <div class="form-group" id="shipping_machine_group" style="display:none;">
-                <label>機械名 *</label>
-                <select id="shipping_machine" onchange="onShippingMachineChange()">
-                    <option value="">選択してください</option>
-                </select>
+                <label>機械名 *（複数選択可）</label>
+                <div class="machine-checkbox-bar">
+                    <button type="button" class="btn-xs" onclick="selectAllMachines('shipping_machine_list')">全選択</button>
+                    <button type="button" class="btn-xs" onclick="clearAllMachines('shipping_machine_list')">全解除</button>
+                </div>
+                <div class="machine-checkbox-list" id="shipping_machine_list"></div>
             </div>
             <div id="shipping_flow_box" style="display:none;" class="form-group">
                 <label>フロー状況</label>
@@ -976,77 +1001,69 @@ async function onProjectChange() {
         .select('machine').eq('project_number', num).eq('text', '機械組立').not('machine', 'is', null);
     const machines = [...new Set((machineTasks || []).map(t => t.machine).filter(Boolean))].sort();
 
-    const machSel = document.getElementById('submit_machine');
-    machSel.innerHTML = '<option value="">選択してください</option>';
-    machines.forEach(m => {
-        const opt = document.createElement('option');
-        opt.value = m; opt.textContent = m;
-        machSel.appendChild(opt);
-    });
-
+    await _loadMachineCheckboxes(num, 'submit_machine_list', 'onMachineChange');
     machineGroup.style.display = 'block';
     flowEl.style.display       = 'none';
     detectedFlows = { inspection: false, test_run: false, shippingMeeting: false };
 }
 
 async function onMachineChange() {
-    const num     = document.getElementById('submit_project').value;
-    const machine = document.getElementById('submit_machine').value;
-    const flowEl  = document.getElementById('flow_detect_group');
-    if (!machine) { flowEl.style.display = 'none'; return; }
+    const num      = document.getElementById('submit_project').value;
+    const machines = getSelectedMachines('submit_machine_list');
+    const flowEl   = document.getElementById('flow_detect_group');
 
-    // 対象機械のタスクを取得してフロー検出
+    if (machines.length === 0) { flowEl.style.display = 'none'; return; }
+
+    if (machines.length > 1) {
+        // 複数選択: 一括申請の表示のみ
+        document.getElementById('flow_detect_list').innerHTML = `
+            <div style="padding:4px 0;">
+                <span style="font-size:11px; color:#888; font-weight:bold;">今回申請</span>
+                <div style="margin-top:4px;">
+                    <span style="color:#1e3a5f; font-weight:bold;">▶ ${esc(FLOW_LABELS[currentFlowType] || '完了通知')}</span>
+                    <span style="font-size:12px; color:#888; margin-left:8px;">${machines.length}機械を一括申請</span>
+                </div>
+            </div>`;
+        flowEl.style.display = 'block';
+        return;
+    }
+
+    // 1台選択: 詳細フロー検出
+    const machine = machines[0];
     const { data: tasks } = await db.from('tasks')
         .select('text').eq('project_number', num).eq('machine', machine);
     const taskNames = (tasks || []).map(t => (t.text || '').trim());
 
-    detectedFlows.inspection     = taskNames.includes('外観検査');
-    detectedFlows.test_run       = taskNames.includes('試運転');
+    detectedFlows.inspection      = taskNames.includes('外観検査');
+    detectedFlows.test_run        = taskNames.includes('試運転');
     detectedFlows.shippingMeeting = taskNames.includes('出荷確認会議');
     const hasShipping             = taskNames.includes('工場出荷');
 
-    // この機械の承認済みフローを取得
-    const { data: doneReqs } = await db.from('approval_requests')
-        .select('flow_type').eq('project_number', num).eq('machine_name', machine).eq('status', 'approved');
-    const doneFlows = new Set((doneReqs || []).map(r => r.flow_type));
-
+    const doneFlows = await _getMachineDoneFlows(num, machine);
     const ALL_FLOWS = [
-        { type: 'assembly',         label: '組立完了通知',    exists: true },
-        { type: 'inspection',       label: '外観検査開催案内', exists: detectedFlows.inspection },
-        { type: 'test_run',         label: '試運転完了通知',   exists: detectedFlows.test_run },
+        { type: 'assembly',         label: '組立完了通知',       exists: true },
+        { type: 'inspection',       label: '外観検査開催案内',    exists: detectedFlows.inspection },
+        { type: 'test_run',         label: '試運転完了通知',      exists: detectedFlows.test_run },
         { type: 'shipping_meeting', label: '出荷確認会議開催案内', exists: detectedFlows.shippingMeeting },
-        { type: 'shipping',         label: '出荷確認書',       exists: hasShipping }
+        { type: 'shipping',         label: '出荷確認書',          exists: hasShipping }
     ].filter(f => f.exists);
 
     const doneList     = ALL_FLOWS.filter(f => f.type !== currentFlowType && doneFlows.has(f.type));
     const upcomingList = ALL_FLOWS.filter(f => f.type !== currentFlowType && !doneFlows.has(f.type));
 
-    const doneHtml = doneList.length > 0 ? `
-        <div style="margin-bottom:8px; padding-bottom:8px; border-bottom:1px solid #e8e8e8;">
-            <span style="font-size:11px; color:#888; font-weight:bold;">承認済みフロー</span>
-            <div style="margin-top:4px;">
-                ${doneList.map(f => `<div style="padding:3px 0; color:#27ae60; display:flex; gap:8px;">
-                    <span style="width:20px; text-align:center;">✅</span><span>${esc(f.label)}</span>
-                </div>`).join('')}
-            </div>
-        </div>` : '';
-    const upcomingHtml = upcomingList.length > 0 ? `
-        <div style="margin-top:8px; padding-top:8px; border-top:1px solid #e8e8e8;">
-            <span style="font-size:11px; color:#888; font-weight:bold;">後続フロー</span>
-            <div style="margin-top:4px;">
-                ${upcomingList.map(f => `<div style="padding:3px 0; color:#aaa; display:flex; gap:8px;">
-                    <span style="width:20px; text-align:center;">──</span><span>${esc(f.label)}</span>
-                </div>`).join('')}
-            </div>
-        </div>` : '';
+    const doneHtml = doneList.length > 0 ? `<div style="margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid #e8e8e8;">
+        <span style="font-size:11px;color:#888;font-weight:bold;">承認済みフロー</span>
+        <div style="margin-top:4px;">${doneList.map(f=>`<div style="padding:3px 0;color:#27ae60;display:flex;gap:8px;">
+            <span style="width:20px;text-align:center;">✅</span><span>${esc(f.label)}</span></div>`).join('')}</div></div>` : '';
+    const upcomingHtml = upcomingList.length > 0 ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid #e8e8e8;">
+        <span style="font-size:11px;color:#888;font-weight:bold;">後続フロー</span>
+        <div style="margin-top:4px;">${upcomingList.map(f=>`<div style="padding:3px 0;color:#aaa;display:flex;gap:8px;">
+            <span style="width:20px;text-align:center;">──</span><span>${esc(f.label)}</span></div>`).join('')}</div></div>` : '';
 
-    document.getElementById('flow_detect_list').innerHTML = `
-        ${doneHtml}
-        <div style="padding:4px 0;">
-            <span style="font-size:11px; color:#888; font-weight:bold;">今回申請</span>
-            <div style="margin-top:4px;"><span style="color:#1e3a5f; font-weight:bold;">▶ ${esc(FLOW_LABELS[currentFlowType] || '完了通知')}</span></div>
-        </div>
-        ${upcomingHtml}`;
+    document.getElementById('flow_detect_list').innerHTML = `${doneHtml}
+        <div style="padding:4px 0;"><span style="font-size:11px;color:#888;font-weight:bold;">今回申請</span>
+            <div style="margin-top:4px;"><span style="color:#1e3a5f;font-weight:bold;">▶ ${esc(FLOW_LABELS[currentFlowType] || '完了通知')}</span></div>
+        </div>${upcomingHtml}`;
     flowEl.style.display = 'block';
 }
 
@@ -1355,7 +1372,7 @@ function openSubmitModal(flowType = 'assembly') {
     document.getElementById('submit_project').value = '';
     document.getElementById('submit_project_info').style.display = 'none';
     document.getElementById('submit_machine_group').style.display = 'none';
-    document.getElementById('submit_machine').innerHTML = '<option value="">選択してください</option>';
+    document.getElementById('submit_machine_list').innerHTML = '';
     document.getElementById('flow_detect_group').style.display = 'none';
     document.getElementById('submit_note').value = '';
     detectedFlows = { inspection: false, test_run: false, shippingMeeting: false };
@@ -1375,9 +1392,9 @@ function closeSubmitModal() {
 
 async function submitRequest() {
     const projectNum = document.getElementById('submit_project').value;
-    const machineNum = document.getElementById('submit_machine').value;
-    if (!projectNum) { alert('工事番号を選択してください'); return; }
-    if (!machineNum)  { alert('機械名を選択してください'); return; }
+    const machineNums = getSelectedMachines('submit_machine_list');
+    if (!projectNum)          { alert('工事番号を選択してください'); return; }
+    if (machineNums.length === 0) { alert('機械を選択してください'); return; }
 
     const note    = document.getElementById('submit_note').value.trim();
     const btn     = document.getElementById('submit_btn');
@@ -1400,48 +1417,44 @@ async function submitRequest() {
         };
         const cfg = FLOW_CONFIG[currentFlowType];
 
-        // 1. 申請レコード作成
-        const { data: req, error: e1 } = await db
-            .from('approval_requests')
-            .insert({
+        // 機械ごとに申請レコードを作成（複数機械対応）
+        for (const machineNum of machineNums) {
+            // 機械ごとにタスクフラグを取得
+            const { data: mTasks } = await db.from('tasks')
+                .select('text').eq('project_number', projectNum).eq('machine', machineNum);
+            const mNames = (mTasks || []).map(t => t.text);
+
+            const { data: req, error: e1 } = await db.from('approval_requests').insert({
                 project_number: projectNum,
                 machine_name:   machineNum,
                 flow_type:      currentFlowType,
                 status:         'submitted',
                 requester_id:   currentUser.id,
                 note:           note || null,
-                test_run:       detectedFlows.test_run,
-                has_inspection: detectedFlows.inspection
-            })
-            .select()
-            .single();
-        if (e1) throw e1;
+                test_run:       mNames.includes('試運転'),
+                has_inspection: mNames.includes('外観検査')
+            }).select().single();
+            if (e1) throw e1;
 
-        // 2. 承認ステップ作成
-        const { error: e2 } = await db
-            .from('approval_steps')
-            .insert([
+            await db.from('approval_steps').insert([
                 { request_id: req.id, step_order: 1, approver_role: cfg.step1, status: 'pending' },
                 { request_id: req.id, step_order: 2, approver_role: cfg.step2, status: 'pending' }
             ]);
-        if (e2) throw e2;
 
-        // 3. Step1承認者に通知記録
-        const { data: step1Approvers } = await db
-            .from('profiles').select('id').eq('role', cfg.step1);
-        if (step1Approvers?.length > 0) {
-            await db.from('approval_notifications').insert(
-                step1Approvers.map(a => ({
-                    request_id: req.id, recipient_id: a.id, notification_type: 'approval_request'
-                }))
-            );
+            const { data: step1Approvers } = await db.from('profiles').select('id').eq('role', cfg.step1);
+            if (step1Approvers?.length > 0) {
+                await db.from('approval_notifications').insert(
+                    step1Approvers.map(a => ({ request_id: req.id, recipient_id: a.id, notification_type: 'approval_request' }))
+                );
+            }
         }
 
         closeSubmitModal();
         await refreshAll();
         switchTab('mine');
         ui.send('SAVED');
-        alert(`申請しました。\n${cfg.msg}`);
+        const count = machineNums.length;
+        alert(`${count}機械の申請をしました。\n${cfg.msg}`);
     } catch (e) {
         alert('申請に失敗しました: ' + e.message);
     } finally {
@@ -1710,13 +1723,34 @@ async function resubmit(requestId) {
 }
 
 // ===== 共通ヘルパー =====
-async function _loadMachineSelect(projectNum, selectId) {
+async function _loadMachineCheckboxes(projectNum, listId, onChangeFn) {
     const { data } = await db.from('tasks')
         .select('machine').eq('project_number', projectNum).eq('text', '機械組立').not('machine', 'is', null);
     const machines = [...new Set((data || []).map(t => t.machine).filter(Boolean))].sort();
-    const sel = document.getElementById(selectId);
-    sel.innerHTML = '<option value="">選択してください</option>';
-    machines.forEach(m => { const o = document.createElement('option'); o.value = m; o.textContent = m; sel.appendChild(o); });
+    const list = document.getElementById(listId);
+    if (machines.length === 0) {
+        list.innerHTML = '<div style="color:#aaa;font-size:12px;">機械が見つかりません</div>';
+        return;
+    }
+    list.innerHTML = machines.map(m => `
+        <label>
+            <input type="checkbox" value="${esc(m)}" onchange="${onChangeFn}()">
+            <span>${esc(m)}</span>
+        </label>`).join('');
+}
+
+function getSelectedMachines(listId) {
+    return [...document.querySelectorAll(`#${listId} input[type="checkbox"]:checked`)].map(cb => cb.value);
+}
+
+function selectAllMachines(listId) {
+    document.querySelectorAll(`#${listId} input[type="checkbox"]`).forEach(cb => { cb.checked = true; });
+    document.querySelector(`#${listId} input[type="checkbox"]`)?.dispatchEvent(new Event('change'));
+}
+
+function clearAllMachines(listId) {
+    document.querySelectorAll(`#${listId} input[type="checkbox"]`).forEach(cb => { cb.checked = false; });
+    document.querySelector(`#${listId} input[type="checkbox"]`)?.dispatchEvent(new Event('change'));
 }
 
 async function _getMachineDoneFlows(projectNum, machine) {
@@ -1730,8 +1764,10 @@ let inspectionProjectsLoaded = false;
 
 function openInspectionModal() {
     document.getElementById('inspection_project').value = '';
-    document.getElementById('inspection_project_info').style.display = 'none';
-    document.getElementById('inspection_flow_box').style.display    = 'none';
+    document.getElementById('inspection_project_info').style.display  = 'none';
+    document.getElementById('inspection_machine_group').style.display = 'none';
+    document.getElementById('inspection_machine_list').innerHTML      = '';
+    document.getElementById('inspection_flow_box').style.display      = 'none';
     document.getElementById('inspection_date_input').value     = '';
     document.getElementById('inspection_time_input').value     = '';
     document.getElementById('inspection_location_input').value = '';
@@ -1772,14 +1808,15 @@ async function onInspectionProjectChange() {
         `<span style="color:#888;font-size:11px;">客先</span> ${esc(p.customer_name || '—')}　<span style="color:#888;font-size:11px;">工事名</span> ${esc(p.project_details || '—')}`;
     document.getElementById('inspection_project_info').style.display = 'block';
 
-    await _loadMachineSelect(num, 'inspection_machine');
+    await _loadMachineCheckboxes(num, 'inspection_machine_list', 'onInspectionMachineChange');
     document.getElementById('inspection_machine_group').style.display = 'block';
 }
 
 async function onInspectionMachineChange() {
-    const num     = document.getElementById('inspection_project').value;
-    const machine = document.getElementById('inspection_machine').value;
-    if (!machine) { document.getElementById('inspection_flow_box').style.display = 'none'; return; }
+    const num      = document.getElementById('inspection_project').value;
+    const machines = getSelectedMachines('inspection_machine_list');
+    if (machines.length === 0) { document.getElementById('inspection_flow_box').style.display = 'none'; return; }
+    const machine = machines[0]; // フロー状況は1台目で代表
     const doneFlows = await _getMachineDoneFlows(num, machine);
     const assemblyDone = doneFlows.has('assembly');
     document.getElementById('inspection_flow_list').innerHTML =
@@ -1790,45 +1827,35 @@ async function onInspectionMachineChange() {
 
 async function submitInspection() {
     const num      = document.getElementById('inspection_project').value;
-    const machine  = document.getElementById('inspection_machine').value;
+    const machines = getSelectedMachines('inspection_machine_list');
     const dateVal  = document.getElementById('inspection_date_input').value;
     const timeVal  = document.getElementById('inspection_time_input').value;
     const location = document.getElementById('inspection_location_input').value.trim();
     const note     = document.getElementById('inspection_note_input').value.trim();
 
-    if (!num)     { alert('工事番号を選択してください'); return; }
-    if (!machine) { alert('機械名を選択してください'); return; }
-    if (!dateVal) { alert('外観検査日を入力してください'); return; }
+    if (!num)              { alert('工事番号を選択してください'); return; }
+    if (machines.length === 0) { alert('機械を選択してください'); return; }
+    if (!dateVal)          { alert('外観検査日を入力してください'); return; }
 
     const btn = document.getElementById('inspection_submit_btn');
     btn.disabled = true;
     btn.textContent = '送信中...';
 
     try {
-        // 承認ステップなし → 直接 approved で登録
-        const { data: req, error } = await db
-            .from('approval_requests')
-            .insert({
-                project_number:       num,
-                machine_name:         machine,
-                flow_type:            'inspection',
-                status:               'approved',
-                requester_id:         currentUser.id,
-                note:                 note || null,
-                inspection_date:      dateVal,
-                inspection_time:      timeVal || null,
-                inspection_location:  location || null
-            })
-            .select()
-            .single();
-        if (error) throw error;
-
-        // フロー3通知（設計・営業・技戦含む）
-        await recordFlowNotifications(req.id, 'inspection');
+        // 機械ごとに登録
+        for (const machine of machines) {
+            const { data: req, error } = await db.from('approval_requests').insert({
+                project_number: num, machine_name: machine, flow_type: 'inspection',
+                status: 'approved', requester_id: currentUser.id, note: note || null,
+                inspection_date: dateVal, inspection_time: timeVal || null, inspection_location: location || null
+            }).select().single();
+            if (error) throw error;
+            await recordFlowNotifications(req.id, 'inspection');
+        }
 
         closeInspectionModal();
         await refreshAll();
-        alert('外観検査開催案内を送信しました。');
+        alert(`外観検査開催案内を送信しました。（${machines.length}機械）`);
     } catch (e) {
         alert('送信に失敗しました: ' + e.message);
     } finally {
@@ -1842,8 +1869,10 @@ let smProjectsLoaded = false;
 
 function openShippingMeetingModal() {
     document.getElementById('sm_project').value      = '';
-    document.getElementById('sm_project_info').style.display = 'none';
-    document.getElementById('sm_flow_box').style.display     = 'none';
+    document.getElementById('sm_project_info').style.display  = 'none';
+    document.getElementById('sm_machine_group').style.display = 'none';
+    document.getElementById('sm_machine_list').innerHTML      = '';
+    document.getElementById('sm_flow_box').style.display      = 'none';
     document.getElementById('sm_date_input').value     = '';
     document.getElementById('sm_time_input').value     = '';
     document.getElementById('sm_location_input').value = '';
@@ -1878,14 +1907,15 @@ async function onSmProjectChange() {
     document.getElementById('sm_project_detail').innerHTML =
         `<span style="color:#888;font-size:11px;">客先</span> ${esc(p.customer_name || '—')}　<span style="color:#888;font-size:11px;">工事名</span> ${esc(p.project_details || '—')}`;
     document.getElementById('sm_project_info').style.display = 'block';
-    await _loadMachineSelect(num, 'sm_machine');
+    await _loadMachineCheckboxes(num, 'sm_machine_list', 'onSmMachineChange');
     document.getElementById('sm_machine_group').style.display = 'block';
 }
 
 async function onSmMachineChange() {
-    const num     = document.getElementById('sm_project').value;
-    const machine = document.getElementById('sm_machine').value;
-    if (!machine) { document.getElementById('sm_flow_box').style.display = 'none'; return; }
+    const num      = document.getElementById('sm_project').value;
+    const machines = getSelectedMachines('sm_machine_list');
+    if (machines.length === 0) { document.getElementById('sm_flow_box').style.display = 'none'; return; }
+    const machine = machines[0];
     const doneFlows = await _getMachineDoneFlows(num, machine);
     document.getElementById('sm_flow_list').innerHTML = [
         { type: 'assembly', label: '組立完了通知' },
@@ -1898,32 +1928,32 @@ async function onSmMachineChange() {
 
 async function submitShippingMeeting() {
     const num      = document.getElementById('sm_project').value;
-    const machine  = document.getElementById('sm_machine').value;
+    const machines = getSelectedMachines('sm_machine_list');
     const dateVal  = document.getElementById('sm_date_input').value;
     const timeVal  = document.getElementById('sm_time_input').value;
     const location = document.getElementById('sm_location_input').value.trim();
     const note     = document.getElementById('sm_note_input').value.trim();
 
-    if (!num)     { alert('工事番号を選択してください'); return; }
-    if (!machine) { alert('機械名を選択してください'); return; }
-    if (!dateVal) { alert('開催日を入力してください'); return; }
+    if (!num)              { alert('工事番号を選択してください'); return; }
+    if (machines.length === 0) { alert('機械を選択してください'); return; }
+    if (!dateVal)          { alert('開催日を入力してください'); return; }
 
     const btn = document.getElementById('sm_submit_btn');
     btn.disabled = true; btn.textContent = '送信中...';
 
     try {
-        const { data: req, error } = await db.from('approval_requests').insert({
-            project_number: num, machine_name: machine, flow_type: 'shipping_meeting', status: 'approved',
-            requester_id: currentUser.id, note: note || null,
-            inspection_date: dateVal, inspection_time: timeVal || null,
-            inspection_location: location || null
-        }).select().single();
-        if (error) throw error;
-
-        await recordFlowNotifications(req.id, 'shipping_meeting');
+        for (const machine of machines) {
+            const { data: req, error } = await db.from('approval_requests').insert({
+                project_number: num, machine_name: machine, flow_type: 'shipping_meeting', status: 'approved',
+                requester_id: currentUser.id, note: note || null,
+                inspection_date: dateVal, inspection_time: timeVal || null, inspection_location: location || null
+            }).select().single();
+            if (error) throw error;
+            await recordFlowNotifications(req.id, 'shipping_meeting');
+        }
         closeShippingMeetingModal();
         await refreshAll();
-        alert('出荷確認会議開催案内を送信しました。');
+        alert(`出荷確認会議開催案内を送信しました。（${machines.length}機械）`);
     } catch (e) {
         alert('送信に失敗しました: ' + e.message);
     } finally {
@@ -1936,8 +1966,10 @@ let shippingProjectsLoaded = false;
 
 function openShippingModal() {
     document.getElementById('shipping_project').value = '';
-    document.getElementById('shipping_project_info').style.display = 'none';
-    document.getElementById('shipping_flow_box').style.display     = 'none';
+    document.getElementById('shipping_project_info').style.display  = 'none';
+    document.getElementById('shipping_machine_group').style.display = 'none';
+    document.getElementById('shipping_machine_list').innerHTML      = '';
+    document.getElementById('shipping_flow_box').style.display      = 'none';
     document.getElementById('shipping_date_input').value  = '';
     document.getElementById('shipping_note_input').value  = '';
 
@@ -1972,14 +2004,15 @@ async function onShippingProjectChange() {
     document.getElementById('shipping_project_detail').innerHTML =
         `<span style="color:#888;font-size:11px;">客先</span> ${esc(p.customer_name || '—')}　<span style="color:#888;font-size:11px;">工事名</span> ${esc(p.project_details || '—')}`;
     document.getElementById('shipping_project_info').style.display = 'block';
-    await _loadMachineSelect(num, 'shipping_machine');
+    await _loadMachineCheckboxes(num, 'shipping_machine_list', 'onShippingMachineChange');
     document.getElementById('shipping_machine_group').style.display = 'block';
 }
 
 async function onShippingMachineChange() {
-    const num     = document.getElementById('shipping_project').value;
-    const machine = document.getElementById('shipping_machine').value;
-    if (!machine) { document.getElementById('shipping_flow_box').style.display = 'none'; return; }
+    const num      = document.getElementById('shipping_project').value;
+    const machines = getSelectedMachines('shipping_machine_list');
+    if (machines.length === 0) { document.getElementById('shipping_flow_box').style.display = 'none'; return; }
+    const machine = machines[0];
     const doneFlows = await _getMachineDoneFlows(num, machine);
     const rows = [
         { type: 'assembly', label: '組立完了通知' }, { type: 'inspection', label: '外観検査開催案内' },
@@ -1995,40 +2028,31 @@ async function onShippingMachineChange() {
 
 async function submitShipping() {
     const num      = document.getElementById('shipping_project').value;
-    const machine  = document.getElementById('shipping_machine').value;
+    const machines = getSelectedMachines('shipping_machine_list');
     const dateVal  = document.getElementById('shipping_date_input').value;
     const note     = document.getElementById('shipping_note_input').value.trim();
 
-    if (!num)     { alert('工事番号を選択してください'); return; }
-    if (!machine) { alert('機械名を選択してください'); return; }
-    if (!dateVal) { alert('確定出荷日を入力してください'); return; }
+    if (!num)              { alert('工事番号を選択してください'); return; }
+    if (machines.length === 0) { alert('機械を選択してください'); return; }
+    if (!dateVal)          { alert('確定出荷日を入力してください'); return; }
 
     const btn = document.getElementById('shipping_submit_btn');
     btn.disabled    = true;
     btn.textContent = '発行中...';
 
     try {
-        const { data: req, error } = await db
-            .from('approval_requests')
-            .insert({
-                project_number:          num,
-                machine_name:            machine,
-                flow_type:               'shipping',
-                status:                  'approved',
-                requester_id:            currentUser.id,
-                note:                    note || null,
+        for (const machine of machines) {
+            const { data: req, error } = await db.from('approval_requests').insert({
+                project_number: num, machine_name: machine, flow_type: 'shipping',
+                status: 'approved', requester_id: currentUser.id, note: note || null,
                 confirmed_shipping_date: dateVal
-            })
-            .select()
-            .single();
-        if (error) throw error;
-
-        // フロー4通知（設計・営業・物流・技戦含む）
-        await recordFlowNotifications(req.id, 'shipping');
-
+            }).select().single();
+            if (error) throw error;
+            await recordFlowNotifications(req.id, 'shipping');
+        }
         closeShippingModal();
         await refreshAll();
-        alert('出荷確認書を発行しました。関係者に通知が送られます。');
+        alert(`出荷確認書を発行しました。（${machines.length}機械）`);
     } catch (e) {
         alert('発行に失敗しました: ' + e.message);
     } finally {
