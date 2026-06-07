@@ -1914,33 +1914,25 @@ async function _fetchFlowRecipients(projectNum, machineNames, flowType) {
         (data || []).forEach(p => { if (!result.profiles.find(x => x.id === p.id)) result.profiles.push(p); });
     }
 
-    // 外部宛先
-    const extRules = [
-        { department: '設計' },
-        { department: '技戦' }
-    ];
-    for (const rule of extRules) {
+    // 外部宛先（recordFlowNotificationsのinspection/shipping_meetingと同じルール）
+    const addExt = async (filters) => {
         let q = db.from('notification_recipients').select('name, email, department, role').eq('active', true);
-        if (rule.department) q = q.eq('department', rule.department);
+        if (filters.department) q = q.eq('department', filters.department);
+        if (filters.role)       q = q.eq('role', filters.role);
+        if (filters.name)       q = q.eq('name', filters.name);
         const { data } = await q;
         (data || []).filter(r => r.email).forEach(r => {
             if (!result.external.find(x => x.email === r.email)) result.external.push(r);
         });
-    }
-    // 営業担当者（工番の担当者）
-    if (salesOwner) {
-        const { data } = await db.from('notification_recipients').select('name, email, department').eq('name', salesOwner).eq('active', true);
-        (data || []).filter(r => r.email).forEach(r => {
-            if (!result.external.find(x => x.email === r.email)) result.external.push(r);
-        });
-    }
-    // 設計担当者（工番の担当者）
-    if (sekkeiOwner) {
-        const { data } = await db.from('notification_recipients').select('name, email, department').eq('name', sekkeiOwner).eq('active', true);
-        (data || []).filter(r => r.email).forEach(r => {
-            if (!result.external.find(x => x.email === r.email)) result.external.push(r);
-        });
-    }
+    };
+    // 工番担当者（名前で特定）
+    if (salesOwner)  await addExt({ name: salesOwner });
+    if (sekkeiOwner) await addExt({ name: sekkeiOwner });
+    // 設計課長・部長（固定）
+    await addExt({ department: '設計', role: 'manager' });
+    await addExt({ department: '設計', role: 'director' });
+    // 技戦（固定）
+    await addExt({ department: '技戦' });
 
     return result;
 }
