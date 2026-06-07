@@ -1880,63 +1880,85 @@ function showFormStep(prefix) {
 }
 
 async function _fetchFlowRecipients(projectNum, machineNames, flowType) {
-    const result = { profiles: [], external: [] };
+    // recordFlowNotificationsと同じロジックで宛先を収集してプレビュー表示用に返す
 
-    // 機械組立オーナー: 選択機械から取得（機械固有）
-    const { data: kumitateTasks } = await db.from('tasks')
-        .select('owner').eq('project_number', projectNum).eq('text', '機械組立').in('machine', machineNames);
-    const kumitateOwners = [...new Set((kumitateTasks || []).map(t => t.owner).filter(Boolean))];
+    // タスクオーナーを取得（recordFlowNotificationsと同じクエリ）
+    // 機械フィルタ: 複数機械の場合は最初の1台で代表（単一申請時と同じ挙動）
+    const machineName = machineNames[0] || null;
+    let taskQuery = db.from('tasks').select('text, owner, major_item').eq('project_number', projectNum);
+    if (machineName) taskQuery = taskQuery.eq('machine', machineName);
+    const { data: tasks } = await taskQuery;
 
-    // 試運転・出図オーナー: 工番全体から取得（プロジェクト単位で1名の場合が多い）
-    const { data: shiuntenTask } = await db.from('tasks')
-        .select('owner').eq('project_number', projectNum).eq('text', '試運転').not('owner', 'is', null).limit(1);
-    const shiuntenOwner = shiuntenTask?.[0]?.owner || null;
+    const findOwner = (taskName, majorItem) =>
+        (tasks || []).find(t => t.text === taskName && (!majorItem || String(t.major_item || '').trim() === majorItem))?.owner || null;
 
-    const { data: sekkeiTask } = await db.from('tasks')
-        .select('owner').eq('project_number', projectNum).eq('text', '出図').not('owner', 'is', null).limit(1);
-    const sekkeiOwner = sekkeiTask?.[0]?.owner || null;
+    const kumitateOwner = findOwner('機械組立');
+    const shiuntenOwner = findOwner('試運転');
+    const sekkeiOwner   = findOwner('出図', '設計');
+
+    // 試運転・出図が見つからない場合は工番全体から再検索
+    const shiuntenOwnerFallback = shiuntenOwner || (await db.from('tasks')
+        .select('owner').eq('project_number', projectNum).eq('text', '試運転').not('owner', 'is', null).limit(1))
+        .data?.[0]?.owner || null;
+    const sekkeiOwnerFallback = sekkeiOwner || (await db.from('tasks')
+        .select('owner').eq('project_number', projectNum).eq('text', '出図').not('owner', 'is', null).limit(1))
+        .data?.[0]?.owner || null;
+
     const { data: sData } = await db.from('app_settings').select('value').eq('key', 'sales_person_map').single();
     const salesOwner = (sData?.value ? JSON.parse(sData.value) : {})[projectNum] || null;
 
-    // profiles からの宛先
-    const addProfile = async (filters) => {
+    // profiles収集（recordFlowNotificationsのaddP相当）
+    const profileIds = new Set();
+    const profileList = [];
+    const addP = async (filters) => {
         let q = db.from('profiles').select('id, name, email, role, department');
         if (filters.department) q = q.eq('department', filters.department);
         if (filters.role)       q = q.eq('role', filters.role);
-        if (filters.name)       q = q.eq('name', filters.name);
         const { data } = await q;
-        (data || []).forEach(p => { if (!result.profiles.find(x => x.id === p.id)) result.profiles.push(p); });
+        (data || []).forEach(p => { if (!profileIds.has(p.id)) { profileIds.add(p.id); profileList.push(p); } });
+    };
+    const addPbyName = async (name) => {
+        if (!name) return;
+        const { data } = await db.from('profiles').select('id, name, email, role, department').eq('name', name);
+        (data || []).forEach(p => { if (!profileIds.has(p.id)) { profileIds.add(p.id); profileList.push(p); } });
     };
 
-    // 固定: 製管・常務
-    await addProfile({ department: '製管', role: 'staff' });
-    await addProfile({ role: 'assembly_director' });
-    // 機械ごとの組立担当者（複数機械=複数人の可能性）
-    for (const name of kumitateOwners) await addProfile({ name });
-    // 試運転担当者
-    if (shiuntenOwner) await addProfile({ name: shiuntenOwner });
-
-    // 外部宛先（recordFlowNotificationsのinspection/shipping_meetingと同じルール）
-    const addExt = async (filters) => {
+    // external収集（recordFlowNotificationsのaddE相当）
+    const extEmails = new Set();
+    const extList = [];
+    const addE = async (filters) => {
         let q = db.from('notification_recipients').select('name, email, department, role').eq('active', true);
         if (filters.department) q = q.eq('department', filters.department);
         if (filters.role)       q = q.eq('role', filters.role);
-        if (filters.name)       q = q.eq('name', filters.name);
         const { data } = await q;
-        (data || []).filter(r => r.email).forEach(r => {
-            if (!result.external.find(x => x.email === r.email)) result.external.push(r);
-        });
+        (data || []).filter(r => r.email).forEach(r => { if (!extEmails.has(r.email)) { extEmails.add(r.email); extList.push(r); } });
     };
-    // 工番担当者（名前で特定）
-    if (salesOwner)  await addExt({ name: salesOwner });
-    if (sekkeiOwner) await addExt({ name: sekkeiOwner });
-    // 設計課長・部長（固定）
-    await addExt({ department: '設計', role: 'manager' });
-    await addExt({ department: '設計', role: 'director' });
-    // 技戦（固定）
-    await addExt({ department: '技戦' });
+    const addEbyName = async (name) => {
+        if (!name) return;
+        const { data } = await db.from('notification_recipients').select('name, email, department, role').eq('name', name).eq('active', true);
+        (data || []).filter(r => r.email).forEach(r => { if (!extEmails.has(r.email)) { extEmails.add(r.email); extList.push(r); } });
+    };
 
-    return result;
+    // inspection / shipping_meeting 共通ルール（recordFlowNotificationsと完全一致）
+    await addP({ department: '製管', role: 'staff' });
+    await addP({ role: 'assembly_director' });
+    await addPbyName(kumitateOwner);
+    await addPbyName(shiuntenOwnerFallback);
+    await addEbyName(salesOwner);
+    await addEbyName(sekkeiOwnerFallback);
+    await addE({ department: '設計', role: 'manager' });
+    await addE({ department: '設計', role: 'director' });
+    await addE({ department: '技戦' });
+
+    // 複数機械選択時は残りの機械の組立担当者も追加
+    for (let i = 1; i < machineNames.length; i++) {
+        const { data: mt } = await db.from('tasks')
+            .select('owner').eq('project_number', projectNum).eq('text', '機械組立').eq('machine', machineNames[i]);
+        const owner = mt?.[0]?.owner || null;
+        await addPbyName(owner);
+    }
+
+    return { profiles: profileList, external: extList };
 }
 
 function renderRecipientsList(prefix, recipients) {
