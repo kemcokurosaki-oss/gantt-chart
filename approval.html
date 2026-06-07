@@ -1931,12 +1931,19 @@ async function _fetchFlowRecipients(projectNum, machineNames, flowType) {
         if (filters.department) q = q.eq('department', filters.department);
         if (filters.role)       q = q.eq('role', filters.role);
         const { data } = await q;
-        (data || []).filter(r => r.email).forEach(r => { if (!extEmails.has(r.email)) { extEmails.add(r.email); extList.push(r); } });
+        // プレビューではメール未登録でも表示（keyはemail or name）
+        (data || []).forEach(r => {
+            const key = r.email || r.name;
+            if (key && !extEmails.has(key)) { extEmails.add(key); extList.push(r); }
+        });
     };
     const addEbyName = async (name) => {
         if (!name) return;
         const { data } = await db.from('notification_recipients').select('name, email, department, role').eq('name', name).eq('active', true);
-        (data || []).filter(r => r.email).forEach(r => { if (!extEmails.has(r.email)) { extEmails.add(r.email); extList.push(r); } });
+        (data || []).forEach(r => {
+            const key = r.email || r.name;
+            if (key && !extEmails.has(key)) { extEmails.add(key); extList.push(r); }
+        });
     };
 
     // inspection / shipping_meeting 共通ルール（recordFlowNotificationsと完全一致）
@@ -1975,7 +1982,7 @@ function renderRecipientsList(prefix, recipients) {
     const extRows = recipients.external.map(r => `
         <div class="recipient-item">
             <span class="recipient-name">${esc(r.name || '—')}</span>
-            <span class="recipient-email">${esc(r.email || '—')}</span>
+            <span class="recipient-email" style="color:${r.email ? '#888' : '#e74c3c'};">${esc(r.email || '⚠ メール未登録')}</span>
             <span class="recipient-tag">${esc(r.department || '')}</span>
         </div>`).join('');
 
