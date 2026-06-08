@@ -565,7 +565,27 @@
             </div>
             <div class="form-group">
                 <label>開始時刻</label>
-                <input type="time" id="inspection_time_input">
+                <div style="display:flex; gap:6px; align-items:center;">
+                    <select id="inspection_time_hour" style="padding:5px 8px; border:1px solid #ccc; border-radius:4px; font-size:13px;">
+                        <option value="">--</option>
+                        <option value="08">08時</option>
+                        <option value="09">09時</option>
+                        <option value="10">10時</option>
+                        <option value="11">11時</option>
+                        <option value="12">12時</option>
+                        <option value="13">13時</option>
+                        <option value="14">14時</option>
+                        <option value="15">15時</option>
+                        <option value="16">16時</option>
+                    </select>
+                    <select id="inspection_time_min" style="padding:5px 8px; border:1px solid #ccc; border-radius:4px; font-size:13px;">
+                        <option value="">--</option>
+                        <option value="00">00分</option>
+                        <option value="15">15分</option>
+                        <option value="30">30分</option>
+                        <option value="45">45分</option>
+                    </select>
+                </div>
             </div>
             <div class="form-group">
                 <label>場所</label>
@@ -636,7 +656,27 @@
             </div>
             <div class="form-group">
                 <label>開始時刻</label>
-                <input type="time" id="sm_time_input">
+                <div style="display:flex; gap:6px; align-items:center;">
+                    <select id="sm_time_hour" style="padding:5px 8px; border:1px solid #ccc; border-radius:4px; font-size:13px;">
+                        <option value="">--</option>
+                        <option value="08">08時</option>
+                        <option value="09">09時</option>
+                        <option value="10">10時</option>
+                        <option value="11">11時</option>
+                        <option value="12">12時</option>
+                        <option value="13">13時</option>
+                        <option value="14">14時</option>
+                        <option value="15">15時</option>
+                        <option value="16">16時</option>
+                    </select>
+                    <select id="sm_time_min" style="padding:5px 8px; border:1px solid #ccc; border-radius:4px; font-size:13px;">
+                        <option value="">--</option>
+                        <option value="00">00分</option>
+                        <option value="15">15分</option>
+                        <option value="30">30分</option>
+                        <option value="45">45分</option>
+                    </select>
+                </div>
             </div>
             <div class="form-group">
                 <label>場所</label>
@@ -2031,7 +2071,8 @@ function openInspectionModal() {
     extraRecipients.inspection = [];
     document.getElementById('inspection_extra_list').innerHTML = '';
     document.getElementById('inspection_date_input').value     = '';
-    document.getElementById('inspection_time_input').value     = '';
+    document.getElementById('inspection_time_hour').value      = '';
+    document.getElementById('inspection_time_min').value       = '';
     document.getElementById('inspection_location_input').value = '';
     document.getElementById('inspection_note_input').value     = '';
 
@@ -2091,7 +2132,9 @@ async function submitInspection() {
     const num      = document.getElementById('inspection_project').value;
     const machines = getSelectedMachines('inspection_machine_list');
     const dateVal  = document.getElementById('inspection_date_input').value;
-    const timeVal  = document.getElementById('inspection_time_input').value;
+    const _th = document.getElementById('inspection_time_hour').value;
+    const _tm = document.getElementById('inspection_time_min').value;
+    const timeVal  = (_th && _tm) ? `${_th}:${_tm}` : null;
     const location = document.getElementById('inspection_location_input').value.trim();
     const note     = document.getElementById('inspection_note_input').value.trim();
 
@@ -2147,7 +2190,8 @@ function openShippingMeetingModal() {
     extraRecipients.sm = [];
     document.getElementById('sm_extra_list').innerHTML = '';
     document.getElementById('sm_date_input').value     = '';
-    document.getElementById('sm_time_input').value     = '';
+    document.getElementById('sm_time_hour').value      = '';
+    document.getElementById('sm_time_min').value       = '';
     document.getElementById('sm_location_input').value = '';
     document.getElementById('sm_note_input').value     = '';
 
@@ -2203,7 +2247,9 @@ async function submitShippingMeeting() {
     const num      = document.getElementById('sm_project').value;
     const machines = getSelectedMachines('sm_machine_list');
     const dateVal  = document.getElementById('sm_date_input').value;
-    const timeVal  = document.getElementById('sm_time_input').value;
+    const _th = document.getElementById('sm_time_hour').value;
+    const _tm = document.getElementById('sm_time_min').value;
+    const timeVal  = (_th && _tm) ? `${_th}:${_tm}` : null;
     const location = document.getElementById('sm_location_input').value.trim();
     const note     = document.getElementById('sm_note_input').value.trim();
 
