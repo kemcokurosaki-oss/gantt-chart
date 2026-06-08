@@ -1929,20 +1929,20 @@ async function _fetchFlowRecipients(projectNum, machineNames, flowType) {
     if (machineName) taskQuery = taskQuery.eq('machine', machineName);
     const { data: tasks } = await taskQuery;
 
-    const findOwner = (taskName, majorItem) =>
-        (tasks || []).find(t => t.text === taskName && (!majorItem || String(t.major_item || '').trim() === majorItem))?.owner || null;
+    const findOwners = (taskName, majorItem) => {
+        const matched = (tasks || []).filter(t => t.text === taskName && (!majorItem || String(t.major_item || '').trim() === majorItem));
+        return [...new Set(matched.map(t => t.owner).filter(Boolean))];
+    };
 
-    const kumitateOwner = findOwner('機械組立');
-    const shiuntenOwner = findOwner('試運転');
-    const sekkeiOwner   = findOwner('出図', '設計');
+    const kumitateOwners = findOwners('機械組立');
+    const shiuntenOwners = findOwners('試運転');
+    const sekkeiOwners   = findOwners('出図', '設計');
 
     // 試運転・出図が見つからない場合は工番全体から再検索
-    const shiuntenOwnerFallback = shiuntenOwner || (await db.from('tasks')
-        .select('owner').eq('project_number', projectNum).eq('text', '試運転').not('owner', 'is', null).limit(1))
-        .data?.[0]?.owner || null;
-    const sekkeiOwnerFallback = sekkeiOwner || (await db.from('tasks')
-        .select('owner').eq('project_number', projectNum).eq('text', '出図').not('owner', 'is', null).limit(1))
-        .data?.[0]?.owner || null;
+    const shiuntenOwnersFallback = shiuntenOwners.length > 0 ? shiuntenOwners :
+        ((await db.from('tasks').select('owner').eq('project_number', projectNum).eq('text', '試運転').not('owner', 'is', null)).data || []).map(t => t.owner).filter(Boolean);
+    const sekkeiOwnersFallback = sekkeiOwners.length > 0 ? sekkeiOwners :
+        ((await db.from('tasks').select('owner').eq('project_number', projectNum).eq('text', '出図').not('owner', 'is', null)).data || []).map(t => t.owner).filter(Boolean);
 
     const { data: sData } = await db.from('app_settings').select('value').eq('key', 'sales_person_map').single();
     const salesOwner = (sData?.value ? JSON.parse(sData.value) : {})[projectNum] || null;
@@ -1989,10 +1989,10 @@ async function _fetchFlowRecipients(projectNum, machineNames, flowType) {
     // inspection / shipping_meeting 共通ルール（recordFlowNotificationsと完全一致）
     await addP({ department: '製管', role: 'staff' });
     await addP({ role: 'assembly_director' });
-    await addPbyName(kumitateOwner);
-    await addPbyName(shiuntenOwnerFallback);
+    for (const o of kumitateOwners) await addPbyName(o);
+    for (const o of shiuntenOwnersFallback) await addPbyName(o);
     await addEbyName(salesOwner);
-    await addEbyName(sekkeiOwnerFallback);
+    for (const o of sekkeiOwnersFallback) await addEbyName(o);
     await addE({ department: '設計', role: 'manager' });
     await addE({ department: '設計', role: 'director' });
     await addE({ department: '技戦' });
@@ -2001,8 +2001,8 @@ async function _fetchFlowRecipients(projectNum, machineNames, flowType) {
     for (let i = 1; i < machineNames.length; i++) {
         const { data: mt } = await db.from('tasks')
             .select('owner').eq('project_number', projectNum).eq('text', '機械組立').eq('machine', machineNames[i]);
-        const owner = mt?.[0]?.owner || null;
-        await addPbyName(owner);
+        const owners = [...new Set((mt || []).map(t => t.owner).filter(Boolean))];
+        for (const o of owners) await addPbyName(o);
     }
 
     return { profiles: profileList, external: extList };
@@ -2398,12 +2398,14 @@ async function recordFlowNotifications(requestId, flowType) {
     let taskQuery = db.from('tasks').select('text, owner, major_item').eq('project_number', projectNum);
     if (machineName) taskQuery = taskQuery.eq('machine', machineName);
     const { data: tasks } = await taskQuery;
-    const findOwner = (taskName, majorItem) =>
-        (tasks || []).find(t => t.text === taskName && (!majorItem || String(t.major_item || '').trim() === majorItem))?.owner || null;
+    const findOwners = (taskName, majorItem) => {
+        const matched = (tasks || []).filter(t => t.text === taskName && (!majorItem || String(t.major_item || '').trim() === majorItem));
+        return [...new Set(matched.map(t => t.owner).filter(Boolean))];
+    };
 
-    const kumitateOwner = findOwner('機械組立');
-    const shiuntenOwner = findOwner('試運転');
-    const sekkeiOwner   = findOwner('出図', '設計');
+    const kumitateOwners = findOwners('機械組立');
+    const shiuntenOwners = findOwners('試運転');
+    const sekkeiOwners   = findOwners('出図', '設計');
 
     // 営業担当者をapp_settingsから取得
     const { data: sData } = await db.from('app_settings').select('value').eq('key', 'sales_person_map').single();
@@ -2448,11 +2450,11 @@ async function recordFlowNotifications(requestId, flowType) {
             // 固定: 品保・製管
             await addP({ role: 'quality' });
             await addP({ department: '製管', role: 'staff' });
-            // 工番担当者（profiles）: 組立
-            await addPbyName(kumitateOwner);
+            // 工番担当者（profiles）: 組立（複数人対応）
+            for (const o of kumitateOwners) await addPbyName(o);
             // 工番担当者（外部）: 営業・設計staff
             await addEbyName(salesOwner);
-            await addEbyName(sekkeiOwner);
+            for (const o of sekkeiOwners) await addEbyName(o);
             // 設計管理職は必須
             await addE({ department: '設計', role: 'manager' });
             await addE({ department: '設計', role: 'director' });
@@ -2463,11 +2465,11 @@ async function recordFlowNotifications(requestId, flowType) {
             await addP({ role: 'quality' });
             await addP({ department: '製管', role: 'staff' });
             await addP({ role: 'assembly_director' });
-            // 工番担当者（profiles）: 操業（試運転タスクのowner）
-            await addPbyName(shiuntenOwner);
+            // 工番担当者（profiles）: 操業（試運転タスクのowner・複数人対応）
+            for (const o of shiuntenOwners) await addPbyName(o);
             // 工番担当者（外部）: 営業・設計staff
             await addEbyName(salesOwner);
-            await addEbyName(sekkeiOwner);
+            for (const o of sekkeiOwners) await addEbyName(o);
             // 設計管理職は必須
             await addE({ department: '設計', role: 'manager' });
             await addE({ department: '設計', role: 'director' });
@@ -2478,10 +2480,10 @@ async function recordFlowNotifications(requestId, flowType) {
             // フロー3（外観検査）と同じ宛先
             await addP({ department: '製管', role: 'staff' });
             await addP({ role: 'assembly_director' });
-            await addPbyName(kumitateOwner);
-            await addPbyName(shiuntenOwner);
+            for (const o of kumitateOwners) await addPbyName(o);
+            for (const o of shiuntenOwners) await addPbyName(o);
             await addEbyName(salesOwner);
-            await addEbyName(sekkeiOwner);
+            for (const o of sekkeiOwners) await addEbyName(o);
             await addE({ department: '設計', role: 'manager' });
             await addE({ department: '設計', role: 'director' });
             await addE({ department: '技戦' });
@@ -2492,12 +2494,12 @@ async function recordFlowNotifications(requestId, flowType) {
             // 固定: 製管・常務・技戦
             await addP({ department: '製管', role: 'staff' });
             await addP({ role: 'assembly_director' });
-            // 工番担当者（profiles）: 組立・操業（試運転タスクのowner）
-            await addPbyName(kumitateOwner);
-            await addPbyName(shiuntenOwner);
+            // 工番担当者（profiles）: 組立・操業（複数人対応）
+            for (const o of kumitateOwners) await addPbyName(o);
+            for (const o of shiuntenOwners) await addPbyName(o);
             // 工番担当者（外部）: 営業・設計staff
             await addEbyName(salesOwner);
-            await addEbyName(sekkeiOwner);
+            for (const o of sekkeiOwners) await addEbyName(o);
             // 設計管理職・技戦は必須
             await addE({ department: '設計', role: 'manager' });
             await addE({ department: '設計', role: 'director' });
