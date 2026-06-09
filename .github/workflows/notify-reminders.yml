@@ -13,6 +13,11 @@ on:
         options:
           - 'true'
           - 'false'
+      test_project:
+        description: '申請催促テスト用工事番号（テストモード時のみ有効・空欄で全件）'
+        required: false
+        default: ''
+        type: string
 
 jobs:
   notify:
@@ -31,4 +36,5 @@ jobs:
           GMAIL_USER: ${{ secrets.GMAIL_USER }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           TEST_MODE: ${{ github.event.inputs.test_mode || 'false' }}
+          TEST_PROJECT: ${{ github.event.inputs.test_project || '' }}
         run: node scripts/notify-reminders.js

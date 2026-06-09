@@ -14,6 +14,7 @@ const GMAIL_USER   = process.env.GMAIL_USER;
 const GMAIL_PASS   = process.env.GMAIL_APP_PASSWORD;
 const TEST_MODE    = process.env.TEST_MODE === 'true';
 const TEST_EMAIL   = 'e-kurosaki@kusakabe.com';
+const TEST_PROJECT = (process.env.TEST_PROJECT || '').trim();
 
 const FLOW_LABELS  = { assembly: '組立完了通知', test_run: '試運転完了通知' };
 const TASK_TO_FLOW = { '機械組立': 'assembly', '試運転': 'test_run' };
@@ -163,6 +164,8 @@ async function runSubmissionReminders() {
 
     for (const task of (tasks || [])) {
       if (!task.owner || task.is_completed) continue;
+      // テストモードで工事番号が指定されている場合は絞り込み
+      if (TEST_MODE && TEST_PROJECT && String(task.project_number) !== TEST_PROJECT) continue;
 
       const key = `${task.project_number}__${task.machine}__${flowType}`;
       if (submittedSet.has(key)) continue;
