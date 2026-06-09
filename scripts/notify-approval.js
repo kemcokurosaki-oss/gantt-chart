@@ -56,6 +56,7 @@ function buildEmail(type, req, recipientName) {
           `${recipientName} 様\n\n` +
           `工番 ${pNum}${machine} の「${flow}」について承認依頼が届いています。\n` +
           `承認フロー管理システムにログインして承認をお願いします。` +
+          (req?.flow_type === 'assembly' ? '\n\n※組立課長・部長どちらかが承認すれば完了になります。先に承認された場合、もう一方の承認は不要です。' : '') +
           `${note}\n\n※このメールは自動送信です。`,
       };
 
@@ -78,6 +79,17 @@ function buildEmail(type, req, recipientName) {
         text:
           `${recipientName} 様\n\n` +
           `工番 ${pNum} の「${flow}」が承認されました。` +
+          `${note}\n\n※このメールは自動送信です。`,
+      };
+
+    case 'completed_by_other':
+      return {
+        from,
+        subject: `【承認完了】工番 ${pNum}${machine}　${flow}`,
+        text:
+          `${recipientName} 様\n\n` +
+          `工番 ${pNum}${machine} の「${flow}」は他の承認者により承認完了になりました。\n` +
+          `対応は不要です。` +
           `${note}\n\n※このメールは自動送信です。`,
       };
 

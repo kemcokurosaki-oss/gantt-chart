@@ -1937,9 +1937,21 @@ async function approveStep(requestId, stepId, stepOrder) {
         }
 
         if (nextStatus === 'approved' && isParallel) {
-            // 並列承認: 残っている他のステップをキャンセル
-            await db.from('approval_steps').update({ status: 'cancelled' })
-                .eq('request_id', requestId).eq('status', 'pending').neq('id', stepId);
+            // 並列承認: 残っている他のステップを取得してキャンセル＋相手に通知
+            const { data: otherSteps } = await db.from('approval_steps')
+                .select('id, approver_role').eq('request_id', requestId).eq('status', 'pending').neq('id', stepId);
+            if (otherSteps?.length > 0) {
+                await db.from('approval_steps').update({ status: 'cancelled' })
+                    .in('id', otherSteps.map(s => s.id));
+                for (const os of otherSteps) {
+                    const { data: others } = await db.from('profiles').select('id').eq('role', os.approver_role);
+                    if (others?.length > 0) {
+                        await db.from('approval_notifications').insert(
+                            others.map(a => ({ request_id: requestId, recipient_id: a.id, notification_type: 'completed_by_other' }))
+                        );
+                    }
+                }
+            }
         }
 
         if (nextStatus === 'approved') {
