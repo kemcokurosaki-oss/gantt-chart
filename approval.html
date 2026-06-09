@@ -387,10 +387,12 @@
         /* モーダルサイズ固定 */
         #submit_modal .modal,
         #inspection_modal .modal,
+        #simple_inspection_modal .modal,
         #shipping_meeting_modal .modal,
         #shipping_modal .modal { height: 85vh; }
         #submit_modal .modal-body,
         #inspection_modal .modal-body,
+        #simple_inspection_modal .modal-body,
         #shipping_meeting_modal .modal-body,
         #shipping_modal .modal-body { overflow-y: auto; flex: 1; }
 
@@ -474,6 +476,7 @@
             <div class="new-btn-area" id="new_btn_area" style="display:none; padding: 10px 0 4px;">
                 <button class="btn btn-primary" id="btn_assembly"   onclick="openSubmitModal('assembly')"  style="display:none;">＋ 組立完了通知を申請</button>
                 <button class="btn btn-primary" id="btn_test_run"   onclick="openSubmitModal('test_run')"  style="display:none; margin-left:8px;">＋ 試運転完了通知を申請</button>
+                <button class="btn btn-primary" id="btn_simple_inspection" onclick="openSimpleInspectionModal()" style="display:none; margin-left:8px;">＋ 簡易検査開催案内を作成</button>
                 <button class="btn btn-primary" id="btn_inspection"       onclick="openInspectionModal()"       style="display:none; margin-left:8px;">＋ 外観検査開催案内を作成</button>
                 <button class="btn btn-primary" id="btn_shipping_meeting" onclick="openShippingMeetingModal()"  style="display:none; margin-left:8px;">＋ 出荷確認会議開催案内を作成</button>
                 <button class="btn btn-primary" id="btn_shipping"         onclick="openShippingModal()"         style="display:none; margin-left:8px;">＋ 出荷確認書を作成</button>
@@ -617,6 +620,97 @@
         <div class="modal-footer" id="inspection_footer_step2" style="display:none;">
             <button class="btn btn-secondary" onclick="showFormStep('inspection')">← 戻る</button>
             <button class="btn btn-primary" id="inspection_submit_btn" onclick="submitInspection()">案内を送信</button>
+        </div>
+    </div>
+</div>
+
+<!-- ===== Simple Inspection Modal (簡易検査開催案内) ===== -->
+<div id="simple_inspection_modal" class="modal-overlay">
+    <div class="modal">
+        <div class="modal-header">
+            <h2>簡易検査開催案内 — 作成</h2>
+            <button class="modal-close" onclick="closeSimpleInspectionModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label>工事番号 *</label>
+                <select id="si_project" onchange="onSiProjectChange()">
+                    <option value="">選択してください</option>
+                </select>
+            </div>
+            <div id="si_project_info" style="display:none;" class="form-group">
+                <label>工事情報</label>
+                <div class="project-info-box" id="si_project_detail"></div>
+            </div>
+            <div class="form-group" id="si_machine_group" style="display:none;">
+                <label>機械名 *（複数選択可）</label>
+                <div class="machine-checkbox-bar">
+                    <button type="button" class="btn-xs" onclick="toggleAllMachines('si_machine_list', this)">全選択</button>
+                </div>
+                <div class="machine-checkbox-list" id="si_machine_list"></div>
+            </div>
+            <div id="si_flow_box" style="display:none;" class="form-group">
+                <label>フロー状況</label>
+                <div id="si_flow_list" style="background:#f8f9fa; border:1px solid #e0e0e0; border-radius:4px; padding:10px 12px; font-size:13px;"></div>
+            </div>
+            <div class="form-group">
+                <label>簡易検査日 *</label>
+                <input type="date" id="si_date_input">
+            </div>
+            <div class="form-group">
+                <label>開始時刻</label>
+                <div style="display:flex; gap:6px; align-items:center;">
+                    <select id="si_time_hour" style="padding:5px 8px; border:1px solid #ccc; border-radius:4px; font-size:13px;">
+                        <option value="">--</option>
+                        <option value="08">08時</option>
+                        <option value="09">09時</option>
+                        <option value="10">10時</option>
+                        <option value="11">11時</option>
+                        <option value="12">12時</option>
+                        <option value="13">13時</option>
+                        <option value="14">14時</option>
+                        <option value="15">15時</option>
+                        <option value="16">16時</option>
+                    </select>
+                    <select id="si_time_min" style="padding:5px 8px; border:1px solid #ccc; border-radius:4px; font-size:13px;">
+                        <option value="">--</option>
+                        <option value="00">00分</option>
+                        <option value="15">15分</option>
+                        <option value="30">30分</option>
+                        <option value="45">45分</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>場所</label>
+                <input type="text" id="si_location_input" placeholder="例: 第1組立工場">
+            </div>
+            <div class="form-group">
+                <label>コメント（任意）</label>
+                <textarea id="si_note_input" placeholder="参加者への連絡事項など"></textarea>
+            </div>
+            <!-- Step2: 宛先確認 -->
+            <div id="si_recipients_step" style="display:none;">
+                <hr class="section-divider">
+                <div class="section-title">送付先一覧</div>
+                <div class="recipient-list" id="si_recipients_list"></div>
+                <hr class="section-divider">
+                <div class="section-title">宛先を追加（任意）</div>
+                <div style="display:flex; gap:6px; margin-bottom:6px;">
+                    <input type="text" id="si_extra_name" placeholder="名前" style="flex:1; padding:5px 8px; border:1px solid #ccc; border-radius:4px; font-size:12px;">
+                    <input type="text" id="si_extra_email" placeholder="メールアドレス" style="flex:2; padding:5px 8px; border:1px solid #ccc; border-radius:4px; font-size:12px;">
+                    <button class="btn btn-sm btn-secondary" onclick="addExtraRecipient('si')">追加</button>
+                </div>
+                <div id="si_extra_list"></div>
+            </div>
+        </div>
+        <div class="modal-footer" id="si_footer_step1">
+            <button class="btn btn-secondary" onclick="closeSimpleInspectionModal()">キャンセル</button>
+            <button class="btn btn-primary" onclick="showRecipientsStep('si')">宛先を確認する →</button>
+        </div>
+        <div class="modal-footer" id="si_footer_step2" style="display:none;">
+            <button class="btn btn-secondary" onclick="showFormStep('si')">← 戻る</button>
+            <button class="btn btn-primary" id="si_submit_btn" onclick="submitSimpleInspection()">案内を送信</button>
         </div>
     </div>
 </div>
@@ -794,6 +888,9 @@ const db = supabase.createClient(S_URL, S_KEY, {
     }
 });
 
+// 2000番台（2000〜2999）の工番判定（現在は承認フロー対象外）
+const is2000sSeries = num => { const n = parseInt(num, 10); return n >= 2000 && n <= 2999; };
+
 // ===== UI State（XStateの代わりにシンプルな状態管理） =====
 const ui = {
     state: 'loading',
@@ -818,7 +915,7 @@ const DEV_ROLE_MAP = {
     assembly_director:   { role: 'assembly_director',   department: '組立', flowTypes: [] },
     operations_manager:  { role: 'operations_manager',  department: '操業', flowTypes: ['test_run'] },
     operations_director: { role: 'operations_director', department: '操業', flowTypes: [] },
-    quality:             { role: 'quality',             department: '品証', flowTypes: ['inspection', 'shipping'] }
+    quality:             { role: 'quality',             department: '品証', flowTypes: ['simple_inspection', 'inspection', 'shipping'] }
 };
 let devFlowTypes = []; // デモ用: 自分の申請タブのフロー絞り込み
 
@@ -829,28 +926,30 @@ function getEffectiveDept() { return devDept || currentProfile?.department || ''
 const APPROVER_ROLES = ['assembly_manager','assembly_director','operations_manager','operations_director'];
 
 function applyRoleLayout(role) {
-    const dept        = getEffectiveDept();
-    const isApprover  = APPROVER_ROLES.includes(role);
-    const isQuality   = role === 'quality';
+    const dept              = getEffectiveDept();
+    const isApprover        = APPROVER_ROLES.includes(role);
+    // 品証、および品証代理の製管スタッフは同一権限
+    const isQualityOrSeikan = role === 'quality' || (role === 'staff' && dept === '製管');
     // 組立・操業 staff + 組立課長 + 操業課長 が申請可
-    const isApplicant = (role === 'staff' && (dept === '組立' || dept === '操業'))
-                     || role === 'assembly_manager'
-                     || role === 'operations_manager';
-    const isViewOnly  = role === 'staff' && !isApplicant; // 製管など
+    const isApplicant       = (role === 'staff' && (dept === '組立' || dept === '操業'))
+                           || role === 'assembly_manager'
+                           || role === 'operations_manager';
+    const isViewOnly        = role === 'staff' && !isApplicant && dept !== '製管';
 
     // タブの表示制御
-    document.getElementById('tab_pending').style.display  = (isApprover || isQuality) ? '' : 'none';
-    document.getElementById('tab_mine').style.display     = (isApplicant || isQuality) ? '' : 'none';
+    document.getElementById('tab_pending').style.display  = isApprover ? '' : 'none';
+    document.getElementById('tab_mine').style.display     = (isApplicant || isQualityOrSeikan) ? '' : 'none';
     document.getElementById('tab_progress').style.display = ''; // 全員
 
     // 申請ボタン
-    if (isApplicant || isQuality) {
+    if (isApplicant || isQualityOrSeikan) {
         document.getElementById('new_btn_area').style.display = 'block';
-        document.getElementById('btn_assembly').style.display   = (!isQuality && (dept === '組立' || role === 'assembly_manager'))  ? '' : 'none';
-        document.getElementById('btn_test_run').style.display   = (!isQuality && (dept === '操業' || role === 'operations_manager')) ? '' : 'none';
-        document.getElementById('btn_inspection').style.display       = isQuality ? '' : 'none';
-        document.getElementById('btn_shipping_meeting').style.display  = isQuality ? '' : 'none';
-        document.getElementById('btn_shipping').style.display          = isQuality ? '' : 'none';
+        document.getElementById('btn_assembly').style.display          = (!isQualityOrSeikan && (dept === '組立' || role === 'assembly_manager'))  ? '' : 'none';
+        document.getElementById('btn_test_run').style.display          = (!isQualityOrSeikan && (dept === '操業' || role === 'operations_manager')) ? '' : 'none';
+        document.getElementById('btn_simple_inspection').style.display = isQualityOrSeikan ? '' : 'none';
+        document.getElementById('btn_inspection').style.display        = isQualityOrSeikan ? '' : 'none';
+        document.getElementById('btn_shipping_meeting').style.display  = isQualityOrSeikan ? '' : 'none';
+        document.getElementById('btn_shipping').style.display          = isQualityOrSeikan ? '' : 'none';
     } else {
         document.getElementById('new_btn_area').style.display = 'none';
     }
@@ -896,11 +995,12 @@ async function switchDevRole(value) {
 
 // ===== Constants =====
 const FLOW_LABELS = {
-    assembly:         '組立完了通知',
-    test_run:         '試運転完了通知',
-    inspection:       '外観検査開催案内',
-    shipping_meeting: '出荷確認会議開催案内',
-    shipping:         '出荷確認書'
+    assembly:          '組立完了通知',
+    test_run:          '試運転完了通知',
+    simple_inspection: '簡易検査開催案内',
+    inspection:        '外観検査開催案内',
+    shipping_meeting:  '出荷確認会議開催案内',
+    shipping:          '出荷確認書'
 };
 
 const ROLE_LABELS = {
@@ -963,7 +1063,7 @@ async function bootApp(session) {
 
     // アクセストークンを直接使ってprofiles全件取得（デバッグ用）
     const resAll = await fetch(
-        `${S_URL}/rest/v1/profiles?select=id,name,email`,
+        `${S_URL}/rest/v1/profiles?select=id,name,email,role,department`,
         {
             headers: {
                 'apikey':        S_KEY,
@@ -1034,7 +1134,7 @@ async function loadProjects() {
     // 工事番号ごとに情報を収集（既存アプリと同じく複数タスクから補完）
     tasks.forEach(t => {
         const num = (t.project_number || '').toString().trim();
-        if (!num || completedSet.has(num)) return;
+        if (!num || completedSet.has(num) || is2000sSeries(num)) return;
         if (!projectsMap[num]) {
             projectsMap[num] = { customer_name: '', project_details: '' };
         }
@@ -1124,10 +1224,11 @@ async function onMachineChange() {
         const hasShipping             = taskNames.has('工場出荷');
 
         const upcomingFlows = [
-            { type: 'inspection',       label: '外観検査開催案内',    exists: detectedFlows.inspection },
-            { type: 'test_run',         label: '試運転完了通知',      exists: detectedFlows.test_run },
-            { type: 'shipping_meeting', label: '出荷確認会議開催案内', exists: detectedFlows.shippingMeeting },
-            { type: 'shipping',         label: '出荷確認書',          exists: hasShipping }
+            { type: 'test_run',          label: '試運転完了通知',       exists: detectedFlows.test_run },
+            { type: 'simple_inspection', label: '簡易検査開催案内',     exists: !is2000sSeries(num) },
+            { type: 'inspection',        label: '外観検査開催案内',     exists: detectedFlows.inspection },
+            { type: 'shipping_meeting',  label: '出荷確認会議開催案内', exists: detectedFlows.shippingMeeting },
+            { type: 'shipping',          label: '出荷確認書',           exists: hasShipping }
         ].filter(f => f.exists && f.type !== currentFlowType);
 
         const upcomingHtml = upcomingFlows.length > 0 ? `
@@ -1165,11 +1266,12 @@ async function onMachineChange() {
 
     const doneFlows = await _getMachineDoneFlows(num, machine);
     const ALL_FLOWS = [
-        { type: 'assembly',         label: '組立完了通知',       exists: true },
-        { type: 'inspection',       label: '外観検査開催案内',    exists: detectedFlows.inspection },
-        { type: 'test_run',         label: '試運転完了通知',      exists: detectedFlows.test_run },
-        { type: 'shipping_meeting', label: '出荷確認会議開催案内', exists: detectedFlows.shippingMeeting },
-        { type: 'shipping',         label: '出荷確認書',          exists: hasShipping }
+        { type: 'assembly',          label: '組立完了通知',        exists: true },
+        { type: 'test_run',          label: '試運転完了通知',       exists: detectedFlows.test_run },
+        { type: 'simple_inspection', label: '簡易検査開催案内',     exists: !is2000sSeries(num) },
+        { type: 'inspection',        label: '外観検査開催案内',     exists: detectedFlows.inspection },
+        { type: 'shipping_meeting',  label: '出荷確認会議開催案内', exists: detectedFlows.shippingMeeting },
+        { type: 'shipping',          label: '出荷確認書',           exists: hasShipping }
     ].filter(f => f.exists);
 
     const doneList     = ALL_FLOWS.filter(f => f.type !== currentFlowType && doneFlows.has(f.type));
@@ -1193,16 +1295,16 @@ async function onMachineChange() {
 
 // ===== Data Loading =====
 async function refreshAll() {
-    const role        = getEffectiveRole();
-    const dept        = getEffectiveDept();
-    const isApprover  = APPROVER_ROLES.includes(role);
-    const isQuality   = role === 'quality';
-    const isApplicant = role === 'staff' && (dept === '組立' || dept === '操業');
+    const role              = getEffectiveRole();
+    const dept              = getEffectiveDept();
+    const isApprover        = APPROVER_ROLES.includes(role);
+    const isQualityOrSeikan = role === 'quality' || (role === 'staff' && dept === '製管');
+    const isApplicant       = role === 'staff' && (dept === '組立' || dept === '操業');
 
     const loads = [];
-    loads.push(loadProgress()); // 全員が進捗一覧を読み込む
-    if (isApprover || isQuality) loads.push(loadPending());
-    if (isApplicant || isQuality) loads.push(loadMine());
+    loads.push(loadProgress());
+    if (isApprover) loads.push(loadPending());
+    if (isApplicant || isQualityOrSeikan) loads.push(loadMine());
 
     await Promise.all(loads);
 }
@@ -1387,18 +1489,19 @@ async function loadProgress() {
         projectData[num][machine].flows[req.flow_type] = req;
     });
 
-    const allNums = Object.keys(projectData).sort();
+    const allNums = Object.keys(projectData).filter(num => !is2000sSeries(num)).sort();
     if (allNums.length === 0) {
         el.innerHTML = '<div class="empty"><div class="empty-icon">📊</div><div class="empty-text">承認フローの記録がありません</div></div>';
         return;
     }
 
     const FLOW_DEFS = [
-        { type: 'assembly',         label: '組立完了通知',        alwaysShow: true },
-        { type: 'inspection',       label: '外観検査開催案内',     alwaysShow: false },
-        { type: 'test_run',         label: '試運転完了通知',       alwaysShow: false },
-        { type: 'shipping_meeting', label: '出荷確認会議開催案内', alwaysShow: false },
-        { type: 'shipping',         label: '出荷確認書',           alwaysShow: true }
+        { type: 'assembly',          label: '組立完了通知',        alwaysShow: true },
+        { type: 'test_run',          label: '試運転完了通知',       alwaysShow: false },
+        { type: 'simple_inspection', label: '簡易検査開催案内',     alwaysShow: false },
+        { type: 'inspection',        label: '外観検査開催案内',     alwaysShow: false },
+        { type: 'shipping_meeting',  label: '出荷確認会議開催案内', alwaysShow: false },
+        { type: 'shipping',          label: '出荷確認書',           alwaysShow: true }
     ];
 
     const html = allNums.map(num => {
@@ -1411,9 +1514,10 @@ async function loadProgress() {
 
             const applicable = FLOW_DEFS.filter(f => {
                 if (f.alwaysShow) return true;
-                if (f.type === 'inspection')       return hasTask(num, machine, '外観検査')    || !!mData.flows['inspection'];
-                if (f.type === 'test_run')         return hasTask(num, machine, '試運転')      || !!mData.flows['test_run'];
-                if (f.type === 'shipping_meeting') return hasTask(num, machine, '出荷確認会議') || !!mData.flows['shipping_meeting'];
+                if (f.type === 'test_run')          return hasTask(num, machine, '試運転')      || !!mData.flows['test_run'];
+                if (f.type === 'simple_inspection') return !is2000sSeries(num) && !!mData.flows['simple_inspection'];
+                if (f.type === 'inspection')        return hasTask(num, machine, '外観検査')    || !!mData.flows['inspection'];
+                if (f.type === 'shipping_meeting')  return hasTask(num, machine, '出荷確認会議') || !!mData.flows['shipping_meeting'];
                 return false;
             });
 
@@ -1891,10 +1995,10 @@ async function _getMachineDoneFlows(projectNum, machine) {
 }
 
 // ===== 宛先確認ステップ（フロー3・5共通） =====
-const extraRecipients = { inspection: [], sm: [] };
+const extraRecipients = { inspection: [], sm: [], si: [] };
 
 async function showRecipientsStep(type) {
-    const prefix = type === 'inspection' ? 'inspection' : 'sm';
+    const prefix = type; // 'inspection' | 'sm' | 'si'
     const projectNum = document.getElementById(`${prefix}_project`).value;
     const machines   = getSelectedMachines(`${prefix}_machine_list`);
     const dateVal    = document.getElementById(`${prefix}_date_input`).value;
@@ -1903,8 +2007,8 @@ async function showRecipientsStep(type) {
     if (machines.length === 0) { alert('機械を選択してください'); return; }
     if (!dateVal)             { alert('開催日を入力してください'); return; }
 
-    // 宛先を取得して表示
-    const recipients = await _fetchFlowRecipients(projectNum, machines, type === 'inspection' ? 'inspection' : 'shipping_meeting');
+    const flowTypeMap = { inspection: 'inspection', sm: 'shipping_meeting', si: 'simple_inspection' };
+    const recipients = await _fetchFlowRecipients(projectNum, machines, flowTypeMap[prefix] || prefix);
     renderRecipientsList(prefix, recipients);
 
     // ステップ切替
@@ -2054,6 +2158,122 @@ function renderExtraList(prefix) {
             <span style="color:#888;flex:1;font-size:12px;">${esc(r.email)}</span>
             <button onclick="removeExtraRecipient('${prefix}', ${i})">×</button>
         </div>`).join('');
+}
+
+// ===== 簡易検査開催案内 =====
+let siProjectsLoaded = false;
+
+function openSimpleInspectionModal() {
+    document.getElementById('si_project').value = '';
+    document.getElementById('si_project_info').style.display  = 'none';
+    document.getElementById('si_machine_group').style.display = 'none';
+    document.getElementById('si_machine_list').innerHTML      = '';
+    document.getElementById('si_flow_box').style.display      = 'none';
+    document.getElementById('si_recipients_step').style.display = 'none';
+    document.getElementById('si_footer_step1').style.display    = '';
+    document.getElementById('si_footer_step2').style.display    = 'none';
+    extraRecipients.si = [];
+    document.getElementById('si_extra_list').innerHTML = '';
+    document.getElementById('si_date_input').value     = '';
+    document.getElementById('si_time_hour').value      = '';
+    document.getElementById('si_time_min').value       = '';
+    document.getElementById('si_location_input').value = '';
+    document.getElementById('si_note_input').value     = '';
+
+    if (!siProjectsLoaded) {
+        const sel = document.getElementById('si_project');
+        Object.keys(projectsMap).sort().forEach(num => {
+            if (is2000sSeries(num)) return;
+            const opt = document.createElement('option');
+            opt.value = num;
+            const p   = projectsMap[num];
+            const lbl = [p.customer_name, p.project_details].filter(Boolean).join('　');
+            opt.textContent = num + (lbl ? `　${lbl}` : '');
+            sel.appendChild(opt);
+        });
+        siProjectsLoaded = true;
+    }
+
+    document.getElementById('simple_inspection_modal').classList.add('open');
+}
+
+function closeSimpleInspectionModal() {
+    document.getElementById('simple_inspection_modal').classList.remove('open');
+}
+
+async function onSiProjectChange() {
+    const num = document.getElementById('si_project').value;
+    document.getElementById('si_project_info').style.display  = 'none';
+    document.getElementById('si_machine_group').style.display = 'none';
+    document.getElementById('si_flow_box').style.display      = 'none';
+    if (!num) return;
+
+    const p = projectsMap[num] || {};
+    document.getElementById('si_project_detail').innerHTML =
+        `<span style="color:#888;font-size:11px;">客先</span> ${esc(p.customer_name || '—')}　<span style="color:#888;font-size:11px;">工事名</span> ${esc(p.project_details || '—')}`;
+    document.getElementById('si_project_info').style.display = 'block';
+    await _loadMachineCheckboxes(num, 'si_machine_list', 'onSiMachineChange');
+    document.getElementById('si_machine_group').style.display = 'block';
+}
+
+async function onSiMachineChange() {
+    const num      = document.getElementById('si_project').value;
+    const machines = getSelectedMachines('si_machine_list');
+    if (machines.length === 0) { document.getElementById('si_flow_box').style.display = 'none'; return; }
+    const machine   = machines[0];
+    const doneFlows = await _getMachineDoneFlows(num, machine);
+    document.getElementById('si_flow_list').innerHTML = [
+        { type: 'assembly', label: '組立完了通知' },
+        { type: 'test_run', label: '試運転完了通知' }
+    ].map(f => `<div style="padding:2px 0; color:${doneFlows.has(f.type) ? '#27ae60' : '#bbb'};">
+        ${doneFlows.has(f.type) ? '✅' : '──'}　${esc(f.label)}　${doneFlows.has(f.type) ? '承認済み' : ''}
+    </div>`).join('') +
+    `<div style="padding:2px 0; color:#1e3a5f; font-weight:bold; margin-top:4px;">▶　簡易検査開催案内（今回）</div>`;
+    document.getElementById('si_flow_box').style.display = 'block';
+}
+
+async function submitSimpleInspection() {
+    const num      = document.getElementById('si_project').value;
+    const machines = getSelectedMachines('si_machine_list');
+    const dateVal  = document.getElementById('si_date_input').value;
+    const _th = document.getElementById('si_time_hour').value;
+    const _tm = document.getElementById('si_time_min').value;
+    const timeVal  = (_th && _tm) ? `${_th}:${_tm}` : null;
+    const location = document.getElementById('si_location_input').value.trim();
+    const note     = document.getElementById('si_note_input').value.trim();
+
+    if (!num)              { alert('工事番号を選択してください'); return; }
+    if (machines.length === 0) { alert('機械を選択してください'); return; }
+    if (!dateVal)          { alert('簡易検査日を入力してください'); return; }
+
+    const btn = document.getElementById('si_submit_btn');
+    btn.disabled = true;
+    btn.textContent = '送信中...';
+
+    try {
+        for (const machine of machines) {
+            const { data: req, error } = await db.from('approval_requests').insert({
+                project_number: num, machine_name: machine, flow_type: 'simple_inspection',
+                status: 'approved', requester_id: currentUser.id, note: note || null,
+                inspection_date: dateVal, inspection_time: timeVal || null, inspection_location: location || null
+            }).select().single();
+            if (error) throw error;
+            await recordFlowNotifications(req.id, 'simple_inspection');
+            if (extraRecipients.si.length > 0) {
+                await db.from('approval_notifications').insert(
+                    extraRecipients.si.map(r => ({ request_id: req.id, recipient_email: r.email, notification_type: 'simple_inspection_invite' }))
+                );
+            }
+        }
+        closeSimpleInspectionModal();
+        await refreshAll();
+        alert(`簡易検査開催案内を送信しました。（${machines.length}機械）`);
+    } catch (e) {
+        alert('送信に失敗しました: ' + e.message);
+    } finally {
+        btn.disabled    = false;
+        btn.textContent = '案内を送信';
+    }
 }
 
 // ===== フロー3: 外観検査開催案内 =====
@@ -2235,8 +2455,9 @@ async function onSmMachineChange() {
     const machine = machines[0];
     const doneFlows = await _getMachineDoneFlows(num, machine);
     document.getElementById('sm_flow_list').innerHTML = [
-        { type: 'assembly', label: '組立完了通知' },
-        { type: 'test_run', label: '試運転完了通知' }
+        { type: 'assembly',          label: '組立完了通知' },
+        { type: 'test_run',          label: '試運転完了通知' },
+        { type: 'simple_inspection', label: '簡易検査開催案内' }
     ].map(f => `<div style="padding:2px 0; color:${doneFlows.has(f.type) ? '#27ae60' : '#bbb'};">
         ${doneFlows.has(f.type) ? '✅' : '──'}　${esc(f.label)}　${doneFlows.has(f.type) ? '承認済み' : ''}
     </div>`).join('') + `<div style="padding:2px 0; color:#1e3a5f; font-weight:bold;">▶　出荷確認会議開催案内（今回）</div>`;
@@ -2339,8 +2560,11 @@ async function onShippingMachineChange() {
     const machine = machines[0];
     const doneFlows = await _getMachineDoneFlows(num, machine);
     const rows = [
-        { type: 'assembly', label: '組立完了通知' }, { type: 'inspection', label: '外観検査開催案内' },
-        { type: 'test_run', label: '試運転完了通知' }, { type: 'shipping_meeting', label: '出荷確認会議開催案内' }
+        { type: 'assembly',          label: '組立完了通知' },
+        { type: 'test_run',          label: '試運転完了通知' },
+        { type: 'simple_inspection', label: '簡易検査開催案内' },
+        { type: 'inspection',        label: '外観検査開催案内' },
+        { type: 'shipping_meeting',  label: '出荷確認会議開催案内' }
     ].filter(f => doneFlows.has(f.type) || f.type === 'assembly');
     document.getElementById('shipping_flow_list').innerHTML =
         rows.map(f => `<div style="padding:2px 0; color:${doneFlows.has(f.type) ? '#27ae60' : '#bbb'};">
@@ -2478,6 +2702,19 @@ async function recordFlowNotifications(requestId, flowType) {
         case 'shipping_meeting':
             notifType = 'shipping_meeting_invite';
             // フロー3（外観検査）と同じ宛先
+            await addP({ department: '製管', role: 'staff' });
+            await addP({ role: 'assembly_director' });
+            for (const o of kumitateOwners) await addPbyName(o);
+            for (const o of shiuntenOwners) await addPbyName(o);
+            await addEbyName(salesOwner);
+            for (const o of sekkeiOwners) await addEbyName(o);
+            await addE({ department: '設計', role: 'manager' });
+            await addE({ department: '設計', role: 'director' });
+            await addE({ department: '技戦' });
+            break;
+
+        case 'simple_inspection':
+            notifType = 'simple_inspection_invite';
             await addP({ department: '製管', role: 'staff' });
             await addP({ role: 'assembly_director' });
             for (const o of kumitateOwners) await addPbyName(o);
