@@ -2791,7 +2791,8 @@ async function recordFlowNotifications(requestId, flowType) {
             await addP({ role: 'quality' });
             await addP({ department: '製管', role: 'staff' });
             await addP({ role: 'assembly_director' });
-            // 工番担当者（profiles）: 操業（試運転タスクのowner・複数人対応）
+            // 工番担当者（profiles）: 組立・操業（複数人対応）
+            for (const o of kumitateOwners) await addPbyName(o);
             for (const o of shiuntenOwners) await addPbyName(o);
             // 工番担当者（外部）: 営業・設計staff
             await addEbyName(salesOwner);
