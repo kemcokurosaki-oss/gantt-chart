@@ -1339,8 +1339,8 @@ async function loadPending() {
     const actionable = steps.filter(s => {
         const req = s.approval_requests;
         if (!req) return false;
-        // assembly並列: submitted 状態で全 pending ステップが操作可能
-        if (req.flow_type === 'assembly' && req.status === 'submitted' && s.status === 'pending') return true;
+        // assembly/test_run並列: submitted 状態で全 pending ステップが操作可能
+        if ((req.flow_type === 'assembly' || req.flow_type === 'test_run') && req.status === 'submitted' && s.status === 'pending') return true;
         if (s.step_order === 1 && req.status === 'submitted') return true;
         if (s.step_order === 2 && req.status === 'in_review')  return true;
         return false;
@@ -1418,8 +1418,8 @@ async function loadMine() {
         // ステップ進捗ノードを構築
         const nodes = [{ label: '申請', done: true, rejected: false }];
         if (steps.length > 0) {
-            if (req.flow_type === 'assembly') {
-                // assembly: 課長・部長をまとめて単一の「承認」ノードで表示
+            if (req.flow_type === 'assembly' || req.flow_type === 'test_run') {
+                // assembly/test_run: 課長・部長をまとめて単一の「承認」ノードで表示
                 const approvedStep = steps.find(s => s.status === 'approved');
                 const rejectedStep = steps.find(s => s.status === 'rejected');
                 nodes.push({
@@ -1703,15 +1703,19 @@ async function submitRequest() {
                     notifyRoles = ['assembly_manager', 'assembly_director'];
                 }
             } else {
-                // test_run: 課長申請なら部長のみ1ステップ、staffは課長→部長の2ステップ
-                const isManagerSubmit = submitterRole === 'operations_manager';
-                stepsToInsert = isManagerSubmit
-                    ? [{ request_id: req.id, step_order: 1, approver_role: 'operations_director', status: 'pending' }]
-                    : [
+                // test_run: assemblyと同じ並列承認（どちらかが承認で完了）
+                if (submitterRole === 'operations_manager') {
+                    // 課長申請: 部長のみ1ステップ
+                    stepsToInsert = [{ request_id: req.id, step_order: 1, approver_role: 'operations_director', status: 'pending' }];
+                    notifyRoles = ['operations_director'];
+                } else {
+                    // staff申請: 課長・部長の並列2ステップ（どちらかが承認で完了）
+                    stepsToInsert = [
                         { request_id: req.id, step_order: 1, approver_role: 'operations_manager',  status: 'pending' },
                         { request_id: req.id, step_order: 2, approver_role: 'operations_director', status: 'pending' }
-                      ];
-                notifyRoles = [isManagerSubmit ? 'operations_director' : 'operations_manager'];
+                    ];
+                    notifyRoles = ['operations_manager', 'operations_director'];
+                }
             }
             if (!firstApproverRole) firstApproverRole = notifyRoles[0];
             await db.from('approval_steps').insert(stepsToInsert);
@@ -1731,11 +1735,11 @@ async function submitRequest() {
         switchTab('mine');
         ui.send('SAVED');
         const count = machineNums.length;
-        const isAssemblyStaff = currentFlowType === 'assembly' && submitterRole !== 'assembly_manager';
-        const approverLabel = isAssemblyStaff ? '組立課長・部長' : ({
-            assembly_director:   '組立部長',
-            operations_manager:  '操業課長', operations_director: '操業部長'
-        }[firstApproverRole] || firstApproverRole);
+        const isParallelStaff = (currentFlowType === 'assembly' && submitterRole !== 'assembly_manager') ||
+                                (currentFlowType === 'test_run'  && submitterRole !== 'operations_manager');
+        const approverLabel = isParallelStaff
+            ? (currentFlowType === 'assembly' ? '組立課長・部長' : '操業課長・部長')
+            : ({ assembly_director: '組立部長', operations_director: '操業部長' }[firstApproverRole] || firstApproverRole);
         alert(`${count}機械の申請をしました。\n${approverLabel}に承認依頼が届きます。`);
     } catch (e) {
         alert('申請に失敗しました: ' + e.message);
@@ -1782,7 +1786,7 @@ async function openDetailModal(requestId) {
         s.approver_role === getEffectiveRole() &&
         s.status        === 'pending' &&
         (
-            (req.flow_type === 'assembly' && req.status === 'submitted') ||
+            ((req.flow_type === 'assembly' || req.flow_type === 'test_run') && req.status === 'submitted') ||
             (s.step_order === 1 && req.status === 'submitted') ||
             (s.step_order === 2 && req.status === 'in_review')
         )
@@ -1798,8 +1802,8 @@ async function openDetailModal(requestId) {
     }
 
     let stepsHtml;
-    if (req.flow_type === 'assembly') {
-        // assembly: 単一の「承認」として表示、承認者名・役職を表示
+    if (req.flow_type === 'assembly' || req.flow_type === 'test_run') {
+        // assembly/test_run: 単一の「承認」として表示、承認者名・役職を表示
         const approvedStep = steps.find(s => s.status === 'approved');
         const rejectedStep = steps.find(s => s.status === 'rejected');
         const activeStep   = approvedStep || rejectedStep;
@@ -1897,7 +1901,7 @@ async function approveStep(requestId, stepId, stepOrder) {
     const comment  = (document.getElementById('approval_comment')?.value || '').trim();
 
     // assembly は並列承認（どちらかが承認した時点で即完了）、test_run は直列
-    const isParallel = currentDetailFlowType === 'assembly';
+    const isParallel = currentDetailFlowType === 'assembly' || currentDetailFlowType === 'test_run';
     let nextStatus;
     if (isParallel) {
         nextStatus = 'approved';
