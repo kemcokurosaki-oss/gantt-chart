@@ -155,10 +155,8 @@ async function runSubmissionReminders() {
 
   let count = 0;
   for (const [taskText, flowType] of Object.entries(TASK_TO_FLOW)) {
-    // テストモードは終了日の制限なし（未来日のタスクも対象にして動作確認）
-    const dateFilter = TEST_MODE ? '' : `&end_date=lt.${todayStr}`;
     const tasks = await supabaseFetch(
-      `tasks?text=eq.${encodeURIComponent(taskText)}${dateFilter}` +
+      `tasks?text=eq.${encodeURIComponent(taskText)}&end_date=lt.${todayStr}` +
       `&select=project_number,machine,owner,end_date,is_completed`
     );
 
