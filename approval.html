@@ -1489,7 +1489,7 @@ async function loadProgress() {
         projectData[num][machine].flows[req.flow_type] = req;
     });
 
-    const allNums = Object.keys(projectData).filter(num => !is2000sSeries(num)).sort();
+    const allNums = Object.keys(projectData).filter(num => !is2000sSeries(num) && projectsMap[num] !== undefined).sort();
     if (allNums.length === 0) {
         el.innerHTML = '<div class="empty"><div class="empty-icon">📊</div><div class="empty-text">承認フローの記録がありません</div></div>';
         return;
