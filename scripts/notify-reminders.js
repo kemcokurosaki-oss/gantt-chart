@@ -72,8 +72,8 @@ function tokyoDateStr() {
 async function runApprovalReminders() {
   console.log('\n--- 承認催促チェック ---');
 
-  // 24時間以上前に申請されてまだ submitted のリクエスト
-  const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  // 24時間以上前に申請されてまだ submitted のリクエスト（テストモードは時間制限なし）
+  const cutoff = new Date(Date.now() - (TEST_MODE ? 0 : 24 * 60 * 60 * 1000)).toISOString();
   const requests = await supabaseFetch(
     `approval_requests?status=eq.submitted&flow_type=in.(assembly,test_run)` +
     `&created_at=lte.${encodeURIComponent(cutoff)}&select=id,project_number,machine_name,flow_type`
@@ -154,8 +154,10 @@ async function runSubmissionReminders() {
 
   let count = 0;
   for (const [taskText, flowType] of Object.entries(TASK_TO_FLOW)) {
+    // テストモードは終了日の制限なし（未来日のタスクも対象にして動作確認）
+    const dateFilter = TEST_MODE ? '' : `&end_date=lt.${todayStr}`;
     const tasks = await supabaseFetch(
-      `tasks?text=eq.${encodeURIComponent(taskText)}&end_date=lt.${todayStr}` +
+      `tasks?text=eq.${encodeURIComponent(taskText)}${dateFilter}` +
       `&select=project_number,machine,owner,end_date,is_completed`
     );
 
