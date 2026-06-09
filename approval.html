@@ -2767,10 +2767,9 @@ async function recordFlowNotifications(requestId, flowType) {
 
     switch (flowType) {
         case 'assembly':
-            // 固定: 品保・製管・組立部長
+            // 固定: 品保・製管
             await addP({ role: 'quality' });
             await addP({ department: '製管', role: 'staff' });
-            await addP({ role: 'assembly_director' });
             // 工番担当者（profiles）: 組立（複数人対応）
             for (const o of kumitateOwners) await addPbyName(o);
             // 試運転タスクがある場合のみ試運転担当者も追加
