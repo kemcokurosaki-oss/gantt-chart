@@ -1339,6 +1339,8 @@ async function loadPending() {
     const actionable = steps.filter(s => {
         const req = s.approval_requests;
         if (!req) return false;
+        // assembly並列: submitted 状態で全 pending ステップが操作可能
+        if (req.flow_type === 'assembly' && req.status === 'submitted' && s.status === 'pending') return true;
         if (s.step_order === 1 && req.status === 'submitted') return true;
         if (s.step_order === 2 && req.status === 'in_review')  return true;
         return false;
@@ -1416,17 +1418,29 @@ async function loadMine() {
         // ステップ進捗ノードを構築
         const nodes = [{ label: '申請', done: true, rejected: false }];
         if (steps.length > 0) {
-            steps.forEach(s => {
-                const isActive = s.status === 'pending' &&
-                    ((s.step_order === 1 && req.status === 'submitted') ||
-                     (s.step_order === 2 && req.status === 'in_review'));
+            if (req.flow_type === 'assembly') {
+                // assembly: 課長・部長をまとめて単一の「承認」ノードで表示
+                const approvedStep = steps.find(s => s.status === 'approved');
+                const rejectedStep = steps.find(s => s.status === 'rejected');
                 nodes.push({
-                    label:    STEP_ROLE_LABELS[s.approver_role] || s.approver_role,
-                    done:     s.status === 'approved',
-                    active:   isActive,
-                    rejected: s.status === 'rejected'
+                    label:    '承認',
+                    done:     !!approvedStep,
+                    active:   !approvedStep && !rejectedStep && req.status === 'submitted',
+                    rejected: !!rejectedStep
                 });
-            });
+            } else {
+                steps.forEach(s => {
+                    const isActive = s.status === 'pending' &&
+                        ((s.step_order === 1 && req.status === 'submitted') ||
+                         (s.step_order === 2 && req.status === 'in_review'));
+                    nodes.push({
+                        label:    STEP_ROLE_LABELS[s.approver_role] || s.approver_role,
+                        done:     s.status === 'approved',
+                        active:   isActive,
+                        rejected: s.status === 'rejected'
+                    });
+                });
+            }
             nodes.push({ label: '完了', done: req.status === 'approved', rejected: false });
         } else {
             // フロー3/4（承認ステップなし）
@@ -1626,10 +1640,8 @@ function openSubmitModal(flowType = 'assembly') {
     const titleEl = document.querySelector('#submit_modal .modal-header h2');
     titleEl.textContent = flowType === 'test_run' ? '試運転完了通知 — 申請' : '組立完了通知 — 申請';
 
-    // 承認者選択グループ（assemblyかつ課長以外のみ表示）
-    const showApproverGroup = flowType === 'assembly' && getEffectiveRole() !== 'assembly_manager';
-    document.getElementById('submit_approver_group').style.display = showApproverGroup ? '' : 'none';
-    selectApprover('assembly_manager');
+    // 承認者選択グループは非表示（assembly は課長・部長両方に通知するため選択不要）
+    document.getElementById('submit_approver_group').style.display = 'none';
 
     document.getElementById('submit_modal').classList.add('open');
     ui.send('OPEN_SUBMIT');
@@ -1676,30 +1688,41 @@ async function submitRequest() {
 
             // 承認ステップ設定
             let stepsToInsert;
-            let approverRole;
+            let notifyRoles; // 承認依頼通知を送るロールの配列
             if (currentFlowType === 'assembly') {
-                // 1ステップのみ: 課長申請なら部長、それ以外は選択された承認者
-                approverRole = submitterRole === 'assembly_manager' ? 'assembly_director' : selectedApproverRole;
-                stepsToInsert = [{ request_id: req.id, step_order: 1, approver_role: approverRole, status: 'pending' }];
+                if (submitterRole === 'assembly_manager') {
+                    // 課長申請: 部長のみ1ステップ
+                    stepsToInsert = [{ request_id: req.id, step_order: 1, approver_role: 'assembly_director', status: 'pending' }];
+                    notifyRoles = ['assembly_director'];
+                } else {
+                    // staff申請: 課長・部長の並列2ステップ（どちらかが承認で完了）
+                    stepsToInsert = [
+                        { request_id: req.id, step_order: 1, approver_role: 'assembly_manager',  status: 'pending' },
+                        { request_id: req.id, step_order: 2, approver_role: 'assembly_director', status: 'pending' }
+                    ];
+                    notifyRoles = ['assembly_manager', 'assembly_director'];
+                }
             } else {
                 // test_run: 課長申請なら部長のみ1ステップ、staffは課長→部長の2ステップ
                 const isManagerSubmit = submitterRole === 'operations_manager';
-                approverRole = isManagerSubmit ? 'operations_director' : 'operations_manager';
                 stepsToInsert = isManagerSubmit
                     ? [{ request_id: req.id, step_order: 1, approver_role: 'operations_director', status: 'pending' }]
                     : [
                         { request_id: req.id, step_order: 1, approver_role: 'operations_manager',  status: 'pending' },
                         { request_id: req.id, step_order: 2, approver_role: 'operations_director', status: 'pending' }
                       ];
+                notifyRoles = [isManagerSubmit ? 'operations_director' : 'operations_manager'];
             }
-            if (!firstApproverRole) firstApproverRole = approverRole;
+            if (!firstApproverRole) firstApproverRole = notifyRoles[0];
             await db.from('approval_steps').insert(stepsToInsert);
 
-            const { data: approvers } = await db.from('profiles').select('id').eq('role', approverRole);
-            if (approvers?.length > 0) {
-                await db.from('approval_notifications').insert(
-                    approvers.map(a => ({ request_id: req.id, recipient_id: a.id, notification_type: 'approval_request' }))
-                );
+            for (const role of notifyRoles) {
+                const { data: approvers } = await db.from('profiles').select('id').eq('role', role);
+                if (approvers?.length > 0) {
+                    await db.from('approval_notifications').insert(
+                        approvers.map(a => ({ request_id: req.id, recipient_id: a.id, notification_type: 'approval_request' }))
+                    );
+                }
             }
         }
 
@@ -1708,10 +1731,11 @@ async function submitRequest() {
         switchTab('mine');
         ui.send('SAVED');
         const count = machineNums.length;
-        const approverLabel = {
-            assembly_manager:    '組立課長', assembly_director:   '組立部長',
+        const isAssemblyStaff = currentFlowType === 'assembly' && submitterRole !== 'assembly_manager';
+        const approverLabel = isAssemblyStaff ? '組立課長・部長' : ({
+            assembly_director:   '組立部長',
             operations_manager:  '操業課長', operations_director: '操業部長'
-        }[firstApproverRole] || firstApproverRole;
+        }[firstApproverRole] || firstApproverRole);
         alert(`${count}機械の申請をしました。\n${approverLabel}に承認依頼が届きます。`);
     } catch (e) {
         alert('申請に失敗しました: ' + e.message);
@@ -1757,8 +1781,11 @@ async function openDetailModal(requestId) {
     const myStep = steps.find(s =>
         s.approver_role === getEffectiveRole() &&
         s.status        === 'pending' &&
-        ((s.step_order === 1 && req.status === 'submitted') ||
-         (s.step_order === 2 && req.status === 'in_review'))
+        (
+            (req.flow_type === 'assembly' && req.status === 'submitted') ||
+            (s.step_order === 1 && req.status === 'submitted') ||
+            (s.step_order === 2 && req.status === 'in_review')
+        )
     );
     const isMyRequest = req.requester_id === currentUser.id;
 
@@ -1770,30 +1797,55 @@ async function openDetailModal(requestId) {
         if (prs) prs.forEach(p => { approverNames[p.id] = p.name; });
     }
 
-    const stepsHtml = steps.map(s => {
+    let stepsHtml;
+    if (req.flow_type === 'assembly') {
+        // assembly: 単一の「承認」として表示、承認者名・役職を表示
+        const approvedStep = steps.find(s => s.status === 'approved');
+        const rejectedStep = steps.find(s => s.status === 'rejected');
+        const activeStep   = approvedStep || rejectedStep;
         let icon, sc;
-        if      (s.status === 'approved') { icon = '✓'; sc = 'sc-approved'; }
-        else if (s.status === 'rejected') { icon = '✗'; sc = 'sc-rejected'; }
-        else if (s.status === 'pending' &&
-                 ((s.step_order === 1 && req.status === 'submitted') ||
-                  (s.step_order === 2 && req.status === 'in_review')))
-                                          { icon = '⏳'; sc = 'sc-pending'; }
-        else                              { icon = '—';  sc = 'sc-waiting'; }
-
-        const who  = s.approver_id ? (approverNames[s.approver_id] || '—') : '—';
-        const when = s.decided_at  ? fmtDate(s.decided_at) : '';
-
-        return `
+        if      (approvedStep)                          { icon = '✓'; sc = 'sc-approved'; }
+        else if (rejectedStep)                          { icon = '✗'; sc = 'sc-rejected'; }
+        else if (req.status === 'submitted')            { icon = '⏳'; sc = 'sc-pending'; }
+        else                                            { icon = '—';  sc = 'sc-waiting'; }
+        const who      = activeStep?.approver_id ? (approverNames[activeStep.approver_id] || '—') : null;
+        const roleLabel = activeStep ? (ROLE_LABELS[activeStep.approver_role] || activeStep.approver_role) : null;
+        const when     = activeStep?.decided_at ? fmtDate(activeStep.decided_at) : '';
+        stepsHtml = `
         <div class="step-item">
             <div class="step-circle ${sc}">${icon}</div>
             <div class="step-detail">
-                <div class="step-label">Step${s.step_order}　${ROLE_LABELS[s.approver_role] || s.approver_role}</div>
-                ${s.approver_id ? `<div class="step-name">${esc(who)}</div>` : '<div class="step-name" style="color:#bbb;">未決</div>'}
-                ${s.comment     ? `<div class="step-comment">"${esc(s.comment)}"</div>` : ''}
-                ${when          ? `<div class="step-date">${when}</div>` : ''}
+                ${who
+                    ? `<div class="step-name">${esc(who)}${roleLabel ? `（${esc(roleLabel)}）` : ''}</div>`
+                    : '<div class="step-name" style="color:#bbb;">未</div>'}
+                ${activeStep?.comment ? `<div class="step-comment">"${esc(activeStep.comment)}"</div>` : ''}
+                ${when               ? `<div class="step-date">${when}</div>` : ''}
             </div>
         </div>`;
-    }).join('');
+    } else {
+        stepsHtml = steps.map(s => {
+            let icon, sc;
+            if      (s.status === 'approved') { icon = '✓'; sc = 'sc-approved'; }
+            else if (s.status === 'rejected') { icon = '✗'; sc = 'sc-rejected'; }
+            else if (s.status === 'pending' &&
+                     ((s.step_order === 1 && req.status === 'submitted') ||
+                      (s.step_order === 2 && req.status === 'in_review')))
+                                              { icon = '⏳'; sc = 'sc-pending'; }
+            else                              { icon = '—';  sc = 'sc-waiting'; }
+            const who  = s.approver_id ? (approverNames[s.approver_id] || '—') : '—';
+            const when = s.decided_at  ? fmtDate(s.decided_at) : '';
+            return `
+            <div class="step-item">
+                <div class="step-circle ${sc}">${icon}</div>
+                <div class="step-detail">
+                    <div class="step-label">Step${s.step_order}　${ROLE_LABELS[s.approver_role] || s.approver_role}</div>
+                    ${s.approver_id ? `<div class="step-name">${esc(who)}</div>` : '<div class="step-name" style="color:#bbb;">未決</div>'}
+                    ${s.comment     ? `<div class="step-comment">"${esc(s.comment)}"</div>` : ''}
+                    ${when          ? `<div class="step-date">${when}</div>` : ''}
+                </div>
+            </div>`;
+        }).join('');
+    }
 
     document.getElementById('detail_title').textContent = FLOW_LABELS[req.flow_type] || req.flow_type;
     document.getElementById('detail_body').innerHTML = `
@@ -1844,10 +1896,16 @@ function closeDetailModal() {
 async function approveStep(requestId, stepId, stepOrder) {
     const comment  = (document.getElementById('approval_comment')?.value || '').trim();
 
-    // 残りの承認ステップがあるか確認（課長申請=1ステップ の場合はstep1で完了）
-    const { data: remaining } = await db.from('approval_steps')
-        .select('id').eq('request_id', requestId).gt('step_order', stepOrder).eq('status', 'pending');
-    const nextStatus = (remaining && remaining.length > 0) ? 'in_review' : 'approved';
+    // assembly は並列承認（どちらかが承認した時点で即完了）、test_run は直列
+    const isParallel = currentDetailFlowType === 'assembly';
+    let nextStatus;
+    if (isParallel) {
+        nextStatus = 'approved';
+    } else {
+        const { data: remaining } = await db.from('approval_steps')
+            .select('id').eq('request_id', requestId).gt('step_order', stepOrder).eq('status', 'pending');
+        nextStatus = (remaining && remaining.length > 0) ? 'in_review' : 'approved';
+    }
 
     try {
         await db.from('approval_steps').update({
@@ -1876,6 +1934,12 @@ async function approveStep(requestId, stepId, stepOrder) {
                     );
                 }
             }
+        }
+
+        if (nextStatus === 'approved' && isParallel) {
+            // 並列承認: 残っている他のステップをキャンセル
+            await db.from('approval_steps').update({ status: 'cancelled' })
+                .eq('request_id', requestId).eq('status', 'pending').neq('id', stepId);
         }
 
         if (nextStatus === 'approved') {
@@ -1959,25 +2023,14 @@ async function resubmit(requestId) {
             updated_at:   new Date().toISOString()
         }).eq('id', requestId);
 
-        // Step1承認者に再申請通知を記録
-        const { data: step1 } = await db
-            .from('approval_steps')
-            .select('approver_role')
-            .eq('request_id', requestId)
-            .eq('step_order', 1)
-            .single();
-        if (step1?.approver_role) {
-            const { data: approvers } = await db
-                .from('profiles')
-                .select('id')
-                .eq('role', step1.approver_role);
+        // 全ステップの承認者に再申請通知を記録（assembly並列承認対応）
+        const { data: allSteps } = await db.from('approval_steps').select('approver_role').eq('request_id', requestId);
+        const rolesToNotify = [...new Set((allSteps || []).map(s => s.approver_role))];
+        for (const role of rolesToNotify) {
+            const { data: approvers } = await db.from('profiles').select('id').eq('role', role);
             if (approvers?.length > 0) {
                 await db.from('approval_notifications').insert(
-                    approvers.map(a => ({
-                        request_id:        requestId,
-                        recipient_id:      a.id,
-                        notification_type: 'resubmit'
-                    }))
+                    approvers.map(a => ({ request_id: requestId, recipient_id: a.id, notification_type: 'resubmit' }))
                 );
             }
         }
