@@ -543,7 +543,7 @@
     </div>
 </div>
 
-<!-- ===== Inspection Modal (フロー3) ===== -->
+<!-- ===== Inspection Modal (外観検査開催案内) ===== -->
 <div id="inspection_modal" class="modal-overlay">
     <div class="modal">
         <div class="modal-header">
@@ -816,7 +816,7 @@
     </div>
 </div>
 
-<!-- ===== Shipping Modal (フロー4) ===== -->
+<!-- ===== Shipping Modal (フロー3: 出荷完了通知) ===== -->
 <div id="shipping_modal" class="modal-overlay">
     <div class="modal">
         <div class="modal-header">
@@ -1443,7 +1443,7 @@ async function loadMine() {
             }
             nodes.push({ label: '完了', done: req.status === 'approved', rejected: false });
         } else {
-            // フロー3/4（承認ステップなし）
+            // 開催案内系（承認ステップなし）
             nodes.push({ label: '送信済み', done: req.status === 'approved', rejected: false });
         }
 
@@ -2094,7 +2094,7 @@ async function _getMachineDoneFlows(projectNum, machine) {
     return new Set((data || []).map(r => r.flow_type));
 }
 
-// ===== 宛先確認ステップ（フロー3・5共通） =====
+// ===== 宛先確認ステップ（開催案内共通） =====
 const extraRecipients = { inspection: [], sm: [], si: [] };
 
 async function showRecipientsStep(type) {
@@ -2376,7 +2376,7 @@ async function submitSimpleInspection() {
     }
 }
 
-// ===== フロー3: 外観検査開催案内 =====
+// ===== 外観検査開催案内 =====
 let inspectionProjectsLoaded = false;
 
 function openInspectionModal() {
@@ -2606,7 +2606,7 @@ async function submitShippingMeeting() {
     }
 }
 
-// ===== フロー4: 出荷確認書 =====
+// ===== フロー3: 出荷完了通知 =====
 let shippingProjectsLoaded = false;
 
 function openShippingModal() {
@@ -2804,7 +2804,7 @@ async function recordFlowNotifications(requestId, flowType) {
 
         case 'shipping_meeting':
             notifType = 'shipping_meeting_invite';
-            // フロー3（外観検査）と同じ宛先
+            // 外観検査開催案内と同じ宛先
             await addP({ department: '製管', role: 'staff' });
             await addP({ role: 'assembly_director' });
             for (const o of kumitateOwners) await addPbyName(o);
@@ -2868,7 +2868,7 @@ async function recordFlowNotifications(requestId, flowType) {
     if (inserts.length > 0) await db.from('approval_notifications').insert(inserts);
 }
 
-// フロー1・2の全承認完了時に呼び出す
+// フロー1・2・3の全承認完了時に呼び出す
 async function recordNotifications(requestId) {
     const { data: req } = await db
         .from('approval_requests')
