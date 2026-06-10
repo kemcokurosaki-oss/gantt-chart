@@ -482,7 +482,7 @@
                 <button class="btn btn-primary" id="btn_simple_inspection" onclick="openSimpleInspectionModal()" style="display:none; margin-left:8px;">＋ 簡易検査開催案内を作成</button>
                 <button class="btn btn-primary" id="btn_inspection"       onclick="openInspectionModal()"       style="display:none; margin-left:8px;">＋ 外観検査開催案内を作成</button>
                 <button class="btn btn-primary" id="btn_shipping_meeting" onclick="openShippingMeetingModal()"  style="display:none; margin-left:8px;">＋ 出荷確認会議開催案内を作成</button>
-                <button class="btn btn-primary" id="btn_shipping"         onclick="openShippingModal()"         style="display:none; margin-left:8px;">＋ 出荷確認書を作成</button>
+                <button class="btn btn-primary" id="btn_shipping"         onclick="openShippingModal()"         style="display:none; margin-left:8px;">＋ 出荷完了通知を申請</button>
             </div>
         </div>
 
@@ -820,7 +820,7 @@
 <div id="shipping_modal" class="modal-overlay">
     <div class="modal">
         <div class="modal-header">
-            <h2>出荷確認書 — 作成</h2>
+            <h2>出荷完了通知 — 申請</h2>
             <button class="modal-close" onclick="closeShippingModal()">×</button>
         </div>
         <div class="modal-body">
@@ -841,6 +841,10 @@
                 </div>
                 <div class="machine-checkbox-list" id="shipping_machine_list"></div>
             </div>
+            <div id="shipping_approver_box" style="display:none;" class="form-group">
+                <label>担当者確認（簡易検査承認済み）</label>
+                <div id="shipping_approver_list" style="background:#f8f9fa; border:1px solid #e0e0e0; border-radius:4px; padding:10px 12px; font-size:13px; line-height:1.9;"></div>
+            </div>
             <div id="shipping_flow_box" style="display:none;" class="form-group">
                 <label>フロー状況</label>
                 <div id="shipping_flow_list" style="background:#f8f9fa; border:1px solid #e0e0e0; border-radius:4px; padding:10px 12px; font-size:13px;"></div>
@@ -856,7 +860,7 @@
         </div>
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="closeShippingModal()">キャンセル</button>
-            <button class="btn btn-primary" id="shipping_submit_btn" onclick="submitShipping()">出荷確認書を発行</button>
+            <button class="btn btn-primary" id="shipping_submit_btn" onclick="submitShipping()">申請する</button>
         </div>
     </div>
 </div>
@@ -1010,7 +1014,7 @@ const FLOW_LABELS = {
     simple_inspection: '簡易検査開催案内',
     inspection:        '外観検査開催案内',
     shipping_meeting:  '出荷確認会議開催案内',
-    shipping:          '出荷確認書'
+    shipping:          '出荷完了通知'
 };
 
 const ROLE_LABELS = {
@@ -1341,6 +1345,8 @@ async function loadPending() {
         if (!req) return false;
         // assembly/test_run並列: submitted 状態で全 pending ステップが操作可能
         if ((req.flow_type === 'assembly' || req.flow_type === 'test_run') && req.status === 'submitted' && s.status === 'pending') return true;
+        // shipping: step_order=1 の直列承認
+        if (req.flow_type === 'shipping' && s.step_order === 1 && req.status === 'submitted' && s.status === 'pending') return true;
         if (s.step_order === 1 && req.status === 'submitted') return true;
         if (s.step_order === 2 && req.status === 'in_review')  return true;
         return false;
@@ -1428,6 +1434,16 @@ async function loadMine() {
                     active:   !approvedStep && !rejectedStep && req.status === 'submitted',
                     rejected: !!rejectedStep
                 });
+            } else if (req.flow_type === 'shipping') {
+                // shipping: 常務承認の単一ノード
+                const approvedStep = steps.find(s => s.status === 'approved');
+                const rejectedStep = steps.find(s => s.status === 'rejected');
+                nodes.push({
+                    label:    '常務承認',
+                    done:     !!approvedStep,
+                    active:   !approvedStep && !rejectedStep && req.status === 'submitted',
+                    rejected: !!rejectedStep
+                });
             } else {
                 steps.forEach(s => {
                     const isActive = s.status === 'pending' &&
@@ -1475,11 +1491,25 @@ async function loadMine() {
 async function loadProgress() {
     const el = document.getElementById('tab_content_progress');
 
-    // 全申請レコードを機械名付きで取得
+    // 全申請レコードを機械名付きで取得（shippingの承認者名表示のためapproval_stepsも含む）
     const { data: allReqs } = await db
         .from('approval_requests')
-        .select('project_number, machine_name, flow_type, status, has_inspection, test_run, updated_at')
+        .select('id, project_number, machine_name, flow_type, status, has_inspection, test_run, updated_at, confirmed_shipping_date, approval_steps(approver_id, status)')
         .order('updated_at', { ascending: false });
+
+    // shipping承認済みの承認者名マップを構築
+    const shippingApproverIds = [...new Set(
+        (allReqs || [])
+            .filter(r => r.flow_type === 'shipping')
+            .flatMap(r => (r.approval_steps || []))
+            .filter(s => s.status === 'approved' && s.approver_id)
+            .map(s => s.approver_id)
+    )];
+    let shippingApproverNameMap = {};
+    if (shippingApproverIds.length > 0) {
+        const { data: prs } = await db.from('profiles').select('id, name').in('id', shippingApproverIds);
+        if (prs) prs.forEach(p => { shippingApproverNameMap[p.id] = p.name; });
+    }
 
     // 機械ごとのフロー状態チェック用セット（project__machine__taskText）
     const { data: machineTasks } = await db.from('tasks')
@@ -1525,7 +1555,7 @@ async function loadProgress() {
         { type: 'simple_inspection', label: '簡易検査開催案内',     alwaysShow: false },
         { type: 'inspection',        label: '外観検査開催案内',     alwaysShow: false },
         { type: 'shipping_meeting',  label: '出荷確認会議開催案内', alwaysShow: false },
-        { type: 'shipping',          label: '出荷確認書',           alwaysShow: true }
+        { type: 'shipping',          label: '出荷完了通知',          alwaysShow: true }
     ];
 
     const html = allNums.map(num => {
@@ -1547,16 +1577,23 @@ async function loadProgress() {
 
             const flowRows = applicable.map(f => {
                 const req = mData.flows[f.type];
-                let icon, color, dateStr;
+                let icon, color, dateStr, extraLine = '';
                 if (!req)                           { icon = '──'; color = '#ccc';     dateStr = '未'; }
-                else if (req.status === 'approved') { icon = '✅'; color = '#27ae60'; dateStr = fmtDate(req.updated_at); }
+                else if (req.status === 'approved') {
+                    icon = '✅'; color = '#27ae60'; dateStr = fmtDate(req.updated_at);
+                    if (f.type === 'shipping') {
+                        const approvedStep = (req.approval_steps || []).find(s => s.status === 'approved');
+                        const approverName = approvedStep?.approver_id ? shippingApproverNameMap[approvedStep.approver_id] : null;
+                        if (approverName) extraLine = `<div style="font-size:11px; color:#888; padding-left:30px;">承認: ${esc(approverName)}（常務）</div>`;
+                    }
+                }
                 else if (req.status === 'rejected') { icon = '❌'; color = '#e74c3c'; dateStr = '却下'; }
                 else                                { icon = '⏳'; color = '#f39c12'; dateStr = '承認中'; }
                 return `<div class="progress-flow-row">
                     <span style="color:${color}; width:22px; text-align:center; flex-shrink:0;">${icon}</span>
                     <span class="progress-flow-label" style="color:${color === '#ccc' ? '#bbb' : '#444'};">${esc(f.label)}</span>
                     <span class="progress-flow-date">${dateStr}</span>
-                </div>`;
+                </div>${extraLine}`;
             }).join('');
 
             return `<div class="machine-section">
@@ -1779,7 +1816,9 @@ async function openDetailModal(requestId) {
     const pNum   = req.project_number || '—';
     const pInfo  = projectsMap[pNum]  || {};
     const cls    = STATUS_CLASSES[req.status] || 's-pending';
-    const slbl   = STATUS_LABELS[req.status]  || req.status;
+    const slbl   = (req.flow_type === 'shipping' && req.status === 'submitted')
+        ? '常務承認待ち'
+        : (STATUS_LABELS[req.status] || req.status);
 
     // 自分が担当すべきステップか確認
     const myStep = steps.find(s =>
@@ -1799,6 +1838,27 @@ async function openDetailModal(requestId) {
     if (approverIds.length > 0) {
         const { data: prs } = await db.from('profiles').select('id, name').in('id', approverIds);
         if (prs) prs.forEach(p => { approverNames[p.id] = p.name; });
+    }
+
+    // shipping: 担当者確認セクション用にtasksを取得
+    let shippingOwners = null;
+    if (req.flow_type === 'shipping') {
+        const { data: sTasks } = await db.from('tasks')
+            .select('text, owner, major_item')
+            .eq('project_number', pNum)
+            .eq('machine', req.machine_name)
+            .in('text', ['機械組立', '試運転', '出図']);
+        const { data: sData } = await db.from('app_settings').select('value').eq('key', 'sales_person_map').single();
+        const salesOwner = (sData?.value ? JSON.parse(sData.value) : {})[pNum] || null;
+        const findO = (text, major) => [...new Set((sTasks || [])
+            .filter(t => t.text === text && (!major || (t.major_item || '').trim() === major))
+            .map(t => t.owner).filter(Boolean))].join('・') || 'なし';
+        shippingOwners = {
+            sekkei:   findO('出図', '設計'),
+            kumitatе: findO('機械組立'),
+            shiunten: findO('試運転'),
+            sales:    salesOwner || 'なし'
+        };
     }
 
     let stepsHtml;
@@ -1824,6 +1884,37 @@ async function openDetailModal(requestId) {
                     : '<div class="step-name" style="color:#bbb;">未</div>'}
                 ${activeStep?.comment ? `<div class="step-comment">"${esc(activeStep.comment)}"</div>` : ''}
                 ${when               ? `<div class="step-date">${when}</div>` : ''}
+            </div>
+        </div>`;
+    } else if (req.flow_type === 'shipping') {
+        // shipping: 担当者確認（簡易検査）＋常務承認ステップ
+        const step = steps[0];
+        let icon, sc;
+        if      (step?.status === 'approved') { icon = '✓'; sc = 'sc-approved'; }
+        else if (step?.status === 'rejected') { icon = '✗'; sc = 'sc-rejected'; }
+        else if (req.status === 'submitted')  { icon = '⏳'; sc = 'sc-pending'; }
+        else                                  { icon = '—';  sc = 'sc-waiting'; }
+        const who  = step?.approver_id ? (approverNames[step.approver_id] || '—') : null;
+        const when = step?.decided_at ? fmtDate(step.decided_at) : '';
+        stepsHtml = `
+        <div style="margin-bottom:14px;">
+            <div style="font-size:12px; color:#888; font-weight:bold; margin-bottom:6px;">担当者確認（簡易検査）</div>
+            <div style="font-size:13px; line-height:2; background:#f8f9fa; border-radius:4px; padding:8px 12px;">
+                <div><span style="color:#888; font-size:11px; width:36px; display:inline-block;">設計</span>${esc(shippingOwners?.sekkei || 'なし')}</div>
+                <div><span style="color:#888; font-size:11px; width:36px; display:inline-block;">組立</span>${esc(shippingOwners?.kumitatе || 'なし')}</div>
+                <div><span style="color:#888; font-size:11px; width:36px; display:inline-block;">操業</span>${esc(shippingOwners?.shiunten || 'なし')}</div>
+                <div><span style="color:#888; font-size:11px; width:36px; display:inline-block;">営業</span>${esc(shippingOwners?.sales || 'なし')}</div>
+            </div>
+        </div>
+        <div style="font-size:12px; color:#888; font-weight:bold; margin-bottom:6px;">常務承認</div>
+        <div class="step-item">
+            <div class="step-circle ${sc}">${icon}</div>
+            <div class="step-detail">
+                ${who
+                    ? `<div class="step-name">${esc(who)}（常務）</div>`
+                    : '<div class="step-name" style="color:#bbb;">未</div>'}
+                ${step?.comment ? `<div class="step-comment">"${esc(step.comment)}"</div>` : ''}
+                ${when          ? `<div class="step-date">${when}</div>` : ''}
             </div>
         </div>`;
     } else {
@@ -1860,6 +1951,7 @@ async function openDetailModal(requestId) {
             ${req.machine_name ? `<tr><td>機械名</td><td>${esc(req.machine_name)}</td></tr>` : ''}
             <tr><td>申請者</td><td>${esc(requesterName)}（${esc(requesterDept)}）</td></tr>
             ${req.flow_type === 'assembly' ? `<tr><td>試運転</td><td>${req.test_run ? 'あり' : 'なし'}</td></tr>` : ''}
+            ${req.flow_type === 'shipping' && req.confirmed_shipping_date ? `<tr><td>確定出荷日</td><td>${fmtDate(req.confirmed_shipping_date)}</td></tr>` : ''}
             <tr><td>申請日</td><td>${fmtDate(req.created_at)}</td></tr>
             <tr><td>状態</td><td><span class="status-badge ${cls}">${slbl}</span></td></tr>
         </table>
@@ -2614,6 +2706,8 @@ function openShippingModal() {
     document.getElementById('shipping_project_info').style.display  = 'none';
     document.getElementById('shipping_machine_group').style.display = 'none';
     document.getElementById('shipping_machine_list').innerHTML      = '';
+    document.getElementById('shipping_approver_box').style.display  = 'none';
+    document.getElementById('shipping_approver_list').innerHTML     = '';
     document.getElementById('shipping_flow_box').style.display      = 'none';
     document.getElementById('shipping_date_input').value  = '';
     document.getElementById('shipping_note_input').value  = '';
@@ -2643,6 +2737,8 @@ async function onShippingProjectChange() {
     const num = document.getElementById('shipping_project').value;
     document.getElementById('shipping_project_info').style.display  = 'none';
     document.getElementById('shipping_machine_group').style.display = 'none';
+    document.getElementById('shipping_approver_box').style.display  = 'none';
+    document.getElementById('shipping_approver_list').innerHTML     = '';
     document.getElementById('shipping_flow_box').style.display      = 'none';
     if (!num) return;
     const p = projectsMap[num] || {};
@@ -2656,8 +2752,39 @@ async function onShippingProjectChange() {
 async function onShippingMachineChange() {
     const num      = document.getElementById('shipping_project').value;
     const machines = getSelectedMachines('shipping_machine_list');
-    if (machines.length === 0) { document.getElementById('shipping_flow_box').style.display = 'none'; return; }
+    document.getElementById('shipping_approver_box').style.display = 'none';
+    document.getElementById('shipping_flow_box').style.display     = 'none';
+    if (machines.length === 0) return;
+
     const machine = machines[0];
+
+    // 担当者確認: tasks から設計・組立・操業 owner を取得
+    const { data: taskRows } = await db.from('tasks')
+        .select('text, owner, major_item')
+        .eq('project_number', num).eq('machine', machine)
+        .in('text', ['機械組立', '試運転', '出図']);
+
+    const findOwners = (taskText, majorItem) =>
+        [...new Set((taskRows || [])
+            .filter(t => t.text === taskText && (!majorItem || (t.major_item || '').trim() === majorItem))
+            .map(t => t.owner).filter(Boolean))].join('・') || 'なし';
+
+    const kumitateOwner = findOwners('機械組立');
+    const shiuntenOwner = findOwners('試運転');
+    const sekkeiOwner   = findOwners('出図', '設計');
+
+    // 営業担当者
+    const { data: sData } = await db.from('app_settings').select('value').eq('key', 'sales_person_map').single();
+    const salesOwner = (sData?.value ? JSON.parse(sData.value) : {})[num] || 'なし';
+
+    document.getElementById('shipping_approver_list').innerHTML =
+        `<div><span style="color:#888;font-size:11px;width:40px;display:inline-block;">設計</span>${esc(sekkeiOwner)}</div>` +
+        `<div><span style="color:#888;font-size:11px;width:40px;display:inline-block;">組立</span>${esc(kumitateOwner)}</div>` +
+        `<div><span style="color:#888;font-size:11px;width:40px;display:inline-block;">操業</span>${esc(shiuntenOwner)}</div>` +
+        `<div><span style="color:#888;font-size:11px;width:40px;display:inline-block;">営業</span>${esc(salesOwner)}</div>`;
+    document.getElementById('shipping_approver_box').style.display = 'block';
+
+    // フロー状況
     const doneFlows = await _getMachineDoneFlows(num, machine);
     const rows = [
         { type: 'assembly',          label: '組立完了通知' },
@@ -2670,7 +2797,7 @@ async function onShippingMachineChange() {
         rows.map(f => `<div style="padding:2px 0; color:${doneFlows.has(f.type) ? '#27ae60' : '#bbb'};">
             ${doneFlows.has(f.type) ? '✅' : '──'}　${esc(f.label)}　${doneFlows.has(f.type) ? '承認済み' : ''}
         </div>`).join('') +
-        `<div style="padding:2px 0; color:#1e3a5f; font-weight:bold; margin-top:4px;">▶　出荷確認書（今回）</div>`;
+        `<div style="padding:2px 0; color:#1e3a5f; font-weight:bold; margin-top:4px;">▶　出荷完了通知（今回）</div>`;
     document.getElementById('shipping_flow_box').style.display = 'block';
 }
 
@@ -2686,26 +2813,39 @@ async function submitShipping() {
 
     const btn = document.getElementById('shipping_submit_btn');
     btn.disabled    = true;
-    btn.textContent = '発行中...';
+    btn.textContent = '申請中...';
 
     try {
         for (const machine of machines) {
             const { data: req, error } = await db.from('approval_requests').insert({
                 project_number: num, machine_name: machine, flow_type: 'shipping',
-                status: 'approved', requester_id: currentUser.id, note: note || null,
+                status: 'submitted', requester_id: currentUser.id, note: note || null,
                 confirmed_shipping_date: dateVal
             }).select().single();
             if (error) throw error;
-            await recordFlowNotifications(req.id, 'shipping');
+
+            // 承認ステップ: 常務（assembly_director）の1ステップ
+            await db.from('approval_steps').insert({
+                request_id: req.id, step_order: 1, approver_role: 'assembly_director', status: 'pending'
+            });
+
+            // 常務に承認依頼通知
+            const { data: directors } = await db.from('profiles').select('id').eq('role', 'assembly_director');
+            if (directors?.length > 0) {
+                await db.from('approval_notifications').insert(
+                    directors.map(d => ({ request_id: req.id, recipient_id: d.id, notification_type: 'approval_request' }))
+                );
+            }
         }
         closeShippingModal();
         await refreshAll();
-        alert(`出荷確認書を発行しました。（${machines.length}機械）`);
+        switchTab('mine');
+        alert(`${machines.length}機械の申請をしました。\n常務に承認依頼が届きます。`);
     } catch (e) {
-        alert('発行に失敗しました: ' + e.message);
+        alert('申請に失敗しました: ' + e.message);
     } finally {
         btn.disabled    = false;
-        btn.textContent = '出荷確認書を発行';
+        btn.textContent = '申請する';
     }
 }
 
@@ -2847,17 +2987,25 @@ async function recordFlowNotifications(requestId, flowType) {
             break;
 
         case 'shipping':
-            // 固定: 製管・常務・品保・操業全員・組立全員
-            await addP({ department: '製管', role: 'staff' });
-            await addP({ role: 'assembly_director' });
-            await addP({ role: 'quality' });
-            await addP({ department: '操業' }); // 操業全員（staff＋課長＋部長）
-            await addP({ department: '組立' });  // 組立全員（staff＋課長＋部長）
-            // 外部全員: 物流・設計全員・営業全員・技戦
-            await addE({ department: '物流' });
-            await addE({ department: '設計' });
-            await addE({ department: '営業' });
-            await addE({ department: '技戦' });
+            // 固定
+            await addP({ role: 'assembly_director' });          // 常務
+            await addP({ department: '製管', role: 'staff' });  // 森村・黒崎
+            await addE({ department: '技戦' });                 // 小笠原
+            // 機械組立タスクがある場合: 設計部長・課長
+            if (kumitateOwners.length > 0) {
+                await addE({ department: '設計', role: 'manager' });
+                await addE({ department: '設計', role: 'director' });
+            }
+            // 試運転タスクがある場合: 操業部長・課長
+            if (shiuntenOwners.length > 0) {
+                await addP({ role: 'operations_manager' });
+                await addP({ role: 'operations_director' });
+            }
+            // 工番担当者
+            for (const o of sekkeiOwners)   await addPbyName(o);  // 設計担当者
+            for (const o of kumitateOwners) await addPbyName(o);  // 組立担当者
+            for (const o of shiuntenOwners) await addPbyName(o);  // 操業担当者
+            await addEbyName(salesOwner);                          // 営業担当者
             break;
     }
 

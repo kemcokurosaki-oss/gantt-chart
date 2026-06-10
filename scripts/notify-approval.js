@@ -11,7 +11,7 @@ const FLOW_LABELS = {
   assembly:   '組立完了通知',
   test_run:   '試運転完了通知',
   inspection: '外観検査開催案内',
-  shipping:   '出荷確認書',
+  shipping:   '出荷完了通知',
 };
 
 const transporter = nodemailer.createTransport({
@@ -40,7 +40,7 @@ async function supabaseFetch(path, options = {}) {
 }
 
 // ===== メール本文生成 =====
-function buildEmail(type, req, recipientName) {
+function buildEmail(type, req, recipientName, extra = {}) {
   const pNum    = req?.project_number || '—';
   const machine = req?.machine_name  ? `【${req.machine_name}】` : '';
   const flow    = FLOW_LABELS[req?.flow_type] || req?.flow_type || '—';
@@ -76,15 +76,23 @@ function buildEmail(type, req, recipientName) {
       };
 
     case 'approved':
-    case 'completed':
+    case 'completed': {
+      const isShipping = req?.flow_type === 'shipping';
+      const shippingDate = isShipping && req?.confirmed_shipping_date
+        ? `\n確定出荷日: ${req.confirmed_shipping_date}` : '';
+      const approverLine = isShipping && extra?.approverName
+        ? `\n承認者: ${extra.approverName}（常務）` : '';
       return {
         from,
         subject: `【承認完了】工番 ${pNum}${machine}　${flow}`,
         text:
           `${recipientName} 様\n\n` +
           `工番 ${pNum} の「${flow}」が承認されました。` +
+          shippingDate +
+          approverLine +
           `${note}\n\n※このメールは自動送信です。`,
       };
+    }
 
     case 'completed_by_other':
       return {
@@ -186,6 +194,26 @@ async function main() {
     profileMap = Object.fromEntries(profiles.map(p => [p.id, p]));
   }
 
+  // shipping完了通知用: 承認した常務の名前を取得
+  const shippingApproverNameMap = {};
+  const shippingCompletedReqIds = [...new Set(
+    notifications.filter(n => reqMap[n.request_id]?.flow_type === 'shipping' && n.notification_type === 'completed')
+      .map(n => n.request_id)
+  )];
+  if (shippingCompletedReqIds.length > 0) {
+    const steps = await supabaseFetch(
+      `approval_steps?request_id=in.(${shippingCompletedReqIds.join(',')})&status=eq.approved&select=request_id,approver_id`
+    );
+    const approverIdSet = [...new Set((steps || []).map(s => s.approver_id).filter(Boolean))];
+    if (approverIdSet.length > 0) {
+      const prs = await supabaseFetch(`profiles?id=in.(${approverIdSet.join(',')})&select=id,name`);
+      const nameById = Object.fromEntries((prs || []).map(p => [p.id, p.name]));
+      (steps || []).forEach(s => {
+        if (s.approver_id && nameById[s.approver_id]) shippingApproverNameMap[s.request_id] = nameById[s.approver_id];
+      });
+    }
+  }
+
   let successCount = 0;
   let skipCount    = 0;
   let errorCount   = 0;
@@ -217,7 +245,8 @@ async function main() {
     const toEmail = TEST_MODE ? TEST_EMAIL : actualEmail;
 
     try {
-      const mail = buildEmail(notif.notification_type, req, toName);
+      const extra = { approverName: shippingApproverNameMap[notif.request_id] };
+      const mail = buildEmail(notif.notification_type, req, toName, extra);
 
       await transporter.sendMail({
         from:    mail.from,
