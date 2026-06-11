@@ -1079,13 +1079,17 @@
 
         // 今日のマーカー
         function updateTodayMarker() {
-            gantt.deleteMarker("today_marker");
-            gantt.addMarker({
-                id: "today_marker",
-                start_date: new Date(),
-                css: "today-line",
-                text: ""
-            });
+            if (typeof gantt.deleteMarker === 'function') {
+                gantt.deleteMarker("today_marker");
+            }
+            if (typeof gantt.addMarker === 'function') {
+                gantt.addMarker({
+                    id: "today_marker",
+                    start_date: new Date(),
+                    css: "today-line",
+                    text: ""
+                });
+            }
         }
 
         // 初期ズームレベルに応じたクラス付与
@@ -1515,6 +1519,9 @@
         // ========== 神戸送り開始日マーク ここまで ==========
 
         gantt.config.readonly = true; // デフォルトは読み取り専用、ログイン後に解除
+        if (typeof gantt.plugins === 'function') {
+            gantt.plugins({ marker: true, grouplist: true, inline_editors: true, dnd: true });
+        }
         gantt.init("gantt_here");
         updateTodayMarker();
         gantt.render();
