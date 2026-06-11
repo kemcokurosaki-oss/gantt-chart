@@ -2397,7 +2397,7 @@ async function _fetchFlowRecipients(projectNum, machineNames, flowType) {
         });
     };
 
-    // inspection / shipping_meeting 共通ルール（recordFlowNotificationsと完全一致）
+    // 全開催案内共通
     await addP({ department: '製管', role: 'staff' });
     await addP({ role: 'assembly_director' });
     for (const o of kumitateOwners) await addPbyName(o);
@@ -2407,6 +2407,17 @@ async function _fetchFlowRecipients(projectNum, machineNames, flowType) {
     await addE({ department: '設計', role: 'manager' });
     await addE({ department: '設計', role: 'director' });
     await addE({ department: '技戦' });
+
+    // simple_inspection のみ: 組立課長（機械組立あり）・操業課長/部長（試運転あり）
+    if (flowType === 'simple_inspection') {
+        if (kumitateOwners.length > 0) {
+            await addP({ role: 'assembly_manager' });
+        }
+        if (shiuntenOwnersFallback.length > 0) {
+            await addP({ role: 'operations_manager' });
+            await addP({ role: 'operations_director' });
+        }
+    }
 
     // 複数機械選択時は残りの機械の組立担当者も追加
     for (let i = 1; i < machineNames.length; i++) {
