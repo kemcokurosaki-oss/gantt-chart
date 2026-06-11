@@ -19,7 +19,7 @@ const TEST_PROJECT = (process.env.TEST_PROJECT || '').trim();
 const FLOW_LABELS = {
   assembly: '組立完了申請',
   test_run: '試運転完了申請',
-  shipping: '出荷完了申請',
+  shipping: '出荷確定申請',
 };
 const TASK_TO_FLOW = {
   '機械組立': 'assembly',
@@ -173,7 +173,7 @@ async function runSubmissionReminders() {
     (submitted || []).map(r => `${r.project_number}__${r.machine_name}__${r.flow_type}`)
   );
 
-  // 出荷完了申請の催促宛先（品証・製管スタッフ）をあらかじめ取得
+  // 出荷確定申請の催促宛先（品証・製管スタッフ）をあらかじめ取得
   let shippingRecipients = null;
   async function getShippingRecipients() {
     if (shippingRecipients) return shippingRecipients;
@@ -234,10 +234,13 @@ async function runSubmissionReminders() {
         const flow    = FLOW_LABELS[flowType] || flowType;
         const pStr    = task.machine ? `${task.project_number} ${task.machine}` : String(task.project_number);
         const subject = `【申請催促】${pStr}　${flow}`;
+        const bodyDetail = flowType === 'shipping'
+          ? `${task.end_date} が予定出荷日ですが、申請がされていません。`
+          : `タスクの終了日（${task.end_date}）を過ぎていますが申請がされていません。`;
         const text    =
           `${profile.name} 様\n\n` +
           `${pStr} の「${flow}」について、` +
-          `タスクの終了日（${task.end_date}）を過ぎていますが申請がされていません。\n` +
+          `${bodyDetail}\n` +
           `承認フロー管理システムにログインして申請をお願いします。\n\n` +
           `※このメールは自動送信です。`;
 

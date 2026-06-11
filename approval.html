@@ -482,7 +482,7 @@
                 <button class="btn btn-primary" id="btn_simple_inspection" onclick="openSimpleInspectionModal()" style="display:none; margin-left:8px;">＋ 簡易検査開催案内を作成</button>
                 <button class="btn btn-primary" id="btn_inspection"       onclick="openInspectionModal()"       style="display:none; margin-left:8px;">＋ 外観検査開催案内を作成</button>
                 <button class="btn btn-primary" id="btn_shipping_meeting" onclick="openShippingMeetingModal()"  style="display:none; margin-left:8px;">＋ 出荷確認会議開催案内を作成</button>
-                <button class="btn btn-primary" id="btn_shipping"         onclick="openShippingModal()"         style="display:none; margin-left:8px;">＋ 出荷完了通知を申請</button>
+                <button class="btn btn-primary" id="btn_shipping"         onclick="openShippingModal()"         style="display:none; margin-left:8px;">＋ 出荷確定申請</button>
             </div>
         </div>
 
@@ -820,7 +820,7 @@
 <div id="shipping_modal" class="modal-overlay">
     <div class="modal">
         <div class="modal-header">
-            <h2>出荷完了通知 — 申請</h2>
+            <h2>出荷確定申請</h2>
             <button class="modal-close" onclick="closeShippingModal()">×</button>
         </div>
         <div class="modal-body">
@@ -1014,7 +1014,7 @@ const FLOW_LABELS = {
     simple_inspection: '簡易検査開催案内',
     inspection:        '外観検査開催案内',
     shipping_meeting:  '出荷確認会議開催案内',
-    shipping:          '出荷完了通知'
+    shipping:          '出荷確定通知'
 };
 
 const ROLE_LABELS = {
@@ -1557,7 +1557,7 @@ async function loadProgress() {
         { type: 'simple_inspection', label: '簡易検査開催案内',     alwaysShow: false },
         { type: 'inspection',        label: '外観検査開催案内',     alwaysShow: false },
         { type: 'shipping_meeting',  label: '出荷確認会議開催案内', alwaysShow: false },
-        { type: 'shipping',          label: '出荷完了通知',          alwaysShow: true }
+        { type: 'shipping',          label: '出荷確定通知',          alwaysShow: true }
     ];
 
     const html = allNums.map(num => {
@@ -1637,7 +1637,7 @@ async function loadProgress() {
             Object.values(projectData[num][m].flows).some(f => f.status === 'submitted' || f.status === 'in_review')
         );
         const summaryColor = completedMachines === totalMachines ? '#27ae60' : hasInProgress ? '#f39c12' : '#aaa';
-        const summaryText  = `${completedMachines}/${totalMachines} 機械 出荷完了` +
+        const summaryText  = `${completedMachines}/${totalMachines} 機械 出荷確定` +
             (hasInProgress ? '　⏳ 承認中あり' : '');
 
         return `<div class="progress-card" onclick="toggleProgressCard(this)">
@@ -2925,7 +2925,7 @@ async function onShippingMachineChange() {
         rows.map(f => `<div style="padding:2px 0; color:${doneFlows.has(f.type) ? '#27ae60' : '#bbb'};">
             ${doneFlows.has(f.type) ? '✅' : '──'}　${esc(f.label)}　${doneFlows.has(f.type) ? '承認済み' : ''}
         </div>`).join('') +
-        `<div style="padding:2px 0; color:#1e3a5f; font-weight:bold; margin-top:4px;">▶　出荷完了通知（今回）</div>`;
+        `<div style="padding:2px 0; color:#1e3a5f; font-weight:bold; margin-top:4px;">▶　出荷確定通知（今回）</div>`;
     document.getElementById('shipping_flow_box').style.display = 'block';
 }
 
