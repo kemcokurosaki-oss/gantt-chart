@@ -8,10 +8,11 @@ const TEST_MODE     = process.env.TEST_MODE === 'true';
 const TEST_EMAIL    = 'e-kurosaki@kusakabe.com';
 
 const FLOW_LABELS = {
-  assembly:   '組立完了通知',
-  test_run:   '試運転完了通知',
-  inspection: '外観検査開催案内',
-  shipping:   '出荷完了通知',
+  assembly:         '組立完了通知',
+  test_run:         '試運転完了通知',
+  simple_inspection:'簡易検査開催案内',
+  inspection:       '外観検査開催案内',
+  shipping:         '出荷完了通知',
 };
 
 // 承認依頼・再申請・却下・他者完了の件名用ラベル（申請系表記）
@@ -152,10 +153,42 @@ function buildEmail(type, req, recipientName, extra = {}) {
       const location = req?.inspection_location || '未定';
       return {
         from,
-        subject: `【出荷確認会議開催案内】${pNum}`,
+        subject: `【出荷確認会議開催案内】${pStr}`,
         text:
           `${recipientName} 様\n\n` +
-          `${pNum} の出荷確認会議を下記のとおり実施します。\n\n` +
+          `${pStr} の出荷確認会議を下記のとおり実施します。\n\n` +
+          `日時: ${date}${time}\n` +
+          `場所: ${location}` +
+          `${note}\n\n※このメールは自動送信です。`,
+      };
+    }
+
+    case 'simple_inspection_reschedule': {
+      const date     = req?.inspection_date     || '未定';
+      const time     = req?.inspection_time     ? ` ${req.inspection_time}` : '';
+      const location = req?.inspection_location || '未定';
+      return {
+        from,
+        subject: `【簡易検査 日程変更】${pStr}`,
+        text:
+          `${recipientName} 様\n\n` +
+          `${pStr} の簡易検査の日程が変更されました。\n\n` +
+          `日時: ${date}${time}\n` +
+          `場所: ${location}` +
+          `${note}\n\n※このメールは自動送信です。`,
+      };
+    }
+
+    case 'simple_inspection_invite': {
+      const date     = req?.inspection_date     || '未定';
+      const time     = req?.inspection_time     ? ` ${req.inspection_time}` : '';
+      const location = req?.inspection_location || '未定';
+      return {
+        from,
+        subject: `【簡易検査開催案内】${pStr}`,
+        text:
+          `${recipientName} 様\n\n` +
+          `${pStr} の簡易検査を下記のとおり実施します。\n\n` +
           `日時: ${date}${time}\n` +
           `場所: ${location}` +
           `${note}\n\n※このメールは自動送信です。`,
@@ -168,10 +201,10 @@ function buildEmail(type, req, recipientName, extra = {}) {
       const location = req?.inspection_location || '未定';
       return {
         from,
-        subject: `【外観検査開催案内】${pNum}`,
+        subject: `【外観検査開催案内】${pStr}`,
         text:
           `${recipientName} 様\n\n` +
-          `${pNum} の外観検査を下記のとおり実施します。\n\n` +
+          `${pStr} の外観検査を下記のとおり実施します。\n\n` +
           `日時: ${date}${time}\n` +
           `場所: ${location}` +
           `${note}\n\n※このメールは自動送信です。`,

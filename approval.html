@@ -961,8 +961,8 @@ function applyRoleLayout(role) {
         document.getElementById('btn_assembly').style.display          = (!isQualityOrSeikan && (dept === '組立' || role === 'assembly_manager'))  ? '' : 'none';
         document.getElementById('btn_test_run').style.display          = (!isQualityOrSeikan && (dept === '操業' || role === 'operations_manager')) ? '' : 'none';
         document.getElementById('btn_simple_inspection').style.display = isQualityOrSeikan ? '' : 'none';
-        document.getElementById('btn_inspection').style.display        = isQualityOrSeikan ? '' : 'none';
-        document.getElementById('btn_shipping_meeting').style.display  = isQualityOrSeikan ? '' : 'none';
+        document.getElementById('btn_inspection').style.display        = 'none'; // 2000番台のみ・現在無効
+        document.getElementById('btn_shipping_meeting').style.display  = 'none'; // 2000番台のみ・現在無効
         document.getElementById('btn_shipping').style.display          = isQualityOrSeikan ? '' : 'none';
     } else {
         document.getElementById('new_btn_area').style.display = 'none';
@@ -1494,7 +1494,7 @@ async function loadProgress() {
     // 全申請レコードを機械名付きで取得（shippingの承認者名表示のためapproval_stepsも含む）
     const { data: allReqs } = await db
         .from('approval_requests')
-        .select('id, project_number, machine_name, flow_type, status, has_inspection, test_run, updated_at, confirmed_shipping_date, approval_steps(approver_id, status)')
+        .select('id, project_number, machine_name, flow_type, status, has_inspection, test_run, updated_at, confirmed_shipping_date, inspection_date, inspection_time, approval_steps(approver_id, status)')
         .order('updated_at', { ascending: false });
 
     // shipping承認済みの承認者名マップを構築
@@ -1580,11 +1580,27 @@ async function loadProgress() {
                 let icon, color, dateStr, extraLine = '';
                 if (!req)                           { icon = '──'; color = '#ccc';     dateStr = '未'; }
                 else if (req.status === 'approved') {
-                    icon = '✅'; color = '#27ae60'; dateStr = fmtDate(req.updated_at);
-                    if (f.type === 'shipping') {
-                        const approvedStep = (req.approval_steps || []).find(s => s.status === 'approved');
-                        const approverName = approvedStep?.approver_id ? shippingApproverNameMap[approvedStep.approver_id] : null;
-                        if (approverName) extraLine = `<div style="font-size:11px; color:#888; padding-left:30px;">承認: ${esc(approverName)}（常務）</div>`;
+                    if (f.type === 'simple_inspection') {
+                        if (req.inspection_date) {
+                            const todayStr = new Date().toISOString().slice(0, 10);
+                            const isPast   = req.inspection_date <= todayStr;
+                            const dateLabel = fmtDate(req.inspection_date);
+                            const timeLabel = req.inspection_time ? ` ${req.inspection_time}` : '';
+                            if (isPast) {
+                                icon = '✅'; color = '#27ae60'; dateStr = `開催済み (${dateLabel})`;
+                            } else {
+                                icon = '📅'; color = '#2980b9'; dateStr = `開催予定: ${dateLabel}${timeLabel}`;
+                            }
+                        } else {
+                            icon = '✅'; color = '#27ae60'; dateStr = fmtDate(req.updated_at);
+                        }
+                    } else {
+                        icon = '✅'; color = '#27ae60'; dateStr = fmtDate(req.updated_at);
+                        if (f.type === 'shipping') {
+                            const approvedStep = (req.approval_steps || []).find(s => s.status === 'approved');
+                            const approverName = approvedStep?.approver_id ? shippingApproverNameMap[approvedStep.approver_id] : null;
+                            if (approverName) extraLine = `<div style="font-size:11px; color:#888; padding-left:30px;">承認: ${esc(approverName)}（常務）</div>`;
+                        }
                     }
                 }
                 else if (req.status === 'rejected') { icon = '❌'; color = '#e74c3c'; dateStr = '却下'; }
@@ -1830,7 +1846,8 @@ async function openDetailModal(requestId) {
             (s.step_order === 2 && req.status === 'in_review')
         )
     );
-    const isMyRequest = req.requester_id === currentUser.id;
+    const isMyRequest   = req.requester_id === currentUser.id;
+    const canReschedule = req.flow_type === 'simple_inspection' && (isMyRequest || isQualityOrSeikan);
 
     // プロフィール名を取得
     const approverIds = steps.filter(s => s.approver_id).map(s => s.approver_id);
@@ -1917,6 +1934,8 @@ async function openDetailModal(requestId) {
                 ${when          ? `<div class="step-date">${when}</div>` : ''}
             </div>
         </div>`;
+    } else if (['simple_inspection', 'inspection', 'shipping_meeting'].includes(req.flow_type)) {
+        stepsHtml = '<div style="color:#888; font-size:13px; padding:4px 0;">承認フローなし（開催案内を送信済み）</div>';
     } else {
         stepsHtml = steps.map(s => {
             let icon, sc;
@@ -1952,18 +1971,48 @@ async function openDetailModal(requestId) {
             <tr><td>申請者</td><td>${esc(requesterName)}（${esc(requesterDept)}）</td></tr>
             ${req.flow_type === 'assembly' ? `<tr><td>試運転</td><td>${req.test_run ? 'あり' : 'なし'}</td></tr>` : ''}
             ${req.flow_type === 'shipping' && req.confirmed_shipping_date ? `<tr><td>確定出荷日</td><td>${fmtDate(req.confirmed_shipping_date)}</td></tr>` : ''}
+            ${['simple_inspection','inspection','shipping_meeting'].includes(req.flow_type) && req.inspection_date
+                ? `<tr><td>開催日</td><td>${fmtDate(req.inspection_date)}${req.inspection_time ? '　' + req.inspection_time : ''}</td></tr>` : ''}
+            ${['simple_inspection','inspection','shipping_meeting'].includes(req.flow_type) && req.inspection_location
+                ? `<tr><td>場所</td><td>${esc(req.inspection_location)}</td></tr>` : ''}
             <tr><td>申請日</td><td>${fmtDate(req.created_at)}</td></tr>
             <tr><td>状態</td><td><span class="status-badge ${cls}">${slbl}</span></td></tr>
         </table>
         ${req.note ? `<div style="background:#f8f9fa; border-radius:4px; padding:10px 12px; font-size:13px; color:#555; margin-bottom:14px;">${esc(req.note)}</div>` : ''}
-        <hr class="section-divider">
-        <div class="section-title">承認ステップ</div>
+        ${!['simple_inspection','inspection','shipping_meeting'].includes(req.flow_type)
+            ? '<hr class="section-divider"><div class="section-title">承認ステップ</div>' : ''}
         <div class="steps-list">${stepsHtml}</div>
         ${myStep ? `
         <hr class="section-divider">
         <div class="form-group">
             <label>コメント${myStep ? '' : '（任意）'}</label>
             <textarea id="approval_comment" placeholder="承認・却下の理由など（却下時は必須）"></textarea>
+        </div>` : ''}
+        ${canReschedule ? `
+        <div id="detail_reschedule_section" style="display:none;">
+            <hr class="section-divider">
+            <div class="section-title">日程変更</div>
+            <div class="form-group">
+                <label>新しい開催日 *</label>
+                <input type="date" id="detail_new_date" value="${req.inspection_date || ''}">
+            </div>
+            <div class="form-group">
+                <label>開始時刻</label>
+                <div style="display:flex; gap:6px; align-items:center;">
+                    <select id="detail_new_time_hour" style="padding:5px 8px; border:1px solid #ccc; border-radius:4px; font-size:13px;">
+                        <option value="">--</option>
+                        ${['08','09','10','11','12','13','14','15','16'].map(h => `<option value="${h}"${req.inspection_time?.startsWith(h) ? ' selected' : ''}>${h}時</option>`).join('')}
+                    </select>
+                    <select id="detail_new_time_min" style="padding:5px 8px; border:1px solid #ccc; border-radius:4px; font-size:13px;">
+                        <option value="">--</option>
+                        ${['00','15','30','45'].map(m => `<option value="${m}"${req.inspection_time?.endsWith(':' + m) ? ' selected' : ''}>${m}分</option>`).join('')}
+                    </select>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>場所</label>
+                <input type="text" id="detail_new_location" value="${esc(req.inspection_location || '')}" placeholder="例: 第1組立工場">
+            </div>
         </div>` : ''}
     `;
 
@@ -1980,12 +2029,78 @@ async function openDetailModal(requestId) {
             <button class="btn btn-secondary" onclick="closeDetailModal()">閉じる</button>
             <button class="btn btn-primary"   onclick="resubmit('${req.id}')">再申請する</button>
         `;
+    } else if (canReschedule) {
+        footer.innerHTML = `
+            <button class="btn btn-secondary" onclick="closeDetailModal()">閉じる</button>
+            <button class="btn btn-primary"   id="btn_show_reschedule" onclick="showRescheduleForm()">日程変更</button>
+            <button class="btn btn-success"   id="btn_save_reschedule" style="display:none;" onclick="saveReschedule('${req.id}')">保存して通知</button>
+        `;
     }
 }
 
 function closeDetailModal() {
     document.getElementById('detail_modal').classList.remove('open');
     ui.send('CLOSE');
+}
+
+// ===== 日程変更（簡易検査） =====
+function showRescheduleForm() {
+    document.getElementById('detail_reschedule_section').style.display = 'block';
+    document.getElementById('btn_show_reschedule').style.display = 'none';
+    document.getElementById('btn_save_reschedule').style.display = '';
+    document.getElementById('detail_reschedule_section').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+async function saveReschedule(requestId) {
+    const newDate = document.getElementById('detail_new_date').value;
+    const newHour = document.getElementById('detail_new_time_hour').value;
+    const newMin  = document.getElementById('detail_new_time_min').value;
+    const newLoc  = document.getElementById('detail_new_location').value.trim();
+    if (!newDate) { alert('開催日を入力してください'); return; }
+    const newTime = (newHour && newMin) ? `${newHour}:${newMin}` : null;
+
+    const btn = document.getElementById('btn_save_reschedule');
+    btn.disabled = true; btn.textContent = '保存中...';
+
+    try {
+        await db.from('approval_requests').update({
+            inspection_date:     newDate,
+            inspection_time:     newTime,
+            inspection_location: newLoc || null,
+            updated_at:          new Date().toISOString()
+        }).eq('id', requestId);
+
+        // 元の送信済み通知の宛先に変更通知を再送
+        const { data: existingNotifs } = await db.from('approval_notifications')
+            .select('recipient_id, recipient_email')
+            .eq('request_id', requestId)
+            .not('emailed_at', 'is', null);
+
+        if (existingNotifs?.length > 0) {
+            const seen = new Set();
+            const notifs = [];
+            for (const n of existingNotifs) {
+                const key = n.recipient_id || n.recipient_email;
+                if (key && !seen.has(key)) {
+                    seen.add(key);
+                    notifs.push({
+                        request_id:        requestId,
+                        recipient_id:      n.recipient_id    || null,
+                        recipient_email:   n.recipient_email || null,
+                        notification_type: 'simple_inspection_reschedule'
+                    });
+                }
+            }
+            if (notifs.length > 0) await db.from('approval_notifications').insert(notifs);
+        }
+
+        closeDetailModal();
+        await refreshAll();
+        alert('日程を変更しました。関係者に変更通知を送ります。');
+    } catch (e) {
+        alert('保存に失敗しました: ' + e.message);
+        btn.disabled = false; btn.textContent = '保存して通知';
+    }
 }
 
 // ===== Approve =====
@@ -2967,6 +3082,13 @@ async function recordFlowNotifications(requestId, flowType) {
             await addE({ department: '設計', role: 'manager' });
             await addE({ department: '設計', role: 'director' });
             await addE({ department: '技戦' });
+            if (kumitateOwners.length > 0) {
+                await addP({ role: 'assembly_manager' });   // 組立課長（機械組立あり）
+            }
+            if (shiuntenOwners.length > 0) {
+                await addP({ role: 'operations_manager' });  // 操業課長（試運転あり）
+                await addP({ role: 'operations_director' }); // 操業部長（試運転あり）
+            }
             break;
 
         case 'inspection':
