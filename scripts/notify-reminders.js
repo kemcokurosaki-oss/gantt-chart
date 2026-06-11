@@ -77,6 +77,12 @@ function tokyoDateStr() {
   return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' });
 }
 
+// JST翌日の日付文字列（YYYY-MM-DD）
+function tomorrowJSTStr() {
+  const [y, m, d] = tokyoDateStr().split('-').map(Number);
+  return new Date(y, m - 1, d + 1).toLocaleDateString('en-CA');
+}
+
 // JST当日0:00のISO文字列（前日中の申請をすべて対象にするcutoff用）
 function todayMidnightJST() {
   const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' });
@@ -184,13 +190,19 @@ async function runSubmissionReminders() {
     return shippingRecipients;
   }
 
+  const tomorrowStr = tomorrowJSTStr();
+
   // 今回の実行で送信済みの (タスクキー + 宛先ID) を記録（1実行内の重複防止）
   const sentThisRun = new Set();
 
   let count = 0;
   for (const [taskText, flowType] of Object.entries(TASK_TO_FLOW)) {
+    // shipping は工場出荷の前日から通知、それ以外は終了日超過後に通知
+    const endDateFilter = flowType === 'shipping'
+      ? `end_date=lte.${tomorrowStr}`  // 前日以降（前日・当日・超過後も継続）
+      : `end_date=lt.${todayStr}`;      // 終了日超過後
     const tasks = await supabaseFetch(
-      `tasks?text=eq.${encodeURIComponent(taskText)}&end_date=lt.${todayStr}` +
+      `tasks?text=eq.${encodeURIComponent(taskText)}&${endDateFilter}` +
       `&select=project_number,machine,owner,end_date,is_completed`
     );
 
