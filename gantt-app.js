@@ -445,24 +445,18 @@
                     });
                 });
             } else if (currentDisplayMode === 'business_trip') {
-                // 出張予定モード：見出し行を作らず、タスクをそのまま追加する
-                // 設計工程表の出張タスクも含めて全工事番号を収集（完了済み工事番号は除外）
-                const _completedPNums = new Set((completedProjects || []).map(cp => (cp.project_number || "").toString().trim()));
+                // 出張予定モード：完了済み工番に関係なく、期限内（終了日+7日以内）の出張タスクを表示
                 const tripProjects = [...new Set(rawTasks
-                    .filter(t => {
-                        const val = t.is_business_trip;
-                        if (!(val === true || val === 'true' || val === 'TRUE')) return false;
-                        return !_completedPNums.has((t.project_number || "").toString().trim());
-                    })
+                    .filter(t => _isBusinessTripTaskRow(t) && !_isTripTaskExpired(t))
                     .map(t => t.project_number)
                 )].sort();
 
                 tripProjects.forEach(pNum => {
-                    const projectTasks = rawTasks.filter(t => {
-                        if (t.project_number !== pNum) return false;
-                        const val = t.is_business_trip;
-                        return val === true || val === 'true' || val === 'TRUE';
-                    });
+                    const projectTasks = rawTasks.filter(t =>
+                        t.project_number === pNum &&
+                        _isBusinessTripTaskRow(t) &&
+                        !_isTripTaskExpired(t)
+                    );
 
                     projectTasks.forEach(t => {
                         // window.allTasks の元オブジェクトを汚染しないようクローンして parent を設定
@@ -1355,15 +1349,37 @@
             return val === true || val === 'true' || val === 'TRUE';
         }
 
-        /** 工番ごとに社内工程・出張予定の有無（工事一覧のマーク用） */
+        /** 出張タスクが終了日+7日を過ぎて自動非表示の期限切れか */
+        function _isTripTaskExpired(t) {
+            if (!t || !t.start_date) return false;
+            const dur = Number(t.duration);
+            if (!Number.isFinite(dur) || dur < 1) return false;
+            try {
+                const s = t.start_date instanceof Date
+                    ? new Date(t.start_date.getFullYear(), t.start_date.getMonth(), t.start_date.getDate())
+                    : (() => { const m = String(t.start_date).trim().match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? new Date(+m[1], +m[2]-1, +m[3]) : null; })();
+                if (!s || isNaN(s.getTime())) return false;
+                // expiry = start + (duration-1) + 7 = 終了日(inclusive) + 7日
+                const expiry = new Date(s);
+                expiry.setDate(expiry.getDate() + dur - 1 + 7);
+                const now = new Date();
+                const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                return today > expiry;
+            } catch (_) { return false; }
+        }
+
+        /** 工番ごとに社内工程・出張予定の有無（工事一覧のマーク用）。期限切れ出張は trip: false 扱い */
         function _buildProjectKindMap(tasks) {
             const map = {};
             (tasks || []).forEach(function(t) {
                 const pn = (t.project_number || "").toString().trim();
                 if (!pn) return;
                 if (!map[pn]) map[pn] = { shanai: false, trip: false };
-                if (_isBusinessTripTaskRow(t)) map[pn].trip = true;
-                else map[pn].shanai = true;
+                if (_isBusinessTripTaskRow(t)) {
+                    if (!_isTripTaskExpired(t)) map[pn].trip = true;
+                } else {
+                    map[pn].shanai = true;
+                }
             });
             return map;
         }
@@ -1424,8 +1440,11 @@
                     for (let i = 0; i < tasks.length; i++) {
                         const t = tasks[i];
                         if (String(t.project_number || "").trim() !== pNum) continue;
-                        if (_isBusinessTripTaskRow(t)) hasTrip = true;
-                        else hasShanai = true;
+                        if (_isBusinessTripTaskRow(t)) {
+                            if (!_isTripTaskExpired(t)) hasTrip = true;
+                        } else {
+                            hasShanai = true;
+                        }
                     }
                     const mode = typeof currentDisplayMode !== "undefined" ? currentDisplayMode : "process";
                     if (mode === "business_trip") {
@@ -1478,9 +1497,16 @@
             });
             let projects = Object.keys(projectInfoMap).sort();
 
-            // 完了済工番をサイドバーから除外
+            // 完了済工番をサイドバーから除外（ただし期限内の出張タスクがある工番は残す）
             const completedNums = new Set(completedProjects.map(cp => cp.project_number));
-            projects = projects.filter(p => !completedNums.has(p));
+            const completedWithActiveTrip = new Set();
+            (tasks || []).forEach(t => {
+                const pn = (t.project_number || "").toString().trim();
+                if (completedNums.has(pn) && _isBusinessTripTaskRow(t) && !_isTripTaskExpired(t)) {
+                    completedWithActiveTrip.add(pn);
+                }
+            });
+            projects = projects.filter(p => !completedNums.has(p) || completedWithActiveTrip.has(p));
 
             // グループフィルター適用
             if (currentProjectGroupFilter === '2000') {
