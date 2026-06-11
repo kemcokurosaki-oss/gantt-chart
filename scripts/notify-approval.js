@@ -12,14 +12,14 @@ const FLOW_LABELS = {
   test_run:         '試運転完了通知',
   simple_inspection:'簡易検査開催案内',
   inspection:       '外観検査開催案内',
-  shipping:         '出荷完了通知',
+  shipping:         '出荷確定通知',
 };
 
 // 承認依頼・再申請・却下・他者完了の件名用ラベル（申請系表記）
 const FLOW_LABELS_REQUEST = {
   assembly: '組立完了申請',
   test_run: '試運転完了申請',
-  shipping: '出荷申請',
+  shipping: '出荷確定申請',
 };
 
 const transporter = nodemailer.createTransport({
