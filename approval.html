@@ -1605,7 +1605,8 @@ async function loadProgress() {
                 }
                 else if (req.status === 'rejected') { icon = '❌'; color = '#e74c3c'; dateStr = '却下'; }
                 else                                { icon = '⏳'; color = '#f39c12'; dateStr = '承認中'; }
-                return `<div class="progress-flow-row">
+                const clickable = req?.id ? `onclick="openDetailModal('${req.id}')" style="cursor:pointer;" title="クリックで詳細表示"` : '';
+                return `<div class="progress-flow-row" ${clickable}>
                     <span style="color:${color}; width:22px; text-align:center; flex-shrink:0;">${icon}</span>
                     <span class="progress-flow-label" style="color:${color === '#ccc' ? '#bbb' : '#444'};">${esc(f.label)}</span>
                     <span class="progress-flow-date">${dateStr}</span>
