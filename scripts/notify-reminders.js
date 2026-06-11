@@ -257,6 +257,110 @@ async function runSubmissionReminders() {
   console.log(`申請催促: ${count}件送信`);
 }
 
+// ===== 案内催促 =====
+async function runInvitationReminders() {
+  console.log('\n--- 案内催促チェック ---');
+
+  const todayStr = tokyoDateStr();
+  const [y, m, d] = todayStr.split('-').map(Number);
+  const threeDaysLater = new Date(y, m - 1, d + 3).toLocaleDateString('en-CA');
+
+  // 簡易検査申請済みの (工番__機械) セット（rejected以外）
+  const submitted = await supabaseFetch(
+    `approval_requests?flow_type=eq.simple_inspection&status=neq.rejected` +
+    `&select=project_number,machine_name`
+  );
+  const submittedSet = new Set(
+    (submitted || []).map(r => `${r.project_number}__${r.machine_name}`)
+  );
+
+  // 品証・製管スタッフを取得
+  const qualityProfs = await supabaseFetch(`profiles?role=eq.quality&select=id,name,email`);
+  const seikanProfs  = await supabaseFetch(
+    `profiles?department=eq.${encodeURIComponent('製管')}&role=eq.staff&select=id,name,email`
+  );
+  const seenIds = new Set();
+  const recipients = [...(qualityProfs || []), ...(seikanProfs || [])].filter(p => {
+    if (!p.id || seenIds.has(p.id)) return false;
+    seenIds.add(p.id);
+    return true;
+  });
+
+  // 試運転タスク（全件）- どの工番に試運転があるか確認 + 3日前以内の判定に使用
+  const allTestRuns = await supabaseFetch(
+    `tasks?text=eq.${encodeURIComponent('試運転')}&select=project_number,machine,end_date,is_completed`
+  );
+  const testRunMap = new Map(); // key: "工番__機械" → task
+  for (const t of (allTestRuns || [])) {
+    testRunMap.set(`${t.project_number}__${t.machine}`, t);
+  }
+
+  // 機械組立タスク（終了3日前以内）
+  const assemblyTasks = await supabaseFetch(
+    `tasks?text=eq.${encodeURIComponent('機械組立')}&end_date=lte.${threeDaysLater}` +
+    `&select=project_number,machine,end_date,is_completed`
+  );
+
+  // 通知対象リストを構築
+  // - 試運転あり → 試運転終了3日前にトリガー（機械組立のタイミングは使わない）
+  // - 試運転なし → 機械組立終了3日前にトリガー
+  const targets = [];
+  const processedKeys = new Set();
+
+  // 試運転が3日前以内のものを先に追加
+  for (const [key, t] of testRunMap) {
+    if (t.is_completed) continue;
+    if (t.end_date > threeDaysLater) continue;
+    processedKeys.add(key);
+    targets.push({ project_number: t.project_number, machine: t.machine, refTaskName: '試運転', refEndDate: t.end_date });
+  }
+
+  // 試運転のない機械組立タスク（3日前以内）を追加
+  for (const t of (assemblyTasks || [])) {
+    if (t.is_completed) continue;
+    const key = `${t.project_number}__${t.machine}`;
+    if (processedKeys.has(key)) continue;
+    if (testRunMap.has(key)) continue; // 試運転あり → 試運転のタイミングで通知
+    processedKeys.add(key);
+    targets.push({ project_number: t.project_number, machine: t.machine, refTaskName: '機械組立', refEndDate: t.end_date });
+  }
+
+  const sentThisRun = new Set();
+  let count = 0;
+
+  for (const target of targets) {
+    if (TEST_MODE && TEST_PROJECT && String(target.project_number) !== TEST_PROJECT) continue;
+
+    const taskKey = `${target.project_number}__${target.machine}`;
+    if (submittedSet.has(taskKey)) continue;
+
+    const pStr = target.machine ? `${target.project_number} ${target.machine}` : String(target.project_number);
+    const subject = `【案内催促】${pStr}　簡易検査開催案内`;
+
+    for (const profile of recipients) {
+      if (!profile.email) continue;
+      const dedupKey = `${taskKey}__simple_inspection__${profile.id}`;
+      if (sentThisRun.has(dedupKey)) continue;
+
+      const text =
+        `${profile.name} 様\n\n` +
+        `${pStr} について、${target.refTaskName}が ${target.refEndDate} に終了予定ですが、` +
+        `簡易検査開催案内がされていません。\n` +
+        `承認フロー管理システムにログインして開催案内の送付をお願いします。\n\n` +
+        `※このメールは自動送信です。`;
+
+      try {
+        await sendEmail(profile.email, profile.name, subject, text);
+        sentThisRun.add(dedupKey);
+        count++;
+      } catch (e) {
+        console.error(`✗ 送信エラー: ${profile.email}`, e.message);
+      }
+    }
+  }
+  console.log(`案内催促: ${count}件送信`);
+}
+
 async function main() {
   requireEnv('SUPABASE_URL', SUPABASE_URL);
   requireEnv('SUPABASE_SECRET_KEY', SUPABASE_KEY);
@@ -269,6 +373,7 @@ async function main() {
 
   await runApprovalReminders();
   await runSubmissionReminders();
+  await runInvitationReminders();
 
   console.log('\n====== 完了 ======');
 }
