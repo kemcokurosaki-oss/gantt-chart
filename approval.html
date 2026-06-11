@@ -3005,10 +3005,10 @@ async function recordFlowNotifications(requestId, flowType) {
                 await addP({ role: 'operations_director' });
             }
             // 工番担当者
-            for (const o of sekkeiOwners)   await addPbyName(o);  // 設計担当者
-            for (const o of kumitateOwners) await addPbyName(o);  // 組立担当者
-            for (const o of shiuntenOwners) await addPbyName(o);  // 操業担当者
-            await addEbyName(salesOwner);                          // 営業担当者
+            for (const o of sekkeiOwners)   await addEbyName(o);  // 設計担当者（notification_recipients）
+            for (const o of kumitateOwners) await addPbyName(o);  // 組立担当者（profiles）
+            for (const o of shiuntenOwners) await addPbyName(o);  // 操業担当者（profiles）
+            await addEbyName(salesOwner);                          // 営業担当者（notification_recipients）
             break;
     }
 
