@@ -2991,12 +2991,15 @@ async function recordFlowNotifications(requestId, flowType) {
             await addP({ role: 'assembly_director' });          // 常務
             await addP({ department: '製管', role: 'staff' });  // 森村・黒崎
             await addE({ department: '技戦' });                 // 小笠原
-            // 機械組立タスクがある場合: 設計部長・課長
+            await addE({ department: '物流' });                 // 物流課
+            // 設計部長・課長: 常に送付
+            await addE({ department: '設計', role: 'manager' });
+            await addE({ department: '設計', role: 'director' });
+            // 機械組立タスクがある場合: 組立課長
             if (kumitateOwners.length > 0) {
-                await addE({ department: '設計', role: 'manager' });
-                await addE({ department: '設計', role: 'director' });
+                await addP({ role: 'assembly_manager' });
             }
-            // 試運転タスクがある場合: 操業部長・課長
+            // 試運転タスクがある場合: 操業課長・部長
             if (shiuntenOwners.length > 0) {
                 await addP({ role: 'operations_manager' });
                 await addP({ role: 'operations_director' });

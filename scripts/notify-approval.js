@@ -82,6 +82,16 @@ function buildEmail(type, req, recipientName, extra = {}) {
         ? `\n確定出荷日: ${req.confirmed_shipping_date}` : '';
       const approverLine = isShipping && extra?.approverName
         ? `\n承認者: ${extra.approverName}（常務）` : '';
+      let ownersSection = '';
+      if (isShipping && extra?.owners) {
+        const o = extra.owners;
+        const lines = [];
+        if (o.sekkei)   lines.push(`  設計: ${o.sekkei}`);
+        if (o.kumitate) lines.push(`  組立: ${o.kumitate}`);
+        if (o.shiunten) lines.push(`  操業: ${o.shiunten}`);
+        if (o.sales)    lines.push(`  営業: ${o.sales}`);
+        if (lines.length > 0) ownersSection = '\n\n担当者確認（簡易検査）:\n' + lines.join('\n');
+      }
       return {
         from,
         subject: `【承認完了】工番 ${pNum}${machine}　${flow}`,
@@ -90,6 +100,7 @@ function buildEmail(type, req, recipientName, extra = {}) {
           `工番 ${pNum} の「${flow}」が承認されました。` +
           shippingDate +
           approverLine +
+          ownersSection +
           `${note}\n\n※このメールは自動送信です。`,
       };
     }
@@ -194,13 +205,15 @@ async function main() {
     profileMap = Object.fromEntries(profiles.map(p => [p.id, p]));
   }
 
-  // shipping完了通知用: 承認した常務の名前を取得
+  // shipping完了通知用: 承認した常務の名前 + 担当者名を取得
   const shippingApproverNameMap = {};
+  const shippingOwnersMap = {};
   const shippingCompletedReqIds = [...new Set(
     notifications.filter(n => reqMap[n.request_id]?.flow_type === 'shipping' && n.notification_type === 'completed')
       .map(n => n.request_id)
   )];
   if (shippingCompletedReqIds.length > 0) {
+    // 承認者名
     const steps = await supabaseFetch(
       `approval_steps?request_id=in.(${shippingCompletedReqIds.join(',')})&status=eq.approved&select=request_id,approver_id`
     );
@@ -211,6 +224,25 @@ async function main() {
       (steps || []).forEach(s => {
         if (s.approver_id && nameById[s.approver_id]) shippingApproverNameMap[s.request_id] = nameById[s.approver_id];
       });
+    }
+    // 担当者名（設計・組立・操業・営業）
+    const salesData = await supabaseFetch(`app_settings?key=eq.sales_person_map&select=value`);
+    const salesMap = salesData?.[0]?.value ? JSON.parse(salesData[0].value) : {};
+    for (const reqId of shippingCompletedReqIds) {
+      const req = reqMap[reqId];
+      if (!req) continue;
+      const tasks = await supabaseFetch(
+        `tasks?project_number=eq.${encodeURIComponent(req.project_number)}&machine=eq.${encodeURIComponent(req.machine_name || '')}&select=text,owner,major_item`
+      );
+      const findO = (text, major) => [...new Set((tasks || [])
+        .filter(t => t.text === text && (!major || (t.major_item || '').trim() === major))
+        .map(t => t.owner).filter(Boolean))].join('・') || null;
+      shippingOwnersMap[reqId] = {
+        sekkei:   findO('出図', '設計'),
+        kumitate: findO('機械組立'),
+        shiunten: findO('試運転'),
+        sales:    salesMap[req.project_number] || null,
+      };
     }
   }
 
@@ -245,7 +277,10 @@ async function main() {
     const toEmail = TEST_MODE ? TEST_EMAIL : actualEmail;
 
     try {
-      const extra = { approverName: shippingApproverNameMap[notif.request_id] };
+      const extra = {
+        approverName: shippingApproverNameMap[notif.request_id],
+        owners:       shippingOwnersMap[notif.request_id],
+      };
       const mail = buildEmail(notif.notification_type, req, toName, extra);
 
       await transporter.sendMail({
