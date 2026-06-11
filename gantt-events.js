@@ -1080,16 +1080,14 @@
         // 今日のマーカー
         function updateTodayMarker() {
             gantt.deleteMarker("today_marker");
-            gantt.addMarker({ 
+            gantt.addMarker({
                 id: "today_marker",
-                start_date: new Date(), 
-                css: "today-line", 
+                start_date: new Date(),
+                css: "today-line",
                 text: ""
             });
         }
-        updateTodayMarker();
-        gantt.render();
-        
+
         // 初期ズームレベルに応じたクラス付与
         (function() {
             const container = document.getElementById("gantt_here");
@@ -1518,3 +1516,5 @@
 
         gantt.config.readonly = true; // デフォルトは読み取り専用、ログイン後に解除
         gantt.init("gantt_here");
+        updateTodayMarker();
+        gantt.render();
