@@ -77,15 +77,21 @@ function tokyoDateStr() {
   return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' });
 }
 
+// JST当日0:00のISO文字列（前日中の申請をすべて対象にするcutoff用）
+function todayMidnightJST() {
+  const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' });
+  return new Date(`${todayStr}T00:00:00+09:00`).toISOString();
+}
+
 // ===== 承認催促 =====
 async function runApprovalReminders() {
   console.log('\n--- 承認催促チェック ---');
 
-  // 24時間以上前に申請されてまだ submitted のリクエスト（テストモードは時間制限なし）
-  const cutoff = new Date(Date.now() - (TEST_MODE ? 0 : 24 * 60 * 60 * 1000)).toISOString();
+  // 前日以前に申請されてまだ submitted のリクエスト（テストモードは時間制限なし）
+  const cutoff = TEST_MODE ? new Date().toISOString() : todayMidnightJST();
   const requests = await supabaseFetch(
     `approval_requests?status=eq.submitted&flow_type=in.(assembly,test_run,shipping)` +
-    `&created_at=lte.${encodeURIComponent(cutoff)}&select=id,project_number,machine_name,flow_type`
+    `&created_at=lt.${encodeURIComponent(cutoff)}&select=id,project_number,machine_name,flow_type`
   );
 
   if (!requests || requests.length === 0) {
