@@ -129,7 +129,7 @@ async function runApprovalReminders() {
         const text    =
           `${approver.name} 様\n\n` +
           `${pStr} の「${flow}」について、` +
-          `承認依頼が届いてから24時間以上が経過しています。\n` +
+          `前日に承認依頼が届いていますが、まだ承認されていません。\n` +
           `承認フロー管理システムにログインして承認をお願いします。\n\n` +
           `※このメールは自動送信です。`;
 
@@ -184,6 +184,9 @@ async function runSubmissionReminders() {
     return shippingRecipients;
   }
 
+  // 今回の実行で送信済みの (タスクキー + 宛先ID) を記録（1実行内の重複防止）
+  const sentThisRun = new Set();
+
   let count = 0;
   for (const [taskText, flowType] of Object.entries(TASK_TO_FLOW)) {
     const tasks = await supabaseFetch(
@@ -213,6 +216,8 @@ async function runSubmissionReminders() {
 
       for (const profile of (recipients || [])) {
         if (!profile.email) continue;
+        const dedupKey = `${task.project_number}__${task.machine || ''}__${flowType}__${profile.id}`;
+        if (sentThisRun.has(dedupKey)) continue;
 
         const flow    = FLOW_LABELS[flowType] || flowType;
         const pStr    = task.machine ? `${task.project_number} ${task.machine}` : String(task.project_number);
@@ -226,6 +231,7 @@ async function runSubmissionReminders() {
 
         try {
           await sendEmail(profile.email, profile.name, subject, text);
+          sentThisRun.add(dedupKey);
           count++;
         } catch (e) {
           console.error(`✗ 送信エラー: ${profile.email}`, e.message);
