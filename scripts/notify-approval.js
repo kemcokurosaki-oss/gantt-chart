@@ -14,11 +14,11 @@ const FLOW_LABELS = {
   shipping:   '出荷完了通知',
 };
 
-// 承認依頼・再申請の件名用ラベル（フロー1・2は「申請」表記）
+// 承認依頼・再申請・却下・他者完了の件名用ラベル（申請系表記）
 const FLOW_LABELS_REQUEST = {
   assembly: '組立完了申請',
   test_run: '試運転完了申請',
-  shipping: '出荷完了通知',
+  shipping: '出荷申請',
 };
 
 const transporter = nodemailer.createTransport({
@@ -103,12 +103,20 @@ function buildEmail(type, req, recipientName, extra = {}) {
         if (o.sales)    lines.push(`  営業: ${o.sales}`);
         if (lines.length > 0) ownersSection = '\n\n担当者確認（簡易検査）:\n' + lines.join('\n');
       }
+      const completedSubject = isShipping ? `【出荷確定通知】${pStr}` : `【${flow}】${pStr}`;
+      const completedBody = req?.flow_type === 'assembly'
+        ? `${pStr} の機械組立が完了しました。`
+        : req?.flow_type === 'test_run'
+        ? `${pStr} の試運転が完了しました。`
+        : isShipping
+        ? `${pStr} の出荷日が確定しました。`
+        : `${pStr} の「${flow}」が承認されました。`;
       return {
         from,
-        subject: `【${flow}】${pStr}`,
+        subject: completedSubject,
         text:
           `${recipientName} 様\n\n` +
-          `${pStr} の「${flow}」が承認されました。` +
+          completedBody +
           shippingDate +
           approverLine +
           ownersSection +
@@ -119,10 +127,10 @@ function buildEmail(type, req, recipientName, extra = {}) {
     case 'completed_by_other':
       return {
         from,
-        subject: `【承認完了】${pStr}　${flow}`,
+        subject: `【承認完了】${pStr}　${flowReq}`,
         text:
           `${recipientName} 様\n\n` +
-          `${pStr} の「${flow}」は他の承認者により承認完了になりました。\n` +
+          `${pStr} の「${flowReq}」は他の承認者により承認完了になりました。\n` +
           `対応は不要です。` +
           `${note}\n\n※このメールは自動送信です。`,
       };
@@ -130,10 +138,10 @@ function buildEmail(type, req, recipientName, extra = {}) {
     case 'rejected':
       return {
         from,
-        subject: `【却下】${pStr}　${flow}`,
+        subject: `【却下】${pStr}　${flowReq}`,
         text:
           `${recipientName} 様\n\n` +
-          `${pStr} の「${flow}」が却下されました。\n` +
+          `${pStr} の「${flowReq}」が却下されました。\n` +
           `承認フロー管理システムで内容を確認し、再申請してください。` +
           `${note}\n\n※このメールは自動送信です。`,
       };
