@@ -16,8 +16,16 @@ const TEST_MODE    = process.env.TEST_MODE === 'true';
 const TEST_EMAIL   = 'e-kurosaki@kusakabe.com';
 const TEST_PROJECT = (process.env.TEST_PROJECT || '').trim();
 
-const FLOW_LABELS  = { assembly: '組立完了通知', test_run: '試運転完了通知' };
-const TASK_TO_FLOW = { '機械組立': 'assembly', '試運転': 'test_run' };
+const FLOW_LABELS = {
+  assembly: '組立完了申請',
+  test_run: '試運転完了申請',
+  shipping: '出荷完了申請',
+};
+const TASK_TO_FLOW = {
+  '機械組立': 'assembly',
+  '試運転':   'test_run',
+  '工場出荷': 'shipping',
+};
 
 function requireEnv(name, v) {
   if (!v) throw new Error(`環境変数 ${name} が未設定です`);
@@ -76,7 +84,7 @@ async function runApprovalReminders() {
   // 24時間以上前に申請されてまだ submitted のリクエスト（テストモードは時間制限なし）
   const cutoff = new Date(Date.now() - (TEST_MODE ? 0 : 24 * 60 * 60 * 1000)).toISOString();
   const requests = await supabaseFetch(
-    `approval_requests?status=eq.submitted&flow_type=in.(assembly,test_run)` +
+    `approval_requests?status=eq.submitted&flow_type=in.(assembly,test_run,shipping)` +
     `&created_at=lte.${encodeURIComponent(cutoff)}&select=id,project_number,machine_name,flow_type`
   );
 
@@ -109,12 +117,12 @@ async function runApprovalReminders() {
         const key = `${req.id}__${approver.id}`;
         if (sentSet.has(key)) continue;
 
-        const flow    = FLOW_LABELS[req.flow_type] || req.flow_type;
-        const machine = req.machine_name ? `【${req.machine_name}】` : '';
-        const subject = `【承認催促】工番 ${req.project_number}${machine}　${flow}`;
+        const flow  = FLOW_LABELS[req.flow_type] || req.flow_type;
+        const pStr  = req.machine_name ? `${req.project_number} ${req.machine_name}` : String(req.project_number);
+        const subject = `【承認催促】${pStr}　${flow}`;
         const text    =
           `${approver.name} 様\n\n` +
-          `工番 ${req.project_number}${machine} の「${flow}」について、` +
+          `${pStr} の「${flow}」について、` +
           `承認依頼が届いてから24時間以上が経過しています。\n` +
           `承認フロー管理システムにログインして承認をお願いします。\n\n` +
           `※このメールは自動送信です。`;
@@ -146,12 +154,29 @@ async function runSubmissionReminders() {
 
   // 申請済みリクエストのセット（rejected以外）
   const submitted = await supabaseFetch(
-    `approval_requests?flow_type=in.(assembly,test_run)&status=neq.rejected` +
+    `approval_requests?flow_type=in.(assembly,test_run,shipping)&status=neq.rejected` +
     `&select=project_number,machine_name,flow_type`
   );
   const submittedSet = new Set(
     (submitted || []).map(r => `${r.project_number}__${r.machine_name}__${r.flow_type}`)
   );
+
+  // 出荷完了申請の催促宛先（品証・製管スタッフ）をあらかじめ取得
+  let shippingRecipients = null;
+  async function getShippingRecipients() {
+    if (shippingRecipients) return shippingRecipients;
+    const qualityProfs = await supabaseFetch(`profiles?role=eq.quality&select=id,name,email`);
+    const seikanProfs  = await supabaseFetch(
+      `profiles?department=eq.${encodeURIComponent('製管')}&role=eq.staff&select=id,name,email`
+    );
+    const seen = new Set();
+    shippingRecipients = [...(qualityProfs || []), ...(seikanProfs || [])].filter(p => {
+      if (!p.id || seen.has(p.id)) return false;
+      seen.add(p.id);
+      return true;
+    });
+    return shippingRecipients;
+  }
 
   let count = 0;
   for (const [taskText, flowType] of Object.entries(TASK_TO_FLOW)) {
@@ -161,26 +186,34 @@ async function runSubmissionReminders() {
     );
 
     for (const task of (tasks || [])) {
-      if (!task.owner || task.is_completed) continue;
+      if (task.is_completed) continue;
+      // assembly/test_run はタスクオーナーが必須、shipping は不問
+      if (flowType !== 'shipping' && !task.owner) continue;
       // テストモードで工事番号が指定されている場合は絞り込み
       if (TEST_MODE && TEST_PROJECT && String(task.project_number) !== TEST_PROJECT) continue;
 
       const key = `${task.project_number}__${task.machine}__${flowType}`;
       if (submittedSet.has(key)) continue;
 
-      const profiles = await supabaseFetch(
-        `profiles?name=eq.${encodeURIComponent(task.owner)}&select=id,name,email`
-      );
+      // 宛先を決定: shipping は品証・製管スタッフ、それ以外はタスクオーナー
+      let recipients;
+      if (flowType === 'shipping') {
+        recipients = await getShippingRecipients();
+      } else {
+        recipients = await supabaseFetch(
+          `profiles?name=eq.${encodeURIComponent(task.owner)}&select=id,name,email`
+        );
+      }
 
-      for (const profile of (profiles || [])) {
+      for (const profile of (recipients || [])) {
         if (!profile.email) continue;
 
         const flow    = FLOW_LABELS[flowType] || flowType;
-        const machine = task.machine ? `【${task.machine}】` : '';
-        const subject = `【申請催促】工番 ${task.project_number}${machine}　${flow}`;
+        const pStr    = task.machine ? `${task.project_number} ${task.machine}` : String(task.project_number);
+        const subject = `【申請催促】${pStr}　${flow}`;
         const text    =
           `${profile.name} 様\n\n` +
-          `工番 ${task.project_number}${machine} の「${flow}」について、` +
+          `${pStr} の「${flow}」について、` +
           `タスクの終了日（${task.end_date}）を過ぎていますが申請がされていません。\n` +
           `承認フロー管理システムにログインして申請をお願いします。\n\n` +
           `※このメールは自動送信です。`;
