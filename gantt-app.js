@@ -1497,16 +1497,9 @@
             });
             let projects = Object.keys(projectInfoMap).sort();
 
-            // 完了済工番をサイドバーから除外（ただし期限内の出張タスクがある工番は残す）
+            // 完了済工番をサイドバーから除外
             const completedNums = new Set(completedProjects.map(cp => cp.project_number));
-            const completedWithActiveTrip = new Set();
-            (tasks || []).forEach(t => {
-                const pn = (t.project_number || "").toString().trim();
-                if (completedNums.has(pn) && _isBusinessTripTaskRow(t) && !_isTripTaskExpired(t)) {
-                    completedWithActiveTrip.add(pn);
-                }
-            });
-            projects = projects.filter(p => !completedNums.has(p) || completedWithActiveTrip.has(p));
+            projects = projects.filter(p => !completedNums.has(p));
 
             // グループフィルター適用
             if (currentProjectGroupFilter === '2000') {
