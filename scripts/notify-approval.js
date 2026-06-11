@@ -14,6 +14,13 @@ const FLOW_LABELS = {
   shipping:   '出荷完了通知',
 };
 
+// 承認依頼・再申請の件名用ラベル（フロー1・2は「申請」表記）
+const FLOW_LABELS_REQUEST = {
+  assembly: '組立完了申請',
+  test_run: '試運転完了申請',
+  shipping: '出荷完了通知',
+};
+
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: { user: GMAIL_USER, pass: GMAIL_PASS },
@@ -41,37 +48,41 @@ async function supabaseFetch(path, options = {}) {
 
 // ===== メール本文生成 =====
 function buildEmail(type, req, recipientName, extra = {}) {
-  const pNum    = req?.project_number || '—';
-  const machine = req?.machine_name  ? `【${req.machine_name}】` : '';
-  const flow    = FLOW_LABELS[req?.flow_type] || req?.flow_type || '—';
-  const note  = req?.note ? `\nコメント: ${req.note}` : '';
-  const from  = `"工事工程 通知" <${GMAIL_USER}>`;
+  const pNum       = req?.project_number || '—';
+  const machineName = req?.machine_name || '';
+  const pStr       = machineName ? `${pNum} ${machineName}` : pNum; // "1234 機械A"
+  const flow       = FLOW_LABELS[req?.flow_type]         || req?.flow_type || '—';
+  const flowReq    = FLOW_LABELS_REQUEST[req?.flow_type] || flow; // 承認依頼・再申請用
+  const note       = req?.note ? `\nコメント: ${req.note}` : '';
+  const from       = `"工事工程 通知" <${GMAIL_USER}>`;
+  const parallelNote = req?.flow_type === 'assembly'
+    ? '\n\n※組立課長・部長どちらかが承認すれば完了になります。先に承認された場合、もう一方の承認は不要です。'
+    : req?.flow_type === 'test_run'
+    ? '\n\n※操業課長・部長どちらかが承認すれば完了になります。先に承認された場合、もう一方の承認は不要です。'
+    : '';
 
   switch (type) {
     case 'approval_request':
       return {
         from,
-        subject: `【承認依頼】工番 ${pNum}${machine}　${flow}`,
+        subject: `【承認依頼】${pStr}　${flowReq}`,
         text:
           `${recipientName} 様\n\n` +
-          `工番 ${pNum}${machine} の「${flow}」について承認依頼が届いています。\n` +
+          `${pStr} の「${flowReq}」について承認依頼が届いています。\n` +
           `承認フロー管理システムにログインして承認をお願いします。` +
-          (req?.flow_type === 'assembly'
-            ? '\n\n※組立課長・部長どちらかが承認すれば完了になります。先に承認された場合、もう一方の承認は不要です。'
-            : req?.flow_type === 'test_run'
-            ? '\n\n※操業課長・部長どちらかが承認すれば完了になります。先に承認された場合、もう一方の承認は不要です。'
-            : '') +
+          parallelNote +
           `${note}\n\n※このメールは自動送信です。`,
       };
 
     case 'resubmit':
       return {
         from,
-        subject: `【再申請】工番 ${pNum}${machine}　${flow}`,
+        subject: `【再申請】${pStr}　${flowReq}`,
         text:
           `${recipientName} 様\n\n` +
-          `工番 ${pNum}${machine} の「${flow}」が修正のうえ再申請されました。\n` +
+          `${pStr} の「${flowReq}」が修正のうえ再申請されました。\n` +
           `承認フロー管理システムにログインして内容をご確認のうえ承認をお願いします。` +
+          parallelNote +
           `${note}\n\n※このメールは自動送信です。`,
       };
 
@@ -94,10 +105,10 @@ function buildEmail(type, req, recipientName, extra = {}) {
       }
       return {
         from,
-        subject: `【承認完了】工番 ${pNum}${machine}　${flow}`,
+        subject: `【${flow}】${pStr}`,
         text:
           `${recipientName} 様\n\n` +
-          `工番 ${pNum} の「${flow}」が承認されました。` +
+          `${pStr} の「${flow}」が承認されました。` +
           shippingDate +
           approverLine +
           ownersSection +
@@ -108,10 +119,10 @@ function buildEmail(type, req, recipientName, extra = {}) {
     case 'completed_by_other':
       return {
         from,
-        subject: `【承認完了】工番 ${pNum}${machine}　${flow}`,
+        subject: `【承認完了】${pStr}　${flow}`,
         text:
           `${recipientName} 様\n\n` +
-          `工番 ${pNum}${machine} の「${flow}」は他の承認者により承認完了になりました。\n` +
+          `${pStr} の「${flow}」は他の承認者により承認完了になりました。\n` +
           `対応は不要です。` +
           `${note}\n\n※このメールは自動送信です。`,
       };
@@ -119,10 +130,10 @@ function buildEmail(type, req, recipientName, extra = {}) {
     case 'rejected':
       return {
         from,
-        subject: `【却下】工番 ${pNum}${machine}　${flow}`,
+        subject: `【却下】${pStr}　${flow}`,
         text:
           `${recipientName} 様\n\n` +
-          `工番 ${pNum} の「${flow}」が却下されました。\n` +
+          `${pStr} の「${flow}」が却下されました。\n` +
           `承認フロー管理システムで内容を確認し、再申請してください。` +
           `${note}\n\n※このメールは自動送信です。`,
       };
@@ -133,10 +144,10 @@ function buildEmail(type, req, recipientName, extra = {}) {
       const location = req?.inspection_location || '未定';
       return {
         from,
-        subject: `【出荷確認会議開催案内】工番 ${pNum}`,
+        subject: `【出荷確認会議開催案内】${pNum}`,
         text:
           `${recipientName} 様\n\n` +
-          `工番 ${pNum} の出荷確認会議を下記のとおり実施します。\n\n` +
+          `${pNum} の出荷確認会議を下記のとおり実施します。\n\n` +
           `日時: ${date}${time}\n` +
           `場所: ${location}` +
           `${note}\n\n※このメールは自動送信です。`,
@@ -149,10 +160,10 @@ function buildEmail(type, req, recipientName, extra = {}) {
       const location = req?.inspection_location || '未定';
       return {
         from,
-        subject: `【外観検査開催案内】工番 ${pNum}`,
+        subject: `【外観検査開催案内】${pNum}`,
         text:
           `${recipientName} 様\n\n` +
-          `工番 ${pNum} の外観検査を下記のとおり実施します。\n\n` +
+          `${pNum} の外観検査を下記のとおり実施します。\n\n` +
           `日時: ${date}${time}\n` +
           `場所: ${location}` +
           `${note}\n\n※このメールは自動送信です。`,
@@ -162,9 +173,9 @@ function buildEmail(type, req, recipientName, extra = {}) {
     default:
       return {
         from,
-        subject: `【工程通知】工番 ${pNum}　${flow}`,
+        subject: `【工程通知】${pStr}　${flow}`,
         text:
-          `${recipientName} 様\n\n工番 ${pNum} に関する通知です。` +
+          `${recipientName} 様\n\n${pStr} に関する通知です。` +
           `${note}\n\n※このメールは自動送信です。`,
       };
   }
@@ -203,6 +214,17 @@ async function main() {
       `profiles?id=in.(${recipientIds.join(',')})&select=id,name,email`
     );
     profileMap = Object.fromEntries(profiles.map(p => [p.id, p]));
+  }
+
+  // notification_recipients の名前マップを取得（外部宛先の宛名に使用）
+  const recipientEmails = [...new Set(notifications.map(n => n.recipient_email).filter(Boolean))];
+  let recipientEmailNameMap = {};
+  if (recipientEmails.length > 0) {
+    const allRecipients = await supabaseFetch(`notification_recipients?active=eq.true&select=name,email`);
+    const emailSet = new Set(recipientEmails);
+    (allRecipients || []).forEach(r => {
+      if (r.email && emailSet.has(r.email)) recipientEmailNameMap[r.email] = r.name;
+    });
   }
 
   // shipping完了通知用: 承認した常務の名前 + 担当者名を取得
@@ -258,7 +280,7 @@ async function main() {
     let actualEmail, toName;
     if (notif.recipient_email) {
       actualEmail = notif.recipient_email;
-      toName      = '担当者';
+      toName      = recipientEmailNameMap[notif.recipient_email] || '担当者';
     } else if (notif.recipient_id) {
       const profile = profileMap[notif.recipient_id];
       if (!profile?.email) {
