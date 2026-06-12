@@ -62,6 +62,15 @@ const transporter = nodemailer.createTransport({
   auth: { user: GMAIL_USER, pass: GMAIL_PASS },
 });
 
+// 完了済み工番セット（main()でロード）
+let completedProjectsSet = new Set();
+
+async function loadCompletedProjects() {
+  const rows = await supabaseFetch('completed_projects?select=project_number');
+  completedProjectsSet = new Set((rows || []).map(r => String(r.project_number).trim()));
+  console.log(`完了済み工番: ${completedProjectsSet.size}件を除外対象にロード`);
+}
+
 async function sendEmail(toEmail, toName, subject, body) {
   const actualTo = TEST_MODE ? TEST_EMAIL : toEmail;
   await transporter.sendMail({
@@ -115,6 +124,7 @@ async function runApprovalReminders() {
 
   let count = 0;
   for (const req of requests) {
+    if (completedProjectsSet.has(String(req.project_number).trim())) continue;
     const steps = await supabaseFetch(
       `approval_steps?request_id=eq.${req.id}&status=eq.pending&select=approver_role`
     );
@@ -208,6 +218,7 @@ async function runSubmissionReminders() {
 
     for (const task of (tasks || [])) {
       if (task.is_completed) continue;
+      if (completedProjectsSet.has(String(task.project_number).trim())) continue;
       // assembly/test_run はタスクオーナーが必須、shipping は不問
       if (flowType !== 'shipping' && !task.owner) continue;
       // テストモードで工事番号が指定されている場合は絞り込み
@@ -329,6 +340,7 @@ async function runInvitationReminders() {
   let count = 0;
 
   for (const target of targets) {
+    if (completedProjectsSet.has(String(target.project_number).trim())) continue;
     if (TEST_MODE && TEST_PROJECT && String(target.project_number) !== TEST_PROJECT) continue;
 
     const taskKey = `${target.project_number}__${target.machine}`;
@@ -371,6 +383,7 @@ async function main() {
   console.log(`テストモード: ${TEST_MODE}`);
   console.log(`実行日 (JST): ${tokyoDateStr()}`);
 
+  await loadCompletedProjects();
   await runApprovalReminders();
   await runSubmissionReminders();
   await runInvitationReminders();
