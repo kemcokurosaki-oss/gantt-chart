@@ -1090,9 +1090,6 @@
                 text: ""
             });
         }
-        updateTodayMarker();
-        gantt.render();
-        
         // 初期ズームレベルに応じたクラス付与
         (function() {
             const container = document.getElementById("gantt_here");
@@ -1557,5 +1554,9 @@
         });
         // ===== Split Task セグメント描画 ここまで =====
 
+        if (typeof gantt.plugins === 'function') {
+            gantt.plugins({ marker: true, grouplist: true, inline_editors: true, dnd: true });
+        }
         gantt.config.readonly = true; // デフォルトは読み取り専用、ログイン後に解除
         gantt.init("gantt_here");
+        updateTodayMarker();
