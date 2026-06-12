@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>Split Task イメージデモ</title>
+  <link rel="stylesheet" href="https://cdn.dhtmlx.com/gantt/9.0/dhtmlxgantt.css">
+  <script src="https://cdn.dhtmlx.com/gantt/9.0/dhtmlxgantt.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Meiryo', sans-serif; background: #f5f7fa; overflow: hidden; }
+
+    .page-header {
+      background: #1a2a3a; color: #fff;
+      padding: 8px 20px; height: 40px;
+      display: flex; align-items: center; gap: 12px;
+    }
+    .page-header h1 { font-size: 14px; font-weight: bold; }
+    .badge { background:#e74c3c; color:#fff; font-size:11px; padding:2px 8px; border-radius:10px; }
+    .state-ind {
+      margin-left: auto; font-size: 12px; font-weight: bold;
+      padding: 3px 12px; border-radius: 10px; transition: all 0.3s;
+    }
+    .s-before { background:#fde; color:#c0392b; border:1px solid #c0392b; }
+    .s-after  { background:#dfd; color:#1a7a40; border:1px solid #27ae60; }
+
+    .layout { display: flex; height: calc(100vh - 40px); }
+
+    .side-panel {
+      width: 260px; min-width: 260px;
+      background: #fff; border-right: 2px solid #dde3ea;
+      overflow-y: auto; padding: 12px;
+      display: flex; flex-direction: column; gap: 12px;
+    }
+    .side-panel h2 {
+      font-size: 12px; font-weight: bold; color: #1a2a3a;
+      border-bottom: 2px solid #3498db; padding-bottom: 4px;
+    }
+    .sw-btn {
+      width: 100%; padding: 10px 12px;
+      border: 2px solid #ccc; border-radius: 8px;
+      cursor: pointer; font-size: 12px; font-weight: bold;
+      background: #f8f9fa; color: #555; text-align: left;
+      transition: all 0.15s; line-height: 1.5;
+    }
+    .sw-btn small { display:block; font-size:11px; font-weight:normal; opacity:0.75; margin-top:2px; }
+    .sw-btn:hover { opacity: 0.85; }
+    .sw-active-before { background:#fdedec; border-color:#e74c3c; color:#c0392b; }
+    .sw-active-after  { background:#eafaf1; border-color:#27ae60; color:#1a7a40; }
+
+    .callout {
+      border-left: 4px solid #3498db; background: #ebf5fb;
+      padding: 8px 10px; border-radius: 0 5px 5px 0;
+      font-size: 11px; line-height: 1.7; color: #1a2a3a;
+    }
+    .callout.green  { border-color:#27ae60; background:#eafaf1; }
+    .callout.orange { border-color:#e67e22; background:#fdf2e9; }
+    .callout.red    { border-color:#e74c3c; background:#fdedec; }
+    .callout b { display:block; font-size:12px; margin-bottom:2px; }
+
+    .legend { display:flex; flex-direction:column; gap:6px; }
+    .li { display:flex; align-items:center; gap:7px; font-size:11px; }
+    .lb { width:36px; height:12px; border-radius:2px; flex-shrink:0; }
+    .lb-blue   { background:#3399ff; }
+    .lb-red    { background:#e74c3c; }
+    .lb-ora1   { background:#e67e22; }
+    .lb-ora2   { background:#e67e22; opacity:.65; }
+
+    .arrow { text-align:center; font-size:18px; color:#3498db; }
+
+    .gantt-area { flex:1; min-width:0; display:flex; flex-direction:column; overflow:hidden; }
+    .status-bar {
+      background:#fff; border-bottom:1px solid #dde3ea;
+      padding:5px 14px; font-size:12px; color:#444; flex-shrink:0;
+    }
+    .tag {
+      display:inline-block; padding:1px 8px; border-radius:10px;
+      font-size:11px; font-weight:bold; margin:0 3px;
+    }
+    .t-before { background:#fdedec; color:#c0392b; border:1px solid #e74c3c; }
+    .t-after  { background:#eafaf1; color:#1a7a40; border:1px solid #27ae60; }
+
+    #gantt_here { flex:1; min-height:0; }
+
+    .my-tip {
+      position:fixed; background:#1a2a3a; color:#fff;
+      font-size:11px; padding:6px 10px; border-radius:4px;
+      pointer-events:none; z-index:9999; display:none;
+      line-height:1.7; white-space:nowrap;
+    }
+  </style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>Split Task イメージデモ ― 同じ行に複数バーを表示</h1>
+  <span class="badge">デモ専用・本番データなし</span>
+  <span class="state-ind s-before" id="state-ind">❌ 変更前を表示中</span>
+</div>
+
+<div class="layout">
+  <div class="side-panel">
+
+    <div>
+      <h2>表示切り替え</h2>
+      <div style="display:flex;flex-direction:column;gap:7px;margin-top:8px;">
+        <button class="sw-btn sw-active-before" id="btn-before" onclick="switchTab('before')">
+          ❌ 変更前（現在の表示）<small>同じ工事の組立が2行に分かれる</small>
+        </button>
+        <button class="sw-btn" id="btn-after" onclick="switchTab('after')">
+          ✅ 変更後（Split Task）<small>1行・2バーにまとまる</small>
+        </button>
+      </div>
+    </div>
+
+    <div>
+      <h2>凡例</h2>
+      <div class="legend">
+        <div class="li"><div class="lb lb-blue"></div>通常タスク（設計・製管など）</div>
+        <div class="li"><div class="lb lb-red"></div>変更前：問題の組立行（2行）</div>
+        <div class="li"><div class="lb lb-ora1"></div>変更後：組立バー（前半）</div>
+        <div class="li"><div class="lb lb-ora2"></div>変更後：組立バー（後半）</div>
+      </div>
+    </div>
+
+    <div>
+      <h2>変更前の問題</h2>
+      <div class="callout red">
+        <b>❌ 組立が2行になる</b>
+        工事1234・M-1 の組立を2期間（5/1〜5 と 5/15〜20）で登録すると2行に分かれ、グリッドの日付もバラバラになる。
+      </div>
+    </div>
+
+    <div class="arrow">↓ 変更後</div>
+
+    <div>
+      <h2>変更後の改善点</h2>
+      <div class="callout green">
+        <b>✅ 1行・2バーに統合</b>
+        組立が1行にまとまり、オレンジのバーが2本（前半・後半）横並びで表示される。バーの間は空白（5/6〜5/14）。
+      </div>
+    </div>
+
+    <div>
+      <h2>グリッドの日付</h2>
+      <div class="callout orange">
+        <b>📅 最早・最遅を自動表示</b>
+        開始日 = 前半の開始（5/1）<br>
+        終了日 = 後半の終了（5/20）<br>
+        ※ バーにカーソルを乗せると詳細が出ます
+      </div>
+    </div>
+
+    <div>
+      <h2>担当者</h2>
+      <div class="callout">
+        <b>👤 バーごとに別担当者を設定可能</b>
+        前半：田中 / 後半：鈴木 のように、セグメントごとに個別設定できます。
+      </div>
+    </div>
+
+  </div>
+
+  <div class="gantt-area">
+    <div class="status-bar" id="status-bar">
+      <b>変更前：</b>工事1234 / M-1 の組立が
+      <span class="tag t-before">2行</span>に分かれて表示されている（赤いバー）
+    </div>
+    <div id="gantt_here"></div>
+  </div>
+</div>
+
+<div class="my-tip" id="tip"></div>
+
+<script>
+// ===== ユーティリティ =====
+function parseD(s) {
+  if (!s) return null;
+  if (s instanceof Date) return new Date(s);
+  const m = String(s).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? new Date(+m[1], +m[2]-1, +m[3]) : null;
+}
+function fmtD(d) {
+  if (!d) return "―";
+  if (typeof d === "string") { d = parseD(d); }
+  if (!d || isNaN(d)) return "―";
+  return (d.getMonth()+1) + "/" + d.getDate();
+}
+
+// ===== データ =====
+const dataBefore = {
+  data: [
+    { id:"p1", text:"工事1234 / M-1", type:"project", open:true, start_date:"2025-04-21", duration:40 },
+    { id:1, parent:"p1", text:"設計", start_date:"2025-04-21", duration:14, owner:"山田",  _bt:"normal" },
+    { id:2, parent:"p1", text:"製管", start_date:"2025-04-28", duration:10, owner:"佐藤",  _bt:"normal" },
+    { id:3, parent:"p1", text:"組立（前半）", start_date:"2025-05-01", duration:5,  owner:"田中", _bt:"problem" },
+    { id:4, parent:"p1", text:"組立（後半）", start_date:"2025-05-15", duration:6,  owner:"鈴木", _bt:"problem" },
+    { id:"p2", text:"工事5678 / M-2", type:"project", open:true, start_date:"2025-04-28", duration:35 },
+    { id:5, parent:"p2", text:"設計", start_date:"2025-04-28", duration:10, owner:"山田", _bt:"normal" },
+    { id:6, parent:"p2", text:"組立", start_date:"2025-05-12", duration:8,  owner:"田中", _bt:"normal" },
+    { id:7, parent:"p2", text:"検査", start_date:"2025-05-22", duration:3,  owner:"高橋", _bt:"normal" },
+  ],
+  links:[]
+};
+
+// 変更後：組立は1行、_segs で2本のバーを描画
+const dataAfter = {
+  data: [
+    { id:"p1", text:"工事1234 / M-1", type:"project", open:true, start_date:"2025-04-21", duration:40 },
+    { id:1, parent:"p1", text:"設計", start_date:"2025-04-21", duration:14, owner:"山田", _bt:"normal" },
+    { id:2, parent:"p1", text:"製管", start_date:"2025-04-28", duration:10, owner:"佐藤", _bt:"normal" },
+    {
+      id:"sp1", parent:"p1", text:"組立",
+      start_date:"2025-05-01", duration:20,       // 最早〜最遅を包む期間
+      owner:"田中 / 鈴木",
+      _split_start:"2025-05-01", _split_end:"2025-05-20",
+      _segs:[
+        { start:"2025-05-01", dur:5,  owner:"田中", label:"前半", color:"#e67e22", op:1.0 },
+        { start:"2025-05-15", dur:6,  owner:"鈴木", label:"後半", color:"#e67e22", op:0.75 }
+      ],
+      _bt:"csplit"
+    },
+    { id:"p2", text:"工事5678 / M-2", type:"project", open:true, start_date:"2025-04-28", duration:35 },
+    { id:5, parent:"p2", text:"設計", start_date:"2025-04-28", duration:10, owner:"山田", _bt:"normal" },
+    { id:6, parent:"p2", text:"組立", start_date:"2025-05-12", duration:8,  owner:"田中", _bt:"normal" },
+    { id:7, parent:"p2", text:"検査", start_date:"2025-05-22", duration:3,  owner:"高橋", _bt:"normal" },
+  ],
+  links:[]
+};
+
+// ===== Gantt 設定 =====
+gantt.plugins({ marker: true });
+gantt.config.date_format       = "%Y-%m-%d";
+gantt.config.readonly          = true;
+gantt.config.show_errors       = false;
+gantt.config.scale_height      = 44;
+gantt.config.row_height        = 30;
+gantt.config.bar_height        = 20;
+gantt.config.min_column_width  = 24;
+
+gantt.config.columns = [
+  { name:"text",  label:"タスク名", width:130, tree:true },
+  { name:"owner", label:"担当",     width:90,
+    template: t => (t.type==="project") ? "" : (t.owner || "―") },
+  { name:"_sd",   label:"開始日",   width:68, align:"center",
+    template: t => {
+      if (t._split_start)      return fmtD(t._split_start);
+      if (t.type==="project")  return "";
+      return fmtD(t.start_date);
+    }
+  },
+  { name:"_ed",   label:"終了日",   width:68, align:"center",
+    template: t => {
+      if (t._split_end)        return fmtD(t._split_end);
+      if (t.type==="project")  return "";
+      if (!t.start_date)       return "―";
+      const d = parseD(t.start_date);
+      if (!d) return "―";
+      d.setDate(d.getDate() + ((t.duration||1) - 1));
+      return fmtD(d);
+    }
+  },
+];
+
+gantt.config.scales = [
+  { unit:"month", step:1, format:"%Y年%m月" },
+  { unit:"day",   step:1, format:"%d",
+    css: d => d.getDay()===0?"gantt_sunday":(d.getDay()===6?"gantt_saturday":"") }
+];
+
+// バークラス
+gantt.templates.task_class = (s, e, t) => "bt-" + (t._bt || "normal");
+
+// 通常バーのテキスト
+gantt.templates.task_text = (start, end, task) => {
+  if (task._segs) return "";
+  return task.owner ? `<span style="font-size:10px">${task.owner}</span>` : "";
+};
+
+gantt.templates.rightside_text = () => "";
+gantt.attachEvent("onTaskDblClick",   () => false);
+gantt.attachEvent("onBeforeLightbox", () => false);
+
+gantt.init("gantt_here");
+
+// レンダリング後にセグメントバーをDOMに直接追加
+function renderSegments() {
+  document.querySelectorAll(".gantt_task_line.bt-csplit").forEach(function(el) {
+    el.querySelectorAll(".cseg").forEach(function(s) { s.remove(); });
+    var taskId = el.getAttribute("task_id");
+    if (!taskId) return;
+    var task; try { task = gantt.getTask(taskId); } catch(e) { return; }
+    if (!task || !task._segs) return;
+
+    var ts = task.start_date instanceof Date ? new Date(task.start_date) : parseD(task.start_date);
+    if (!ts) return;
+    var totalMs = (task.duration || 1) * 86400000;
+    var barH = el.offsetHeight || 20;
+
+    task._segs.forEach(function(seg) {
+      var s0 = parseD(seg.start);
+      if (!s0) return;
+      var e0 = new Date(s0.getTime() + seg.dur * 86400000);
+      var leftPct = ((s0.getTime() - ts.getTime()) / totalMs * 100).toFixed(2);
+      var widthPct = ((e0.getTime() - s0.getTime()) / totalMs * 100).toFixed(2);
+      var div = document.createElement("div");
+      div.className = "cseg";
+      div.style.cssText =
+        "position:absolute;left:" + leftPct + "%;width:" + widthPct + "%;" +
+        "top:2px;height:" + (barH - 4) + "px;" +
+        "background:" + seg.color + ";opacity:" + seg.op + ";border-radius:3px;" +
+        "display:flex;align-items:center;justify-content:center;" +
+        "color:#fff;font-size:10px;overflow:hidden;padding:0 4px;box-sizing:border-box;";
+      div.textContent = seg.owner;
+      el.appendChild(div);
+    });
+  });
+}
+gantt.attachEvent("onGanttRender", renderSegments);
+
+gantt.parse(dataBefore);
+gantt.addMarker({ start_date: new Date(), css:"today-line", text:"今日", title:"今日" });
+
+// ===== 切り替え =====
+function switchTab(tab) {
+  const isBefore = tab === "before";
+  document.getElementById("btn-before").className = "sw-btn" + (isBefore ? " sw-active-before" : "");
+  document.getElementById("btn-after").className  = "sw-btn" + (!isBefore ? " sw-active-after"  : "");
+  const ind = document.getElementById("state-ind");
+  ind.textContent = isBefore ? "❌ 変更前を表示中" : "✅ 変更後を表示中";
+  ind.className   = "state-ind " + (isBefore ? "s-before" : "s-after");
+  const sb = document.getElementById("status-bar");
+  sb.innerHTML = isBefore
+    ? '<b>変更前：</b>工事1234 / M-1 の組立が <span class="tag t-before">2行</span> に分かれて表示（赤バー）'
+    : '<b>変更後：</b>組立が <span class="tag t-after">1行・2バー</span> に統合。開始日=5/1・終了日=5/20 を自動表示';
+  gantt.clearAll();
+  gantt.parse(isBefore ? dataBefore : dataAfter);
+  gantt.addMarker({ start_date: new Date(), css:"today-line", text:"今日", title:"今日" });
+}
+
+// ===== ツールチップ =====
+const tip = document.getElementById("tip");
+gantt.attachEvent("onMouseMove", (id, e) => {
+  if (!id) { tip.style.display = "none"; return; }
+  try {
+    const t = gantt.getTask(id);
+    if (!t || t.type === "project") { tip.style.display = "none"; return; }
+    let html;
+    if (t._split_start) {
+      html = `<b>組立（Split行）</b><br>開始日: ${fmtD(t._split_start)}<br>終了日: ${fmtD(t._split_end)}<br>担当: ${t.owner}`;
+    } else {
+      const ed = parseD(t.start_date);
+      if (ed) ed.setDate(ed.getDate() + ((t.duration||1) - 1));
+      html = `<b>${t.text}</b><br>開始日: ${fmtD(t.start_date)}<br>終了日: ${fmtD(ed)}<br>担当: ${t.owner||"―"}`;
+    }
+    tip.innerHTML = html;
+    tip.style.display = "block";
+    tip.style.left = (e.clientX + 14) + "px";
+    tip.style.top  = (e.clientY - 10) + "px";
+  } catch(_) { tip.style.display = "none"; }
+});
+document.addEventListener("mousemove", e => {
+  if (tip.style.display === "block") {
+    tip.style.left = (e.clientX + 14) + "px";
+    tip.style.top  = (e.clientY - 10) + "px";
+  }
+});
+gantt.attachEvent("onEmptyClick", () => { tip.style.display = "none"; });
+</script>
+
+<style>
+/* 通常バー */
+.bt-normal.gantt_task_line  { background:#3399ff !important; border-color:#1a7cd9 !important; }
+/* 変更前の問題バー */
+.bt-problem.gantt_task_line { background:#e74c3c !important; border-color:#c0392b !important; }
+
+/* Split行：親バー透明化。positionはDHHTMLXのabsoluteをそのまま使う（上書き禁止） */
+.bt-csplit.gantt_task_line {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+}
+.bt-csplit.gantt_task_line .gantt_task_progress { display: none !important; }
+
+/* プロジェクト見出し */
+.gantt_task_line.gantt_project { background:#2c3e50 !important; border-color:#1a252f !important; }
+.gantt_task_line.gantt_project .gantt_task_content { color:#fff !important; }
+
+/* 土日 */
+.gantt_saturday, .gantt_task_cell.gantt_saturday { background:#f0f7ff !important; }
+.gantt_sunday,   .gantt_task_cell.gantt_sunday   { background:#fff0f0 !important; }
+
+/* 今日ライン */
+.today-line { background:#e74c3c; width:2px; }
+.today-line .gantt_marker_content { background:#e74c3c; color:#fff; font-size:10px; padding:2px 4px; border-radius:2px; }
+
+/* グリッド */
+.gantt_grid_head_cell { background:#2c3e50 !important; color:#fff !important; font-size:12px !important; }
+.gantt_grid_data .gantt_cell  { font-size:12px !important; }
+.gantt_grid_data .gantt_row.gantt_project { background:#ecf0f1 !important; }
+.gantt_scale_cell { font-size:11px; }
+</style>
+
+</body>
+</html>

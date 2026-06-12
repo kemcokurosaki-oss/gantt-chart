@@ -1104,6 +1104,7 @@
 
         // 業務別カラー
         gantt.templates.task_text = function(start, end, task) {
+            if (task._is_split_parent) return ""; // セグメントバーはonGanttRenderで描画
             const projectNumber = (task.project_number || "").toString();
             const is2000s = projectNumber.startsWith('2');
 
@@ -1152,6 +1153,7 @@
                 css += "header-2000s ";
             }
 
+            if (task._is_split_parent) return css + "split-parent-bar";
             if (task.text === "神戸送り開始日") return css + "hidden_bar";
             if (task.text === "外観検査") return css + "milestone-circle";
             if (task.text === "出荷確認会議") return css + "milestone-diamond";
@@ -1518,6 +1520,42 @@
             renderFactoryShipmentStars();
         });
         // ========== 神戸送り開始日マーク ここまで ==========
+
+        // ===== Split Task セグメント描画 =====
+        gantt.attachEvent("onGanttRender", function() {
+            document.querySelectorAll(".gantt_task_line[task_id]").forEach(function(el) {
+                var id = el.getAttribute("task_id");
+                if (!id) return;
+                var task; try { task = gantt.getTask(id); } catch(e) { return; }
+                if (!task || !task._segs || !task._segs.length) return;
+
+                var existing = el.querySelectorAll(".cseg");
+                for (var i = 0; i < existing.length; i++) existing[i].remove();
+
+                var ts = task.start_date;
+                if (!ts || !(ts instanceof Date)) return;
+                var totalMs = (task.duration || 1) * 86400000;
+                var barH = el.offsetHeight || 20;
+
+                task._segs.forEach(function(seg) {
+                    var s0 = seg.start;
+                    if (!s0 || !(s0 instanceof Date)) return;
+                    var leftPct = ((s0.getTime() - ts.getTime()) / totalMs * 100).toFixed(2);
+                    var widthPct = (seg.dur * 86400000 / totalMs * 100).toFixed(2);
+                    var div = document.createElement("div");
+                    div.className = "cseg";
+                    div.style.cssText =
+                        "position:absolute;left:" + leftPct + "%;width:" + widthPct + "%;" +
+                        "top:2px;height:" + (barH - 4) + "px;" +
+                        "background:" + (seg.color || "#e67e22") + ";opacity:" + (seg.op || 1) + ";" +
+                        "border-radius:3px;display:flex;align-items:center;justify-content:center;" +
+                        "color:#fff;font-size:10px;overflow:hidden;padding:0 4px;box-sizing:border-box;";
+                    div.textContent = seg.owner || "";
+                    el.appendChild(div);
+                });
+            });
+        });
+        // ===== Split Task セグメント描画 ここまで =====
 
         gantt.config.readonly = true; // デフォルトは読み取り専用、ログイン後に解除
         gantt.init("gantt_here");

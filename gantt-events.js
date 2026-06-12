@@ -1297,7 +1297,16 @@
 
             // 1b. 完了済工番フィルター
             const taskPNum = (task.project_number || task.project_no || '').trim();
-            if (completedProjects.some(cp => cp.project_number === taskPNum)) return false;
+            if (completedProjects.some(cp => cp.project_number === taskPNum)) {
+                // 出張モードで期限内の出張タスクは完了済み工番でも表示する
+                if (currentDisplayMode === 'business_trip'
+                    && _isBusinessTripTaskRow(task)
+                    && !_isTripTaskExpired(task)) {
+                    // 通過（return false しない）
+                } else {
+                    return false;
+                }
+            }
 
             // 2. 工事番号フィルター (AND条件)
             // 左側リスト選択 (currentFilter) のみ有効（入力欄フィルターは削除）
