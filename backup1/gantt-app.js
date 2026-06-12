@@ -304,54 +304,6 @@
             window.allTasks = rawTasks;
             refreshAssemblyLogSnapshotsFromAllTasks();
 
-            // ===== Split Task グループ処理 =====
-            // split_group_id が同じタスクを1行・複数バーにまとめる
-            {
-                const splitGroupMap = {};
-                rawTasks.forEach(function(t) {
-                    if (!t.split_group_id) return;
-                    if (!splitGroupMap[t.split_group_id]) splitGroupMap[t.split_group_id] = [];
-                    splitGroupMap[t.split_group_id].push(t);
-                });
-                Object.values(splitGroupMap).forEach(function(members) {
-                    if (members.length < 2) return;
-                    // 開始日順にソート
-                    members.sort(function(a, b) {
-                        return parseLocalDate(a.start_date) - parseLocalDate(b.start_date);
-                    });
-                    // グループ全体の開始〜終了を計算
-                    let minStart = null, maxEnd = null;
-                    members.forEach(function(m) {
-                        const s = parseLocalDate(m.start_date);
-                        const e = gantt.calculateEndDate(s, m.duration);
-                        if (!minStart || s < minStart) minStart = s;
-                        if (!maxEnd || e > maxEnd) maxEnd = e;
-                    });
-                    const totalDur = Math.max(1, Math.round((maxEnd - minStart) / 86400000));
-                    const maxEndIncl = new Date(maxEnd.getTime() - 86400000); // 表示用最終日
-                    // 最初のメンバーを代表（Split親）として拡張
-                    const rep = members[0];
-                    rep._is_split_parent = true;
-                    rep.start_date = minStart;
-                    rep.duration = totalDur;
-                    rep._split_start = minStart;
-                    rep._split_end = maxEndIncl;
-                    rep._segs = members.map(function(m, i) {
-                        return {
-                            start: parseLocalDate(m.start_date),
-                            dur: m.duration,
-                            owner: m.owner || '',
-                            color: '#e67e22',
-                            op: i === 0 ? 1.0 : 0.78
-                        };
-                    });
-                    rep.owner = members.map(function(m) { return m.owner; }).filter(Boolean).join(' / ');
-                    // 2件目以降を非表示フラグ
-                    members.slice(1).forEach(function(m) { m._splitChild = true; });
-                });
-            }
-            // ===== Split Task グループ処理 ここまで =====
-
             // アクティブ案件（完了済み除外）の最小開始月を GANTT_START_DATE に反映
             {
                 const _completedSet = new Set((completedProjects || []).map(cp => (cp.project_number || "").toString().trim()));
@@ -382,6 +334,49 @@
             const isPureNumeric = (s) => /^\d+$/.test(s);
             // "YYYY-MM-DD" をローカル深夜0時の Date に変換（new Date("YYYY-MM-DD") はUTC深夜0時になりタイムゾーン分ずれるため）
             const parseLocalDate = (str) => { if (str == null) return new Date(str); const match = String(str).trim().match(/^(\d{4})-(\d{2})-(\d{2})/); if (!match) return new Date(str); return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3])); };
+
+            // ===== Split Task グループ処理 =====
+            {
+                const splitGroupMap = {};
+                rawTasks.forEach(function(t) {
+                    if (!t.split_group_id) return;
+                    if (!splitGroupMap[t.split_group_id]) splitGroupMap[t.split_group_id] = [];
+                    splitGroupMap[t.split_group_id].push(t);
+                });
+                Object.values(splitGroupMap).forEach(function(members) {
+                    if (members.length < 2) return;
+                    members.sort(function(a, b) {
+                        return parseLocalDate(a.start_date) - parseLocalDate(b.start_date);
+                    });
+                    let minStart = null, maxEnd = null;
+                    members.forEach(function(m) {
+                        const s = parseLocalDate(m.start_date);
+                        const e = gantt.calculateEndDate(s, m.duration);
+                        if (!minStart || s < minStart) minStart = s;
+                        if (!maxEnd || e > maxEnd) maxEnd = e;
+                    });
+                    const totalDur = Math.max(1, Math.round((maxEnd - minStart) / 86400000));
+                    const maxEndIncl = new Date(maxEnd.getTime() - 86400000);
+                    const rep = members[0];
+                    rep._is_split_parent = true;
+                    rep.start_date = minStart;
+                    rep.duration = totalDur;
+                    rep._split_start = minStart;
+                    rep._split_end = maxEndIncl;
+                    rep._segs = members.map(function(m, i) {
+                        return {
+                            start: parseLocalDate(m.start_date),
+                            dur: m.duration,
+                            owner: m.owner || '',
+                            color: '#e67e22',
+                            op: i === 0 ? 1.0 : 0.78
+                        };
+                    });
+                    rep.owner = members.map(function(m) { return m.owner; }).filter(Boolean).join(' / ');
+                    members.slice(1).forEach(function(m) { m._splitChild = true; });
+                });
+            }
+            // ===== Split Task グループ処理 ここまで =====
 
             const projects = [...new Set(rawTasks.map(t => t.project_number))]
                 .filter(Boolean)
