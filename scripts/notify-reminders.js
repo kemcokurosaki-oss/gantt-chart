@@ -71,15 +71,21 @@ async function loadCompletedProjects() {
   console.log(`完了済み工番: ${completedProjectsSet.size}件を除外対象にロード`);
 }
 
-async function sendEmail(toEmail, toName, subject, body) {
+async function sendEmail(toEmail, toName, subject, body, ccEmails = []) {
   const actualTo = TEST_MODE ? TEST_EMAIL : toEmail;
-  await transporter.sendMail({
+  const actualCc = TEST_MODE ? [] : ccEmails.filter(Boolean);
+  const mailOptions = {
     from:    `"工事工程 通知" <${GMAIL_USER}>`,
     to:      actualTo,
     subject: TEST_MODE ? `[TEST] ${subject}` : subject,
-    text:    TEST_MODE ? `【テスト送信】本来の宛先: ${toEmail}\n\n${body}` : body,
-  });
-  console.log(`✓ 送信完了: ${actualTo} (${toName} / ${subject})`);
+    text:    TEST_MODE
+      ? `【テスト送信】本来の宛先: ${toEmail}${ccEmails.length ? '\nCC: ' + ccEmails.join(', ') : ''}\n\n${body}`
+      : body,
+  };
+  if (actualCc.length > 0) mailOptions.cc = actualCc.join(',');
+  await transporter.sendMail(mailOptions);
+  const ccLog = actualCc.length ? ` CC: ${actualCc.join(', ')}` : '';
+  console.log(`✓ 送信完了: ${actualTo} (${toName} / ${subject})${ccLog}`);
 }
 
 function tokyoDateStr() {
@@ -200,6 +206,23 @@ async function runSubmissionReminders() {
     return shippingRecipients;
   }
 
+  // 申請催促CCに含める上長（組立: 課長・部長 / 操業: 課長・部長）
+  const superiorCache = {};
+  async function getSuperiors(flowType) {
+    if (superiorCache[flowType]) return superiorCache[flowType];
+    const roleMap = {
+      assembly: 'assembly_manager,assembly_director',
+      test_run: 'operations_manager,operations_director',
+    };
+    const roles = roleMap[flowType];
+    if (!roles) return (superiorCache[flowType] = []);
+    const profs = await supabaseFetch(
+      `profiles?role=in.(${encodeURIComponent(roles)})&select=id,name,email`
+    );
+    superiorCache[flowType] = (profs || []).filter(p => p.email);
+    return superiorCache[flowType];
+  }
+
   const tomorrowStr = tomorrowJSTStr();
 
   // 今回の実行で送信済みの (タスクキー + 宛先ID) を記録（1実行内の重複防止）
@@ -229,12 +252,14 @@ async function runSubmissionReminders() {
 
       // 宛先を決定: shipping は品証・製管スタッフ、それ以外はタスクオーナー
       let recipients;
+      let ccProfiles = [];
       if (flowType === 'shipping') {
         recipients = await getShippingRecipients();
       } else {
         recipients = await supabaseFetch(
           `profiles?name=eq.${encodeURIComponent(task.owner)}&select=id,name,email`
         );
+        ccProfiles = await getSuperiors(flowType);
       }
 
       for (const profile of (recipients || [])) {
@@ -255,8 +280,13 @@ async function runSubmissionReminders() {
           `承認フロー管理システムにログインして申請をお願いします。\n\n` +
           `※このメールは自動送信です。`;
 
+        // 担当者本人と重複しないようCCから除外
+        const ccEmails = ccProfiles
+          .filter(p => p.id !== profile.id)
+          .map(p => p.email);
+
         try {
-          await sendEmail(profile.email, profile.name, subject, text);
+          await sendEmail(profile.email, profile.name, subject, text, ccEmails);
           sentThisRun.add(dedupKey);
           count++;
         } catch (e) {
