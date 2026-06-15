@@ -7,7 +7,8 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'Segoe UI', 'Noto Sans JP', sans-serif; background: #f0f2f5; color: #333; font-size: 14px; }
+        html, body { height: 100%; overflow: hidden; }
+        body { font-family: 'Segoe UI', 'Noto Sans JP', sans-serif; background: #edf1f7; color: #333; font-size: 14px; }
 
         /* ===== Header ===== */
         .header {
@@ -50,17 +51,59 @@
         .dev-bar select option { color: #333; background: #fff; }
 
         /* ===== Main ===== */
-        .main { max-width: 860px; margin: 20px auto; padding: 0 16px 40px; }
+        .main { margin: 0; padding: 0; height: calc(100vh - 44px); overflow: hidden; }
+        #app.has-dev-bar .main { height: calc(100vh - 72px); }
 
-        /* ===== Sticky Tab Area ===== */
-        .sticky-top {
-            position: sticky;
-            top: 44px; /* ヘッダーの高さ分（devBar有時は上書き） */
-            z-index: 200;
-            background: #f0f2f5;
-            padding-top: 12px;
+        /* ===== 2-column Layout ===== */
+        .cols-layout { display: flex; gap: 0; height: 100%; }
+        .col-left  { flex: 3; min-width: 0; overflow-y: auto; background: #f4f6fb; }
+        .col-right { flex: 2; min-width: 0; overflow-y: auto; background: #f4f6fb; border-left: 1px solid #dde2ef; }
+
+        /* 各カラム内スティッキーヘッダー */
+        .col-sticky { position: sticky; top: 0; z-index: 100; }
+        .col-left  .col-sticky { background: #f4f6fb; padding: 12px 12px 0; border-bottom: 1px solid #dde2ef; }
+        .col-right .col-sticky { background: #f4f6fb; padding: 12px 12px 8px; border-bottom: 1px solid #dde2ef; }
+
+        /* 左カラムのタブ */
+        .col-tabs { display: flex; border-bottom: 2px solid #e0e0e0; gap: 0; }
+        .col-tab {
+            padding: 8px 18px;
+            cursor: pointer;
+            font-size: 13px;
+            border: none;
+            background: none;
+            color: #aaa;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -2px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-weight: bold;
+            transition: color 0.15s;
         }
-        .dev-bar ~ #app .sticky-top { top: 72px; }
+        .col-tab.active { color: #1976d2; border-bottom-color: #1976d2; }
+        .col-tab:hover:not(.active) { color: #666; }
+
+        /* 右カラムのヘッダー */
+        .col-header {
+            font-size: 14px;
+            font-weight: bold;
+            color: #2e7d32;
+            padding: 8px 0 10px;
+            border-bottom: 2px solid #2e7d32;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* コンテンツ領域のパディング */
+        .col-content { padding: 12px 20px 40px; }
+
+        @media (max-width: 900px) {
+            .main { height: auto; overflow: visible; }
+            .cols-layout { flex-direction: column; height: auto; }
+            .col-left, .col-right { overflow-y: visible; height: auto; }
+        }
 
         /* ===== Tabs ===== */
         .tabs { display: flex; border-bottom: 2px solid #ddd; margin-bottom: 0; gap: 0; }
@@ -98,13 +141,14 @@
         .card {
             background: #fff;
             border-radius: 8px;
-            padding: 14px 16px;
-            margin-bottom: 10px;
-            border: 1px solid #e8e8e8;
+            padding: 10px 14px;
+            margin-bottom: 8px;
+            border: 1px solid #e4e8f0;
             cursor: pointer;
+            box-shadow: 0 1px 4px rgba(30,58,95,0.07);
             transition: box-shadow 0.15s, border-color 0.15s;
         }
-        .card:hover { box-shadow: 0 3px 12px rgba(0,0,0,0.1); border-color: #c8d8e8; }
+        .card:hover { box-shadow: 0 4px 14px rgba(30,58,95,0.13); border-color: #b0c4de; }
         .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 5px; }
         .card-title { font-size: 14px; font-weight: bold; color: #1e3a5f; }
         .card-meta { font-size: 12px; color: #999; margin-top: 3px; }
@@ -334,10 +378,7 @@
         #login_dialog .login-btn:hover { background: #2a5080; }
 
         /* ===== View-Only Mode（製管など進捗一覧のみ） ===== */
-        .is-view-only #tab_content_mine    { display: none !important; }
-        .is-view-only #tab_content_pending { display: none !important; }
-        .is-view-only #new_btn_area        { display: none !important; }
-        .is-view-only #tab_content_progress { display: block !important; }
+        .is-view-only .col-left { display: none !important; }
 
         /* ===== Empty / Loading ===== */
         .empty { text-align: center; padding: 48px 20px; color: #bbb; }
@@ -417,9 +458,10 @@
         .progress-card-summary { font-size: 12px; color: #888; margin-top: 4px; }
         .progress-card-machines { display: none; margin-top: 10px; border-top: 1px solid #f0f0f0; padding-top: 8px; }
         .progress-card.expanded .progress-card-machines { display: block; }
+        .progress-card-project-label { font-size: 12px; color: #555; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #eee; }
 
         /* ===== Progress List ===== */
-        .progress-card { background: #fff; border-radius: 8px; padding: 14px 16px; margin-bottom: 10px; border: 1px solid #e8e8e8; }
+        .progress-card { background: #fff; border-radius: 8px; padding: 10px 14px; margin-bottom: 8px; border: 1px solid #e4e8f0; box-shadow: 0 1px 4px rgba(30,58,95,0.07); }
         .progress-card-title { font-size: 14px; font-weight: bold; color: #1e3a5f; margin-bottom: 10px; }
         .progress-flow-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 12px; }
         .progress-flow-label { flex: 1; }
@@ -468,28 +510,40 @@
     </div>
 
     <div class="main">
-        <div class="sticky-top" id="sticky_top">
-            <div class="tabs">
-                <button class="tab" id="tab_mine" onclick="switchTab('mine')">自分の申請</button>
-                <button class="tab" id="tab_pending" onclick="switchTab('pending')">
-                    承認待ち <span id="pending_badge" class="badge" style="display:none;"></span>
-                </button>
-                <button class="tab active" id="tab_progress" onclick="switchTab('progress')">進捗一覧</button>
+        <div class="cols-layout">
+            <!-- 左カラム：自分の申請 + 承認待ち（タブ切り替え） -->
+            <div class="col-left">
+                <div class="col-sticky">
+                    <div class="col-tabs">
+                        <button class="col-tab active" id="ctab_mine" onclick="switchTab('mine')">自分の申請</button>
+                        <button class="col-tab" id="ctab_pending" onclick="switchTab('pending')">
+                            承認待ち <span id="pending_badge" class="badge" style="display:none;"></span>
+                        </button>
+                    </div>
+                    <div class="new-btn-area" id="new_btn_area" style="display:none; padding: 8px 0 4px;">
+                        <button class="btn btn-primary" id="btn_assembly"   onclick="openSubmitModal('assembly')"  style="display:none;">＋ 組立完了通知を申請</button>
+                        <button class="btn btn-primary" id="btn_test_run"   onclick="openSubmitModal('test_run')"  style="display:none; margin-left:8px;">＋ 試運転完了通知を申請</button>
+                        <button class="btn btn-primary" id="btn_simple_inspection" onclick="openSimpleInspectionModal()" style="display:none; margin-left:8px;">＋ 簡易検査開催案内を作成</button>
+                        <button class="btn btn-primary" id="btn_inspection"       onclick="openInspectionModal()"       style="display:none; margin-left:8px;">＋ 外観検査開催案内を作成</button>
+                        <button class="btn btn-primary" id="btn_shipping_meeting" onclick="openShippingMeetingModal()"  style="display:none; margin-left:8px;">＋ 出荷確認会議開催案内を作成</button>
+                        <button class="btn btn-primary" id="btn_shipping"         onclick="openShippingModal()"         style="display:none; margin-left:8px;">＋ 出荷確定申請</button>
+                    </div>
+                </div>
+                <div class="col-content">
+                    <div id="tab_content_mine"><div class="loading-indicator">読み込み中...</div></div>
+                    <div id="tab_content_pending" style="display:none;"><div class="loading-indicator">読み込み中...</div></div>
+                </div>
             </div>
-            <div class="new-btn-area" id="new_btn_area" style="display:none; padding: 10px 0 4px;">
-                <button class="btn btn-primary" id="btn_assembly"   onclick="openSubmitModal('assembly')"  style="display:none;">＋ 組立完了通知を申請</button>
-                <button class="btn btn-primary" id="btn_test_run"   onclick="openSubmitModal('test_run')"  style="display:none; margin-left:8px;">＋ 試運転完了通知を申請</button>
-                <button class="btn btn-primary" id="btn_simple_inspection" onclick="openSimpleInspectionModal()" style="display:none; margin-left:8px;">＋ 簡易検査開催案内を作成</button>
-                <button class="btn btn-primary" id="btn_inspection"       onclick="openInspectionModal()"       style="display:none; margin-left:8px;">＋ 外観検査開催案内を作成</button>
-                <button class="btn btn-primary" id="btn_shipping_meeting" onclick="openShippingMeetingModal()"  style="display:none; margin-left:8px;">＋ 出荷確認会議開催案内を作成</button>
-                <button class="btn btn-primary" id="btn_shipping"         onclick="openShippingModal()"         style="display:none; margin-left:8px;">＋ 出荷確定申請</button>
-            </div>
-        </div>
 
-        <div style="padding-top: 12px;">
-            <div id="tab_content_pending" ><div class="loading-indicator">読み込み中...</div></div>
-            <div id="tab_content_mine"    style="display:none;"><div class="loading-indicator">読み込み中...</div></div>
-            <div id="tab_content_progress" style="display:none;"><div class="loading-indicator">読み込み中...</div></div>
+            <!-- 右カラム：進捗一覧（固定） -->
+            <div class="col-right">
+                <div class="col-sticky">
+                    <div class="col-header">進捗一覧</div>
+                </div>
+                <div class="col-content">
+                    <div id="tab_content_progress"><div class="loading-indicator">読み込み中...</div></div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -931,7 +985,8 @@ const DEV_ROLE_MAP = {
     operations_director: { role: 'operations_director', department: '操業', flowTypes: [] },
     quality:             { role: 'quality',             department: '品証', flowTypes: ['simple_inspection', 'inspection', 'shipping'] }
 };
-let devFlowTypes = []; // デモ用: 自分の申請タブのフロー絞り込み
+let devFlowTypes    = []; // デモ用: 自分の申請タブのフロー絞り込み
+let userIsApplicant = false; // 申請権限フラグ（switchTab で参照）
 
 function getEffectiveRole() { return devRole || currentProfile?.role || ''; }
 function getEffectiveDept() { return devDept || currentProfile?.department || ''; }
@@ -950,39 +1005,36 @@ function applyRoleLayout(role) {
                            || role === 'operations_manager';
     const isViewOnly        = role === 'staff' && !isApplicant && dept !== '製管';
 
-    // タブの表示制御
-    document.getElementById('tab_pending').style.display  = isApprover ? '' : 'none';
-    document.getElementById('tab_mine').style.display     = (isApplicant || isQualityOrSeikan) ? '' : 'none';
-    document.getElementById('tab_progress').style.display = ''; // 全員
+    // 申請権限フラグをモジュール変数に保存（switchTab から参照）
+    userIsApplicant = isApplicant || isQualityOrSeikan;
 
-    // 申請ボタン
-    if (isApplicant || isQualityOrSeikan) {
-        document.getElementById('new_btn_area').style.display = 'block';
+    // 左カラムのタブ表示制御
+    const ctabPending = document.getElementById('ctab_pending');
+    const ctabMine    = document.getElementById('ctab_mine');
+    if (ctabPending) ctabPending.style.display = isApprover ? '' : 'none';
+    if (ctabMine)    ctabMine.style.display    = userIsApplicant ? '' : 'none';
+
+    // 申請ボタンは申請権限がある場合のみ表示（表示タブは switchTab が管理）
+    if (userIsApplicant) {
         document.getElementById('btn_assembly').style.display          = (!isQualityOrSeikan && (dept === '組立' || role === 'assembly_manager'))  ? '' : 'none';
         document.getElementById('btn_test_run').style.display          = (!isQualityOrSeikan && (dept === '操業' || role === 'operations_manager')) ? '' : 'none';
         document.getElementById('btn_simple_inspection').style.display = isQualityOrSeikan ? '' : 'none';
         document.getElementById('btn_inspection').style.display        = 'none'; // 2000番台のみ・現在無効
         document.getElementById('btn_shipping_meeting').style.display  = 'none'; // 2000番台のみ・現在無効
         document.getElementById('btn_shipping').style.display          = isQualityOrSeikan ? '' : 'none';
-    } else {
-        document.getElementById('new_btn_area').style.display = 'none';
     }
 
-    // デフォルトタブ
-    if (isApprover)      switchTab('pending');
-    else if (isViewOnly) switchTab('progress');
-    else                 switchTab('mine');
+    // 権限のないカラムのローディング表示を消去
+    if (!isApprover) document.getElementById('tab_content_pending').innerHTML = '';
+    if (!userIsApplicant) document.getElementById('tab_content_mine').innerHTML = '';
 
-    // CSSクラスで進捗一覧のみモードを強制適用
+    // 表示タブの初期設定
+    if (isApprover && !userIsApplicant) switchTab('pending');
+    else                                switchTab('mine');
+
+    // 進捗一覧のみモード（左カラムをCSS非表示）
     const appEl = document.getElementById('app');
-    if (isViewOnly) {
-        appEl.classList.add('is-view-only');
-        document.getElementById('tab_content_mine').innerHTML    = '';
-        document.getElementById('tab_content_pending').innerHTML = '';
-        switchTab('progress');
-    } else {
-        appEl.classList.remove('is-view-only');
-    }
+    appEl.classList.toggle('is-view-only', isViewOnly);
 }
 
 async function switchDevRole(value) {
@@ -1009,12 +1061,12 @@ async function switchDevRole(value) {
 
 // ===== Constants =====
 const FLOW_LABELS = {
-    assembly:          '組立完了通知',
-    test_run:          '試運転完了通知',
-    simple_inspection: '簡易検査開催案内',
+    assembly:          '組立完了申請',
+    test_run:          '試運転完了申請',
+    simple_inspection: '簡易検査',
     inspection:        '外観検査開催案内',
     shipping_meeting:  '出荷確認会議開催案内',
-    shipping:          '出荷確定通知'
+    shipping:          '出荷確定申請'
 };
 
 const ROLE_LABELS = {
@@ -1115,7 +1167,7 @@ async function bootApp(session) {
     const DEMO_USERS = ['e-kurosaki@kusakabe.com', 's-morimura@kusakabe.com'];
     if (DEMO_USERS.includes(currentUser.email)) {
         document.getElementById('dev_bar').style.display = 'flex';
-        document.getElementById('sticky_top').style.top = '72px';
+        document.getElementById('app').classList.add('has-dev-bar');
     }
 
     await loadProjects();
@@ -1380,7 +1432,7 @@ async function loadPending() {
         return `
         <div class="card" onclick="openDetailModal('${req.id}')">
             <div class="card-header">
-                <div class="card-title">工番 ${pNum}${label ? '  ' + label : ''}</div>
+                <div class="card-title">${pNum}${label ? '  ' + label : ''}</div>
                 <span class="status-badge s-pending">承認依頼</span>
             </div>
             <div class="card-meta">${FLOW_LABELS[req.flow_type] || req.flow_type}${req.machine_name ? `　【${esc(req.machine_name)}】` : ''}　|　申請者: ${poster}　|　${date}</div>
@@ -1481,7 +1533,7 @@ async function loadMine() {
         return `
         <div class="card" onclick="openDetailModal('${req.id}')">
             <div class="card-header">
-                <div class="card-title">工番 ${esc(pNum)}${label ? '　' + esc(label) : ''}${machineLabel}${resubmitBadge}</div>
+                <div class="card-title">${esc(pNum)}${label ? '　' + esc(label) : ''}${machineLabel}${resubmitBadge}</div>
             </div>
             <div class="card-meta">${FLOW_LABELS[req.flow_type] || req.flow_type}　|　${fmtDate(req.created_at)}</div>
             <div class="step-progress">${progressHtml}</div>
@@ -1552,12 +1604,12 @@ async function loadProgress() {
     }
 
     const FLOW_DEFS = [
-        { type: 'assembly',          label: '組立完了通知',        alwaysShow: true },
-        { type: 'test_run',          label: '試運転完了通知',       alwaysShow: false },
-        { type: 'simple_inspection', label: '簡易検査開催案内',     alwaysShow: false },
+        { type: 'assembly',          label: '組立完了申請',        alwaysShow: true },
+        { type: 'test_run',          label: '試運転完了申請',       alwaysShow: false },
+        { type: 'simple_inspection', label: '簡易検査',             alwaysShow: false },
         { type: 'inspection',        label: '外観検査開催案内',     alwaysShow: false },
         { type: 'shipping_meeting',  label: '出荷確認会議開催案内', alwaysShow: false },
-        { type: 'shipping',          label: '出荷確定通知',          alwaysShow: true }
+        { type: 'shipping',          label: '出荷確定申請',          alwaysShow: true }
     ];
 
     const html = allNums.map(num => {
@@ -1633,20 +1685,27 @@ async function loadProgress() {
             Object.values(projectData[num][m].flows).some(f => f.status === 'submitted' || f.status === 'in_review')
         ).length);
 
-        const hasInProgress = machines.some(m =>
-            Object.values(projectData[num][m].flows).some(f => f.status === 'submitted' || f.status === 'in_review')
-        );
-        const summaryColor = completedMachines === totalMachines ? '#27ae60' : hasInProgress ? '#f39c12' : '#aaa';
-        const summaryText  = `${completedMachines}/${totalMachines} 機械 出荷確定` +
-            (hasInProgress ? '　⏳ 承認中あり' : '');
+        const hasShippingInProgress = machines.some(m => {
+            const shipping = projectData[num][m].flows['shipping'];
+            return shipping && (shipping.status === 'submitted' || shipping.status === 'in_review');
+        });
+        const summaryColor = completedMachines === totalMachines ? '#27ae60' : hasShippingInProgress ? '#f39c12' : '#aaa';
+        let summaryText;
+        if (completedMachines === totalMachines) {
+            summaryText = '✅ 出荷日確定';
+        } else if (hasShippingInProgress) {
+            summaryText = '⏳ 出荷日未定　承認中';
+        } else {
+            summaryText = '出荷日未定';
+        }
 
         return `<div class="progress-card" onclick="toggleProgressCard(this)">
             <div class="progress-card-header">
-                <div class="progress-card-title">工番 ${esc(num)}${label ? '　' + esc(label) : ''}</div>
+                <div class="progress-card-title">${esc(num)}</div>
                 <span class="progress-card-arrow">▶</span>
             </div>
             <div class="progress-card-summary" style="color:${summaryColor};">${summaryText}</div>
-            <div class="progress-card-machines">${machineSections}</div>
+            <div class="progress-card-machines">${label ? `<div class="progress-card-project-label">${esc(label)}</div>` : ''}${machineSections}</div>
         </div>`;
     }).join('');
 
@@ -1660,15 +1719,16 @@ function toggleProgressCard(el) {
 // ===== Tab Switch =====
 function switchTab(tab) {
     currentTab = tab;
-    ['pending', 'mine', 'progress'].forEach(t => {
-        const tabEl     = document.getElementById(`tab_${t}`);
+    // 左カラム内のタブ切り替え（mine / pending）
+    ['mine', 'pending'].forEach(t => {
+        const tabEl     = document.getElementById(`ctab_${t}`);
         const contentEl = document.getElementById(`tab_content_${t}`);
         if (tabEl)     tabEl.classList.toggle('active', t === tab);
-        if (contentEl) contentEl.style.display = t === tab ? 'block' : 'none';
+        if (contentEl) contentEl.style.display = t === tab ? '' : 'none';
     });
-    // 申請ボタンは「自分の申請」タブのみ表示
+    // 申請ボタンは「自分の申請」タブのときのみ表示
     const newBtnArea = document.getElementById('new_btn_area');
-    if (newBtnArea) newBtnArea.style.display = tab === 'mine' ? 'block' : 'none';
+    if (newBtnArea) newBtnArea.style.display = (tab === 'mine' && userIsApplicant) ? 'block' : 'none';
 }
 
 // ===== Submit Modal =====
