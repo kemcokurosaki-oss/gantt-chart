@@ -1915,15 +1915,17 @@
 
 
 /* ===== Split Task: 分割バー表示 ===== */
-/* 親バー自体は透明にして、セグメントdivだけ表示 */
-.gantt_task_line.split-parent-bar {
+.gantt_task_line[data-split-parent="1"] {
+    visibility: hidden !important;
+    overflow: visible !important;
     background: transparent !important;
     border: none !important;
     box-shadow: none !important;
-    overflow: visible !important;
 }
-.gantt_task_line.split-parent-bar .gantt_task_progress { display: none !important; }
-.gantt_task_line.split-parent-bar .gantt_task_content { overflow: visible !important; }
-/* セグメントdiv（onGanttRenderで動的に追加） */
-.cseg { pointer-events: none; }
+/* cseg は親の visibility:hidden を上書きして常に表示 */
+.gantt_task_line[data-split-parent="1"] .cseg {
+    visibility: visible !important;
+    pointer-events: none;
+}
 /* ===== Split Task ここまで ===== */
+

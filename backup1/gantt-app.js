@@ -173,7 +173,7 @@
             let designTripData = Array.isArray(data)
                 ? data.filter(t => t.task_type === 'business_trip' && t.is_archived !== true)
                 : [];
-            if (data) data = data.filter(t => t.task_type !== 'business_trip');
+            if (data) data = data.filter(t => t.task_type !== 'business_trip' && t.task_type !== 'planning' && t.task_type !== 'operation');
             if (designTripData && designTripData.length > 0) {
                 // 全体工程表の既存タスクから工事番号→客先名/工事名のマップを作成
                 const projectInfoMap = {};
@@ -359,19 +359,34 @@
                     const maxEndIncl = new Date(maxEnd.getTime() - 86400000);
                     const rep = members[0];
                     rep._is_split_parent = true;
+                    // _segs は rep.start_date / rep.duration を書き換える前に組み立てる
+                    // （書き換え後だと members[0].start_date が Date になり dur が totalDur に変わるため）
+                    var _mColors = {
+                        '設計':  {bg:'#85C1E9', bdr:'#5DADE2'},
+                        '製管':  {bg:'#82E0AA', bdr:'#58D68D'},
+                        '品証':  {bg:'#82E0AA', bdr:'#58D68D'},
+                        '組立':  {bg:'#F7DC6F', bdr:'#F4D03F'},
+                        '電装':  {bg:'#D7BDE2', bdr:'#AF7AC5'},
+                        '操業':  {bg:'#F1948A', bdr:'#EC7063'},
+                        '電技':  {bg:'#F8A5C2', bdr:'#F46B8A'},
+                        '明石':  {bg:'#BCAAA4', bdr:'#8D6E63'},
+                        '営業':  {bg:'#FBAD4F', bdr:'#F8941D'}
+                    };
+                    rep._segs = members.map(function(m) {
+                        var cp = _mColors[m.major_item] || {bg:'#85C1E9', bdr:'#5DADE2'};
+                        return {
+                            start: parseLocalDate(m.start_date), // この時点ではまだ文字列
+                            dur: m.duration,                     // 元の日数を保持
+                            owner: m.owner || '',
+                            color: cp.bg,
+                            border: cp.bdr,
+                            op: 1.0
+                        };
+                    });
                     rep.start_date = minStart;
                     rep.duration = totalDur;
                     rep._split_start = minStart;
                     rep._split_end = maxEndIncl;
-                    rep._segs = members.map(function(m, i) {
-                        return {
-                            start: parseLocalDate(m.start_date),
-                            dur: m.duration,
-                            owner: m.owner || '',
-                            color: '#e67e22',
-                            op: i === 0 ? 1.0 : 0.78
-                        };
-                    });
                     rep.owner = members.map(function(m) { return m.owner; }).filter(Boolean).join(' / ');
                     members.slice(1).forEach(function(m) { m._splitChild = true; });
                 });
