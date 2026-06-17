@@ -1519,38 +1519,73 @@
         // ========== 神戸送り開始日マーク ここまで ==========
 
         // ===== Split Task セグメント描画 =====
-        gantt.attachEvent("onGanttRender", function() {
+        var _splitSegTimer = null;
+        function renderSplitSegs() {
+            // data-split-parent 属性のない正規バーからスタイルを取得
+            var refBar = document.querySelector(".gantt_task_line:not([data-split-parent])[task_id]");
+            var refBorderRadius = refBar ? window.getComputedStyle(refBar).borderRadius : "2px";
+            var refFontSize = refBar ? window.getComputedStyle(refBar).fontSize : "12px";
+
             document.querySelectorAll(".gantt_task_line[task_id]").forEach(function(el) {
                 var id = el.getAttribute("task_id");
                 if (!id) return;
                 var task; try { task = gantt.getTask(id); } catch(e) { return; }
                 if (!task || !task._segs || !task._segs.length) return;
 
+                // 既存セグメントを削除
                 var existing = el.querySelectorAll(".cseg");
                 for (var i = 0; i < existing.length; i++) existing[i].remove();
 
+                el.setAttribute('data-split-parent', '1');
+
                 var ts = task.start_date;
                 if (!ts || !(ts instanceof Date)) return;
-                var totalMs = (task.duration || 1) * 86400000;
-                var barH = el.offsetHeight || 20;
+
+                // 機械-ユニット表示テキスト
+                var machine = task.machine || "";
+                var unit = task.unit || "";
+                var segText = (machine && unit) ? (machine + " - " + unit) : (machine || unit || "");
+
+                // gantt.posFromDate() でpx位置計算（%計算のタイムゾーン/スケール問題を回避）
+                var barStartPx = gantt.posFromDate(ts);
+                var barEndPx   = gantt.posFromDate(new Date(ts.getTime() + (task.duration || 1) * 86400000));
+                var barWidthPx = barEndPx - barStartPx;
+                if (barWidthPx <= 0) return;
 
                 task._segs.forEach(function(seg) {
                     var s0 = seg.start;
                     if (!s0 || !(s0 instanceof Date)) return;
-                    var leftPct = ((s0.getTime() - ts.getTime()) / totalMs * 100).toFixed(2);
-                    var widthPct = (seg.dur * 86400000 / totalMs * 100).toFixed(2);
+                    var segEnd  = new Date(s0.getTime() + seg.dur * 86400000);
+                    var leftPx  = gantt.posFromDate(s0)   - barStartPx;
+                    var widthPx = gantt.posFromDate(segEnd) - gantt.posFromDate(s0);
+                    if (widthPx <= 0) return;
+
                     var div = document.createElement("div");
                     div.className = "cseg";
                     div.style.cssText =
-                        "position:absolute;left:" + leftPct + "%;width:" + widthPct + "%;" +
-                        "top:2px;height:" + (barH - 4) + "px;" +
-                        "background:" + (seg.color || "#e67e22") + ";opacity:" + (seg.op || 1) + ";" +
-                        "border-radius:3px;display:flex;align-items:center;justify-content:center;" +
-                        "color:#fff;font-size:10px;overflow:hidden;padding:0 4px;box-sizing:border-box;";
-                    div.textContent = seg.owner || "";
+                        "position:absolute;" +
+                        "left:"   + Math.round(leftPx)  + "px;" +
+                        "width:"  + Math.round(widthPx) + "px;" +
+                        "top:0;bottom:0;" +
+                        "visibility:visible;" +
+                        "background:" + (seg.color || "#85C1E9") + ";" +
+                        "border:1px solid " + (seg.border || "#5DADE2") + ";" +
+                        "border-radius:" + refBorderRadius + ";" +
+                        "display:flex;align-items:center;justify-content:center;" +
+                        "color:#222;font-size:" + refFontSize + ";font-weight:600;" +
+                        "overflow:hidden;padding:0 4px;box-sizing:border-box;z-index:2;";
+                    div.textContent = segText;
                     el.appendChild(div);
                 });
             });
+        }
+        gantt.attachEvent("onGanttRender", function() {
+            clearTimeout(_splitSegTimer);
+            _splitSegTimer = setTimeout(renderSplitSegs, 0);
+        });
+        gantt.attachEvent("onGanttScroll", function() {
+            clearTimeout(_splitSegTimer);
+            _splitSegTimer = setTimeout(renderSplitSegs, 80);
         });
         // ===== Split Task セグメント描画 ここまで =====
 
