@@ -806,7 +806,7 @@
                         paint();
                     }
 
-                    async function onUp() {
+                    function onUp() {
                         document.removeEventListener("mousemove", onMove, true);
                         document.removeEventListener("mouseup", onUp, true);
                         document.body.style.userSelect = "";
@@ -828,23 +828,59 @@
                             duration: dur1,
                             end_date: inclusiveEndDateToDb(s1, dur1)
                         }, (window._editorLastTouchPatch && window._editorLastTouchPatch()) || {});
-                        try {
-                            const { error } = await supabaseClient.from("tasks").update(upd).eq("id", realId);
-                            if (error) throw error;
-                            if (typeof window.logChange === "function") {
-                                const parts = [];
-                                if (startDb0 !== startDb1 && Number(dur0) !== Number(dur1)) parts.push("開始日・終了日を変更");
-                                else if (startDb0 !== startDb1) parts.push("開始日を変更");
-                                else if (Number(dur0) !== Number(dur1)) parts.push("終了日を変更");
+
+                        // window.allTasks を即時更新（楽観的更新）
+                        const oldAllTask = window.allTasks
+                            ? (window.allTasks.find(function(t) { return String(t.id) === String(realId); }) || null)
+                            : null;
+                        if (window.allTasks) {
+                            const _idx = window.allTasks.findIndex(function(t) { return String(t.id) === String(realId); });
+                            if (_idx !== -1) {
+                                window.allTasks[_idx] = Object.assign({}, window.allTasks[_idx], upd);
                             }
-                            if (typeof fetchTasks === "function") await fetchTasks();
-                        } catch (err) {
-                            console.error(err);
-                            alert("保存に失敗しました。");
-                            previewStart = startOrig;
-                            previewDur = durOrig;
-                            paint();
                         }
+
+                        // ガントチャートのタスクも即時更新（イベントを発火させずに再描画）
+                        try {
+                            const _ganttTask = gantt.getTask(tid);
+                            if (_ganttTask) {
+                                _ganttTask.start_date = s1;
+                                _ganttTask.duration = dur1;
+                                gantt.refreshTask(tid);
+                            }
+                        } catch (_e2) {}
+
+                        // リソース画面を即時再描画
+                        if (typeof updateResourceVisibility === "function") {
+                            updateResourceVisibility();
+                        }
+
+                        // バックグラウンドで Supabase に保存
+                        supabaseClient.from("tasks").update(upd).eq("id", realId)
+                            .then(function(_ref) {
+                                if (_ref.error) {
+                                    console.error(_ref.error);
+                                    alert("保存に失敗しました。");
+                                    // allTasks を元に戻す
+                                    if (oldAllTask && window.allTasks) {
+                                        const _ri = window.allTasks.findIndex(function(t) { return String(t.id) === String(realId); });
+                                        if (_ri !== -1) window.allTasks[_ri] = oldAllTask;
+                                    }
+                                    // ガントチャートを元に戻す
+                                    try {
+                                        const _ganttTask2 = gantt.getTask(tid);
+                                        if (_ganttTask2) {
+                                            _ganttTask2.start_date = startOrig;
+                                            _ganttTask2.duration = durOrig;
+                                            gantt.refreshTask(tid);
+                                        }
+                                    } catch (_e3) {}
+                                    // リソース画面を再描画
+                                    if (typeof updateResourceVisibility === "function") {
+                                        updateResourceVisibility();
+                                    }
+                                }
+                            });
                     }
 
                     document.addEventListener("mousemove", onMove, true);
