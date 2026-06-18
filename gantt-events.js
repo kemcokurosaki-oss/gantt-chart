@@ -197,6 +197,12 @@
             }
 
             function syncGridWidth() {
+                if (typeof currentDisplayMode !== 'undefined' && currentDisplayMode === 'business_trip') {
+                    var total = gantt.config.columns.reduce(function(s, c) { return s + (c.width || 0); }, 0);
+                    gantt.config.grid_width = total;
+                    GRID_WIDTH = total;
+                    return;
+                }
                 var total = SHARED_COLUMNS.reduce(function(s, c) { return s + (c.width || 0); }, 0);
                 gantt.config.grid_width = total;
                 GRID_WIDTH = total;
@@ -245,6 +251,10 @@
                             text = (task.area_group && task.area_number)
                                 ? task.area_group + '-' + task.area_number
                                 : (task.area_group || task.area_number || '');
+                        } else if (name === 'customer_name') {
+                            text = task.customer_name || '';
+                        } else if (name === 'project_details') {
+                            text = task.project_details || '';
                         }
                         if (!text) return;
                         var w = ctx.measureText(text).width;
@@ -258,9 +268,16 @@
             var dragging = null;
             var rafPending = false;
 
+            // 出張予定モードの初回表示幅キャッシュ（モード切替ごとにリセット）
+            var _tripDefaultWidths = {};
+
             // ヘッダーセルにリサイズハンドルを注入
             function injectHandles() {
-                if (typeof currentDisplayMode !== 'undefined' && currentDisplayMode === 'business_trip') return;
+                if (typeof currentDisplayMode !== 'undefined' && currentDisplayMode === 'business_trip') {
+                    _injectTripHandles();
+                    return;
+                }
+                _tripDefaultWidths = {};
 
                 var allCells = document.querySelectorAll('#gantt_here .gantt_grid_head_cell');
                 RESIZABLE.forEach(function(r) {
@@ -321,6 +338,54 @@
                 });
             }
 
+            // 出張予定モード用リサイズハンドル注入（客先名・工事名・担当の3列）
+            function _injectTripHandles() {
+                var TRIP_RESIZABLE_NAMES = ['customer_name', 'project_details', 'owner'];
+                var cols = gantt.config.columns;
+                var allCells = document.querySelectorAll('#gantt_here .gantt_grid_head_cell');
+                TRIP_RESIZABLE_NAMES.forEach(function(colName) {
+                    var colIdx = cols.findIndex(function(c) { return c.name === colName; });
+                    if (colIdx < 0) return;
+                    var cell = allCells[colIdx];
+                    if (!cell || cell.querySelector('.col-resize-handle')) return;
+
+                    // 出張予定モードに切り替えた最初の render 時の実表示幅を下限として記録
+                    if (!_tripDefaultWidths[colName]) {
+                        _tripDefaultWidths[colName] = cell.offsetWidth || cols[colIdx].width;
+                    }
+                    var minW = _tripDefaultWidths[colName];
+
+                    cell.style.position = 'relative';
+                    cell.style.overflow = 'visible';
+                    var handle = document.createElement('div');
+                    handle.className = 'col-resize-handle';
+                    handle.dataset.colName = colName;
+                    handle.style.cssText = 'position:absolute;right:-3px;top:0;width:6px;height:100%;cursor:col-resize;z-index:10;background:transparent;user-select:none;';
+                    handle.addEventListener('mouseenter', function() {
+                        handle.style.background = 'rgba(66,133,244,0.35)';
+                    });
+                    handle.addEventListener('mouseleave', function() {
+                        if (!dragging) handle.style.background = 'transparent';
+                    });
+                    handle.addEventListener('mousedown', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        var col = gantt.config.columns.find(function(c) { return c.name === colName; });
+                        dragging = {
+                            name:       colName,
+                            minW:       minW,
+                            maxW:       Math.max(calcMaxWidth(colName), minW),
+                            startX:     e.clientX,
+                            startWidth: col.width,
+                            col:        col,
+                            isTrip:     true
+                        };
+                        document.body.style.cursor = 'col-resize';
+                    });
+                    cell.appendChild(handle);
+                });
+            }
+
             window.addEventListener('mousemove', function(e) {
                 if (!dragging) return;
                 var delta = e.clientX - dragging.startX;
@@ -347,7 +412,7 @@
 
             window.addEventListener('mouseup', function() {
                 if (!dragging) return;
-                saveWidth(dragging.name, dragging.col.width);
+                if (!dragging.isTrip) saveWidth(dragging.name, dragging.col.width);
                 document.body.style.cursor = '';
                 dragging = null;
                 try {
