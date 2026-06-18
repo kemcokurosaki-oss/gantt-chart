@@ -736,6 +736,8 @@
             const task = gantt.getTask(id);
             _resizeFeedbackActive = false;
             _resizeActiveEdge = null;
+            // csegドラッグ中 または split_parent → DHtmlxドラッグをキャンセル
+            if (_segDragState || (task && task._is_split_parent)) return false;
             // 見出し行（仮想タスク）は期間リサイズ不可
             if (task.$virtual && mode === gantt.config.drag_mode.resize) return false;
             // 工場出荷は複数日出荷に対応するため期間リサイズを許可する
@@ -1518,10 +1520,20 @@
         });
         // ========== 神戸送り開始日マーク ここまで ==========
 
-        // ===== Split Task セグメント描画 =====
+        // ===== Split Task セグメント描画 + ドラッグ =====
         var _splitSegTimer = null;
+        var _segDragState = null; // { taskId, segIdx, startClientX, origStart, origDur, mode, pxPerDay }
+
+        function _calcPxPerDay() {
+            var base = new Date();
+            var d0 = new Date(base.getFullYear(), base.getMonth(), 1);
+            var d1 = new Date(d0.getTime() + 86400000);
+            var px = gantt.posFromDate(d1) - gantt.posFromDate(d0);
+            return px > 0 ? px : 20;
+        }
+
         function renderSplitSegs() {
-            // data-split-parent 属性のない正規バーからスタイルを取得
+            // 正規バーからスタイルを取得（border-radius, font-size）
             var refBar = document.querySelector(".gantt_task_line:not([data-split-parent])[task_id]");
             var refBorderRadius = refBar ? window.getComputedStyle(refBar).borderRadius : "2px";
             var refFontSize = refBar ? window.getComputedStyle(refBar).fontSize : "12px";
@@ -1532,36 +1544,78 @@
                 var task; try { task = gantt.getTask(id); } catch(e) { return; }
                 if (!task || !task._segs || !task._segs.length) return;
 
-                // 既存セグメントを削除
-                var existing = el.querySelectorAll(".cseg");
-                for (var i = 0; i < existing.length; i++) existing[i].remove();
-
                 el.setAttribute('data-split-parent', '1');
 
                 var ts = task.start_date;
                 if (!ts || !(ts instanceof Date)) return;
 
-                // 機械-ユニット表示テキスト
                 var machine = task.machine || "";
-                var unit = task.unit || "";
+                var unit    = task.unit || "";
                 var segText = (machine && unit) ? (machine + " - " + unit) : (machine || unit || "");
 
-                // gantt.posFromDate() でpx位置計算（%計算のタイムゾーン/スケール問題を回避）
                 var barStartPx = gantt.posFromDate(ts);
                 var barEndPx   = gantt.posFromDate(new Date(ts.getTime() + (task.duration || 1) * 86400000));
-                var barWidthPx = barEndPx - barStartPx;
-                if (barWidthPx <= 0) return;
+                if (barEndPx - barStartPx <= 0) return;
 
-                task._segs.forEach(function(seg) {
+                var taskId = id;
+
+                // 既存の cseg を index でマップ（削除しない）
+                var existingMap = {};
+                el.querySelectorAll('.cseg[data-seg-index]').forEach(function(c) {
+                    existingMap[c.getAttribute('data-seg-index')] = c;
+                });
+                var usedIdx = {};
+
+                task._segs.forEach(function(seg, segIdx) {
                     var s0 = seg.start;
                     if (!s0 || !(s0 instanceof Date)) return;
                     var segEnd  = new Date(s0.getTime() + seg.dur * 86400000);
-                    var leftPx  = gantt.posFromDate(s0)   - barStartPx;
+                    var leftPx  = gantt.posFromDate(s0)    - barStartPx;
                     var widthPx = gantt.posFromDate(segEnd) - gantt.posFromDate(s0);
                     if (widthPx <= 0) return;
 
-                    var div = document.createElement("div");
-                    div.className = "cseg";
+                    usedIdx[segIdx] = true;
+                    var isDragging = _segDragState && _segDragState.taskId === taskId && _segDragState.segIdx === segIdx;
+
+                    var div = existingMap[segIdx];
+                    if (!div) {
+                        // 新規作成（イベントリスナーは一度だけ追加）
+                        div = document.createElement("div");
+                        div.className = "cseg";
+                        div.setAttribute("data-seg-index", segIdx);
+                        div.setAttribute("data-task-id", taskId);
+
+                        var lbl = document.createElement("span");
+                        lbl.className = "cseg-label";
+                        lbl.style.cssText = "overflow:hidden;text-overflow:ellipsis;white-space:nowrap;pointer-events:none;";
+                        div.appendChild(lbl);
+
+                        // リサイズハンドル（常に追加、mousedown内でreadonly判定）
+                        var lh = document.createElement("div");
+                        lh.className = "cseg-handle cseg-handle-left";
+                        lh.style.cssText = "position:absolute;left:0;top:0;bottom:0;width:8px;cursor:ew-resize;z-index:3;";
+                        div.appendChild(lh);
+
+                        var rh = document.createElement("div");
+                        rh.className = "cseg-handle cseg-handle-right";
+                        rh.style.cssText = "position:absolute;right:0;top:0;bottom:0;width:8px;cursor:ew-resize;z-index:3;";
+                        div.appendChild(rh);
+
+                        // dblclick のみここで登録（mousedown はキャプチャリングで一括処理）
+                        (function(tid, si) {
+                            div.addEventListener("dblclick", function(e) {
+                                if (gantt.config.readonly) return;
+                                e.preventDefault();
+                                e.stopPropagation();
+                                _segDragState = null;
+                                openSegEditPopup(tid, si, e.currentTarget);
+                            });
+                        })(taskId, segIdx);
+
+                        el.appendChild(div);
+                    }
+
+                    // 位置・スタイルを更新（新規・既存共通）
                     div.style.cssText =
                         "position:absolute;" +
                         "left:"   + Math.round(leftPx)  + "px;" +
@@ -1573,21 +1627,254 @@
                         "border-radius:" + refBorderRadius + ";" +
                         "display:flex;align-items:center;justify-content:center;" +
                         "color:#222;font-size:" + refFontSize + ";font-weight:600;" +
-                        "overflow:hidden;padding:0 4px;box-sizing:border-box;z-index:2;";
-                    div.textContent = segText;
-                    el.appendChild(div);
+                        "overflow:visible;padding:0 12px;box-sizing:border-box;z-index:2;" +
+                        "cursor:grab;user-select:none;" +
+                        (isDragging ? "opacity:0.75;box-shadow:0 0 0 2px #2196F3;" : "");
+
+                    var lbl2 = div.querySelector('.cseg-label');
+                    if (lbl2) lbl2.textContent = segText;
+                });
+
+                // 不要になったセグメントだけを削除
+                el.querySelectorAll('.cseg[data-seg-index]').forEach(function(c) {
+                    if (!usedIdx[c.getAttribute('data-seg-index')]) c.remove();
                 });
             });
         }
+
+        // キャプチャリングフェーズで cseg の mousedown を先取り
+        // （DHtmlxがキャプチャリングでドラッグを処理するため、バブリングでは間に合わない）
+        document.addEventListener("mousedown", function(e) {
+            if (e.button !== 0 || gantt.config.readonly) return;
+            var cseg = e.target.classList.contains("cseg")
+                ? e.target
+                : (e.target.closest ? e.target.closest(".cseg") : null);
+            if (!cseg) return;
+
+            var taskId = cseg.getAttribute("data-task-id");
+            var segIdx = parseInt(cseg.getAttribute("data-seg-index"), 10);
+            if (!taskId || isNaN(segIdx)) return;
+
+            var t = gantt.getTask(taskId);
+            if (!t || !t._segs || !t._segs[segIdx]) return;
+
+            e.preventDefault();
+            e.stopPropagation();
+
+            var isLeft  = e.target.classList.contains("cseg-handle-left");
+            var isRight = e.target.classList.contains("cseg-handle-right");
+            var s = t._segs[segIdx];
+            _segDragState = {
+                taskId: taskId,
+                segIdx: segIdx,
+                startClientX: e.clientX,
+                origStart: new Date(s.start.getTime()),
+                origDur: s.dur,
+                mode: isLeft ? "resize-left" : (isRight ? "resize-right" : "move"),
+                pxPerDay: _calcPxPerDay()
+            };
+        }, true); // true = キャプチャリングフェーズ
+
+        // ドラッグ中：マウス移動でセグメント位置をリアルタイム更新
+        document.addEventListener("mousemove", function(e) {
+            if (!_segDragState) return;
+            var dx = e.clientX - _segDragState.startClientX;
+            var ppd = _segDragState.pxPerDay;
+            var daysDelta = Math.round(dx / ppd);
+
+            var task = gantt.getTask(_segDragState.taskId);
+            var seg  = task._segs[_segDragState.segIdx];
+
+            if (_segDragState.mode === "move") {
+                seg.start = new Date(_segDragState.origStart.getTime() + daysDelta * 86400000);
+            } else if (_segDragState.mode === "resize-right") {
+                seg.dur = Math.max(1, _segDragState.origDur + daysDelta);
+            } else if (_segDragState.mode === "resize-left") {
+                var newDur = Math.max(1, _segDragState.origDur - daysDelta);
+                seg.start = new Date(_segDragState.origStart.getTime() + (_segDragState.origDur - newDur) * 86400000);
+                seg.dur   = newDur;
+            }
+
+            renderSplitSegs();
+        });
+
+        function _toYMD(d) {
+            return d.getFullYear() + '-' +
+                String(d.getMonth() + 1).padStart(2, '0') + '-' +
+                String(d.getDate()).padStart(2, '0');
+        }
+
+        function _updateSplitParentRange(task) {
+            var minStart = null, maxEnd = null;
+            task._segs.forEach(function(s) {
+                if (!minStart || s.start < minStart) minStart = new Date(s.start.getTime());
+                var end = new Date(s.start.getTime() + s.dur * 86400000);
+                if (!maxEnd || end > maxEnd) maxEnd = end;
+            });
+            if (minStart && maxEnd) {
+                task.start_date   = minStart;
+                task.duration     = Math.round((maxEnd - minStart) / 86400000);
+                task._split_start = minStart;
+                task._split_end   = new Date(maxEnd.getTime() - 86400000);
+            }
+        }
+
+        // ドラッグ終了：DB保存 + ガント更新
+        document.addEventListener("mouseup", function(e) {
+            if (!_segDragState) return;
+            var ds = _segDragState;
+            _segDragState = null;
+
+            // 5px 未満の移動はクリック扱い（ドラッグしていない）→ DB保存しない
+            if (Math.abs(e.clientX - ds.startClientX) < 5) {
+                renderSplitSegs();
+                return;
+            }
+
+            var task = gantt.getTask(ds.taskId);
+            var seg  = task._segs[ds.segIdx];
+
+            // DB保存
+            supabaseClient.from('tasks').update({
+                start_date: _toYMD(seg.start),
+                duration: seg.dur
+            }).eq('id', seg.id).then(function(res) {
+                if (res.error) console.error("split seg 保存エラー:", res.error);
+            });
+
+            _updateSplitParentRange(task);
+            gantt.updateTask(ds.taskId);
+        });
+
+        // ===== セグメント編集ポップアップ =====
+        var _segEditState = null; // { taskId, segIdx }
+
+        function openSegEditPopup(taskId, segIdx, anchorEl) {
+            var task = gantt.getTask(taskId);
+            var seg  = task._segs[segIdx];
+            _segEditState = { taskId: taskId, segIdx: segIdx };
+
+            var popup = document.getElementById('seg-edit-popup');
+            if (!popup) {
+                popup = document.createElement('div');
+                popup.id = 'seg-edit-popup';
+                popup.style.cssText =
+                    "position:fixed;z-index:9999;background:#fff;border:1px solid #ccc;" +
+                    "border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,0.2);padding:12px;" +
+                    "min-width:240px;font-size:13px;font-family:'Noto Sans JP',sans-serif;";
+                popup.innerHTML =
+                    '<div style="font-weight:bold;margin-bottom:10px;font-size:14px;">セグメント編集</div>' +
+                    '<table style="border-collapse:collapse;width:100%;">' +
+                      '<tr><td style="padding:4px 0;font-weight:bold;width:70px;">担当者</td>' +
+                          '<td><input id="seg-edit-owner" list="seg-edit-owner-list" style="width:100%;box-sizing:border-box;padding:4px;border:1px solid #ccc;border-radius:4px;">' +
+                              '<datalist id="seg-edit-owner-list"></datalist></td></tr>' +
+                      '<tr><td style="padding:4px 0;font-weight:bold;">開始日</td>' +
+                          '<td><input type="date" id="seg-edit-start" style="width:100%;box-sizing:border-box;padding:4px;border:1px solid #ccc;border-radius:4px;"></td></tr>' +
+                      '<tr><td style="padding:4px 0;font-weight:bold;">終了日</td>' +
+                          '<td><input type="date" id="seg-edit-end" style="width:100%;box-sizing:border-box;padding:4px;border:1px solid #ccc;border-radius:4px;"></td></tr>' +
+                    '</table>' +
+                    '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">' +
+                      '<button id="seg-edit-cancel-btn" style="padding:4px 12px;cursor:pointer;">キャンセル</button>' +
+                      '<button id="seg-edit-save-btn" style="padding:4px 12px;background:#2196F3;color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:bold;">保存</button>' +
+                    '</div>';
+                document.body.appendChild(popup);
+
+                document.getElementById('seg-edit-cancel-btn').addEventListener('click', function() {
+                    popup.style.display = 'none';
+                    _segEditState = null;
+                });
+                document.getElementById('seg-edit-save-btn').addEventListener('click', function() {
+                    saveSegEdit();
+                });
+            }
+
+            // 担当者候補リストを更新
+            var datalist = document.getElementById('seg-edit-owner-list');
+            datalist.innerHTML = '';
+            var owners = (typeof ownerMaster !== 'undefined' && ownerMaster[seg.major_item])
+                ? ownerMaster[seg.major_item]
+                : [];
+            owners.forEach(function(o) {
+                var opt = document.createElement('option');
+                opt.value = o;
+                datalist.appendChild(opt);
+            });
+
+            // 現在の値をセット
+            document.getElementById('seg-edit-owner').value = seg.owner || '';
+            var startEnd = new Date(seg.start.getTime() + seg.dur * 86400000);
+            startEnd = new Date(startEnd.getTime() - 86400000); // 最終日（終了日の前日）
+            document.getElementById('seg-edit-start').value = _toYMD(seg.start);
+            document.getElementById('seg-edit-end').value   = _toYMD(startEnd);
+
+            // ポップアップ位置を計算（バーの下、画面外に出ないよう調整）
+            var rect = anchorEl.getBoundingClientRect();
+            var popW = 260, popH = 180;
+            var left = Math.min(rect.left, window.innerWidth - popW - 8);
+            var top  = rect.bottom + 4;
+            if (top + popH > window.innerHeight) top = rect.top - popH - 4;
+            popup.style.left = Math.max(4, left) + 'px';
+            popup.style.top  = Math.max(4, top)  + 'px';
+            popup.style.display = 'block';
+        }
+
+        function saveSegEdit() {
+            if (!_segEditState) return;
+            var savedTaskId = _segEditState.taskId;
+            var task = gantt.getTask(savedTaskId);
+            var seg  = task._segs[_segEditState.segIdx];
+
+            var newOwner = document.getElementById('seg-edit-owner').value.trim();
+            var startVal = document.getElementById('seg-edit-start').value;
+            var endVal   = document.getElementById('seg-edit-end').value;
+
+            if (!startVal || !endVal) return;
+            var sm = startVal.split('-').map(Number);
+            var em = endVal.split('-').map(Number);
+            var newStart = new Date(sm[0], sm[1] - 1, sm[2]);
+            var endDate  = new Date(em[0], em[1] - 1, em[2]);
+            var newDur   = Math.max(1, Math.round((endDate - newStart) / 86400000) + 1);
+
+            seg.owner = newOwner;
+            seg.start = newStart;
+            seg.dur   = newDur;
+
+            document.getElementById('seg-edit-popup').style.display = 'none';
+            _segEditState = null;
+
+            // DB保存
+            supabaseClient.from('tasks').update({
+                owner: newOwner,
+                start_date: _toYMD(newStart),
+                duration: newDur
+            }).eq('id', seg.id).then(function(res) {
+                if (res.error) console.error("split seg 担当者保存エラー:", res.error);
+            });
+
+            _updateSplitParentRange(task);
+            gantt.updateTask(savedTaskId);
+            renderSplitSegs();
+        }
+
+        // ポップアップ外クリックで閉じる
+        document.addEventListener('mousedown', function(e) {
+            var popup = document.getElementById('seg-edit-popup');
+            if (popup && popup.style.display !== 'none' && !popup.contains(e.target) && !e.target.closest('.cseg')) {
+                popup.style.display = 'none';
+                _segEditState = null;
+            }
+        });
+        // ===== セグメント編集ポップアップ ここまで =====
+
         gantt.attachEvent("onGanttRender", function() {
             clearTimeout(_splitSegTimer);
             _splitSegTimer = setTimeout(renderSplitSegs, 0);
         });
         gantt.attachEvent("onGanttScroll", function() {
             clearTimeout(_splitSegTimer);
-            _splitSegTimer = setTimeout(renderSplitSegs, 80);
+            _splitSegTimer = setTimeout(renderSplitSegs, 0);
         });
-        // ===== Split Task セグメント描画 ここまで =====
+        // ===== Split Task セグメント描画 + ドラッグ ここまで =====
 
         if (typeof gantt.plugins === 'function') {
             gantt.plugins({ marker: true, grouplist: true, inline_editors: true, dnd: true });

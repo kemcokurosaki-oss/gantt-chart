@@ -1915,6 +1915,9 @@
 
 
 /* ===== Split Task: 分割バー表示 ===== */
+/* split-parent-bar クラスは task_class テンプレートで即時付与されるため、
+   renderSplitSegs() の非同期実行前から透明化して点滅を防ぐ */
+.gantt_task_line.split-parent-bar,
 .gantt_task_line[data-split-parent="1"] {
     visibility: hidden !important;
     overflow: visible !important;
@@ -1922,10 +1925,18 @@
     border: none !important;
     box-shadow: none !important;
 }
+/* 選択状態でも透明を維持 */
+.gantt_task_line.split-parent-bar.gantt_selected,
+.gantt_task_line[data-split-parent="1"].gantt_selected {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
 /* cseg は親の visibility:hidden を上書きして常に表示 */
+.gantt_task_line.split-parent-bar .cseg,
 .gantt_task_line[data-split-parent="1"] .cseg {
     visibility: visible !important;
-    pointer-events: none;
+    pointer-events: auto;
 }
 /* ===== Split Task ここまで ===== */
 
