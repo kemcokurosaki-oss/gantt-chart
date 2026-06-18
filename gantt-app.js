@@ -338,7 +338,7 @@
             };
             const isPureNumeric = (s) => /^\d+$/.test(s);
             // "YYYY-MM-DD" をローカル深夜0時の Date に変換（new Date("YYYY-MM-DD") はUTC深夜0時になりタイムゾーン分ずれるため）
-            const parseLocalDate = (str) => { if (str == null) return new Date(str); const match = String(str).trim().match(/^(\d{4})-(\d{2})-(\d{2})/); if (!match) return new Date(str); return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3])); };
+            const parseLocalDate = (str) => { if (str == null) return null; const match = String(str).trim().match(/^(\d{4})-(\d{2})-(\d{2})/); if (!match) return null; return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3])); };
 
             const projects = [...new Set(rawTasks.map(t => t.project_number))]
                 .filter(Boolean)
@@ -409,7 +409,9 @@
                             let minStart = null;
                             let maxEnd = null;
                             tasksInMachine.forEach(t => {
+                                if (t.is_detailed === true || String(t.is_detailed).toLowerCase() === 'true' || String(t.is_detailed).toLowerCase() === 't' || String(t.is_detailed) === '1') return;
                                 const start = parseLocalDate(t.start_date);
+                                if (!start) return;
                                 const end = gantt.calculateEndDate(start, t.duration);
                                 if (!minStart || start < minStart) minStart = start;
                                 if (!maxEnd || end > maxEnd) maxEnd = end;
@@ -499,6 +501,7 @@
                                 tasksInParent.forEach(t => {
                                     assignedTaskIds.add(t.id);
                                     const start = parseLocalDate(t.start_date);
+                                    if (!start) return;
                                     const end = gantt.calculateEndDate(start, t.duration);
                                     if (!minStart || start < minStart) minStart = start;
                                     if (!maxEnd || end > maxEnd) maxEnd = end;
@@ -541,6 +544,7 @@
                         let maxEnd = null;
                         unassignedTasks.forEach(t => {
                             const start = parseLocalDate(t.start_date);
+                            if (!start) return;
                             const end = gantt.calculateEndDate(start, t.duration);
                             if (!minStart || start < minStart) minStart = start;
                             if (!maxEnd || end > maxEnd) maxEnd = end;
