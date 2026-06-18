@@ -18,13 +18,7 @@
             <div class="input-row">
                 <button class="btn-add" id="new_project_btn" onclick="toggleNewProjectForm()" disabled>新規受注</button>
                 <button id="kanryo-btn" class="btn-add" onclick="openKanryoModal('kanri')" disabled style="margin-left:4px;">完了済み</button>
-                <span id="btn-theme-switcher" title="ボタンデザイン切替（お好みを選んでください）">
-                    <span>🎨</span>
-                    <button class="btn-theme-opt active" data-theme="0" onclick="switchBtnTheme('0')">元</button>
-                    <button class="btn-theme-opt" data-theme="1" onclick="switchBtnTheme('1')">案1</button>
-                    <button class="btn-theme-opt" data-theme="2" onclick="switchBtnTheme('2')">案2</button>
-                    <button class="btn-theme-opt" data-theme="3" onclick="switchBtnTheme('3')">案3</button>
-                </span>
+
                 <button id="publish_btn" class="btn-update" onclick="publishNow()" style="display:none; margin-left:4px;">🔄 更新</button>
                 <span id="save-status" style="font-size:11px; color:#999; margin-left:4px; font-weight:bold; transition: color 0.2s;"></span>
                 <span id="mark-legend" style="display:flex; align-items:center; gap:4px; font-size: 13px; font-weight: bold; color: #333;">
@@ -382,26 +376,7 @@
     </div>
 </div>
 
-    <script>
-    // ===== ボタンデザインテーマ切替 =====
-    (function () {
-        var saved = localStorage.getItem('btn-theme') || '0';
-        document.body.dataset.btnTheme = saved;
-        function updateSwitcherActive(theme) {
-            document.querySelectorAll('.btn-theme-opt').forEach(function (b) {
-                b.classList.toggle('active', b.dataset.theme === theme);
-            });
-        }
-        window.switchBtnTheme = function (t) {
-            document.body.dataset.btnTheme = t;
-            localStorage.setItem('btn-theme', t);
-            updateSwitcherActive(t);
-        };
-        document.addEventListener('DOMContentLoaded', function () {
-            updateSwitcherActive(saved);
-        });
-    })();
-    </script>
+
     <script src="gantt-setup.js"></script>
     <script src="gantt-events.js"></script>
     <script src="gantt-resource.js"></script>

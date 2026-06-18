@@ -11,12 +11,31 @@
         // createClient呼び出し前にURLのtype情報を保存（Supabaseがhashを処理・クリアする前に取得）
         const _pageInitType = new URLSearchParams(window.location.hash.replace('#', '?')).get('type')
                            || new URLSearchParams(window.location.search).get('type');
+        // EdgeのTracking PreventionがlocalStorageをブロックする場合、
+        // setItemが例外なく失敗することがあるため書き込みテストで判定する
+        const _authStorage = (function() {
+            var store = window.sessionStorage; // デフォルトはsessionStorage
+            try {
+                var _k = '__sb_test__';
+                window.localStorage.setItem(_k, '1');
+                if (window.localStorage.getItem(_k) === '1') {
+                    store = window.localStorage; // localStorageが実際に動く場合は優先使用
+                }
+                window.localStorage.removeItem(_k);
+            } catch(e) {}
+            return {
+                getItem:    function(key)        { try { return store.getItem(key); }    catch(e) { return null; } },
+                setItem:    function(key, value) { try { store.setItem(key, value); }    catch(e) {} },
+                removeItem: function(key)        { try { store.removeItem(key); }        catch(e) {} }
+            };
+        })();
         const supabaseClient = supabase.createClient(S_URL, S_KEY, {
             auth: {
                 flowType: 'implicit',      // PKCEはfile://でiframeが使えないためimplicitに切り替え
                 persistSession: true,
                 detectSessionInUrl: true,  // パスワードリセット等のURL認証は引き続き使用
-                autoRefreshToken: true
+                autoRefreshToken: true,
+                storage: _authStorage      // localStorage使用不可時はsessionStorageにフォールバック
             }
         });
 

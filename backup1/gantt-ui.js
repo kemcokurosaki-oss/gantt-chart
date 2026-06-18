@@ -392,8 +392,30 @@
                 const task = gantt.getTask(id);
                 if (!task) return false;
 
-                // split_parent バーのダブルクリックはセグメントのイベントで処理するため無視
-                if (task._is_split_parent) return false;
+                if (task._is_split_parent) {
+                    // グリッドセルのダブルクリックのみ処理、バーは無視
+                    const cell = e.target.closest('.gantt_cell');
+                    if (!cell) return false; // バークリックは無視
+
+                    const row = cell.parentElement;
+                    const cells = Array.from(row.children).filter(function(c) { return c.classList.contains('gantt_cell'); });
+                    const idx = cells.indexOf(cell);
+                    const cols = gantt.config.columns;
+                    if (idx < 0 || idx >= cols.length) return false;
+                    const colName = cols[idx].name;
+
+                    // 担当者・開始日・終了日列はセグメント一覧ポップアップを表示
+                    if (colName === 'owner' || colName === 'start_date' || colName === 'end_date') {
+                        openSegListPopup(id, cell);
+                        return false;
+                    }
+                    // 共通フィールドは通常インライン編集
+                    const commonFields = ['project_number', 'text', 'machine', 'unit', 'area_number', 'customer_name', 'project_details'];
+                    if (commonFields.includes(colName)) {
+                        showIE(id, colName, cell);
+                    }
+                    return false;
+                }
 
                 const cell = e.target.closest('.gantt_cell');
                 if (!cell) {
@@ -436,6 +458,81 @@
 
             /** リソースタイムラインのバーなどからインライン編集を開く（cellEl は getBoundingClientRect を持てば可） */
             window.openInlineEditForTask = showIE;
+
+            // split_parent のセグメント一覧ポップアップ
+            function openSegListPopup(taskId, anchorEl) {
+                var task = gantt.getTask(taskId);
+                if (!task || !task._segs) return;
+
+                var popup = document.getElementById('seg-list-popup');
+                if (!popup) {
+                    popup = document.createElement('div');
+                    popup.id = 'seg-list-popup';
+                    popup.style.cssText =
+                        'position:fixed;z-index:9998;background:#fff;border:1px solid #ccc;' +
+                        'border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,0.2);padding:10px;' +
+                        'min-width:280px;font-size:13px;font-family:\'Noto Sans JP\',sans-serif;';
+                    document.body.appendChild(popup);
+                }
+
+                // コンテンツ再構築
+                popup.innerHTML = '<div style="font-weight:bold;margin-bottom:8px;font-size:14px;display:flex;justify-content:space-between;align-items:center;">' +
+                    '<span>セグメント一覧</span>' +
+                    '<button id="seg-list-close" style="background:none;border:none;font-size:16px;cursor:pointer;line-height:1;">×</button>' +
+                    '</div>';
+
+                task._segs.forEach(function(seg, idx) {
+                    var endDate = new Date(seg.start.getTime() + seg.dur * 86400000 - 86400000);
+                    var fmt = function(d) {
+                        return d.getFullYear() + '/' + (d.getMonth()+1) + '/' + d.getDate();
+                    };
+                    var row = document.createElement('div');
+                    row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #eee;';
+                    row.innerHTML =
+                        '<div style="flex:1;min-width:0;">' +
+                        '<div style="font-weight:bold;color:#333;">' + (seg.owner || '（担当未設定）') + '</div>' +
+                        '<div style="color:#666;font-size:12px;">' + fmt(seg.start) + ' 〜 ' + fmt(endDate) + '（' + seg.dur + '日）</div>' +
+                        '</div>' +
+                        '<button class="seg-list-edit-btn" data-idx="' + idx + '" ' +
+                        'style="padding:3px 10px;background:#2196F3;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;white-space:nowrap;">編集</button>';
+                    popup.appendChild(row);
+                });
+
+                // 編集ボタンのイベント
+                popup.querySelectorAll('.seg-list-edit-btn').forEach(function(btn) {
+                    btn.addEventListener('click', function() {
+                        var segIdx = parseInt(btn.getAttribute('data-idx'), 10);
+                        popup.style.display = 'none';
+                        // gantt-events.js の openSegEditPopup を呼ぶ
+                        if (typeof openSegEditPopup === 'function') {
+                            var cseg = document.querySelector('.cseg[data-task-id="' + taskId + '"][data-seg-index="' + segIdx + '"]');
+                            openSegEditPopup(String(taskId), segIdx, cseg || anchorEl);
+                        }
+                    });
+                });
+
+                document.getElementById('seg-list-close').addEventListener('click', function() {
+                    popup.style.display = 'none';
+                });
+
+                // 位置決め
+                var rect = (typeof anchorEl.getBoundingClientRect === 'function') ? anchorEl.getBoundingClientRect() : { left: 100, bottom: 100, top: 80 };
+                var left = rect.left;
+                var top = rect.bottom + 4;
+                if (left + 300 > window.innerWidth - 8) left = window.innerWidth - 300 - 8;
+                if (top + 200 > window.innerHeight - 8) top = rect.top - 200 - 4;
+                popup.style.left = Math.max(8, left) + 'px';
+                popup.style.top = Math.max(8, top) + 'px';
+                popup.style.display = 'block';
+            }
+
+            // セグメント一覧ポップアップを外クリックで閉じる
+            document.addEventListener('click', function(e) {
+                var popup = document.getElementById('seg-list-popup');
+                if (popup && popup.style.display !== 'none' && !popup.contains(e.target) && !e.target.closest('.gantt_cell')) {
+                    popup.style.display = 'none';
+                }
+            });
 
         })();
         // ===== インライン編集 ここまで =====
@@ -527,11 +624,16 @@
                         <span>📋</span> <span id="ctx-copy-label">行をコピー（下に追加）</span>
                     </div>
                     <hr class="ctx-menu-separator">
+                    <div class="ctx-menu-item" id="ctx-split-add-btn">
+                        <span>👥</span> <span>担当者を分割して追加</span>
+                    </div>
+                    <hr class="ctx-menu-separator">
                     <div class="ctx-menu-item ctx-delete" id="ctx-delete-btn">
                         <span>🗑️</span> <span id="ctx-delete-label">行を削除</span>
                     </div>`;
                 document.body.appendChild(m);
                 document.getElementById('ctx-copy-btn').addEventListener('click', handleCopy);
+                document.getElementById('ctx-split-add-btn').addEventListener('click', handleSplitAdd);
                 document.getElementById('ctx-delete-btn').addEventListener('click', handleDelete);
                 return m;
             }
@@ -712,6 +814,167 @@
 
                 clearSelection();
                 await fetchTasks();
+            }
+
+            // 分割追加処理
+            function handleSplitAdd() {
+                const taskId = _ctxTaskId;
+                hideMenu();
+                if (!taskId) return;
+                const task = gantt.getTask(taskId);
+                if (!task || task.$virtual) return;
+
+                // ダイアログを表示
+                openSplitAddDialog(task);
+            }
+
+            function openSplitAddDialog(task) {
+                var dlg = document.getElementById('split-add-dialog-overlay');
+                if (!dlg) {
+                    dlg = document.createElement('div');
+                    dlg.id = 'split-add-dialog-overlay';
+                    dlg.style.cssText =
+                        'position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.4);' +
+                        'display:flex;align-items:center;justify-content:center;';
+                    dlg.innerHTML =
+                        '<div style="background:#fff;border-radius:8px;padding:20px;min-width:320px;max-width:400px;' +
+                        'box-shadow:0 8px 32px rgba(0,0,0,0.3);font-family:\'Noto Sans JP\',sans-serif;font-size:13px;">' +
+                        '<div style="font-weight:bold;font-size:15px;margin-bottom:14px;">担当者を分割して追加</div>' +
+                        '<table style="border-collapse:collapse;width:100%;">' +
+                        '<tr><td style="padding:5px 0;font-weight:bold;width:70px;">担当者</td>' +
+                        '<td><input id="split-add-owner" list="split-add-owner-list" style="width:100%;box-sizing:border-box;padding:5px;border:1px solid #ccc;border-radius:4px;">' +
+                        '<datalist id="split-add-owner-list"></datalist></td></tr>' +
+                        '<tr><td style="padding:5px 0;font-weight:bold;">開始日</td>' +
+                        '<td><input type="date" id="split-add-start" style="width:100%;box-sizing:border-box;padding:5px;border:1px solid #ccc;border-radius:4px;"></td></tr>' +
+                        '<tr><td style="padding:5px 0;font-weight:bold;">終了日</td>' +
+                        '<td><input type="date" id="split-add-end" style="width:100%;box-sizing:border-box;padding:5px;border:1px solid #ccc;border-radius:4px;"></td></tr>' +
+                        '<tr><td style="padding:5px 0;font-weight:bold;">部署</td>' +
+                        '<td><select id="split-add-major" style="width:100%;box-sizing:border-box;padding:5px;border:1px solid #ccc;border-radius:4px;">' +
+                        '<option value="">（同じ部署）</option>' +
+                        '<option value="設計">設計</option><option value="製管">製管</option>' +
+                        '<option value="組立">組立</option><option value="電装">電装</option>' +
+                        '<option value="操業">操業</option><option value="電技">電技</option>' +
+                        '<option value="明石">明石</option><option value="営業">営業</option>' +
+                        '</td></tr>' +
+                        '</table>' +
+                        '<div id="split-add-error" style="color:#e74c3c;font-size:12px;min-height:18px;margin-top:6px;"></div>' +
+                        '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">' +
+                        '<button id="split-add-cancel-btn" style="padding:5px 14px;cursor:pointer;">キャンセル</button>' +
+                        '<button id="split-add-ok-btn" style="padding:5px 14px;background:#2196F3;color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:bold;">追加</button>' +
+                        '</div></div>';
+                    document.body.appendChild(dlg);
+
+                    document.getElementById('split-add-cancel-btn').addEventListener('click', function() {
+                        dlg.style.display = 'none';
+                    });
+                    document.getElementById('split-add-ok-btn').addEventListener('click', function() {
+                        executeSplitAdd();
+                    });
+                    dlg.addEventListener('click', function(e) {
+                        if (e.target === dlg) dlg.style.display = 'none';
+                    });
+                }
+
+                // 担当者候補（ownerMasterがあれば使用）
+                var majorItem = task.major_item || '';
+                var datalist = document.getElementById('split-add-owner-list');
+                datalist.innerHTML = '';
+                if (typeof ownerMaster !== 'undefined' && ownerMaster[majorItem]) {
+                    ownerMaster[majorItem].forEach(function(o) {
+                        var opt = document.createElement('option');
+                        opt.value = o;
+                        datalist.appendChild(opt);
+                    });
+                }
+
+                // 初期値セット（元タスクの終了日の翌日をデフォルト開始日に）
+                var defStart = new Date(task.start_date);
+                defStart.setDate(defStart.getDate() + (task.duration || 1));
+                var defEnd = new Date(defStart);
+                defEnd.setDate(defEnd.getDate()); // 1日間
+                var toYMD = function(d) {
+                    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+                };
+                document.getElementById('split-add-owner').value = '';
+                document.getElementById('split-add-start').value = toYMD(defStart);
+                document.getElementById('split-add-end').value = toYMD(defEnd);
+                document.getElementById('split-add-major').value = '';
+                document.getElementById('split-add-error').textContent = '';
+                dlg.style.display = 'flex';
+                dlg._targetTask = task;
+                setTimeout(function() { document.getElementById('split-add-owner').focus(); }, 50);
+            }
+
+            async function executeSplitAdd() {
+                var dlg = document.getElementById('split-add-dialog-overlay');
+                if (!dlg || !dlg._targetTask) return;
+                var task = dlg._targetTask;
+                var errEl = document.getElementById('split-add-error');
+
+                var owner    = document.getElementById('split-add-owner').value.trim();
+                var startVal = document.getElementById('split-add-start').value;
+                var endVal   = document.getElementById('split-add-end').value;
+                var majorVal = document.getElementById('split-add-major').value || task.major_item || '';
+
+                if (!startVal || !endVal) { errEl.textContent = '開始日・終了日を入力してください'; return; }
+                var sm = startVal.split('-').map(Number);
+                var em = endVal.split('-').map(Number);
+                var newStart = new Date(sm[0], sm[1]-1, sm[2]);
+                var endDate  = new Date(em[0], em[1]-1, em[2]);
+                if (endDate < newStart) { errEl.textContent = '終了日は開始日以降にしてください'; return; }
+                var newDur = Math.max(1, Math.round((endDate - newStart) / 86400000) + 1);
+
+                errEl.textContent = '';
+                document.getElementById('split-add-ok-btn').disabled = true;
+
+                try {
+                    var realId = task.original_id || task.id;
+                    var toYMD = function(d) {
+                        return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+                    };
+
+                    // 既存タスクの split_group_id を確認（なければ新規発行）
+                    var existingTask = (window.allTasks || []).find(function(t) { return String(t.id) === String(realId); });
+                    var groupId = existingTask && existingTask.split_group_id;
+
+                    if (!groupId) {
+                        // 新規 split_group_id を発行（'sg_' + タスクID + タイムスタンプ）
+                        groupId = 'sg_' + String(realId) + '_' + Date.now();
+                        // 既存タスクに split_group_id を設定
+                        var { error: updateErr } = await supabaseClient.from('tasks')
+                            .update({ split_group_id: groupId })
+                            .eq('id', realId);
+                        if (updateErr) { errEl.textContent = '保存に失敗しました: ' + updateErr.message; document.getElementById('split-add-ok-btn').disabled = false; return; }
+                    }
+
+                    // 新しいセグメントタスクをDBに挿入
+                    var newTask = Object.assign({
+                        text:           task.text           || '',
+                        start_date:     startVal,
+                        duration:       newDur,
+                        end_date:       toYMD(new Date(newStart.getTime() + (newDur - 1) * 86400000)),
+                        owner:          owner,
+                        project_number: task.project_number || '',
+                        customer_name:  task.customer_name  || '',
+                        project_details:task.project_details|| '',
+                        machine:        task.machine        || '',
+                        unit:           task.unit           || '',
+                        major_item:     majorVal,
+                        parent:         task.parent_name    || '',
+                        split_group_id: groupId,
+                        sort_order:     (existingTask && existingTask.sort_order != null) ? Number(existingTask.sort_order) + 0.5 : null,
+                        is_business_trip: task.is_business_trip || false
+                    }, (window._editorLastTouchPatch && window._editorLastTouchPatch()) || {});
+
+                    var { error: insErr } = await supabaseClient.from('tasks').insert([newTask]);
+                    if (insErr) { errEl.textContent = '保存に失敗しました: ' + insErr.message; document.getElementById('split-add-ok-btn').disabled = false; return; }
+
+                    dlg.style.display = 'none';
+                    await fetchTasks();
+                } catch(e) {
+                    errEl.textContent = 'エラー: ' + e.message;
+                    document.getElementById('split-add-ok-btn').disabled = false;
+                }
             }
 
             // 削除処理（確認ダイアログあり）

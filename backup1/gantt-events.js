@@ -736,8 +736,8 @@
             const task = gantt.getTask(id);
             _resizeFeedbackActive = false;
             _resizeActiveEdge = null;
-            // csegドラッグ中 または split_parent → DHtmlxドラッグをキャンセル
-            if (_segDragState || (task && task._is_split_parent)) return false;
+            // split_parent → DHtmlxドラッグをキャンセル（cseg独自ドラッグを使用）
+            if (task && task._is_split_parent) return false;
             // 見出し行（仮想タスク）は期間リサイズ不可
             if (task.$virtual && mode === gantt.config.drag_mode.resize) return false;
             // 工場出荷は複数日出荷に対応するため期間リサイズを許可する
@@ -1645,11 +1645,12 @@
         // キャプチャリングフェーズで cseg の mousedown を先取り
         // （DHtmlxがキャプチャリングでドラッグを処理するため、バブリングでは間に合わない）
         document.addEventListener("mousedown", function(e) {
-            if (e.button !== 0 || gantt.config.readonly) return;
+            if (e.button !== 0) return;
             var cseg = e.target.classList.contains("cseg")
                 ? e.target
                 : (e.target.closest ? e.target.closest(".cseg") : null);
             if (!cseg) return;
+            if (gantt.config.readonly) return;
 
             var taskId = cseg.getAttribute("data-task-id");
             var segIdx = parseInt(cseg.getAttribute("data-seg-index"), 10);
@@ -1734,7 +1735,7 @@
             var task = gantt.getTask(ds.taskId);
             var seg  = task._segs[ds.segIdx];
 
-            // DB保存
+            // セグメントをDBに保存
             supabaseClient.from('tasks').update({
                 start_date: _toYMD(seg.start),
                 duration: seg.dur
@@ -1743,7 +1744,11 @@
             });
 
             _updateSplitParentRange(task);
+
+            // gantt.updateTask() はDOMを再描画してcsegを消すが onGanttRender を発火しないため、
+            // 直後に renderSplitSegs() で明示的に再描画する
             gantt.updateTask(ds.taskId);
+            setTimeout(renderSplitSegs, 0);
         });
 
         // ===== セグメント編集ポップアップ =====
@@ -1817,6 +1822,7 @@
             popup.style.top  = Math.max(4, top)  + 'px';
             popup.style.display = 'block';
         }
+        window.openSegEditPopup = openSegEditPopup;
 
         function saveSegEdit() {
             if (!_segEditState) return;
