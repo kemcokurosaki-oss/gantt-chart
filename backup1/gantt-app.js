@@ -375,6 +375,8 @@
                     rep._segs = members.map(function(m) {
                         var cp = _mColors[m.major_item] || {bg:'#85C1E9', bdr:'#5DADE2'};
                         return {
+                            id: m.id,                            // DB更新用
+                            major_item: m.major_item || '',      // 担当者リスト取得用
                             start: parseLocalDate(m.start_date), // この時点ではまだ文字列
                             dur: m.duration,                     // 元の日数を保持
                             owner: m.owner || '',

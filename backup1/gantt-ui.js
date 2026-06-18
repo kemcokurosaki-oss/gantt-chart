@@ -392,6 +392,9 @@
                 const task = gantt.getTask(id);
                 if (!task) return false;
 
+                // split_parent バーのダブルクリックはセグメントのイベントで処理するため無視
+                if (task._is_split_parent) return false;
+
                 const cell = e.target.closest('.gantt_cell');
                 if (!cell) {
                     // バーダブルクリック：ライトボックスを表示（デフォルト動作）

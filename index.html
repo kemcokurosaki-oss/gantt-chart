@@ -18,6 +18,13 @@
             <div class="input-row">
                 <button class="btn-add" id="new_project_btn" onclick="toggleNewProjectForm()" disabled>新規受注</button>
                 <button id="kanryo-btn" class="btn-add" onclick="openKanryoModal('kanri')" disabled style="margin-left:4px;">完了済み</button>
+                <span id="btn-theme-switcher" title="ボタンデザイン切替（お好みを選んでください）">
+                    <span>🎨</span>
+                    <button class="btn-theme-opt active" data-theme="0" onclick="switchBtnTheme('0')">元</button>
+                    <button class="btn-theme-opt" data-theme="1" onclick="switchBtnTheme('1')">案1</button>
+                    <button class="btn-theme-opt" data-theme="2" onclick="switchBtnTheme('2')">案2</button>
+                    <button class="btn-theme-opt" data-theme="3" onclick="switchBtnTheme('3')">案3</button>
+                </span>
                 <button id="publish_btn" class="btn-update" onclick="publishNow()" style="display:none; margin-left:4px;">🔄 更新</button>
                 <span id="save-status" style="font-size:11px; color:#999; margin-left:4px; font-weight:bold; transition: color 0.2s;"></span>
                 <span id="mark-legend" style="display:flex; align-items:center; gap:4px; font-size: 13px; font-weight: bold; color: #333;">
@@ -34,7 +41,7 @@
                 </span>
             </div>
             <div class="input-row" style="border-top: 1px solid #eee;">
-                <button id="reset_filter_btn" class="zoom-btn" style="font-size: 12px; background-color:#e67e22; border-color:#d35400; color:#fff; font-weight:bold; margin-right:10px;" onclick="resetFilter()">表示リセット</button>
+                <button id="reset_filter_btn" class="zoom-btn" style="font-size: 12px; background-color:#fff8f0; border-color:#e0a060; color:#a06030; font-weight:bold; margin-right:10px;" onclick="resetFilter()">表示リセット</button>
                 <span style="font-size: 13px;">表示順：</span>
                 <button id="sort_process_btn" class="zoom-btn active" onclick="setDisplayMode('process')">工程別</button>
                 <button id="sort_machine_btn" class="zoom-btn" onclick="setDisplayMode('machine')">機械別</button>
@@ -42,7 +49,7 @@
                     <span style="font-size: 13px;">表示切替:</span>
                     <button id="zoom_days_btn" class="zoom-btn active" style="font-size: 12px;" onclick="setZoom('days')">日単位</button>
                     <button id="zoom_weeks_btn" class="zoom-btn" style="font-size: 12px;" onclick="setZoom('weeks')">週単位</button>
-                    <button id="scroll_today_btn" class="zoom-btn" onclick="scrollToToday()" style="background-color: #ebf5ff; border-color: #3498db; color: #3498db; font-size: 12px;">今日へ移動</button>
+                    <button id="scroll_today_btn" class="zoom-btn" onclick="scrollToToday()" style="font-size: 12px;">📅今日へ移動</button>
                 </div>
                 <div style="margin-left:auto; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                     <span id="filter_status" style="font-weight:bold; color:#3498db; font-size: 12px; display:none;"></span>
@@ -375,6 +382,26 @@
     </div>
 </div>
 
+    <script>
+    // ===== ボタンデザインテーマ切替 =====
+    (function () {
+        var saved = localStorage.getItem('btn-theme') || '0';
+        document.body.dataset.btnTheme = saved;
+        function updateSwitcherActive(theme) {
+            document.querySelectorAll('.btn-theme-opt').forEach(function (b) {
+                b.classList.toggle('active', b.dataset.theme === theme);
+            });
+        }
+        window.switchBtnTheme = function (t) {
+            document.body.dataset.btnTheme = t;
+            localStorage.setItem('btn-theme', t);
+            updateSwitcherActive(t);
+        };
+        document.addEventListener('DOMContentLoaded', function () {
+            updateSwitcherActive(saved);
+        });
+    })();
+    </script>
     <script src="gantt-setup.js"></script>
     <script src="gantt-events.js"></script>
     <script src="gantt-resource.js"></script>
