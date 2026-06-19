@@ -1842,6 +1842,18 @@
             document.getElementById('order_date').value = '';
             document.getElementById('shipping_date').value = '';
             document.getElementById('spec_folder_url_input').value = '';
+            document.querySelectorAll('input[name="d_template"]').forEach(r => r.checked = false);
+            document.getElementById('d-template-section').style.display = 'none';
+        }
+
+        function onProjectNumberInput(val) {
+            const section = document.getElementById('d-template-section');
+            if (/^D/i.test(val.trim())) {
+                section.style.display = '';
+            } else {
+                section.style.display = 'none';
+                document.querySelectorAll('input[name="d_template"]').forEach(r => r.checked = false);
+            }
         }
 
         async function addProjectFromTemplate() {
@@ -1872,28 +1884,51 @@
             }
 
             // 工事番号からテンプレートテーブルを決定
-            // 3T・4T始まり → task_template_b、3000・4000・7000番台・D番 → task_template_a、それ以外(2000番台) → task_template
+            // 3T・4T始まり → task_template_t、3C・4C始まり → task_template_c
+            // 3000・4000・7000番台 → task_template_a、それ以外(2000番台) → task_template
+            // D番 → ユーザー選択（task_template_t / task_template_c / task_template_t+c）
             let templateTable;
             if (/^[34]T/i.test(projectNumber)) {
-                templateTable = 'task_template_b';
+                templateTable = 'task_template_t';
+            } else if (/^[34]C/i.test(projectNumber)) {
+                templateTable = 'task_template_c';
             } else if (/^[347]/i.test(projectNumber)) {
                 templateTable = 'task_template_a';
             } else if (/^D/i.test(projectNumber)) {
-                templateTable = 'task_template_a';
+                const selectedTemplate = document.querySelector('input[name="d_template"]:checked')?.value;
+                if (!selectedTemplate) {
+                    alert('D番工事はテンプレートを選択してください');
+                    return;
+                }
+                templateTable = selectedTemplate;
             } else {
                 templateTable = 'task_template';
             }
 
             // 1. テンプレートデータを取得（ID順にソート）
-            const { data: templates, error: templateError } = await supabaseClient
-                .from(templateTable)
-                .select('*')
-                .order('id', { ascending: true });
-
-            if (templateError) {
-                console.error("Template fetch error:", templateError);
-                alert("テンプレートの取得に失敗しました");
-                return;
+            let templates;
+            if (templateTable === 'task_template_t+c') {
+                const [resT, resC] = await Promise.all([
+                    supabaseClient.from('task_template_t').select('*').order('id', { ascending: true }),
+                    supabaseClient.from('task_template_c').select('*').order('id', { ascending: true })
+                ]);
+                if (resT.error || resC.error) {
+                    console.error("Template fetch error:", resT.error || resC.error);
+                    alert("テンプレートの取得に失敗しました");
+                    return;
+                }
+                templates = [...(resT.data || []), ...(resC.data || [])];
+            } else {
+                const { data, error: templateError } = await supabaseClient
+                    .from(templateTable)
+                    .select('*')
+                    .order('id', { ascending: true });
+                if (templateError) {
+                    console.error("Template fetch error:", templateError);
+                    alert("テンプレートの取得に失敗しました");
+                    return;
+                }
+                templates = data;
             }
 
             if (!templates || templates.length === 0) {
@@ -1935,7 +1970,7 @@
                     // 出荷はヘッダーの出荷日をそのまま反映
                     startDateStr = shippingDateValue || dateToDb(new Date());
                 } else if (item.reference_date === 'order') {
-                    // 受注日基準（task_template_a / task_template_b の order 指定項目）
+                    // 受注日基準（task_template_a / task_template_t / task_template_c の order 指定項目）
                     const calcDate = new Date(orderDate);
                     calcDate.setDate(calcDate.getDate() + item.relative_start);
                     startDateStr = dateToDb(calcDate);
@@ -1955,7 +1990,7 @@
 
                 // パターンA・B は子タスクとして作成（text=タスク名、parent=""）
                 // 2000番台（task_template）は taskNameOptions の選択肢をすべて子タスクとして作成
-                const isChildTaskPattern = (templateTable === 'task_template_a' || templateTable === 'task_template_b');
+                const isChildTaskPattern = (templateTable === 'task_template_a' || templateTable === 'task_template_t' || templateTable === 'task_template_c' || templateTable === 'task_template_t+c');
                 if (isChildTaskPattern) {
                     const majorItem = resolveMajorItemForTask(item.name, item.major_item);
                     newTasks.push({
@@ -2041,6 +2076,18 @@
                 t.end_date = inclusiveEndDateToDb(t.start_date, t.duration);
             });
 
+            // sort_order を付与（テンプレート順を保持するため）
+            const { data: maxSortData } = await supabaseClient
+                .from('tasks')
+                .select('sort_order')
+                .order('sort_order', { ascending: false })
+                .limit(1);
+            const baseOrder = ((maxSortData?.[0]?.sort_order || 0) + 1000);
+            newTasks.forEach(function(t, i) {
+                t.sort_order = baseOrder + i;
+                t.sort_order_machine = baseOrder + i;
+            });
+
             // 4. Supabaseに一括挿入
             const { error: insertError } = await supabaseClient
                 .from('tasks')
@@ -2071,6 +2118,8 @@
                 document.getElementById('order_date').value = '';
                 document.getElementById('shipping_date').value = '';
                 document.getElementById('spec_folder_url_input').value = '';
+                document.querySelectorAll('input[name="d_template"]').forEach(r => r.checked = false);
+                document.getElementById('d-template-section').style.display = 'none';
                 // 2000番台の場合は新規作成工番をセット（fetchTasks内で見出し行を展開）
                 if (templateTable === 'task_template') {
                     _newlyCreatedProject = projectNumber;

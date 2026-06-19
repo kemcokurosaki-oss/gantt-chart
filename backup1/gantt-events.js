@@ -1612,6 +1612,22 @@
                             });
                         })(taskId, segIdx);
 
+                        // ホバー「×」ボタン（切り離し用）
+                        var xBtn = document.createElement("div");
+                        xBtn.className = "cseg-detach-btn";
+                        xBtn.textContent = "×";
+                        (function(tid, si) {
+                            xBtn.addEventListener("click", function(e) {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                if (gantt.config.readonly) return;
+                                if (confirm('このセグメントを分割から切り離しますか？')) {
+                                    detachSplitSeg(tid, si);
+                                }
+                            });
+                        })(taskId, segIdx);
+                        div.appendChild(xBtn);
+
                         el.appendChild(div);
                     }
 
@@ -1646,6 +1662,8 @@
         // （DHtmlxがキャプチャリングでドラッグを処理するため、バブリングでは間に合わない）
         document.addEventListener("mousedown", function(e) {
             if (e.button !== 0) return;
+            // ×ボタンはdrag対象外（clickイベントで処理）
+            if (e.target.classList.contains("cseg-detach-btn")) return;
             var cseg = e.target.classList.contains("cseg")
                 ? e.target
                 : (e.target.closest ? e.target.closest(".cseg") : null);
@@ -1880,6 +1898,93 @@
             clearTimeout(_splitSegTimer);
             _splitSegTimer = setTimeout(renderSplitSegs, 0);
         });
+        // セグメント切り離し：split_group_id を null にして個別行に戻す
+        async function detachSplitSeg(taskId, segIdx) {
+            var task = gantt.getTask(taskId);
+            if (!task || !task._segs) return;
+            var seg = task._segs[segIdx];
+            if (!seg) return;
+
+            var res = await supabaseClient.from('tasks')
+                .update({ split_group_id: null })
+                .eq('id', seg.id);
+            if (res.error) { alert('切り離しに失敗しました: ' + res.error.message); return; }
+
+            // 残り1本だけになれば、そちらも個別行に戻す
+            var remaining = task._segs.filter(function(_, i) { return i !== segIdx; });
+            if (remaining.length === 1) {
+                var res2 = await supabaseClient.from('tasks')
+                    .update({ split_group_id: null })
+                    .eq('id', remaining[0].id);
+                if (res2.error) console.error('残りセグメント解除エラー:', res2.error);
+            }
+
+            await fetchTasks();
+        }
+
+        // cseg 右クリックメニュー（編集 / 切り離し）
+        var _segCtxMenu = null;
+
+        function _showSegContextMenu(x, y, taskId, segIdx) {
+            _hideSegContextMenu();
+            var m = document.createElement("div");
+            m.id = "seg-ctx-menu";
+            m.style.cssText = "position:fixed;z-index:9999;background:#fff;border:1px solid #ccc;" +
+                "border-radius:4px;box-shadow:0 2px 8px rgba(0,0,0,0.2);padding:4px 0;min-width:160px;";
+
+            function makeItem(label, hoverBg, onClick) {
+                var item = document.createElement("div");
+                item.style.cssText = "padding:6px 14px;cursor:pointer;font-size:13px;white-space:nowrap;";
+                item.textContent = label;
+                item.addEventListener("mouseover", function() { item.style.background = hoverBg; });
+                item.addEventListener("mouseout",  function() { item.style.background = ""; });
+                item.addEventListener("click", function() { _hideSegContextMenu(); onClick(); });
+                return item;
+            }
+
+            m.appendChild(makeItem("✏️ セグメントを編集", "#f0f7ff", function() {
+                var cseg = document.querySelector('.cseg[data-task-id="' + taskId + '"][data-seg-index="' + segIdx + '"]');
+                if (window.openSegEditPopup) {
+                    window.openSegEditPopup(taskId, segIdx, cseg || document.body);
+                }
+            }));
+
+            m.appendChild(makeItem("✂️ このセグメントを切り離す", "#fff0f0", function() {
+                if (confirm('このセグメントを分割から切り離しますか？')) {
+                    detachSplitSeg(taskId, segIdx);
+                }
+            }));
+
+            document.body.appendChild(m);
+
+            var mw = m.offsetWidth || 170, mh = m.offsetHeight || 70;
+            m.style.left = Math.max(0, Math.min(x, window.innerWidth - mw - 8)) + "px";
+            m.style.top  = Math.max(0, Math.min(y, window.innerHeight - mh - 8)) + "px";
+
+            _segCtxMenu = m;
+            setTimeout(function() {
+                document.addEventListener("mousedown", _hideSegContextMenu, { once: true });
+            }, 0);
+        }
+
+        function _hideSegContextMenu() {
+            if (_segCtxMenu) { _segCtxMenu.remove(); _segCtxMenu = null; }
+        }
+
+        // cseg 右クリックをキャプチャフェーズで先取り（DHtmlx競合防止）
+        document.addEventListener("contextmenu", function(e) {
+            var cseg = e.target.classList.contains("cseg")
+                ? e.target
+                : (e.target.closest ? e.target.closest(".cseg") : null);
+            if (!cseg) return;
+            if (gantt.config.readonly) return;
+            e.preventDefault();
+            e.stopPropagation();
+            var taskId = cseg.getAttribute("data-task-id");
+            var segIdx = parseInt(cseg.getAttribute("data-seg-index"), 10);
+            _showSegContextMenu(e.clientX, e.clientY, taskId, segIdx);
+        }, true);
+
         // ===== Split Task セグメント描画 + ドラッグ ここまで =====
 
         if (typeof gantt.plugins === 'function') {

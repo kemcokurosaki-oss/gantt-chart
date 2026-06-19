@@ -1938,5 +1938,29 @@
     visibility: visible !important;
     pointer-events: auto;
 }
+/* cseg ホバー「×」ボタン（切り離し用） */
+.cseg-detach-btn {
+    position: absolute;
+    top: -7px;
+    right: -7px;
+    width: 16px;
+    height: 16px;
+    background: #e74c3c;
+    color: #fff;
+    border-radius: 50%;
+    font-size: 11px;
+    line-height: 16px;
+    text-align: center;
+    cursor: pointer;
+    z-index: 10;
+    opacity: 0;
+    transition: opacity 0.15s;
+    pointer-events: auto;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.35);
+    user-select: none;
+}
+.cseg:hover .cseg-detach-btn {
+    opacity: 1;
+}
 /* ===== Split Task ここまで ===== */
 
