@@ -404,9 +404,8 @@
                     if (idx < 0 || idx >= cols.length) return false;
                     const colName = cols[idx].name;
 
-                    // 担当者・開始日・終了日列はセグメント一覧ポップアップを表示
+                    // 担当者・開始日・終了日はバーのダブルクリックで編集（グリッドからは無効）
                     if (colName === 'owner' || colName === 'start_date' || colName === 'end_date') {
-                        openSegListPopup(id, cell);
                         return false;
                     }
                     // 共通フィールドは通常インライン編集

@@ -93,6 +93,9 @@
         .btn-add { padding: 0px 5px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; transition: filter 0.15s; }
         .btn-add:hover { filter: brightness(0.88); }
         .btn-add:active { transform: translateY(1px); filter: brightness(0.82); }
+        #new_project_btn, #kanryo-btn { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+        #new_project_btn:hover, #kanryo-btn:hover { filter: brightness(0.94); }
+        #new_project_btn:disabled, #kanryo-btn:disabled { color: #aaa; border-color: #ccc; background: #f0f0f0; }
         .btn-update { padding: 1px 10px; background: #2980b9; color: white; border: 1px solid #2471a3; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; letter-spacing: 0.03em; box-shadow: 0 1px 3px rgba(41,128,185,0.25); transition: background 0.15s, box-shadow 0.15s, filter 0.15s; }
         .btn-update:hover { background: #3498db; box-shadow: 0 2px 6px rgba(41,128,185,0.4); }
         .btn-update:active { transform: translateY(1px); filter: brightness(0.88); }
