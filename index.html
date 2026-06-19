@@ -218,7 +218,21 @@
             <div id="new-project-modal-body">
                 <div>
                     <label>工事番号</label>
-                    <input type="text" id="project_number" placeholder="例: 3001">
+                    <input type="text" id="project_number" placeholder="例: 3001" oninput="onProjectNumberInput(this.value)">
+                </div>
+                <div id="d-template-section" style="display:none;">
+                    <label>テンプレート選択</label>
+                    <div style="display:flex; flex-direction:column; gap:5px; padding:2px 0; align-items:flex-start;">
+                        <label style="display:flex !important; align-items:center; gap:6px; font-size:13px; font-weight:normal; cursor:pointer; white-space:nowrap; margin-bottom:0;">
+                            <input type="radio" name="d_template" value="task_template_t">テンプレートt（点検）
+                        </label>
+                        <label style="display:flex !important; align-items:center; gap:6px; font-size:13px; font-weight:normal; cursor:pointer; white-space:nowrap; margin-bottom:0;">
+                            <input type="radio" name="d_template" value="task_template_c">テンプレートc（製作）
+                        </label>
+                        <label style="display:flex !important; align-items:center; gap:6px; font-size:13px; font-weight:normal; cursor:pointer; white-space:nowrap; margin-bottom:0;">
+                            <input type="radio" name="d_template" value="task_template_t+c">テンプレートt＋c
+                        </label>
+                    </div>
                 </div>
                 <div>
                     <label>客先名</label>

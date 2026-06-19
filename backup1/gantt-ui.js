@@ -393,9 +393,14 @@
                 if (!task) return false;
 
                 if (task._is_split_parent) {
-                    // グリッドセルのダブルクリックのみ処理、バーは無視
                     const cell = e.target.closest('.gantt_cell');
-                    if (!cell) return false; // バークリックは無視
+                    if (!cell) {
+                        // 分割親バーの空白ダブルクリック → 分割追加ダイアログを開く
+                        if (!gantt.config.readonly && typeof window.openSplitAddForTask === 'function') {
+                            window.openSplitAddForTask(id);
+                        }
+                        return false;
+                    }
 
                     const row = cell.parentElement;
                     const cells = Array.from(row.children).filter(function(c) { return c.classList.contains('gantt_cell'); });
@@ -626,6 +631,9 @@
                     <div class="ctx-menu-item" id="ctx-split-add-btn">
                         <span>👥</span> <span>担当者を分割して追加</span>
                     </div>
+                    <div class="ctx-menu-item" id="ctx-split-dissolve-btn" style="display:none;">
+                        <span>↩️</span> <span>分割を解除（個別行に戻す）</span>
+                    </div>
                     <hr class="ctx-menu-separator">
                     <div class="ctx-menu-item ctx-delete" id="ctx-delete-btn">
                         <span>🗑️</span> <span id="ctx-delete-label">行を削除</span>
@@ -633,6 +641,7 @@
                 document.body.appendChild(m);
                 document.getElementById('ctx-copy-btn').addEventListener('click', handleCopy);
                 document.getElementById('ctx-split-add-btn').addEventListener('click', handleSplitAdd);
+                document.getElementById('ctx-split-dissolve-btn').addEventListener('click', handleSplitDissolve);
                 document.getElementById('ctx-delete-btn').addEventListener('click', handleDelete);
                 return m;
             }
@@ -904,6 +913,12 @@
                 setTimeout(function() { document.getElementById('split-add-owner').focus(); }, 50);
             }
 
+            // バーのダブルクリックからも呼べるように公開
+            window.openSplitAddForTask = function(taskId) {
+                _ctxTaskId = taskId;
+                handleSplitAdd();
+            };
+
             async function executeSplitAdd() {
                 var dlg = document.getElementById('split-add-dialog-overlay');
                 if (!dlg || !dlg._targetTask) return;
@@ -976,6 +991,28 @@
                 }
             }
 
+            // 分割解除処理
+            async function handleSplitDissolve() {
+                const taskId = _ctxTaskId;
+                hideMenu();
+                if (!taskId) return;
+                const task = gantt.getTask(taskId);
+                if (!task || !task._is_split_parent || !task._segs || task._segs.length === 0) return;
+
+                const segCount = task._segs.length;
+                const label = [task.project_number, task.text, task.machine].filter(Boolean).join(' / ');
+                if (!confirm('「' + label + '」の分割表示を解除して ' + segCount + ' 行に戻しますか？')) return;
+
+                // 全セグメントの split_group_id を NULL に更新
+                for (const seg of task._segs) {
+                    const { error } = await supabaseClient.from('tasks')
+                        .update({ split_group_id: null })
+                        .eq('id', seg.id);
+                    if (error) { alert('解除に失敗しました: ' + error.message); return; }
+                }
+                await fetchTasks();
+            }
+
             // 削除処理（確認ダイアログあり）
             function handleDelete() {
                 const targetIds = _selectedIds.size > 0
@@ -1030,6 +1067,9 @@
                 _ctxTaskId = taskId;
                 // メニューを作成してから位置決め（offsetWidthのため先に visible にする）
                 const m = getMenu();
+                // 分割解除ボタンは split_parent のときのみ表示
+                const dissolveBtn = document.getElementById('ctx-split-dissolve-btn');
+                if (dissolveBtn) dissolveBtn.style.display = task._is_split_parent ? '' : 'none';
                 m.style.left = '-9999px';
                 m.style.top  = '-9999px';
                 m.classList.add('visible');
