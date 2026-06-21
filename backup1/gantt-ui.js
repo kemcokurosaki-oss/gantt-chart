@@ -976,7 +976,7 @@
                         major_item:     majorVal,
                         parent:         task.parent_name    || '',
                         split_group_id: groupId,
-                        sort_order:     (existingTask && existingTask.sort_order != null) ? Number(existingTask.sort_order) + 0.5 : null,
+                        sort_order:     (existingTask && existingTask.sort_order != null) ? Math.round(Number(existingTask.sort_order)) + 1 : null,
                         is_business_trip: task.is_business_trip || false
                     }, (window._editorLastTouchPatch && window._editorLastTouchPatch()) || {});
 

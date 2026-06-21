@@ -176,9 +176,13 @@
             if (data) data = data.filter(t => t.task_type !== 'business_trip');
             // 操業工程表専用タスク（操業工程表で作成した planning/operation/field_trip）は全体工程表に表示しない
             // 全体工程表で作成した操業タスク（task_type=null）と出張タスクはそのまま表示する
+            // ただし出張予定シートモードでは現地試運転(field_trip)タスクも表示対象に含める
             if (data) data = data.filter(t =>
                 !(String(t.major_item || '').trim() === '操業' &&
-                  ['planning', 'operation', 'field_trip'].includes(t.task_type))
+                  (currentDisplayMode === 'business_trip'
+                    ? ['planning', 'operation']
+                    : ['planning', 'operation', 'field_trip']
+                  ).includes(t.task_type))
             );
             if (designTripData && designTripData.length > 0) {
                 // 全体工程表の既存タスクから工事番号→客先名/工事名のマップを作成
@@ -1347,10 +1351,12 @@
             gantt.scrollTo(scrollState.x, scrollState.y);
         }
 
-        /** 出張予定行か（全体工程表・設計工程表由来の出張を含む） */
+        /** 出張予定行か（全体工程表・設計工程表由来の出張、および操業工程表の現地試運転を含む） */
         function _isBusinessTripTaskRow(t) {
             const val = t && t.is_business_trip;
-            return val === true || val === 'true' || val === 'TRUE';
+            if (val === true || val === 'true' || val === 'TRUE') return true;
+            // 操業工程表の現地試運転タスク（task_type='field_trip'）も出張予定シートに表示する
+            return String(t && t.task_type || '').trim().toLowerCase() === 'field_trip';
         }
 
         /** 出張タスクが終了日+7日を過ぎて自動非表示の期限切れか */
