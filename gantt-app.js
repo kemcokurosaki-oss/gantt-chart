@@ -14,7 +14,7 @@
 
         function isEligibleSpecProjectNumber(projectNumber) {
             const p = String(projectNumber || "").trim();
-            return /^2\d{3}$/.test(p);
+            return p.length > 0;
         }
 
         window.hasSpecFolderLink = function(projectNumber) {
@@ -1130,7 +1130,7 @@
             // 1. 機械別表示の場合
             // 2. 工程別表示で、見出し名が「出図＆部品手配」または「長納期品手配」の場合
             const isDesignDetail = (currentDisplayMode === 'machine') || (task.text === "出図＆部品手配") || (task.text === "長納期品手配");
-            const isSpecFolder = task.text === "受注";
+            const isSpecFolder = task.text === "受注" || task.text === "受注説明会";
 
             if (isDesignDetail) {
                 let url = `https://kemcokurosaki-oss.github.io/design-schedule/?project_no=${encodeURIComponent(projectNo)}`;
