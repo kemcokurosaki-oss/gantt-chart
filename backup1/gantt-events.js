@@ -1788,15 +1788,16 @@
                 popup.innerHTML =
                     '<div style="font-weight:bold;margin-bottom:10px;font-size:14px;">セグメント編集</div>' +
                     '<table style="border-collapse:collapse;width:100%;">' +
-                      '<tr><td style="padding:4px 0;font-weight:bold;width:70px;">担当者</td>' +
-                          '<td><input id="seg-edit-owner" list="seg-edit-owner-list" style="width:100%;box-sizing:border-box;padding:4px;border:1px solid #ccc;border-radius:4px;">' +
-                              '<datalist id="seg-edit-owner-list"></datalist></td></tr>' +
+                      '<tr><td style="padding:4px 0;font-weight:bold;width:70px;vertical-align:top;padding-top:8px;">担当者</td>' +
+                          '<td><div id="seg-edit-owner-boxes" style="border:1px solid #ccc;border-radius:4px;max-height:120px;overflow-y:auto;padding:4px 8px;background:#fafafa;"></div>' +
+                          '<input id="seg-edit-owner-other" type="text" placeholder="リストにいない場合は直接入力" style="width:100%;box-sizing:border-box;padding:4px 6px;border:1px solid #ddd;border-radius:4px;margin-top:4px;font-size:12px;color:#555;"></td></tr>' +
                       '<tr><td style="padding:4px 0;font-weight:bold;">開始日</td>' +
                           '<td><input type="date" id="seg-edit-start" style="width:100%;box-sizing:border-box;padding:4px;border:1px solid #ccc;border-radius:4px;"></td></tr>' +
                       '<tr><td style="padding:4px 0;font-weight:bold;">終了日</td>' +
                           '<td><input type="date" id="seg-edit-end" style="width:100%;box-sizing:border-box;padding:4px;border:1px solid #ccc;border-radius:4px;"></td></tr>' +
                     '</table>' +
-                    '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">' +
+                    '<div id="seg-edit-error" style="color:#e74c3c;font-size:12px;min-height:16px;margin-top:4px;"></div>' +
+                    '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px;">' +
                       '<button id="seg-edit-cancel-btn" style="padding:4px 12px;cursor:pointer;">キャンセル</button>' +
                       '<button id="seg-edit-save-btn" style="padding:4px 12px;background:#2196F3;color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:bold;">保存</button>' +
                     '</div>';
@@ -1811,20 +1812,33 @@
                 });
             }
 
-            // 担当者候補リストを更新
-            var datalist = document.getElementById('seg-edit-owner-list');
-            datalist.innerHTML = '';
-            var owners = (typeof ownerMaster !== 'undefined' && ownerMaster[seg.major_item])
-                ? ownerMaster[seg.major_item]
-                : [];
-            owners.forEach(function(o) {
-                var opt = document.createElement('option');
-                opt.value = o;
-                datalist.appendChild(opt);
-            });
-
-            // 現在の値をセット
-            document.getElementById('seg-edit-owner').value = seg.owner || '';
+            // 担当者チェックボックスリストを生成（現在の担当者を初期チェック）
+            var ownerList = (typeof ownerMaster !== 'undefined' && ownerMaster[seg.major_item])
+                ? ownerMaster[seg.major_item] : [];
+            var currentOwners = (seg.owner || '').split(/[,，]/).map(function(s) { return s.trim(); }).filter(Boolean);
+            var box = document.getElementById('seg-edit-owner-boxes');
+            box.innerHTML = '';
+            if (ownerList.length === 0) {
+                box.innerHTML = '<span style="font-size:12px;color:#999;">（候補なし）</span>';
+            } else {
+                ownerList.forEach(function(o) {
+                    var lbl = document.createElement('label');
+                    lbl.style.cssText = 'display:flex;align-items:center;gap:6px;padding:3px 0;cursor:pointer;font-size:13px;';
+                    var cb = document.createElement('input');
+                    cb.type = 'checkbox';
+                    cb.value = o;
+                    cb.name = 'seg-owner-cb';
+                    cb.style.cursor = 'pointer';
+                    if (currentOwners.indexOf(o) >= 0) cb.checked = true;
+                    lbl.appendChild(cb);
+                    lbl.appendChild(document.createTextNode(o));
+                    box.appendChild(lbl);
+                });
+            }
+            // リストにない担当者は直接入力欄へ
+            var notInList = currentOwners.filter(function(o) { return ownerList.indexOf(o) < 0; });
+            document.getElementById('seg-edit-owner-other').value = notInList.join(',');
+            document.getElementById('seg-edit-error').textContent = '';
             var startEnd = new Date(seg.start.getTime() + seg.dur * 86400000);
             startEnd = new Date(startEnd.getTime() - 86400000); // 最終日（終了日の前日）
             document.getElementById('seg-edit-start').value = _toYMD(seg.start);
@@ -1832,7 +1846,7 @@
 
             // ポップアップ位置を計算（バーの下、画面外に出ないよう調整）
             var rect = anchorEl.getBoundingClientRect();
-            var popW = 260, popH = 180;
+            var popW = 280, popH = 280;
             var left = Math.min(rect.left, window.innerWidth - popW - 8);
             var top  = rect.bottom + 4;
             if (top + popH > window.innerHeight) top = rect.top - popH - 4;
@@ -1842,42 +1856,57 @@
         }
         window.openSegEditPopup = openSegEditPopup;
 
-        function saveSegEdit() {
+        async function saveSegEdit() {
             if (!_segEditState) return;
             var savedTaskId = _segEditState.taskId;
             var task = gantt.getTask(savedTaskId);
             var seg  = task._segs[_segEditState.segIdx];
+            var errEl = document.getElementById('seg-edit-error');
 
-            var newOwner = document.getElementById('seg-edit-owner').value.trim();
+            // 選択した担当者を全員カンマ区切りで同一セグメントに保存（新規セグメントは作らない）
+            var checkedOwners = Array.from(document.querySelectorAll('input[name="seg-owner-cb"]:checked')).map(function(cb) { return cb.value; });
+            var otherOwner = (document.getElementById('seg-edit-owner-other').value || '').trim();
+            if (otherOwner) {
+                otherOwner.split(/[,，]/).forEach(function(o) {
+                    var n = o.trim();
+                    if (n) checkedOwners.push(n);
+                });
+            }
+            var owners = checkedOwners.filter(function(v, i, a) { return v && a.indexOf(v) === i; });
+            if (owners.length === 0) { if (errEl) errEl.textContent = '担当者を選択または入力してください'; return; }
+
+            var ownerStr = owners.join(',');
+
             var startVal = document.getElementById('seg-edit-start').value;
             var endVal   = document.getElementById('seg-edit-end').value;
-
-            if (!startVal || !endVal) return;
+            if (!startVal || !endVal) { if (errEl) errEl.textContent = '開始日・終了日を入力してください'; return; }
             var sm = startVal.split('-').map(Number);
             var em = endVal.split('-').map(Number);
             var newStart = new Date(sm[0], sm[1] - 1, sm[2]);
             var endDate  = new Date(em[0], em[1] - 1, em[2]);
-            var newDur   = Math.max(1, Math.round((endDate - newStart) / 86400000) + 1);
+            if (endDate < newStart) { if (errEl) errEl.textContent = '終了日は開始日以降にしてください'; return; }
+            var newDur = Math.max(1, Math.round((endDate - newStart) / 86400000) + 1);
 
-            seg.owner = newOwner;
-            seg.start = newStart;
-            seg.dur   = newDur;
+            document.getElementById('seg-edit-save-btn').disabled = true;
+
+            var patch = (window._editorLastTouchPatch && window._editorLastTouchPatch()) || {};
+            var res = await supabaseClient.from('tasks').update(Object.assign({
+                owner:      ownerStr,
+                start_date: _toYMD(newStart),
+                duration:   newDur,
+                end_date:   _toYMD(new Date(newStart.getTime() + (newDur - 1) * 86400000))
+            }, patch)).eq('id', seg.id);
+
+            if (res.error) {
+                if (errEl) errEl.textContent = '保存に失敗しました: ' + res.error.message;
+                document.getElementById('seg-edit-save-btn').disabled = false;
+                return;
+            }
 
             document.getElementById('seg-edit-popup').style.display = 'none';
+            document.getElementById('seg-edit-save-btn').disabled = false;
             _segEditState = null;
-
-            // DB保存
-            supabaseClient.from('tasks').update({
-                owner: newOwner,
-                start_date: _toYMD(newStart),
-                duration: newDur
-            }).eq('id', seg.id).then(function(res) {
-                if (res.error) console.error("split seg 担当者保存エラー:", res.error);
-            });
-
-            _updateSplitParentRange(task);
-            gantt.updateTask(savedTaskId);
-            renderSplitSegs();
+            await fetchTasks();
         }
 
         // ポップアップ外クリックで閉じる
@@ -1938,7 +1967,7 @@
                 item.textContent = label;
                 item.addEventListener("mouseover", function() { item.style.background = hoverBg; });
                 item.addEventListener("mouseout",  function() { item.style.background = ""; });
-                item.addEventListener("click", function() { _hideSegContextMenu(); onClick(); });
+                item.addEventListener("mousedown", function(e) { e.stopPropagation(); _hideSegContextMenu(); onClick(); });
                 return item;
             }
 
@@ -1946,6 +1975,12 @@
                 var cseg = document.querySelector('.cseg[data-task-id="' + taskId + '"][data-seg-index="' + segIdx + '"]');
                 if (window.openSegEditPopup) {
                     window.openSegEditPopup(taskId, segIdx, cseg || document.body);
+                }
+            }));
+
+            m.appendChild(makeItem("📅 バーを追加（期間を分割）", "#f0fff0", function() {
+                if (window.openSplitAddForTask) {
+                    window.openSplitAddForTask(taskId);
                 }
             }));
 
