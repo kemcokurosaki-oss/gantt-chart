@@ -873,7 +873,14 @@
                     if (!projectMap[pNum].project_details && t.project_details) projectMap[pNum].project_details = t.project_details;
                 }
             });
-            const projects = Object.keys(projectMap).sort();
+            // 出張タスクのみの工番（社内タスクなし）は管理一覧から除外
+            const kindMap = typeof window._buildProjectKindMap === 'function'
+                ? window._buildProjectKindMap(window.allTasks || [])
+                : {};
+            const projects = Object.keys(projectMap).filter(p => {
+                const kind = kindMap[p];
+                return !kind || kind.shanai;
+            }).sort();
             if (projects.length === 0) {
                 body.innerHTML = '<div style="padding:20px;color:#999;text-align:center;">工程表に表示中の工事番号はありません</div>';
                 return;
