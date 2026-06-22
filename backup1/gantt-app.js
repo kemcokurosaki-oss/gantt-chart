@@ -389,7 +389,14 @@
                     rep.duration = totalDur;
                     rep._split_start = minStart;
                     rep._split_end = maxEndIncl;
-                    rep.owner = members.map(function(m) { return m.owner; }).filter(Boolean).join(' / ');
+                    // 各セグメントのownerをそのまま/で繋ぐ（重複除去しない）
+                    // 例: ①桂 ②桂,早川 ③早川,センティル → 桂/桂,早川/早川,センティル
+                    var _displayParts = [];
+                    members.forEach(function(m) {
+                        if (!m.owner) return;
+                        _displayParts.push(String(m.owner).trim());
+                    });
+                    rep.owner = _displayParts.join('/');
                     members.slice(1).forEach(function(m) { m._splitChild = true; });
                 });
             }

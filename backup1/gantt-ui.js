@@ -629,10 +629,13 @@
                     </div>
                     <hr class="ctx-menu-separator">
                     <div class="ctx-menu-item" id="ctx-split-add-btn">
-                        <span>👥</span> <span>担当者を分割して追加</span>
+                        <span>📅</span> <span>バーを追加（期間を分割）</span>
                     </div>
                     <div class="ctx-menu-item" id="ctx-split-dissolve-btn" style="display:none;">
                         <span>↩️</span> <span>分割を解除（個別行に戻す）</span>
+                    </div>
+                    <div class="ctx-menu-item" id="ctx-merge-btn" style="display:none;">
+                        <span>🔗</span> <span id="ctx-merge-label">選択した行を1行にまとめる</span>
                     </div>
                     <hr class="ctx-menu-separator">
                     <div class="ctx-menu-item ctx-delete" id="ctx-delete-btn">
@@ -642,6 +645,7 @@
                 document.getElementById('ctx-copy-btn').addEventListener('click', handleCopy);
                 document.getElementById('ctx-split-add-btn').addEventListener('click', handleSplitAdd);
                 document.getElementById('ctx-split-dissolve-btn').addEventListener('click', handleSplitDissolve);
+                document.getElementById('ctx-merge-btn').addEventListener('click', handleMerge);
                 document.getElementById('ctx-delete-btn').addEventListener('click', handleDelete);
                 return m;
             }
@@ -659,6 +663,12 @@
                 const suffix = count > 1 ? '（' + count + '行）' : '';
                 document.getElementById('ctx-copy-label').textContent = '行をコピー' + suffix;
                 document.getElementById('ctx-delete-label').textContent = '行を削除' + suffix;
+                const mergeBtn = document.getElementById('ctx-merge-btn');
+                if (mergeBtn) {
+                    const showMerge = _isEditor && count >= 2;
+                    mergeBtn.style.display = showMerge ? '' : 'none';
+                    if (showMerge) document.getElementById('ctx-merge-label').textContent = '選択した' + count + '行を1行にまとめる';
+                }
 
                 m.classList.add('visible');
                 const margin = 8;
@@ -829,6 +839,10 @@
                 const taskId = _ctxTaskId;
                 hideMenu();
                 if (!taskId) return;
+                if (!_isEditor) {
+                    alert('バーを追加（期間を分割）するにはログインが必要です。');
+                    return;
+                }
                 const task = gantt.getTask(taskId);
                 if (!task || task.$virtual) return;
 
@@ -841,59 +855,107 @@
                 if (!dlg) {
                     dlg = document.createElement('div');
                     dlg.id = 'split-add-dialog-overlay';
-                    dlg.style.cssText =
-                        'position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.4);' +
-                        'display:flex;align-items:center;justify-content:center;';
-                    dlg.innerHTML =
-                        '<div style="background:#fff;border-radius:8px;padding:20px;min-width:320px;max-width:400px;' +
-                        'box-shadow:0 8px 32px rgba(0,0,0,0.3);font-family:\'Noto Sans JP\',sans-serif;font-size:13px;">' +
-                        '<div style="font-weight:bold;font-size:15px;margin-bottom:14px;">担当者を分割して追加</div>' +
+                    // 背景オーバーレイ（クリックで閉じる用）。ダイアログ本体は独立したfixed要素
+                    dlg.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.4);';
+                    document.body.appendChild(dlg);
+
+                    var box = document.createElement('div');
+                    box.id = 'split-add-dialog-box';
+                    box.style.cssText =
+                        'position:fixed;z-index:10001;background:#fff;border-radius:8px;padding:20px;' +
+                        'min-width:320px;max-width:400px;box-shadow:0 8px 32px rgba(0,0,0,0.3);' +
+                        'font-family:\'Noto Sans JP\',sans-serif;font-size:13px;user-select:none;';
+                    box.innerHTML =
+                        '<div id="split-add-drag-handle" style="font-weight:bold;font-size:15px;margin-bottom:4px;cursor:move;">' +
+                        'バーを追加（期間を分割表示）</div>' +
+                        '<div style="font-size:11px;color:#888;margin-bottom:10px;">同じ行に別の期間のバーを追加します。担当者は省略可（元のまま引き継ぎ）</div>' +
                         '<table style="border-collapse:collapse;width:100%;">' +
-                        '<tr><td style="padding:5px 0;font-weight:bold;width:70px;">担当者</td>' +
-                        '<td><input id="split-add-owner" list="split-add-owner-list" style="width:100%;box-sizing:border-box;padding:5px;border:1px solid #ccc;border-radius:4px;">' +
-                        '<datalist id="split-add-owner-list"></datalist></td></tr>' +
+                        '<tr><td style="padding:5px 0;font-weight:bold;width:70px;vertical-align:top;padding-top:8px;">担当者</td>' +
+                        '<td><div id="split-add-owner-boxes" style="border:1px solid #ccc;border-radius:4px;max-height:130px;overflow-y:auto;padding:4px 8px;background:#fafafa;"></div>' +
+                        '<input id="split-add-owner-other" type="text" placeholder="リストにいない場合は直接入力" style="width:100%;box-sizing:border-box;padding:4px 6px;border:1px solid #ddd;border-radius:4px;margin-top:4px;font-size:12px;color:#555;"></td></tr>' +
                         '<tr><td style="padding:5px 0;font-weight:bold;">開始日</td>' +
                         '<td><input type="date" id="split-add-start" style="width:100%;box-sizing:border-box;padding:5px;border:1px solid #ccc;border-radius:4px;"></td></tr>' +
                         '<tr><td style="padding:5px 0;font-weight:bold;">終了日</td>' +
                         '<td><input type="date" id="split-add-end" style="width:100%;box-sizing:border-box;padding:5px;border:1px solid #ccc;border-radius:4px;"></td></tr>' +
-                        '<tr><td style="padding:5px 0;font-weight:bold;">部署</td>' +
-                        '<td><select id="split-add-major" style="width:100%;box-sizing:border-box;padding:5px;border:1px solid #ccc;border-radius:4px;">' +
-                        '<option value="">（同じ部署）</option>' +
-                        '<option value="設計">設計</option><option value="製管">製管</option>' +
-                        '<option value="組立">組立</option><option value="電装">電装</option>' +
-                        '<option value="操業">操業</option><option value="電技">電技</option>' +
-                        '<option value="明石">明石</option><option value="営業">営業</option>' +
-                        '</td></tr>' +
+                        '<tr style="display:none;"><td style="padding:5px 0;font-weight:bold;">部署</td>' +
+                        '<td><select id="split-add-major"><option value="">（同じ部署）</option></select></td></tr>' +
                         '</table>' +
                         '<div id="split-add-error" style="color:#e74c3c;font-size:12px;min-height:18px;margin-top:6px;"></div>' +
                         '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">' +
                         '<button id="split-add-cancel-btn" style="padding:5px 14px;cursor:pointer;">キャンセル</button>' +
                         '<button id="split-add-ok-btn" style="padding:5px 14px;background:#2196F3;color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:bold;">追加</button>' +
-                        '</div></div>';
-                    document.body.appendChild(dlg);
+                        '</div>';
+                    document.body.appendChild(box);
+
+                    // ドラッグ移動
+                    (function() {
+                        var handle = document.getElementById('split-add-drag-handle');
+                        handle.addEventListener('mousedown', function(e) {
+                            var b = document.getElementById('split-add-dialog-box');
+                            var r = b.getBoundingClientRect();
+                            var dx = e.clientX - r.left, dy = e.clientY - r.top;
+                            function onMove(e) {
+                                b.style.left = Math.max(0, Math.min(e.clientX - dx, window.innerWidth  - b.offsetWidth))  + 'px';
+                                b.style.top  = Math.max(0, Math.min(e.clientY - dy, window.innerHeight - b.offsetHeight)) + 'px';
+                            }
+                            function onUp() {
+                                document.removeEventListener('mousemove', onMove);
+                                document.removeEventListener('mouseup', onUp);
+                            }
+                            document.addEventListener('mousemove', onMove);
+                            document.addEventListener('mouseup', onUp);
+                            e.preventDefault();
+                        });
+                    })();
 
                     document.getElementById('split-add-cancel-btn').addEventListener('click', function() {
                         dlg.style.display = 'none';
+                        document.getElementById('split-add-dialog-box').style.display = 'none';
                     });
                     document.getElementById('split-add-ok-btn').addEventListener('click', function() {
                         executeSplitAdd();
                     });
                     dlg.addEventListener('click', function(e) {
-                        if (e.target === dlg) dlg.style.display = 'none';
+                        if (e.target === dlg) {
+                            dlg.style.display = 'none';
+                            document.getElementById('split-add-dialog-box').style.display = 'none';
+                        }
                     });
                 }
 
-                // 担当者候補（ownerMasterがあれば使用）
+                // 担当者チェックボックスリスト生成（元タスクの担当者を初期チェック）
                 var majorItem = task.major_item || '';
-                var datalist = document.getElementById('split-add-owner-list');
-                datalist.innerHTML = '';
-                if (typeof ownerMaster !== 'undefined' && ownerMaster[majorItem]) {
-                    ownerMaster[majorItem].forEach(function(o) {
-                        var opt = document.createElement('option');
-                        opt.value = o;
-                        datalist.appendChild(opt);
+                // split parentのownerは "桂,早川/センティル" のようにセグメント間が/区切りなので両方で分割する
+                var taskOwners = (task.owner || '').split(/[,，\/]/).map(function(s) { return s.trim(); }).filter(Boolean);
+                function _buildOwnerBoxes(dept) {
+                    var box = document.getElementById('split-add-owner-boxes');
+                    if (!box) return;
+                    box.innerHTML = '';
+                    var owners = (typeof ownerMaster !== 'undefined' && ownerMaster[dept]) ? ownerMaster[dept] : [];
+                    if (owners.length === 0) {
+                        box.innerHTML = '<span style="font-size:12px;color:#999;">（候補なし）</span>';
+                        return;
+                    }
+                    owners.forEach(function(o) {
+                        var lbl = document.createElement('label');
+                        lbl.style.cssText = 'display:flex;align-items:center;gap:6px;padding:3px 0;cursor:pointer;font-size:13px;';
+                        var cb = document.createElement('input');
+                        cb.type = 'checkbox';
+                        cb.value = o;
+                        cb.name = 'split-owner-cb';
+                        cb.style.cursor = 'pointer';
+                        if (taskOwners.indexOf(o) >= 0) cb.checked = true;
+                        lbl.appendChild(cb);
+                        lbl.appendChild(document.createTextNode(o));
+                        box.appendChild(lbl);
                     });
                 }
+                _buildOwnerBoxes(majorItem);
+                // リストにない元担当者は直接入力欄へ
+                var notInList = taskOwners.filter(function(o) {
+                    var ownerList = (typeof ownerMaster !== 'undefined' && ownerMaster[majorItem]) ? ownerMaster[majorItem] : [];
+                    return ownerList.indexOf(o) < 0;
+                });
 
                 // 初期値セット（元タスクの終了日の翌日をデフォルト開始日に）
                 var defStart = new Date(task.start_date);
@@ -903,14 +965,19 @@
                 var toYMD = function(d) {
                     return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
                 };
-                document.getElementById('split-add-owner').value = '';
+                document.getElementById('split-add-owner-other').value = notInList.join(',');
                 document.getElementById('split-add-start').value = toYMD(defStart);
                 document.getElementById('split-add-end').value = toYMD(defEnd);
                 document.getElementById('split-add-major').value = '';
                 document.getElementById('split-add-error').textContent = '';
-                dlg.style.display = 'flex';
+                dlg.style.display = 'block';
+                // ダイアログ本体を表示して画面中央に配置
+                var dialogBox = document.getElementById('split-add-dialog-box');
+                dialogBox.style.display = 'block';
+                dialogBox.style.left = Math.max(8, Math.round((window.innerWidth  - dialogBox.offsetWidth)  / 2)) + 'px';
+                dialogBox.style.top  = Math.max(8, Math.round((window.innerHeight - dialogBox.offsetHeight) / 2)) + 'px';
                 dlg._targetTask = task;
-                setTimeout(function() { document.getElementById('split-add-owner').focus(); }, 50);
+                setTimeout(function() { var b = document.getElementById('split-add-owner-boxes'); if (b) b.scrollTop = 0; }, 50);
             }
 
             // バーのダブルクリックからも呼べるように公開
@@ -925,11 +992,21 @@
                 var task = dlg._targetTask;
                 var errEl = document.getElementById('split-add-error');
 
-                var owner    = document.getElementById('split-add-owner').value.trim();
+                // 選択された担当者を収集（チェックボックス ＋ 直接入力）
+                var checkedOwners = Array.from(document.querySelectorAll('input[name="split-owner-cb"]:checked')).map(function(cb) { return cb.value; });
+                var otherOwner = (document.getElementById('split-add-owner-other').value || '').trim();
+                if (otherOwner) checkedOwners.push(otherOwner);
+                var owners = checkedOwners.filter(function(v, i, a) { return v && a.indexOf(v) === i; }); // 重複除去
+
                 var startVal = document.getElementById('split-add-start').value;
                 var endVal   = document.getElementById('split-add-end').value;
-                var majorVal = document.getElementById('split-add-major').value || task.major_item || '';
+                var majorVal = task.major_item || '';
 
+                // 担当者未選択の場合は元タスクの担当者をそのまま引き継ぐ
+                if (owners.length === 0) {
+                    var fallback = (task.owner || '').trim();
+                    if (fallback) { owners = [fallback]; } else { errEl.textContent = '担当者を選択または入力してください'; return; }
+                }
                 if (!startVal || !endVal) { errEl.textContent = '開始日・終了日を入力してください'; return; }
                 var sm = startVal.split('-').map(Number);
                 var em = endVal.split('-').map(Number);
@@ -952,38 +1029,41 @@
                     var groupId = existingTask && existingTask.split_group_id;
 
                     if (!groupId) {
-                        // 新規 split_group_id を発行（'sg_' + タスクID + タイムスタンプ）
                         groupId = 'sg_' + String(realId) + '_' + Date.now();
-                        // 既存タスクに split_group_id を設定
                         var { error: updateErr } = await supabaseClient.from('tasks')
                             .update({ split_group_id: groupId })
                             .eq('id', realId);
                         if (updateErr) { errEl.textContent = '保存に失敗しました: ' + updateErr.message; document.getElementById('split-add-ok-btn').disabled = false; return; }
                     }
 
-                    // 新しいセグメントタスクをDBに挿入
-                    var newTask = Object.assign({
-                        text:           task.text           || '',
-                        start_date:     startVal,
-                        duration:       newDur,
-                        end_date:       toYMD(new Date(newStart.getTime() + (newDur - 1) * 86400000)),
-                        owner:          owner,
-                        project_number: task.project_number || '',
-                        customer_name:  task.customer_name  || '',
-                        project_details:task.project_details|| '',
-                        machine:        task.machine        || '',
-                        unit:           task.unit           || '',
-                        major_item:     majorVal,
-                        parent:         task.parent_name    || '',
-                        split_group_id: groupId,
-                        sort_order:     (existingTask && existingTask.sort_order != null) ? Math.round(Number(existingTask.sort_order)) + 1 : null,
-                        is_business_trip: task.is_business_trip || false
-                    }, (window._editorLastTouchPatch && window._editorLastTouchPatch()) || {});
+                    var baseSort = (existingTask && existingTask.sort_order != null) ? Math.round(Number(existingTask.sort_order)) : null;
+                    var patch = (window._editorLastTouchPatch && window._editorLastTouchPatch()) || {};
 
-                    var { error: insErr } = await supabaseClient.from('tasks').insert([newTask]);
-                    if (insErr) { errEl.textContent = '保存に失敗しました: ' + insErr.message; document.getElementById('split-add-ok-btn').disabled = false; return; }
+                    // 選択した担当者ごとに1行ずつ挿入
+                    for (var oi = 0; oi < owners.length; oi++) {
+                        var newTask = Object.assign({
+                            text:           task.text           || '',
+                            start_date:     startVal,
+                            duration:       newDur,
+                            end_date:       toYMD(new Date(newStart.getTime() + (newDur - 1) * 86400000)),
+                            owner:          owners[oi],
+                            project_number: task.project_number || '',
+                            customer_name:  task.customer_name  || '',
+                            project_details:task.project_details|| '',
+                            machine:        task.machine        || '',
+                            unit:           task.unit           || '',
+                            major_item:     majorVal,
+                            parent:         task.parent_name    || '',
+                            split_group_id: groupId,
+                            sort_order:     baseSort != null ? baseSort + 1 + oi : null,
+                            is_business_trip: task.is_business_trip || false
+                        }, patch);
+                        var { error: insErr } = await supabaseClient.from('tasks').insert([newTask]);
+                        if (insErr) { errEl.textContent = '保存に失敗しました（' + owners[oi] + '）: ' + insErr.message; document.getElementById('split-add-ok-btn').disabled = false; return; }
+                    }
 
                     dlg.style.display = 'none';
+                    document.getElementById('split-add-dialog-box').style.display = 'none';
                     await fetchTasks();
                 } catch(e) {
                     errEl.textContent = 'エラー: ' + e.message;
@@ -991,11 +1071,72 @@
                 }
             }
 
+            // 既存行を1行にまとめる処理
+            async function handleMerge() {
+                hideMenu();
+                if (!_isEditor) { alert('ログインが必要です。'); return; }
+
+                const ids = Array.from(_selectedIds);
+                if (ids.length < 2) { alert('2行以上を選択してください。'); return; }
+
+                // allTasks から実データを取得
+                const allT = window.allTasks || [];
+                const tasks = ids.map(function(id) {
+                    return allT.find(function(t) { return String(t.id) === String(id); });
+                }).filter(Boolean);
+
+                if (tasks.length < 2) { alert('対象タスクが見つかりませんでした。'); return; }
+
+                // すでに分割グループに属しているか確認
+                const alreadyGrouped = tasks.filter(function(t) { return t.split_group_id; });
+                if (alreadyGrouped.length > 0) {
+                    const labels = alreadyGrouped.map(function(t) { return [t.project_number, t.text, t.machine].filter(Boolean).join(' / '); });
+                    alert('以下の行はすでに分割グループに属しています。\n分割を解除してからまとめてください。\n\n' + labels.join('\n'));
+                    return;
+                }
+
+                // 一致条件チェック
+                const CONDITIONS = [
+                    { key: 'project_number', label: '工事番号' },
+                    { key: 'machine',        label: '機械' },
+                    { key: 'unit',           label: 'ユニット' },
+                    { key: 'text',           label: 'タスク名' },
+                ];
+                const mismatches = [];
+                CONDITIONS.forEach(function(c) {
+                    const vals = Array.from(new Set(tasks.map(function(t) { return (t[c.key] || '').trim(); })));
+                    if (vals.length > 1) mismatches.push(c.label);
+                });
+                if (mismatches.length > 0) {
+                    alert('「' + mismatches.join('」「') + '」が異なるため1行にまとめることができません。');
+                    return;
+                }
+
+                const label = [tasks[0].project_number, tasks[0].text, tasks[0].machine].filter(Boolean).join(' / ');
+                if (!confirm('「' + label + '」を ' + ids.length + ' 行まとめて1行のバーとして表示しますか？')) return;
+
+                const groupId = 'sg_' + String(tasks[0].id) + '_' + Date.now();
+                const patch = (window._editorLastTouchPatch && window._editorLastTouchPatch()) || {};
+
+                for (const t of tasks) {
+                    const { error } = await supabaseClient.from('tasks')
+                        .update(Object.assign({ split_group_id: groupId }, patch))
+                        .eq('id', t.id);
+                    if (error) { alert('保存に失敗しました（' + (t.owner || t.id) + '）: ' + error.message); return; }
+                }
+
+                await fetchTasks();
+            }
+
             // 分割解除処理
             async function handleSplitDissolve() {
                 const taskId = _ctxTaskId;
                 hideMenu();
                 if (!taskId) return;
+                if (!_isEditor) {
+                    alert('分割を解除するにはログインが必要です。');
+                    return;
+                }
                 const task = gantt.getTask(taskId);
                 if (!task || !task._is_split_parent || !task._segs || task._segs.length === 0) return;
 
