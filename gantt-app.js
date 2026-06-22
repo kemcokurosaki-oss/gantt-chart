@@ -1467,6 +1467,7 @@
             _scheduleLayoutGanttEmptyNotices();
         }
         window._updateShanaiEmptyNotice = _updateGanttEmptyNotices;
+        window._buildProjectKindMap = _buildProjectKindMap;
 
         /** 工事一覧ホバー用ツールチップ（ラベル＋行ごと色分けで種別を判別しやすく） */
         function fillProjectListTooltip(tooltipEl, info, salesPerson) {
@@ -1510,6 +1511,12 @@
             // 完了済工番をサイドバーから除外
             const completedNums = new Set(completedProjects.map(cp => cp.project_number));
             projects = projects.filter(p => !completedNums.has(p));
+
+            // 社内タスクなし かつ 出張タスクも全て期限切れ（7日超過）の工番をサイドバーから除外
+            projects = projects.filter(p => {
+                const kind = projectKindMap[p];
+                return kind && (kind.shanai || kind.trip);
+            });
 
             // グループフィルター適用
             if (currentProjectGroupFilter === '2000') {
