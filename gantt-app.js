@@ -1009,6 +1009,7 @@
          * @param {{area_group:string,area_number:string}[]} list normalize済み
          */
         async function persistTaskLocationsOnly(tid, list) {
+            if (tid == null || tid === "null" || tid === "undefined" || String(tid).startsWith("design_trip_")) return true;
             const { error: delErr } = await supabaseClient.from("task_locations").delete().eq("task_id", tid);
             if (delErr) {
                 console.error("task_locations delete:", delErr);

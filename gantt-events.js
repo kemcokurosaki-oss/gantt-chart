@@ -548,8 +548,8 @@
                 const srcTask = allT.find(t => String(t.id) === String(item._insertAfterId));
                 if (srcTask && srcTask.sort_order != null) {
                     const srcOrder = Number(srcTask.sort_order);
-                    // srcOrder より大きい sort_order を持つタスクを +1 シフト
-                    const toShift = allT.filter(t => t.sort_order != null && Number(t.sort_order) > srcOrder);
+                    // srcOrder より大きい sort_order を持つタスクを +1 シフト（design_trip タスクは tasks テーブル外なので除外）
+                    const toShift = allT.filter(t => t.sort_order != null && Number(t.sort_order) > srcOrder && !t.$design_trip);
                     if (toShift.length > 0) {
                         await Promise.all(toShift.map(t =>
                             supabaseClient.from('tasks')
@@ -866,6 +866,7 @@
         // 編集内容をデータベースに保存（バックグラウンド・UIブロックなし）
         gantt.attachEvent("onAfterTaskUpdate", function(id, item) {
             if (item.$virtual) return; // 見出し行は仮想的なものなので保存対象外
+            if (item.$design_trip) return; // 設計・組立工程表由来の出張タスクは読み取り専用
 
             const realId = item.original_id || id;
 
@@ -992,6 +993,7 @@
             // 新規タスク判定を同期的に取得（非同期処理が始まる前に確定させる）
             // _is_new_task フラグで判定（IDのallTasks比較はDHTMLXのtemp IDと既存IDが衝突するため不使用）
             const _taskObj = gantt.isTaskExists(id) ? gantt.getTask(id) : null;
+            if (_taskObj && _taskObj.$design_trip) return; // 設計・組立工程表由来の出張タスクは読み取り専用
             const isNewTask = !!(_taskObj && _taskObj._is_new_task);
 
             (async () => {
