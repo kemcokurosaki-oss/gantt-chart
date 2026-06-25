@@ -742,6 +742,18 @@
         }
         .gantt_cal_light .gantt_cal_title, .gantt_cal_light .gantt_cal_lcontrols { font-family: "メイリオ", Meiryo, sans-serif !important; }
 
+        /* ライトボックス: 自動入力ヒント */
+        .lb-autofill-hint {
+            font-size: 10px;
+            color: #2e7d32;
+            margin-top: 2px;
+            line-height: 1.4;
+            padding-left: 2px;
+            display: flex;
+            align-items: center;
+            gap: 3px;
+        }
+
         /* 削除確認ダイアログを編集画面より上に表示（CSS補助） */
         .gantt_popup_shadow,
         .gantt_popup_box,

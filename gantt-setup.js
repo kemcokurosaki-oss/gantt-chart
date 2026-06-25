@@ -1062,6 +1062,129 @@
                     });
                     overflowObserver.observe(document.body, { childList: true, subtree: false });
 
+                    // 出張予定モード: 工事番号→客先名・工事名 自動補完
+                    if (currentDisplayMode === 'business_trip') {
+                        const larea = document.querySelector('.gantt_cal_larea');
+                        if (larea) {
+                            const _chs = Array.from(larea.children);
+                            function _getLtextByLabel(label) {
+                                for (let i = 0; i < _chs.length - 1; i++) {
+                                    if (_chs[i].classList.contains('gantt_cal_lsection') &&
+                                        _chs[i].textContent.trim() === label) {
+                                        return _chs[i + 1] || null;
+                                    }
+                                }
+                                return null;
+                            }
+                            const _pnLtext = _getLtextByLabel('工事番号');
+                            const _cnLtext = _getLtextByLabel('客先名');
+                            const _pdLtext = _getLtextByLabel('工事名');
+                            if (_pnLtext && _cnLtext && _pdLtext) {
+                                const _pnTA = _pnLtext.querySelector('textarea');
+                                const _cnTA = _cnLtext.querySelector('textarea');
+                                const _pdTA = _pdLtext.querySelector('textarea');
+                                if (_pnTA && _cnTA && _pdTA) {
+                                    function _afGetOrCreateHint(ltext) {
+                                        let h = ltext.querySelector('.lb-autofill-hint');
+                                        if (!h) {
+                                            h = document.createElement('div');
+                                            h.className = 'lb-autofill-hint';
+                                            h.style.display = 'none';
+                                            ltext.appendChild(h);
+                                        }
+                                        return h;
+                                    }
+                                    const _cnHint = _afGetOrCreateHint(_cnLtext);
+                                    const _pdHint = _afGetOrCreateHint(_pdLtext);
+                                    // オープン毎に状態リセット（ヒント非表示・高さ復元）
+                                    _cnHint.style.display = 'none';
+                                    _pdHint.style.display = 'none';
+                                    // ✓ヒント用に高さを確保（ヒント有無で変わらないよう固定）
+                                    _cnLtext.style.setProperty('height', '44px', 'important');
+                                    _cnLtext.style.setProperty('overflow', 'hidden', 'important');
+                                    _pdLtext.style.setProperty('height', '44px', 'important');
+                                    _pdLtext.style.setProperty('overflow', 'hidden', 'important');
+                                    // 毎オープン時の状態をDOM要素に保存（イベントリスナーから参照）
+                                    _pnTA.__af = {
+                                        cnCanAutoFill: true, pdCanAutoFill: true,
+                                        cnWasAutoFilled: false, pdWasAutoFilled: false,
+                                        cnTA: _cnTA, pdTA: _pdTA,
+                                        cnHint: _cnHint, pdHint: _pdHint,
+                                        cnLtext: _cnLtext, pdLtext: _pdLtext
+                                    };
+                                    function _afShowHint(hint, ltext, text) {
+                                        hint.innerHTML = '<span style="color:#2e7d32;">✓</span> ' + text;
+                                        hint.style.display = '';
+                                        // 高さは38pxで固定済みのため変更不要
+                                    }
+                                    function _afHideHint(hint, ltext) {
+                                        hint.style.display = 'none';
+                                        // 高さは38pxで固定済みのため変更不要
+                                    }
+                                    function _afLookup(pn) {
+                                        const s = (pn || '').toString().trim();
+                                        if (!s) return null;
+                                        return (window.allTasks || []).find(function(t) {
+                                            return (t.project_number || '').toString().trim() === s &&
+                                                   (t.customer_name || t.project_details);
+                                        }) || completedProjects.find(function(t) {
+                                            return (t.project_number || '').toString().trim() === s &&
+                                                   (t.customer_name || t.project_details);
+                                        }) || null;
+                                    }
+                                    function _afApply(found) {
+                                        const af = _pnTA.__af;
+                                        if (!af) return;
+                                        if (found) {
+                                            if (af.cnCanAutoFill && found.customer_name) {
+                                                af.cnTA.value = found.customer_name;
+                                                af.cnWasAutoFilled = true;
+                                                _afShowHint(af.cnHint, af.cnLtext, '自動入力');
+                                            }
+                                            if (af.pdCanAutoFill && found.project_details) {
+                                                af.pdTA.value = found.project_details;
+                                                af.pdWasAutoFilled = true;
+                                                _afShowHint(af.pdHint, af.pdLtext, '自動入力');
+                                            }
+                                        } else {
+                                            if (af.cnWasAutoFilled) {
+                                                af.cnTA.value = '';
+                                                af.cnWasAutoFilled = false;
+                                                _afHideHint(af.cnHint, af.cnLtext);
+                                            }
+                                            if (af.pdWasAutoFilled) {
+                                                af.pdTA.value = '';
+                                                af.pdWasAutoFilled = false;
+                                                _afHideHint(af.pdHint, af.pdLtext);
+                                            }
+                                        }
+                                    }
+                                    // イベントリスナーは初回のみ設定（DOM再利用のため）
+                                    if (!_pnTA._afAttached) {
+                                        _pnTA._afAttached = true;
+                                        _pnTA.addEventListener('input', function() {
+                                            _afApply(_afLookup(this.value));
+                                        });
+                                        _cnTA.addEventListener('input', function() {
+                                            const af = _pnTA.__af;
+                                            if (af) { af.cnCanAutoFill = false; af.cnWasAutoFilled = false; }
+                                            _afHideHint(_cnHint, _cnLtext);
+                                        });
+                                        _pdTA.addEventListener('input', function() {
+                                            const af = _pnTA.__af;
+                                            if (af) { af.pdCanAutoFill = false; af.pdWasAutoFilled = false; }
+                                            _afHideHint(_pdHint, _pdLtext);
+                                        });
+                                    }
+                                    // 初期補完（工事番号が入っていれば✓を表示）
+                                    if (_pnTA.value.trim()) {
+                                        _afApply(_afLookup(_pnTA.value));
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     if (dialog._dragAttached) return;
                     dialog._dragAttached = true;
                     const titleBar = dialog.querySelector(".gantt_cal_title") || dialog.querySelector(".gantt_cal_header");
@@ -1176,6 +1299,7 @@
             });
 
         });
+
 
         // 部署プルダウン変更時に担当チェックボックスをリアルタイム更新
         function _refreshOwnerCheckboxes(majorItem) {
