@@ -832,6 +832,17 @@
         });
 
         gantt.attachEvent("onTaskDrag", function(id, mode, task, original, e) {
+            if (mode === gantt.config.drag_mode.move) {
+                const t = gantt.getTask(id);
+                if (t && t.text === "工場出荷" && typeof renderFactoryShipmentStars === "function") {
+                    if (!_factoryStarsDragRaf) {
+                        _factoryStarsDragRaf = requestAnimationFrame(function() {
+                            _factoryStarsDragRaf = null;
+                            renderFactoryShipmentStars();
+                        });
+                    }
+                }
+            }
             if (!_resizeFeedbackActive || mode !== gantt.config.drag_mode.resize) return;
             const t = gantt.getTask(id);
             if (!t || t.$virtual) return;
