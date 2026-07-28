@@ -1128,6 +1128,24 @@
 
             const realId = item.original_id || id;
             if (typeof window.markLocalTaskMutation === 'function') window.markLocalTaskMutation(realId);
+
+            // 出張予定タスクは完全削除せず、is_archived を立てて出張予定シートから非表示にするだけ（DBには残す）
+            if (typeof _isBusinessTripTaskRow === 'function' && _isBusinessTripTaskRow(item)) {
+                const { error: archiveErr } = await supabaseClient
+                    .from('tasks')
+                    .update({ is_archived: true, archived_at: dateToDb(new Date()) })
+                    .eq('id', realId);
+                if (archiveErr) {
+                    console.error('Archive error:', archiveErr);
+                    alert('非表示への切り替えに失敗しました。');
+                    hideLoading();
+                } else {
+                    await fetchTasks();
+                    hideLoading();
+                }
+                return;
+            }
+
             const { error: rpcErr } = await supabaseClient.rpc('delete_task_with_change_log_source', {
                 p_task_id: String(realId),
                 p_source: '全体工程表',

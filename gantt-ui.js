@@ -533,6 +533,19 @@
                 return m;
             }
 
+            // 選択中の行が出張予定タスクかどうかで「削除」メニューのラベルを切り替える
+            // （出張予定タスクは非表示化のみ、それ以外は従来通りDB削除）
+            function _deleteMenuLabel() {
+                const tasks = Array.from(_selectedIds)
+                    .map(function(id) { return gantt.getTask(id); })
+                    .filter(function(t) { return t && !t.$virtual; });
+                if (tasks.length === 0) return '行を削除';
+                const tripCount = tasks.filter(_isBusinessTripTaskRow).length;
+                if (tripCount === tasks.length) return '行を非表示';
+                if (tripCount === 0) return '行を削除';
+                return '行を削除／非表示';
+            }
+
             function showMenu(x, y, targetId) {
                 const m = getMenu();
                 // 選択中IDセットにターゲットが含まれていなければ単独選択
@@ -545,7 +558,7 @@
                 const count = _selectedIds.size;
                 const suffix = count > 1 ? '（' + count + '行）' : '';
                 document.getElementById('ctx-copy-label').textContent = '行をコピー' + suffix;
-                document.getElementById('ctx-delete-label').textContent = '行を削除' + suffix;
+                document.getElementById('ctx-delete-label').textContent = _deleteMenuLabel() + suffix;
 
                 m.classList.add('visible');
                 const margin = 8;
@@ -722,15 +735,45 @@
                     .filter(function(t) { return t && !t.$virtual; });
                 if (tasks.length === 0) return;
 
-                let msg;
-                if (tasks.length === 1) {
-                    const t = tasks[0];
-                    const label = [t.project_number, t.text, t.machine].filter(Boolean).join(' / ');
-                    msg = '「' + label + '」を削除しますか？\nこの操作は元に戻せません。';
-                } else {
-                    msg = tasks.length + '行を一括削除しますか？\nこの操作は元に戻せません。';
+                // 出張予定タスクは非表示化、それ以外は従来通りDB削除（実際の分岐は onAfterTaskDelete 側で行う）
+                const tripTasks = tasks.filter(_isBusinessTripTaskRow);
+                const normalTasks = tasks.filter(function(t) { return !_isBusinessTripTaskRow(t); });
+
+                const msgParts = [];
+                if (tripTasks.length > 0) {
+                    if (tripTasks.length === 1) {
+                        const t = tripTasks[0];
+                        const label = [t.project_number, t.text, t.machine].filter(Boolean).join(' / ');
+                        msgParts.push('「' + label + '」を出張予定シートから非表示にします。');
+                    } else {
+                        msgParts.push(tripTasks.length + '件の出張予定タスクを非表示にします。');
+                    }
                 }
-                document.getElementById('delete-confirm-msg').textContent = msg;
+                if (normalTasks.length > 0) {
+                    if (normalTasks.length === 1) {
+                        const t = normalTasks[0];
+                        const label = [t.project_number, t.text, t.machine].filter(Boolean).join(' / ');
+                        msgParts.push('「' + label + '」を削除します。この操作は元に戻せません。');
+                    } else {
+                        msgParts.push(normalTasks.length + '行を削除します。この操作は元に戻せません。');
+                    }
+                }
+                document.getElementById('delete-confirm-msg').textContent = msgParts.join('\n');
+
+                // タイトル・実行ボタンのラベルも非表示/削除の構成に応じて切り替える
+                let title, okLabel;
+                if (normalTasks.length === 0) {
+                    title = 'タスクの非表示';
+                    okLabel = '行を非表示にする';
+                } else if (tripTasks.length === 0) {
+                    title = 'タスクの削除';
+                    okLabel = '削除する';
+                } else {
+                    title = 'タスクの削除／非表示';
+                    okLabel = '実行する';
+                }
+                document.getElementById('delete-confirm-title').textContent = title;
+                document.getElementById('delete-confirm-ok-btn').textContent = okLabel;
 
                 const overlay = document.getElementById('delete-confirm-overlay');
                 overlay.classList.add('visible');
