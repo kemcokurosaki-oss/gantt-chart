@@ -173,7 +173,8 @@
             let designTripData = Array.isArray(data)
                 ? data.filter(t => t.task_type === 'business_trip' && t.is_archived !== true)
                 : [];
-            if (data) data = data.filter(t => t.task_type !== 'business_trip');
+            // 出張予定タスクを右クリック削除すると is_archived が立つだけで DB には残るため、ここで表示から除外する
+            if (data) data = data.filter(t => t.task_type !== 'business_trip' && t.is_archived !== true);
             // 操業工程表専用タスク（操業工程表で作成した planning/operation/field_trip）は全体工程表に表示しない
             // 全体工程表で作成した操業タスク（task_type=null）と出張タスクはそのまま表示する
             // ただし出張予定シートモードでは現地試運転(field_trip)タスクも表示対象に含める
