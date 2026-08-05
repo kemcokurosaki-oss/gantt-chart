@@ -150,9 +150,11 @@
                 return obj.area_group || obj.area_number || "";
             }},
             { name: "start_date", label: "開始日", width: COLUMN_WIDTHS[8], align: "center", template: function(t) {
+                if (t.unscheduled) return "<span class='unassigned-warning'>⚠️</span>";
                 return dateToDisplay(t.start_date);
             }},
             { name: "end_date", label: "終了日", width: COLUMN_WIDTHS[9], align: "center", template: function(t) {
+                if (t.unscheduled) return "<span class='unassigned-warning'>⚠️</span>";
                 const d = gantt.calculateEndDate(t.start_date, t.duration);
                 d.setDate(d.getDate() - 1);
                 return dateToDisplay(d);
@@ -160,6 +162,7 @@
             { name: "add", label: "", width: COLUMN_WIDTHS[10], align: "left" }
         ];
         gantt.config.columns = SHARED_COLUMNS;
+        gantt.config.show_unscheduled = true; // 開始日・終了日が空のタスク（例：梱包出荷の有無未定）もグリッドに表示する
         gantt.config.grid_elastic_columns = false;
         gantt.config.indent = 6;
         gantt.config.grid_width = 621;
@@ -522,9 +525,9 @@
             );
             const newTaskData = Object.assign({
                 text: item.text,
-                start_date: dateToDb(item.start_date),
+                start_date: item.unscheduled ? null : dateToDb(item.start_date),
                 duration: item.duration,
-                end_date: inclusiveEndDateToDb(item.start_date, item.duration),
+                end_date: item.unscheduled ? null : inclusiveEndDateToDb(item.start_date, item.duration),
                 owner: item.owner || "",
                 project_number: item.project_number || "",
                 customer_name: item.customer_name || (_projectRef && _projectRef.customer_name) || "",
@@ -893,11 +896,13 @@
             const _captured = (_tripLightboxCapture && _tripLightboxCapture.id === String(realId))
                 ? _tripLightboxCapture : null;
 
+            // unscheduled タスクは gantt が内部的に仮の日付を割り当てているため、
+            // それをそのまま保存すると未定のはずが日付入りになってしまう。常に空で保存する。
             const updateData = Object.assign({
                 text: item.text,
-                start_date: dateToDb(item.start_date),
+                start_date: item.unscheduled ? null : dateToDb(item.start_date),
                 duration: item.duration,
-                end_date: inclusiveEndDateToDb(item.start_date, item.duration),
+                end_date: item.unscheduled ? null : inclusiveEndDateToDb(item.start_date, item.duration),
                 owner: item.owner,
                 project_number: item.project_number,
                 customer_name: (_captured && _captured.customer_name !== null)
@@ -1025,9 +1030,9 @@
                         });
                         const newTaskData = Object.assign({
                             text: item.text,
-                            start_date: dateToDb(item.start_date),
+                            start_date: item.unscheduled ? null : dateToDb(item.start_date),
                             duration: item.duration,
-                            end_date: inclusiveEndDateToDb(item.start_date, item.duration),
+                            end_date: item.unscheduled ? null : inclusiveEndDateToDb(item.start_date, item.duration),
                             owner: item.owner || "",
                             project_number: item.project_number || "",
                             customer_name: (_captured && _captured.customer_name !== null)

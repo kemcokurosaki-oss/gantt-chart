@@ -284,7 +284,10 @@
                 }
 
                 return {
-                    id: t.id, text: t.text, start_date: t.start_date,
+                    id: t.id, text: t.text, start_date: t.start_date || "",
+                    // 開始日が空のタスク（例：有無未定の梱包出荷）は unscheduled としてガントに渡し、
+                    // 内部的な日付計算エラーを避けつつグリッドには「未定」表示させる
+                    unscheduled: !t.start_date,
                     duration: durationForGantt, owner: t.owner, project_number: (t.project_number || "").toString().trim(),
                     machine: t.machine, unit: t.unit, major_item: t.major_item,
                     sort_order: t.sort_order,
@@ -1978,7 +1981,11 @@
                 let startDateStr;
                 let duration = item.duration;
 
-                if (item.name === "受注") {
+                if (item.name === "梱包出荷") {
+                    // 梱包出荷は有無が未定のため、開始日・終了日を空のまま作成する
+                    // （承認フローで「あり」が選択され日付が入力された時点で工程表側に自動反映される）
+                    startDateStr = null;
+                } else if (item.name === "受注") {
                     // 受注はヘッダーの受注日をそのまま反映
                     startDateStr = orderDateValue || dateToDb(new Date());
                 } else if (item.name === "出荷") {
