@@ -281,11 +281,17 @@
                 } else if (field === 'area_number') {
                     showMsSection(buildLocationOpts(), locationCheckboxValuesFromTask(task), undefined, false);
                 } else if (field === 'start_date') {
-                    showDateSection(task.start_date);
+                    // unscheduled タスクは gantt が内部的に仮の日付を割り当てているため、
+                    // そのまま表示すると未入力に見えなくなる。入力欄は空のまま出す。
+                    showDateSection(task.unscheduled ? null : task.start_date);
                 } else if (field === 'end_date') {
-                    const d = gantt.calculateEndDate(task.start_date, task.duration);
-                    d.setDate(d.getDate() - 1);
-                    showDateSection(d);
+                    if (task.unscheduled) {
+                        showDateSection(null);
+                    } else {
+                        const d = gantt.calculateEndDate(task.start_date, task.duration);
+                        d.setDate(d.getDate() - 1);
+                        showDateSection(d);
+                    }
                 }
 
                 positionPopup(popup, cellRect);
@@ -347,21 +353,40 @@
                     if (val) {
                         const [y, m, d] = val.split('-').map(Number);
                         const newStart = new Date(y, m - 1, d); // ローカル時刻で生成
-                        const oldEnd = gantt.calculateEndDate(task.start_date, task.duration);
-                        task.duration = Math.max(1, Math.round(gantt.calculateDuration(newStart, oldEnd)));
+                        if (task.unscheduled) {
+                            task.duration = 1;
+                        } else {
+                            const oldEnd = gantt.calculateEndDate(task.start_date, task.duration);
+                            task.duration = Math.max(1, Math.round(gantt.calculateDuration(newStart, oldEnd)));
+                        }
                         task.start_date = newStart;
+                        task.unscheduled = false;
+                    } else {
+                        // 空で保存 → 未定（開始日・終了日なし）に戻す
+                        task.start_date = "";
+                        task.unscheduled = true;
                     }
 
                 } else if (field === 'end_date') {
                     const val = document.getElementById('inline-edit-date-input').value;
                     if (val) {
                         const [y, m, d] = val.split('-').map(Number);
-                        const startNorm = new Date(task.start_date);
-                        startNorm.setHours(0, 0, 0, 0);
-                        const endInclusive = new Date(y, m - 1, d);
-                        const newDur = Math.round((endInclusive - startNorm) / (1000 * 60 * 60 * 24)) + 1;
-                        task.duration = Math.max(1, newDur);
+                        if (task.unscheduled) {
+                            task.start_date = new Date(y, m - 1, d);
+                            task.duration = 1;
+                            task.unscheduled = false;
+                        } else {
+                            const startNorm = new Date(task.start_date);
+                            startNorm.setHours(0, 0, 0, 0);
+                            const endInclusive = new Date(y, m - 1, d);
+                            const newDur = Math.round((endInclusive - startNorm) / (1000 * 60 * 60 * 24)) + 1;
+                            task.duration = Math.max(1, newDur);
+                        }
                         task.end_date = gantt.calculateEndDate(task.start_date, task.duration);
+                    } else {
+                        // 空で保存 → 未定（開始日・終了日なし）に戻す
+                        task.start_date = "";
+                        task.unscheduled = true;
                     }
                 }
 
