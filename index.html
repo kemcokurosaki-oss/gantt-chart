@@ -47,6 +47,10 @@
                 </div>
                 <div style="margin-left:auto; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                     <span id="filter_status" style="font-weight:bold; color:#3498db; font-size: 12px; display:none;"></span>
+                    <button type="button" id="approval_flow_link_btn" class="dept-link-btn dept-link-btn--approval" disabled title="準備中（運用開始後に有効化）">
+                        <span class="dept-link-btn__icon" aria-hidden="true">📝</span>
+                        <span class="dept-link-btn__text">承認フロー</span>
+                    </button>
                     <div class="dept-schedule-btns" title="別タブで各部の工程表サイトを開きます">
                         <button type="button" id="dept_link_design" class="dept-link-btn dept-link-btn--design" onclick="openDeptScheduleLink('design')" title="">
                             <span class="dept-link-btn__icon" aria-hidden="true">📐</span>
