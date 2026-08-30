@@ -183,6 +183,7 @@
 
             // リサイズ対象列：name / COLUMN_WIDTHS の添字 / 元のデフォルト最小幅
             var RESIZABLE = [
+                { name: 'text',        minIdx: 3, minW: COLUMN_WIDTHS[3] },
                 { name: 'owner',       minIdx: 6, minW: COLUMN_WIDTHS[6] },
                 { name: 'area_number', minIdx: 7, minW: COLUMN_WIDTHS[7] }
             ];
@@ -242,8 +243,19 @@
                 var maxW = 0;
                 try {
                     gantt.eachTask(function(task) {
+                        // is_detailed（設計工程表専用タスク）は本ガントに常に非表示のため上限計算からも除外
+                        var isDetailed = String(task.is_detailed).toLowerCase();
+                        if (task.is_detailed === true || isDetailed === "true" || isDetailed === "t" || isDetailed === "1") {
+                            return;
+                        }
                         var text = '';
-                        if (name === 'unit') {
+                        var extra = 0;
+                        if (name === 'text') {
+                            text = task.text || '';
+                            var level = 0;
+                            try { level = gantt.calculateTaskLevel(task); } catch(e3) {}
+                            extra = level * gantt.config.indent + 20; // インデント＋ツリーアイコン分
+                        } else if (name === 'unit') {
                             text = task.unit || '';
                         } else if (name === 'owner') {
                             text = task.owner || '';
@@ -261,7 +273,7 @@
                             text = task.project_details || '';
                         }
                         if (!text) return;
-                        var w = ctx.measureText(text).width;
+                        var w = ctx.measureText(text).width + extra;
                         if (w > maxW) maxW = w;
                     });
                 } catch(e) {}
