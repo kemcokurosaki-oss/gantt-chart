@@ -2702,9 +2702,13 @@
             const oneMonthAgo = new Date();
             oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
 
+            // 操業工程表のタスクのうち「計画」タブ（操業工程表独自タスク）の変更は
+            // 全体工程表と無関係のため除外する。「社内試運転」「出張」タブ（他工程表との
+            // リンクタスク）は description が "[計画]" 以外の "[...]" タグで始まるため表示対象に含める。
             const { data, error } = await supabaseClient
                 .from('change_log')
                 .select('*')
+                .or('source.neq.操業工程表,description.not.like.[計画]*')
                 .gte('changed_at', oneMonthAgo.toISOString())
                 .order('changed_at', { ascending: false })
                 .limit(500);
