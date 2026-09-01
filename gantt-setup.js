@@ -1066,12 +1066,14 @@
                     if (currentDisplayMode === 'business_trip') {
                         const larea = document.querySelector('.gantt_cal_larea');
                         if (larea) {
-                            const _chs = Array.from(larea.children);
+                            // gantt.config.wide_form が有効な場合、.gantt_cal_lsection は
+                            // larea の直接の子ではなく .gantt_wrap_section の中にネストされるため、
+                            // larea.children ではなく querySelectorAll で全階層から探す
+                            const _sections = larea.querySelectorAll('.gantt_cal_lsection');
                             function _getLtextByLabel(label) {
-                                for (let i = 0; i < _chs.length - 1; i++) {
-                                    if (_chs[i].classList.contains('gantt_cal_lsection') &&
-                                        _chs[i].textContent.trim() === label) {
-                                        return _chs[i + 1] || null;
+                                for (let i = 0; i < _sections.length; i++) {
+                                    if (_sections[i].textContent.trim() === label) {
+                                        return _sections[i].nextElementSibling || null;
                                     }
                                 }
                                 return null;
@@ -1279,22 +1281,24 @@
         gantt.attachEvent("onLightboxReady", function() {
             const larea = document.querySelector(".gantt_cal_larea");
             if (!larea) return;
-            Array.from(larea.children).forEach(function(el) {
-                if (el.classList.contains("gantt_cal_lsection")) {
-                    el.style.cssText = "border:none; margin:0; padding:4px 0 1px; font-size:11px; font-weight:normal; line-height:1.3; color:#333; display:block;";
-                } else if (el.classList.contains("gantt_cal_ltext")) {
-                    el.style.margin = "0";
-                    el.style.padding = "0";
-                    el.style.setProperty("height", "auto", "important");
-                    el.style.setProperty("overflow", "visible", "important");
-                    // textarea/select を含む場合は高さを制限
-                    const ta = el.querySelector("textarea");
-                    const sel = el.querySelector("select");
-                    if ((ta || sel) && !el.querySelector(".datepicker-input") && !el.querySelector("input[type=checkbox]") && !el.querySelector("button")) {
-                        const h = sel ? "32px" : "24px";
-                        el.style.setProperty("height", h, "important");
-                        el.style.setProperty("overflow", "hidden", "important");
-                    }
+            // gantt.config.wide_form が有効な場合、.gantt_cal_lsection / .gantt_cal_ltext は
+            // larea の直接の子ではなく .gantt_wrap_section の中にネストされるため、
+            // larea.children ではなく querySelectorAll で全階層から探す
+            larea.querySelectorAll(".gantt_cal_lsection").forEach(function(el) {
+                el.style.cssText = "border:none; margin:0; padding:4px 0 1px; font-size:11px; font-weight:normal; line-height:1.3; color:#333; display:block;";
+            });
+            larea.querySelectorAll(".gantt_cal_ltext").forEach(function(el) {
+                el.style.margin = "0";
+                el.style.padding = "0";
+                el.style.setProperty("height", "auto", "important");
+                el.style.setProperty("overflow", "visible", "important");
+                // textarea/select を含む場合は高さを制限
+                const ta = el.querySelector("textarea");
+                const sel = el.querySelector("select");
+                if ((ta || sel) && !el.querySelector(".datepicker-input") && !el.querySelector("input[type=checkbox]") && !el.querySelector("button")) {
+                    const h = sel ? "32px" : "24px";
+                    el.style.setProperty("height", h, "important");
+                    el.style.setProperty("overflow", "hidden", "important");
                 }
             });
 

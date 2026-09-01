@@ -28,11 +28,13 @@
             const larea = document.querySelector('.gantt_cal_larea');
             if (larea) {
                 function _findSectionInput(labelText) {
-                    const chs = Array.from(larea.children);
-                    for (let i = 0; i < chs.length; i++) {
-                        if (chs[i].classList.contains('gantt_cal_lsection') &&
-                            chs[i].textContent.trim() === labelText) {
-                            const next = chs[i + 1];
+                    // gantt.config.wide_form が有効な場合、.gantt_cal_lsection は
+                    // larea の直接の子ではなく .gantt_wrap_section の中にネストされるため、
+                    // larea.children ではなく querySelectorAll で全階層から探す
+                    const sections = larea.querySelectorAll('.gantt_cal_lsection');
+                    for (let i = 0; i < sections.length; i++) {
+                        if (sections[i].textContent.trim() === labelText) {
+                            const next = sections[i].nextElementSibling;
                             return next ? (next.querySelector('textarea') || next.querySelector('input[type=text]')) : null;
                         }
                     }
@@ -49,10 +51,13 @@
             if (cnValue === null) cnValue = task.customer_name !== undefined ? task.customer_name : null;
             if (pdValue === null) pdValue = task.project_details !== undefined ? task.project_details : null;
 
+            // design_trip_ 由来のタスクは gantt 上の id と実 DB id (original_id) が異なるため、
+            // onAfterTaskUpdate 側の realId 計算（item.original_id || id）に合わせて揃える
             _tripLightboxCapture = {
-                id: String(id),
+                id: String(task.original_id || id),
                 customer_name:  cnValue,
-                project_details: pdValue
+                project_details: pdValue,
+                at: Date.now()
             };
             return true;
         });
@@ -895,7 +900,6 @@
         // 編集内容をデータベースに保存（バックグラウンド・UIブロックなし）
         gantt.attachEvent("onAfterTaskUpdate", function(id, item) {
             if (item.$virtual) return; // 見出し行は仮想的なものなので保存対象外
-            if (item.$design_trip) return; // 設計・組立工程表由来の出張タスクは読み取り専用
 
             const realId = item.original_id || id;
 
@@ -905,7 +909,10 @@
             // onBeforeLightboxSave でキャプチャした値があればそれを優先（map_to タイミング問題の対策）
             // ※ 同一保存で onAfterTaskUpdate が2回発火するため、ここではクリアしない
             // （_tripLightboxCapture は次の onBeforeLightboxSave で自動的にリセットされる）
-            const _captured = (_tripLightboxCapture && _tripLightboxCapture.id === String(realId))
+            // ただし古いキャプチャが残ったまま同じタスクをインライン編集すると
+            // その古い値で上書きしてしまうため、直近の保存のみ（2秒以内）を有効とみなす
+            const _captured = (_tripLightboxCapture && _tripLightboxCapture.id === String(realId) &&
+                (Date.now() - _tripLightboxCapture.at) < 2000)
                 ? _tripLightboxCapture : null;
 
             // unscheduled タスクは gantt が内部的に仮の日付を割り当てているため、
@@ -1024,7 +1031,6 @@
             // 新規タスク判定を同期的に取得（非同期処理が始まる前に確定させる）
             // _is_new_task フラグで判定（IDのallTasks比較はDHTMLXのtemp IDと既存IDが衝突するため不使用）
             const _taskObj = gantt.isTaskExists(id) ? gantt.getTask(id) : null;
-            if (_taskObj && _taskObj.$design_trip) return; // 設計・組立工程表由来の出張タスクは読み取り専用
             const isNewTask = !!(_taskObj && _taskObj._is_new_task);
 
             (async () => {
