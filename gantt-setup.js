@@ -43,6 +43,11 @@
 
         /** 各部門工程表（別サイト）。常に別タブで開く。ログイン・閲覧可否はリンク先アプリ側で行う。 */
         const DEPT_SCHEDULE_LINK_CONFIG = {
+            approval: {
+                url: 'https://kemcokurosaki-oss.github.io/approval-flow/',
+                title: '承認フローを別タブで開く（ログインはリンク先で行います）',
+                disabled: false,
+            },
             design: {
                 url: 'https://kemcokurosaki-oss.github.io/design-schedule/',
                 title: '設計工程表を別タブで開く（ログインはリンク先で行います）',
@@ -61,6 +66,7 @@
         };
 
         function _deptLinkButtonId(key) {
+            if (key === 'approval') return 'approval_flow_link_btn';
             if (key === 'design') return 'dept_link_design';
             if (key === 'assembly') return 'dept_link_assembly';
             if (key === 'operations') return 'dept_link_operations';
@@ -68,7 +74,7 @@
         }
 
         function updateDeptScheduleLinkButtons() {
-            ['design', 'assembly', 'operations'].forEach(function (key) {
+            ['approval', 'design', 'assembly', 'operations'].forEach(function (key) {
                 const cfg = DEPT_SCHEDULE_LINK_CONFIG[key];
                 const btnId = _deptLinkButtonId(key);
                 const btn = btnId ? document.getElementById(btnId) : null;
