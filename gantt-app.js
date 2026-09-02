@@ -1258,7 +1258,7 @@
                     }},
                     { name: "owner", label: "担当", width: 55, align: "center", template: function(obj) {
                         if (obj.$virtual) return "";
-                        if (!obj.owner || obj.owner.trim() === "") {
+                        if (!obj.owner || obj.owner.trim() === "" || obj.owner.trim() === "未定") {
                             return "<span class='unassigned-warning'>⚠️</span>";
                         }
                         return obj.owner;
