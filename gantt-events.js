@@ -133,7 +133,7 @@
             }},
             { name: "owner", label: "担当", width: COLUMN_WIDTHS[6], align: "left", template: function(obj) {
                 if (obj.$virtual) return "";
-                if (!obj.owner || obj.owner.trim() === "") {
+                if (!obj.owner || obj.owner.trim() === "" || obj.owner.trim() === "未定") {
                     return "<span class='unassigned-warning'>⚠️</span>";
                 }
                 const owners = obj.owner.split(/[,，]/).map(function(s) { return s.trim(); }).filter(Boolean);
@@ -1259,7 +1259,7 @@
 
             if(task.$virtual) {
                 css += " gantt_group_row hide_add_button";
-            } else if (!task.owner || task.owner.trim() === "") {
+            } else if (!task.owner || task.owner.trim() === "" || task.owner.trim() === "未定") {
                 css += " unassigned-row";
             }
 
@@ -1553,7 +1553,7 @@
 
             // 6. 未割当フィルター (AND条件)
             if (isUnassignedOnly) {
-                if (task.owner && task.owner.trim() !== "") return false;
+                if (task.owner && task.owner.trim() !== "" && task.owner.trim() !== "未定") return false;
             }
 
             return true;
