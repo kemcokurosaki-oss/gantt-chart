@@ -180,18 +180,30 @@
                 p.querySelector('#inline-edit-date-input').value = y + '-' + m + '-' + day;
             }
 
-            function buildTaskNameOpts(parentName) {
+            function buildTaskNameOpts(task) {
                 const out = [];
+                const parentName = (task && task.parent_name) || '';
                 const filtered = parentName
                     ? taskNameOptions.filter(function(g) { return g.label === parentName; })
-                    : taskNameOptions;
-                const src = filtered.length > 0 ? filtered : taskNameOptions;
-                src.forEach(function(g) {
-                    if (src.length < taskNameOptions.length) {
-                        // フィルタ中はグループ見出しを省略
-                    } else {
-                        out.push({ isGroup: true, label: g.label });
-                    }
+                    : [];
+                if (filtered.length > 0) {
+                    // 見出し名が taskNameOptions に一致：そのグループのみ表示（2000番台）
+                    filtered.forEach(function(g) {
+                        g.options.forEach(function(n) { out.push({ value: n, label: n }); });
+                    });
+                    return out;
+                }
+                // 見出し名の一致なし：工番のテンプレートに対応する候補があればそれを表示（3000/4000/7000/D番）
+                const templateNames = (typeof getTemplateTaskNamesForProjectNumber === 'function')
+                    ? getTemplateTaskNamesForProjectNumber(task && task.project_number)
+                    : null;
+                if (templateNames && templateNames.length > 0) {
+                    templateNames.forEach(function(n) { out.push({ value: n, label: n }); });
+                    return out;
+                }
+                // フォールバック：全件表示
+                taskNameOptions.forEach(function(g) {
+                    out.push({ isGroup: true, label: g.label });
                     g.options.forEach(function(n) { out.push({ value: n, label: n }); });
                 });
                 return out;
@@ -265,13 +277,13 @@
                     showTextSection(task[field] || '');
                 } else if (field === 'text') {
                     const sel = (task.text || '').split(/[,，]/).map(function(s) { return s.trim(); }).filter(Boolean);
-                    showMsSection(buildTaskNameOpts(task.parent_name || ''), sel);
+                    showMsSection(buildTaskNameOpts(task), sel);
                     // 自由入力欄を表示し、既存値がリストにない場合はプリセット
                     const freeRow = popup.querySelector('#inline-edit-free-row');
                     const freeText = popup.querySelector('#inline-edit-free-text');
                     if (freeRow && freeText) {
                         freeRow.style.display = '';
-                        const allOpts = buildTaskNameOpts(task.parent_name || '');
+                        const allOpts = buildTaskNameOpts(task);
                         const allValues = allOpts.filter(function(o) { return !o.isGroup; }).map(function(o) { return o.value; });
                         const hasUnknown = sel.some(function(s) { return !allValues.includes(s); });
                         freeText.value = hasUnknown ? sel.filter(function(s) { return !allValues.includes(s); }).join(',') : '';

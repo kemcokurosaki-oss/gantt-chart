@@ -886,14 +886,24 @@
                             html += `<option value="${opt}">${opt}</option>`;
                         });
                     } else {
-                        // 一致する見出し名がない場合は全件表示
-                        taskNameOptions.forEach(g => {
-                            html += `<optgroup label="${g.label}">`;
-                            g.options.forEach(opt => {
-                                html += `<option value="${opt}">${opt}</option>`;
+                        // 一致する見出し名がない場合：工番のテンプレートに対応する候補があればそれを表示
+                        const templateNames = (typeof getTemplateTaskNamesForProjectNumber === 'function')
+                            ? getTemplateTaskNamesForProjectNumber(task.project_number)
+                            : null;
+                        if (templateNames) {
+                            templateNames.forEach(name => {
+                                html += `<option value="${name}">${name}</option>`;
                             });
-                            html += "</optgroup>";
-                        });
+                        } else {
+                            // フォールバック：全件表示
+                            taskNameOptions.forEach(g => {
+                                html += `<optgroup label="${g.label}">`;
+                                g.options.forEach(opt => {
+                                    html += `<option value="${opt}">${opt}</option>`;
+                                });
+                                html += "</optgroup>";
+                            });
+                        }
                     }
                 }
                 html += `<option value="__free__">── 自由入力 ──</option>`;
