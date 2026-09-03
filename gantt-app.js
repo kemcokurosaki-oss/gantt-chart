@@ -1874,6 +1874,57 @@
             }
         }
 
+        // ===== タスク名プルダウン用: 工番→テンプレートテーブル判定 & タスク名キャッシュ =====
+        // 3000/4000/7000/D番のタスクは見出し名がそのままタスク名になり parent が空のため、
+        // 従来ロジックでは編集時にタスク名プルダウンが常に全件表示になっていた。
+        // 工番から所属テンプレートを判定し、そのテンプレートの見出し名一覧を候補として出す。
+        let _templateTaskNameCache = {}; // { task_template_a: [...], task_template_t: [...], task_template_c: [...] }
+
+        function resolveTemplateTableFromProjectNumber(projectNumber) {
+            const pn = (projectNumber || '').trim();
+            if (/^[34]T/i.test(pn)) return 'task_template_t';
+            if (/^[34]C/i.test(pn)) return 'task_template_c';
+            if (/^[347]/i.test(pn)) return 'task_template_a';
+            if (/^D/i.test(pn)) return null; // D番：新規受注時にユーザーが選択するため一意に決まらない
+            return 'task_template'; // 2000番台
+        }
+
+        async function loadTemplateTaskNameCache() {
+            const tables = ['task_template_a', 'task_template_t', 'task_template_c'];
+            const results = await Promise.all(tables.map(t =>
+                supabaseClient.from(t).select('parent, text').order('id', { ascending: true })
+            ));
+            tables.forEach((t, i) => {
+                const { data, error } = results[i];
+                if (error || !data) { _templateTaskNameCache[t] = []; return; }
+                const seen = new Set();
+                const names = [];
+                data.forEach(row => {
+                    const name = row.parent || row.text;
+                    if (name && !seen.has(name)) { seen.add(name); names.push(name); }
+                });
+                _templateTaskNameCache[t] = names;
+            });
+        }
+
+        // 工番に対応するタスク名プルダウン候補（見出し名一覧）を返す。
+        // 2000番台、または判定不能な場合は null（呼び出し側で従来の全件表示にフォールバック）
+        function getTemplateTaskNamesForProjectNumber(projectNumber) {
+            const table = resolveTemplateTableFromProjectNumber(projectNumber);
+            if (table === 'task_template') return null;
+            if (table === null) {
+                // D番：電気(t)・機械(c)テンプレートの候補をまとめて表示
+                const t = _templateTaskNameCache['task_template_t'] || [];
+                const c = _templateTaskNameCache['task_template_c'] || [];
+                const seen = new Set();
+                const merged = [];
+                [...t, ...c].forEach(n => { if (!seen.has(n)) { seen.add(n); merged.push(n); } });
+                return merged.length > 0 ? merged : null;
+            }
+            const names = _templateTaskNameCache[table];
+            return (names && names.length > 0) ? names : null;
+        }
+
         async function addProjectFromTemplate() {
             const projectNumber = document.getElementById('project_number').value.trim();
             const customerName = document.getElementById('customer_name_input').value.trim();
@@ -1905,22 +1956,14 @@
             // 3T・4T始まり → task_template_t、3C・4C始まり → task_template_c
             // 3000・4000・7000番台 → task_template_a、それ以外(2000番台) → task_template
             // D番 → ユーザー選択（task_template_t / task_template_c / task_template_t+c）
-            let templateTable;
-            if (/^[34]T/i.test(projectNumber)) {
-                templateTable = 'task_template_t';
-            } else if (/^[34]C/i.test(projectNumber)) {
-                templateTable = 'task_template_c';
-            } else if (/^[347]/i.test(projectNumber)) {
-                templateTable = 'task_template_a';
-            } else if (/^D/i.test(projectNumber)) {
+            let templateTable = resolveTemplateTableFromProjectNumber(projectNumber);
+            if (templateTable === null) {
                 const selectedTemplate = document.querySelector('input[name="d_template"]:checked')?.value;
                 if (!selectedTemplate) {
                     alert('D番工事はテンプレートを選択してください');
                     return;
                 }
                 templateTable = selectedTemplate;
-            } else {
-                templateTable = 'task_template';
             }
 
             // 1. テンプレートデータを取得（ID順にソート）
@@ -2998,6 +3041,7 @@
         // ===== 更新履歴モーダル ここまで =====
 
         document.getElementById('resource_close_btn').addEventListener('click', closeResourcePanel);
+        loadTemplateTaskNameCache(); // タスク名プルダウン用キャッシュ（他の初期化と並行して読み込み）
         loadCompletedProjects().then(() => loadHolidays()).then(() => fetchTasks()).then(() => {
             // 設計工程表との出図日付同期（バックグラウンドで実行）
             syncDesignDrawingDates();
