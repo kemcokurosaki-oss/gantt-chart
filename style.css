@@ -116,19 +116,21 @@
             top: 0;
             bottom: 0;
             width: 42px;
-            background: rgba(44,62,80,0.97);
+            background: #eceff1;
+            border-right: 1px solid #b0bec5;
             display: flex;
             flex-direction: column;
             padding-top: 10px;
             overflow-x: hidden;
             overflow-y: hidden;
             z-index: 9500;
-            box-shadow: 2px 0 10px rgba(0,0,0,0.25);
+            box-shadow: 1px 0 4px rgba(38,50,56,0.10);
             transition: width 0.15s ease;
         }
         #side-icon-bar.open {
             width: 190px;
             overflow-y: auto;
+            box-shadow: 2px 0 8px rgba(38,50,56,0.14);
         }
 
         .side-nav-group { display: flex; flex-direction: column; flex-shrink: 0; position: relative; }
@@ -143,7 +145,7 @@
             min-height: 30px;
             padding: 0 5px;
             white-space: nowrap;
-            color: #ecf0f1;
+            color: #37474f;
             background: transparent;
             border: none;
             width: 100%;
@@ -164,7 +166,7 @@
         }
         button.side-nav-item:hover,
         .side-nav-subitem:hover {
-            background: rgba(255,255,255,0.12);
+            background: #e0e6ea;
         }
         .side-nav-subitem:disabled {
             opacity: 0.45;
@@ -197,8 +199,8 @@
             width: 7px;
             height: 7px;
             border-radius: 50%;
-            background: #3ecf6e;
-            border: 1.5px solid rgba(44,62,80,0.97);
+            background: #2e9e57;
+            border: 1.5px solid #eceff1;
         }
         .side-nav-status-dot.logged-in { display: block; }
         /* 外部リンク先アプリの識別用アイコン：各アプリのfaviconと同じ配色・形状 */
@@ -230,7 +232,7 @@
         .side-nav-submenu {
             display: none;
             flex-direction: column;
-            background: rgba(44,62,80,0.97);
+            background: #eceff1;
         }
         #side-icon-bar.open .side-nav-submenu {
             display: flex;
@@ -238,7 +240,14 @@
         .side-nav-subitem { padding-left: 20px; }
         .side-nav-subitem .side-nav-icon { font-size: 13px !important; }
 
-        #side-icon-bar #help_btn.help-active { background: rgba(255,255,255,0.28); }
+        /* グループ区切り線：展開時のみ表示（アイコンのみの状態では出さない） */
+        #side-icon-bar.open #sync_log_btn,
+        #side-icon-bar.open #help_btn,
+        #side-icon-bar.open #side-nav-more {
+            border-top: 1px solid #cfd8dc;
+            margin-top: 5px;
+        }
+        #side-icon-bar #help_btn.help-active { background: #dde4e8; box-shadow: inset 3px 0 0 #2980b9; }
 
         /* new_project_btn / kanryo-btn / auth_btn は元々ヘッダー用の色付きボタンスタイルを
            IDセレクタで持っているため、サイドバー内では詳細度を上げて統一デザインに上書きする */
@@ -248,7 +257,7 @@
         #side-icon-bar #help_btn,
         #side-icon-bar #sync_log_btn {
             background: transparent;
-            color: #ecf0f1;
+            color: #37474f;
             border: none;
             border-radius: 0;
             font-size: 13px !important;
@@ -272,7 +281,7 @@
         #side-icon-bar #help_btn:hover,
         #side-icon-bar #sync_log_btn:hover {
             filter: none;
-            background: rgba(255,255,255,0.12);
+            background: #e0e6ea;
         }
         #side-icon-bar #new_project_btn:active,
         #side-icon-bar #kanryo-btn:active,
@@ -285,7 +294,7 @@
         #side-icon-bar #new_project_btn:disabled,
         #side-icon-bar #kanryo-btn:disabled {
             opacity: 0.45;
-            color: #ecf0f1;
+            color: #37474f;
             background: transparent;
         }
         .input-row input { padding: 2px 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; }
