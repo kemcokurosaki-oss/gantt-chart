@@ -1062,42 +1062,30 @@
 
         // ===== ヘルプモード =====
         var HELP_TIPS = [
-            { id: 'new_project_btn',       title: '新規受注',         text: '新しい工事番号を登録します\n（要ログイン）', noBullets: true },
-            { id: 'reset_filter_btn',      title: '表示リセット',     text: 'ページを再読み込みし、すべての表示条件を<br>初期状態に戻します', noBullets: true },
-            { id: 'kanryo-btn',            title: '完了済み',         text: '完了済み工番の一覧を表示\n過去の工事を参照できます\n（要ログイン）', noBullets: true },
-            { id: 'mark-legend',           title: 'マーク凡例',       text: '<span>🚚</span> 部品送り開始日<br><span class="help-tip-mark-shape help-tip-mark-shape--circle">●</span> 外観検査<br><span class="help-tip-mark-shape help-tip-mark-shape--tri">▲</span> 客先立会<br><span class="help-tip-mark-shape help-tip-mark-shape--dia">◆</span> 出荷確認会議<br><span class="help-tip-mark-shape help-tip-mark-shape--star">★</span> 工場出荷', noBullets: true },
+            { id: 'side-nav-links',        title: '工程表・外部リンク', text: 'ホバーで承認フロー・各部工程表・\n3Dモデルビューアへのリンクを表示', noBullets: true },
+            { id: 'sync_log_btn',          title: '更新履歴',         text: '過去1ヶ月間のタスク追加・変更・削除の\n履歴を一覧表示します\n誰が・いつ・どのタスクを変更したかを確認できます', noBullets: true },
             { id: 'help_btn',              title: '使い方ガイド',     text: '各所の説明吹き出しを表示します\n背景の暗い部分をクリックで閉じます', closeOnClick: true, noBullets: true },
-            { id: 'auth_btn',              title: 'ログイン',         text: '編集者としてログイン\nログイン後は追加・編集・削除が可能になります', noBullets: true },
+            { id: 'side-nav-more',         title: 'その他',           text: 'ホバーで新規受注・完了済み・\nログインのメニューを表示', noBullets: true },
+            { id: 'reset_filter_btn',      title: '表示リセット',     text: 'ページを再読み込みし、すべての表示条件を<br>初期状態に戻します', noBullets: true },
+            { id: 'mark-legend',           title: 'マーク凡例',       text: '<span>🚚</span> 部品送り開始日<br><span class="help-tip-mark-shape help-tip-mark-shape--circle">●</span> 外観検査<br><span class="help-tip-mark-shape help-tip-mark-shape--tri">▲</span> 客先立会<br><span class="help-tip-mark-shape help-tip-mark-shape--dia">◆</span> 出荷確認会議<br><span class="help-tip-mark-shape help-tip-mark-shape--star">★</span> 工場出荷', noBullets: true },
             { id: 'sort_process_btn',      title: '工程別表示',       text: '部署の工程順にタスクを並べて表示\nデフォルトの表示モードです', noBullets: true },
             { id: 'sort_machine_btn',      title: '機械別表示',       text: '機械番号ごとにタスクをまとめて表示\n機械単位の進捗確認に便利です', noBullets: true },
             { id: 'zoom_days_btn',         title: '日単位',           text: '1日単位でガントチャートを表示\n詳細なスケジュールの確認に', noBullets: true },
             { id: 'zoom_weeks_btn',        title: '週単位',           text: '1週単位で広い範囲を一覧表示\n全体スケジュールの把握に', noBullets: true },
             { id: 'scroll_today_btn',      title: '今日へ移動',       text: 'ガントチャートを今日の日付へスクロール' },
-            { id: 'dept_link_design',      title: '設計・工程表',     text: '設計部門の工程表サイトを別タブで開きます\nログインはリンク先で行います' },
-            { id: 'dept_link_assembly',    title: '組立・工程表',     text: '組立部門の工程表サイトを別タブで開きます\nログインはリンク先で行います（組立部員のみログイン可）' },
-            { id: 'dept_link_operations',  title: '操業・工程表',     text: '操業部門の工程表は準備中です\n公開・有効化後にここから開けるようになります' },
-            { id: 'search-filter-toggle',  title: '検索フィルター',   text: '機械名・タスク名・担当者で絞り込み\nクリックで検索パネルを開閉\n⚠️担当未定ボタンで未割当タスクを一覧表示' },
             { id: 'major-filter-btn',      title: '部署別フィルタ',   text: 'チェックで複数部署を指定できます\n該当部署のタスクだけガントに表示\nバー色は部署ごとの色分けのまま\n右上に「○○を表示中」と表示されます\n「全部署（リセット）」で解除' },
             { id: 'resource-dept-select',  title: '部署別リソース',   text: '選択した部署の担当者ごとのリソース状況を<br>下部パネルに表示<br>(ガント本体の絞り込みは「部署別フィルタ」)', noBullets: true },
             { id: 'location_resource_btn', title: '組立場所',         text: '組立エリアの場所別リソースを表示\nE1/E2などのエリアで確認できます', noBullets: true },
             { id: 'sort_business_trip_btn',title: '出張予定',         text: '出張タスクのみの表示に切り替え<br>(「工程表へ戻る」で通常の工程表へ)', noBullets: true },
-            { id: 'sync_log_btn',          title: '更新履歴',         text: '過去1ヶ月間のタスク追加・変更・削除の\n履歴を一覧表示します\n誰が・いつ・どのタスクを変更したかを確認できます', noBullets: true },
         ];
 
         function openHelp() {
             var helpBtn = document.getElementById('help_btn');
             if (helpBtn.classList.contains('help-active')) return;
+            if (typeof window._openSideBarForHelp === 'function') window._openSideBarForHelp();
             helpBtn.classList.add('help-active');
             var guideBtn = document.getElementById('guide_btn');
             guideBtn.style.display = '';
-            requestAnimationFrame(function() {
-                var syncBtn = document.getElementById('sync_log_btn');
-                if (syncBtn) {
-                    var r = syncBtn.getBoundingClientRect();
-                    guideBtn.style.top  = (r.top + r.height / 2) + 'px';
-                    guideBtn.style.left = (r.left - guideBtn.offsetWidth - 12) + 'px';
-                }
-            });
             var container = document.getElementById('help_tips_container');
             container.innerHTML = '<div id="help_overlay_bg"></div>';
             document.getElementById('help_overlay_bg').addEventListener('click', closeHelp);
@@ -1218,6 +1206,7 @@
             var container = document.getElementById('help_tips_container');
             container.classList.remove('open');
             container.innerHTML = '';
+            if (typeof window._closeSideBarForHelp === 'function') window._closeSideBarForHelp();
         }
         document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeHelp(); });
         // ===== ヘルプモード ここまで =====

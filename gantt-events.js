@@ -166,6 +166,15 @@
             }},
             { name: "add", label: "", width: COLUMN_WIDTHS[10], align: "left" }
         ];
+
+        // ===== 列ヘッダーへのExcel風フィルターボタン付与 =====
+        var COLUMN_FILTER_EXCLUDE = new Set(['detail', 'checkbox', 'add', 'project_number']); // 工番は工事一覧側のフィルターと重複するため対象外
+        function _withColumnFilterBtn(col) {
+            if (COLUMN_FILTER_EXCLUDE.has(col.name)) return col;
+            var btn = '<button type="button" class="col-filter-btn" data-col="' + col.name + '" onclick="event.stopPropagation(); onColumnFilterBtnClick(event, \'' + col.name + '\')"></button>';
+            return Object.assign({}, col, { label: (col.label || '') + btn });
+        }
+        SHARED_COLUMNS = SHARED_COLUMNS.map(_withColumnFilterBtn);
         gantt.config.columns = SHARED_COLUMNS;
         gantt.config.show_unscheduled = true; // 開始日・終了日が空のタスク（例：梱包出荷の有無未定）もグリッドに表示する
         gantt.config.grid_elastic_columns = false;
@@ -1464,10 +1473,7 @@
                 currentFilter || "",
                 currentProjectGroupFilter || "all",
                 Array.from(currentMajorFilters).sort().join(","),
-                currentOwnerFilter || "",
-                currentMachineFilter || "",
-                currentTaskFilter || "",
-                isUnassignedOnly ? "1" : "0",
+                JSON.stringify(columnFilters),
                 completedKey
             ].join("|");
             if (cacheKey === _displayFilterCacheKey) return;
@@ -1495,8 +1501,8 @@
         gantt.attachEvent("onAfterTaskDelete", _invalidateDisplayFilterCache);
         gantt.attachEvent("onAfterTaskUpdate", _invalidateDisplayFilterCache);
 
-        // 個別のタスクがフィルタ条件に合致するか判定する関数
-        function isTaskVisible(task) {
+        // 個別のタスクがフィルタ条件に合致するか判定する関数（列フィルターを除く共通条件）
+        function _isTaskVisibleBase(task) {
             // 1. is_detailed が true のタスクは常に非表示
             var isDetailed = String(task.is_detailed).toLowerCase();
             if (task.is_detailed === true || isDetailed === "true" || isDetailed === "t" || isDetailed === "1") {
@@ -1535,28 +1541,73 @@
                 if (!currentMajorFilters.has(task.major_item)) return false;
             }
 
-            // 4. 担当者フィルター (AND条件)
-            if (currentOwnerFilter) {
-                if (!task.owner || !task.owner.includes(currentOwnerFilter)) return false;
-            }
-
-            // 5. 機械フィルター (AND条件)
-            if (currentMachineFilter) {
-                if (!task.machine || !task.machine.includes(currentMachineFilter)) return false;
-            }
-
-            // 5.5 タスク名フィルター（子タスクのみ）
-            if (currentTaskFilter) {
-                if (task.$virtual) return true; // 見出し行は後で子タスクチェック
-                if (!task.text || !task.text.includes(currentTaskFilter)) return false;
-            }
-
-            // 6. 未割当フィルター (AND条件)
-            if (isUnassignedOnly) {
-                if (task.owner && task.owner.trim() !== "" && task.owner.trim() !== "未定") return false;
-            }
-
             return true;
+        }
+
+        // ===== Excel風 列フィルター（グリッド各列の▼ボタン） =====
+        const COL_FILTER_EMPTY_LABEL = "(空欄)";
+        const COLUMN_FILTER_DATE_COLUMNS = new Set(['start_date', 'end_date']);
+
+        /** 列名・タスクから、その列のフィルター判定に使う「表示値」を取得する */
+        function _colFilterValueForTask(colName, task) {
+            switch (colName) {
+                case 'project_number': return (task.project_number || task.project_no || '').toString();
+                case 'text': return task.text || '';
+                case 'machine': return task.machine || '';
+                case 'unit': return task.unit || '';
+                case 'owner': {
+                    const o = (task.owner || '').trim();
+                    return (o === '' || o === '未定') ? COL_FILTER_EMPTY_LABEL : o;
+                }
+                case 'area_number':
+                    if (task.area_group && task.area_number) return task.area_group + '-' + task.area_number;
+                    return task.area_group || task.area_number || '';
+                case 'start_date':
+                    if (!task.start_date || task.unscheduled) return COL_FILTER_EMPTY_LABEL;
+                    return dateToDisplay(task.start_date);
+                case 'end_date': {
+                    if (!task.start_date || task.unscheduled) return COL_FILTER_EMPTY_LABEL;
+                    const d = gantt.calculateEndDate(task.start_date, task.duration);
+                    d.setDate(d.getDate() - 1);
+                    return dateToDisplay(d);
+                }
+                default: return '';
+            }
+        }
+
+        /** columnFilters の全列条件（excludeCol は除く）をタスクが満たすか */
+        function _taskPassesColumnFilters(task, excludeCol) {
+            for (const colName in columnFilters) {
+                if (colName === excludeCol) continue;
+                const selected = columnFilters[colName];
+                if (!selected || selected.length === 0) continue;
+                const val = _colFilterValueForTask(colName, task);
+                if (selected.indexOf(val) === -1) return false;
+            }
+            return true;
+        }
+
+        /** 列フィルターのドロップダウンに出す候補値。
+         * 「他の列フィルター・部署フィルター等、既存の絞り込み後に実在する値」だけを集める（Excelのオートフィルタと同じ挙動） */
+        function _collectColumnFilterValues(colName) {
+            const values = new Set();
+            gantt.eachTask(function(task) {
+                if (task.$virtual) return;
+                if (!_isTaskVisibleBase(task)) return;
+                if (!_taskPassesColumnFilters(task, colName)) return;
+                values.add(_colFilterValueForTask(colName, task));
+            });
+            return Array.from(values).sort(function(a, b) {
+                if (a === COL_FILTER_EMPTY_LABEL) return -1;
+                if (b === COL_FILTER_EMPTY_LABEL) return 1;
+                return a.localeCompare('ja', undefined, { numeric: true });
+            });
+        }
+
+        // 個別のタスクがフィルタ条件に合致するか判定する関数（列フィルター込み・最終判定）
+        function isTaskVisible(task) {
+            if (!_isTaskVisibleBase(task)) return false;
+            return _taskPassesColumnFilters(task, null);
         }
 
         gantt.attachEvent("onBeforeTaskDisplay", function(id, task) {
