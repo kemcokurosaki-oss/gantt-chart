@@ -13,13 +13,59 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <!-- ===== 左サイドアイコンバー（常時表示。ホバーでバー自体の幅が広がり、
+         ラベルとグループ内の小項目（📐⚙️配下）が最初から展開した状態で表示される） ===== -->
+    <div id="side-icon-bar">
+        <div class="side-nav-group" id="side-nav-links">
+            <div class="side-nav-item" aria-hidden="true">
+                <span class="side-nav-icon">🔗</span><span class="side-nav-label">工程表・外部リンク</span>
+            </div>
+            <div class="side-nav-submenu">
+                <button type="button" id="approval_flow_link_btn" class="side-nav-subitem" onclick="openDeptScheduleLink('approval')" title="承認フローを別タブで開く（ログインはリンク先で行います）">
+                    <span class="side-nav-icon side-nav-icon--badge side-nav-icon--approval"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M6 25V16M13 25V9M20 25V18M26 25V12" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round"/></svg></span><span class="side-nav-label">承認フロー</span>
+                </button>
+                <button type="button" id="dept_link_design" class="side-nav-subitem" onclick="openDeptScheduleLink('design')" title="">
+                    <span class="side-nav-icon">📐</span><span class="side-nav-label">設計</span>
+                </button>
+                <button type="button" id="dept_link_assembly" class="side-nav-subitem" onclick="openDeptScheduleLink('assembly')" title="">
+                    <span class="side-nav-icon">🔧</span><span class="side-nav-label">組立</span>
+                </button>
+                <button type="button" id="dept_link_operations" class="side-nav-subitem" disabled title="">
+                    <span class="side-nav-icon">⚙️</span><span class="side-nav-label">操業</span>
+                </button>
+                <button type="button" id="dept_link_viewer3d" class="side-nav-subitem" onclick="openDeptScheduleLink('viewer3d')" title="3Dモデルビューアを別タブで開く">
+                    <span class="side-nav-icon side-nav-icon--badge side-nav-icon--viewer3d"><svg viewBox="0 0 32 32" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 7 25 12v9l-9 5-9-5v-9z"/><path d="M7 12l9 5 9-5"/><path d="M16 17v9"/></svg></span><span class="side-nav-label">3Dモデル</span>
+                </button>
+            </div>
+        </div>
+        <button type="button" class="side-nav-item side-nav-item--btn" id="sync_log_btn" onclick="openSyncLogModal()">
+            <span class="side-nav-icon">📋</span><span class="side-nav-label">更新履歴</span>
+        </button>
+        <button type="button" class="side-nav-item side-nav-item--btn" id="help_btn" onclick="openHelp()">
+            <span class="side-nav-icon">💡</span><span class="side-nav-label">ヒント表示</span>
+        </button>
+        <div class="side-nav-group" id="side-nav-more">
+            <div class="side-nav-item" aria-hidden="true">
+                <span class="side-nav-icon side-nav-icon--has-status">⚙️<span class="side-nav-status-dot" id="auth_status_dot" title="ログイン中"></span></span><span class="side-nav-label">その他</span>
+            </div>
+            <div class="side-nav-submenu">
+                <button type="button" class="side-nav-subitem" id="new_project_btn" onclick="toggleNewProjectForm()" disabled>
+                    <span class="side-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span><span class="side-nav-label">新規受注</span>
+                </button>
+                <button type="button" class="side-nav-subitem" id="kanryo-btn" onclick="openKanryoModal('kanri')" disabled>
+                    <span class="side-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg></span><span class="side-nav-label">完了済み</span>
+                </button>
+                <button type="button" class="side-nav-subitem" id="auth_btn" onclick="handleAuthBtn()">
+                    <span class="side-nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></span><span class="side-nav-label" id="auth_btn_label">ログイン</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <div class="main-container">
         <div class="header-panel">
             <div class="input-row">
-                <button class="btn-add" id="new_project_btn" onclick="toggleNewProjectForm()" disabled>新規受注</button>
-                <button id="kanryo-btn" class="btn-add" onclick="openKanryoModal('kanri')" disabled style="margin-left:4px;">完了済み</button>
-
-                <button id="publish_btn" class="btn-update" onclick="publishNow()" style="display:none; margin-left:4px;">🔄 更新</button>
+                <button id="publish_btn" class="btn-update" onclick="publishNow()" style="display:none;">🔄 更新</button>
                 <span id="save-status" style="font-size:11px; color:#999; margin-left:4px; font-weight:bold; transition: color 0.2s;"></span>
                 <span id="mark-legend" style="display:flex; align-items:center; gap:4px; font-size: 13px; font-weight: bold; color: #333;">
                     <span>🚚</span> 部品送り開始日
@@ -27,11 +73,6 @@
                     <span style="margin-left: 10px; color: #FBAD4F; font-size: 22px;">▲</span> 客先立会
                     <span style="margin-left: 10px; color: #1976D2; font-size: 20px;">◆</span> 出荷確認会議
                     <span style="margin-left: 10px; color: #2E7D32; font-size: 22px;">★</span> 工場出荷
-                </span>
-                <span style="margin-left:auto; display:flex; align-items:center; gap:4px;">
-                    <button onclick="openSyncLogModal()" id="sync_log_btn" title="更新履歴">📋 更新履歴</button>
-                    <button id="help_btn" onclick="openHelp()" title="ヒント表示">💡 ヒント表示</button>
-                    <button id="auth_btn" onclick="handleAuthBtn()" style="margin-left:4px;">ログイン</button>
                 </span>
             </div>
             <div class="input-row" style="border-top: 1px solid #eee;">
@@ -47,34 +88,12 @@
                 </div>
                 <div style="margin-left:auto; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                     <span id="filter_status" style="font-weight:bold; color:#3498db; font-size: 12px; display:none;"></span>
-                    <button type="button" id="approval_flow_link_btn" class="dept-link-btn dept-link-btn--approval" onclick="openDeptScheduleLink('approval')" title="承認フローを別タブで開く（ログインはリンク先で行います）">
-                        <span class="dept-link-btn__icon" aria-hidden="true">📝</span>
-                        <span class="dept-link-btn__text">承認フロー</span>
-                    </button>
-                    <div class="dept-schedule-btns" title="別タブで各部の工程表サイトを開きます">
-                        <button type="button" id="dept_link_design" class="dept-link-btn dept-link-btn--design" onclick="openDeptScheduleLink('design')" title="">
-                            <span class="dept-link-btn__icon" aria-hidden="true">📐</span>
-                            <span class="dept-link-btn__text">設計</span>
-                        </button>
-                        <button type="button" id="dept_link_assembly" class="dept-link-btn dept-link-btn--assembly" onclick="openDeptScheduleLink('assembly')" title="">
-                            <span class="dept-link-btn__icon" aria-hidden="true">🔧</span>
-                            <span class="dept-link-btn__text">組立</span>
-                        </button>
-                        <button type="button" id="dept_link_operations" class="dept-link-btn dept-link-btn--operations" disabled title="">
-                            <span class="dept-link-btn__icon" aria-hidden="true">⚙️</span>
-                            <span class="dept-link-btn__text">操業</span>
-                        </button>
-                    </div>
                 </div>
             </div>
         </div>
 
         <div class="toolbar">
-            <div class="filter-group" style="margin-left: 0; padding-left: 0; border-left: none;">
-                <button id="search-filter-toggle" class="zoom-btn" onclick="toggleSearchFilterPanel()" style="font-size:13px; display:flex; align-items:center; gap:3px;"><svg width="13" height="13" viewBox="0 0 14 14" style="display:block;"><path d="M1 2 Q1 1 2 1 L12 1 Q13 1 13 2 Q13 2.5 11 5 L9 7.5 L9 12 Q9 13 8 12.5 L6 11.5 Q5 11 5 10 L5 7.5 L3 5 Q1 2.5 1 2 Z" fill="currentColor" opacity="0.85"/><rect x="3.5" y="2.5" width="7" height="1.2" rx="0.6" fill="white" opacity="0.5"/></svg> 検索</button>
-            </div>
-
-            <div class="filter-group" style="align-items:center;">
+            <div class="filter-group" style="align-items:center; margin-left: 0; padding-left: 0; border-left: none;">
                 <label style="font-size:13px; white-space:nowrap;">部署別フィルタ</label>
                 <div id="major-filter-wrapper" style="position:relative; margin-left:4px;">
                     <button id="major-filter-btn" onclick="toggleMajorFilterDropdown(event)" class="zoom-btn" style="padding:2px 20px 2px 6px; min-width:76px; text-align:left; position:relative; height:22px; box-sizing:border-box; line-height:18px;">
@@ -186,30 +205,18 @@
 
 
     <!-- 完了済工番モーダル -->
-    <!-- ===== 検索フィルターポップアップ ===== -->
-    <div id="search-filter-popup" style="position:fixed; display:none; background:#fff; border-radius:6px; box-shadow:0 4px 16px rgba(0,0,0,0.2); border:1px solid #ddd; z-index:10000; padding:12px 14px; min-width:200px;">
-        <div style="font-size:12px; font-weight:bold; color:#555; margin-bottom:8px; border-bottom:1px solid #eee; padding-bottom:6px; display:flex; align-items:center; justify-content:space-between;">
-            <span>検索フィルター</span>
-            <span id="search-filter-loading" style="display:none; align-items:center; gap:4px; color:#3498db; font-size:11px; font-weight:normal;">
-                <span style="display:inline-block; width:10px; height:10px; border:2px solid #bde0f7; border-top-color:#3498db; border-radius:50%; animation:spin 0.7s linear infinite;"></span>
-                処理中...
-            </span>
+    <!-- ===== Excel風 列フィルター共有ドロップダウン（グリッド各列の▼ボタンで開く） ===== -->
+    <div id="col_filter_dropdown" class="col-filter-dropdown" style="display:none;">
+        <div id="col_filter_sort_section">
+            <div class="col-filter-sort-row" id="col_filter_sort_asc" onclick="applyColumnSort('asc')"><span class="col-filter-sort-icon">A↓</span>昇順</div>
+            <div class="col-filter-sort-row" id="col_filter_sort_desc" onclick="applyColumnSort('desc')"><span class="col-filter-sort-icon">Z↓</span>降順</div>
+            <div class="col-filter-dropdown-sep"></div>
         </div>
-        <div style="display:flex; flex-direction:column; gap:8px;">
-            <div>
-                <label style="font-size:11px; color:#777; display:block; margin-bottom:2px;">機械検索</label>
-                <input type="text" id="machine_search" placeholder="機械名を入力..." style="width:100%; padding:3px 6px; border:1px solid #ccc; border-radius:3px; font-size:12px; box-sizing:border-box;" oninput="filterByMachine(this.value)">
-            </div>
-            <div>
-                <label style="font-size:11px; color:#777; display:block; margin-bottom:2px;">タスク検索</label>
-                <input type="text" id="task_search" placeholder="タスク名を入力..." style="width:100%; padding:3px 6px; border:1px solid #ccc; border-radius:3px; font-size:12px; box-sizing:border-box;" oninput="filterByTaskName(this.value)">
-            </div>
-            <div>
-                <label style="font-size:11px; color:#777; display:block; margin-bottom:2px;">担当検索</label>
-                <input type="text" id="owner_search" placeholder="名前を入力..." autocomplete="off" style="width:100%; padding:3px 6px; border:1px solid #ccc; border-radius:3px; font-size:12px; box-sizing:border-box;" oninput="if(!this.value.includes('@'))filterByOwner(this.value)">
-                <button id="unassigned_filter_btn" class="filter-btn" onclick="toggleUnassignedFilter()" style="margin-top:5px; font-size:12px; width:100%;">⚠️ 担当未定</button>
-            </div>
-        </div>
+        <label class="col-filter-all-row">
+            <input type="checkbox" id="col_filter_chk_all" checked onchange="colFilterAllChanged(this.checked)"> 全選択
+        </label>
+        <div class="col-filter-dropdown-sep"></div>
+        <div id="col_filter_chk_list" class="col-filter-dropdown-list"></div>
     </div>
 
     <!-- ===== 新規受注モーダル ===== -->

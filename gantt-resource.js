@@ -1641,10 +1641,9 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            // 担当検索欄・リソース担当検索欄の自動入力を監視してクリア
-            const ownerSearch = document.getElementById('owner_search');
+            // リソース担当検索欄の自動入力を監視してクリア
             const resourceOwnerInput = document.getElementById('resource_owner_input');
-            [ownerSearch, resourceOwnerInput].forEach(el => {
+            [resourceOwnerInput].forEach(el => {
                 if (!el) return;
                 const clear = () => {
                     if (el.value.includes('@') || el.value.includes('.com') || el.value.includes('.jp')) {

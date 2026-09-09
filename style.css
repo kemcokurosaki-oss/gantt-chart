@@ -1,6 +1,6 @@
         html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: "メイリオ", sans-serif; font-size: 12px; }
         button, input, select, textarea { font-family: "メイリオ", sans-serif; }
-        #gantt_here .gantt_grid_head_cell { font-size: 14px !important; font-weight: normal !important; font-family: "メイリオ", Meiryo, sans-serif !important; background-color: #546e7a !important; color: #ffffff !important; border-right: 1px solid #455a64 !important; }
+        #gantt_here .gantt_grid_head_cell { font-size: 14px !important; font-weight: normal !important; font-family: "メイリオ", Meiryo, sans-serif !important; background-color: #546e7a !important; color: #ffffff !important; border-right: 1px solid #455a64 !important; position: relative !important; }
         #gantt_here .gantt_scale_cell { font-family: "メイリオ", Meiryo, sans-serif !important; font-size: 11px !important; font-weight: normal !important; background-color: #546e7a !important; color: #ffffff !important; border-right: 1px solid #607d8b !important; border-top: none !important; border-bottom: none !important; }
         #gantt_here .gantt_scale_line:first-child .gantt_scale_cell { font-size: 12px !important; font-weight: bold !important; }
         #gantt_here .gantt_scale_cell.scale_saturday { color: #90caf9 !important; }
@@ -15,18 +15,20 @@
         /* JS から gantt-scale-hiding クラスを付与している間、スケールを非表示にする */
         #gantt_here.gantt-scale-hiding .gantt_scale { visibility: hidden !important; }
         .header-panel *, .toolbar * { font-size: 13px !important; }
-        .main-container { display: flex; flex-direction: column; height: 100vh; }
+        /* 左サイドアイコンバー（常時表示・幅42px）と重ならないよう常にオフセットする。
+           ホバーで190pxに広がる分は position:fixed のオーバーレイなのでシフトさせず、ガントチャートの上に重ねる */
+        .main-container { display: flex; flex-direction: column; height: 100vh; margin-left: 42px; }
         .header-panel { background: #fff; padding: 2px 10px; border-bottom: 1px solid #ccc; display: flex; flex-direction: column; gap: 2px; flex-shrink: 0; }
         /* height 固定だと折り返し時に2行目が28pxにクリップされ、直下の .toolbar に隠れる */
         .input-row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; min-height: 28px; }
 
-        /* ヘッダー：各部工程表ボタンのみ（設計＝水色・組立＝黄色） */
-        .header-panel .dept-schedule-btns {
+        /* 各部工程表・外部リンクボタン（設計＝水色・組立＝黄色など）。サイドバーのフライアウト内でも使用 */
+        .dept-schedule-btns {
             display: flex;
             align-items: center;
             gap: 6px;
         }
-        .header-panel .dept-link-btn {
+        .dept-link-btn {
             display: inline-flex;
             align-items: center;
             justify-content: center;
@@ -43,29 +45,29 @@
             transition: filter 0.15s, transform 0.08s, box-shadow 0.15s;
             box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
         }
-        .header-panel .dept-link-btn:hover {
+        .dept-link-btn:hover {
             filter: brightness(1.06);
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
         }
-        .header-panel .dept-link-btn:active {
+        .dept-link-btn:active {
             transform: translateY(1px);
             filter: brightness(0.94);
             box-shadow: 0 0 1px rgba(0, 0, 0, 0.2);
         }
-        .header-panel .dept-link-btn__icon {
+        .dept-link-btn__icon {
             font-size: 13px !important;
             line-height: 1;
             opacity: 0.95;
         }
-        .header-panel .dept-link-btn__text { letter-spacing: 0.02em; }
-        .header-panel .dept-link-btn--design {
+        .dept-link-btn__text { letter-spacing: 0.02em; }
+        .dept-link-btn--design {
             background: linear-gradient(180deg, #e8f8fb, #c5ecf4);
             color: #2d6a7a !important;
             border-color: #a8dae8;
             box-shadow: 0 1px 2px rgba(46, 125, 140, 0.12);
             text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6);
         }
-        .header-panel .dept-link-btn--assembly {
+        .dept-link-btn--assembly {
             background: linear-gradient(180deg, #fffdf5, #fff3c4);
             color: #7a5c3e !important;
             border-color: #f5e0a8;
@@ -73,7 +75,7 @@
             text-shadow: 0 1px 0 rgba(255, 255, 255, 0.65);
         }
         /* 操業：パステル赤〜ピンク（工程表公開後は disabled を外し URL を設定） */
-        .header-panel .dept-link-btn--operations {
+        .dept-link-btn--operations {
             background: linear-gradient(180deg, #ffebee, #f8bbd9);
             color: #8e3a5c !important;
             border-color: #f48fb1;
@@ -81,21 +83,210 @@
             text-shadow: 0 1px 0 rgba(255, 255, 255, 0.55);
         }
         /* 承認フロー：パステル緑（運用開始後は disabled を外し URL を設定） */
-        .header-panel .dept-link-btn--approval {
+        .dept-link-btn--approval {
             background: linear-gradient(180deg, #eef8ee, #c8e6c9);
             color: #2e5a34 !important;
             border-color: #a5d6a7;
             box-shadow: 0 1px 2px rgba(46, 90, 52, 0.12);
             text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6);
         }
-        .header-panel .dept-link-btn:disabled {
+        /* 3Dモデルビューア：パステル紫 */
+        .dept-link-btn--viewer3d {
+            background: linear-gradient(180deg, #f3eefc, #e0cdf5);
+            color: #5b2e80 !important;
+            border-color: #d0aef0;
+            box-shadow: 0 1px 2px rgba(91, 46, 128, 0.12);
+            text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6);
+        }
+        .dept-link-btn:disabled {
             cursor: not-allowed;
             opacity: 0.55;
         }
-        .header-panel .dept-link-btn:disabled:hover,
-        .header-panel .dept-link-btn:disabled:active {
+        .dept-link-btn:disabled:hover,
+        .dept-link-btn:disabled:active {
             filter: none !important;
             transform: none !important;
+        }
+
+        /* ===== 左サイドアイコンバー（常時表示。ホバーでバー自体の幅が広がりラベルと小項目が現れる。
+           ガントチャートには重ねず最前面のオーバーレイとして表示） ===== */
+        #side-icon-bar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 42px;
+            background: rgba(44,62,80,0.97);
+            display: flex;
+            flex-direction: column;
+            padding-top: 10px;
+            overflow-x: hidden;
+            overflow-y: hidden;
+            z-index: 9500;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.25);
+            transition: width 0.15s ease;
+        }
+        #side-icon-bar.open {
+            width: 190px;
+            overflow-y: auto;
+        }
+
+        .side-nav-group { display: flex; flex-direction: column; flex-shrink: 0; position: relative; }
+
+        .side-nav-item,
+        .side-nav-subitem {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0;
+            height: 30px;
+            min-height: 30px;
+            padding: 0 5px;
+            white-space: nowrap;
+            color: #ecf0f1;
+            background: transparent;
+            border: none;
+            width: 100%;
+            box-sizing: border-box;
+            font-size: 13px !important;
+            font-weight: normal;
+            flex-shrink: 0;
+        }
+        #side-icon-bar.open .side-nav-item,
+        #side-icon-bar.open .side-nav-subitem {
+            justify-content: flex-start;
+            gap: 8px;
+        }
+        button.side-nav-item,
+        .side-nav-subitem {
+            cursor: pointer;
+            text-align: left;
+        }
+        button.side-nav-item:hover,
+        .side-nav-subitem:hover {
+            background: rgba(255,255,255,0.12);
+        }
+        .side-nav-subitem:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
+        .side-nav-subitem:disabled:hover { background: transparent; }
+
+        .side-nav-icon {
+            width: 22px;
+            flex-shrink: 0;
+            text-align: center;
+            font-size: 15px !important;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .side-nav-icon svg {
+            width: 15px;
+            height: 15px;
+            flex-shrink: 0;
+        }
+        /* 「その他」見出しに重ねるログイン状態インジケーター：
+           閉じた状態（アイコンのみ）でも常に見える位置に置く */
+        .side-nav-icon--has-status { position: relative; }
+        .side-nav-status-dot {
+            display: none;
+            position: absolute;
+            top: -1px;
+            right: -1px;
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #3ecf6e;
+            border: 1.5px solid rgba(44,62,80,0.97);
+        }
+        .side-nav-status-dot.logged-in { display: block; }
+        /* 外部リンク先アプリの識別用アイコン：各アプリのfaviconと同じ配色・形状 */
+        .side-nav-icon--badge {
+            width: 20px;
+            height: 20px;
+            border-radius: 5px;
+        }
+        .side-nav-icon--approval { background: linear-gradient(135deg, #4f9ddb, #2f6fb0); }
+        .side-nav-icon--viewer3d { background: #4d9de8; }
+        .side-nav-icon--badge svg {
+            width: 16px;
+            height: 16px;
+        }
+        .side-nav-label {
+            font-size: 13px !important;
+            overflow: hidden;
+            width: 0;
+            opacity: 0;
+            transition: opacity 0.1s;
+        }
+        #side-icon-bar.open .side-nav-label {
+            width: auto;
+            opacity: 1;
+        }
+
+        /* サブメニューはバーが開いた時に常に展開表示（階層が最初から見える形）。
+           バーが閉じている（アイコンのみ）間は非表示にする。 */
+        .side-nav-submenu {
+            display: none;
+            flex-direction: column;
+            background: rgba(44,62,80,0.97);
+        }
+        #side-icon-bar.open .side-nav-submenu {
+            display: flex;
+        }
+        .side-nav-subitem { padding-left: 20px; }
+        .side-nav-subitem .side-nav-icon { font-size: 13px !important; }
+
+        #side-icon-bar #help_btn.help-active { background: rgba(255,255,255,0.28); }
+
+        /* new_project_btn / kanryo-btn / auth_btn は元々ヘッダー用の色付きボタンスタイルを
+           IDセレクタで持っているため、サイドバー内では詳細度を上げて統一デザインに上書きする */
+        #side-icon-bar #new_project_btn,
+        #side-icon-bar #kanryo-btn,
+        #side-icon-bar #auth_btn,
+        #side-icon-bar #help_btn,
+        #side-icon-bar #sync_log_btn {
+            background: transparent;
+            color: #ecf0f1;
+            border: none;
+            border-radius: 0;
+            font-size: 13px !important;
+        }
+        /* new_project_btn / kanryo-btn / auth_btn は元のヘッダー用スタイル（#auth_btn 等の
+           単体IDセレクタ）が .side-nav-subitem と同じ詳細度でファイル後方にあるため、
+           そのままだと padding-left（インデント）が上書きされてしまう。明示的に指定し直す */
+        #side-icon-bar #new_project_btn,
+        #side-icon-bar #kanryo-btn,
+        #side-icon-bar #auth_btn {
+            padding-left: 20px;
+        }
+        /* help_btn / sync_log_btn はグループに属さないトップレベル項目なのでインデントなし。 */
+        #side-icon-bar #help_btn,
+        #side-icon-bar #sync_log_btn {
+            padding: 0 5px;
+        }
+        #side-icon-bar #new_project_btn:hover,
+        #side-icon-bar #kanryo-btn:hover,
+        #side-icon-bar #auth_btn:hover,
+        #side-icon-bar #help_btn:hover,
+        #side-icon-bar #sync_log_btn:hover {
+            filter: none;
+            background: rgba(255,255,255,0.12);
+        }
+        #side-icon-bar #new_project_btn:active,
+        #side-icon-bar #kanryo-btn:active,
+        #side-icon-bar #auth_btn:active,
+        #side-icon-bar #help_btn:active,
+        #side-icon-bar #sync_log_btn:active {
+            transform: none;
+            filter: none;
+        }
+        #side-icon-bar #new_project_btn:disabled,
+        #side-icon-bar #kanryo-btn:disabled {
+            opacity: 0.45;
+            color: #ecf0f1;
+            background: transparent;
         }
         .input-row input { padding: 2px 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; }
         .btn-add { padding: 0px 5px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; transition: filter 0.15s; }
@@ -1719,7 +1910,7 @@
         #help_btn:hover, #sync_log_btn:hover { filter: brightness(0.88); }
         #help_btn:active, #sync_log_btn:active { transform: translateY(1px); filter: brightness(0.82); }
         #help_btn.help-active { background: #1565c0; color: #fff; border-color: #1565c0; }
-        #guide_btn { position: fixed; z-index: 200003; padding: 5px 14px; font-size: 13px; font-weight: bold; font-family: 'Noto Sans JP', 'メイリオ', Meiryo, sans-serif; background: #ffffff; color: #1565c0; border: 2px solid #1565c0; border-radius: 6px; cursor: pointer; box-shadow: 0 2px 10px rgba(0,0,0,0.35); transition: background 0.15s, color 0.15s; white-space: nowrap; transform: translateY(-50%); }
+        #guide_btn { position: fixed; top: 12px; right: 16px; z-index: 200003; padding: 5px 14px; font-size: 13px; font-weight: bold; font-family: 'Noto Sans JP', 'メイリオ', Meiryo, sans-serif; background: #ffffff; color: #1565c0; border: 2px solid #1565c0; border-radius: 6px; cursor: pointer; box-shadow: 0 2px 10px rgba(0,0,0,0.35); transition: background 0.15s, color 0.15s; white-space: nowrap; }
         #guide_btn:hover { background: #1565c0; color: #fff; }
         #help_tips_container { display: none; position: fixed; inset: 0; z-index: 200000; pointer-events: none; }
         #help_tips_container.open { display: block; }
@@ -1774,4 +1965,143 @@
         @keyframes ls-fade { 0% { opacity: 1; } 100% { opacity: 0.12; } }
         .loading-label { font-size: 15px; color: #555555; letter-spacing: 0.12em; font-family: 'Noto Sans JP', 'メイリオ', Meiryo, sans-serif; }
         @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ===== Excel風 列フィルター（グリッド各列ヘッダーの▼ボタン） ===== */
+        .col-filter-btn {
+            position: absolute !important;
+            right: 1px;
+            bottom: 1px;
+            width: 17px;
+            height: 15px;
+            padding: 0;
+            margin: 0;
+            border: 1px solid #90a4ae;
+            border-radius: 2px;
+            background-color: #eceff1;
+            background-repeat: no-repeat;
+            background-position: center;
+            background-size: 8px 5px;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23555'/%3E%3C/svg%3E");
+            color: transparent;
+            font-size: 0;
+            line-height: 0;
+            cursor: pointer;
+            z-index: 5;
+        }
+        .col-filter-btn.col-filter-active {
+            background-size: 11px 11px;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1 1h14l-5 7v5l-4 2v-7z' fill='%232980b9'/%3E%3C/svg%3E");
+        }
+        /* ソート適用中：フィルター（漏斗）と同じ配色に統一し、アイコンの形だけで状態を区別する（線+矢尻の矢印） */
+        .col-filter-btn.col-filter-sort-asc,
+        .col-filter-btn.col-filter-sort-desc {
+            background-color: #eceff1;
+            border-color: #90a4ae;
+            background-size: 12px 12px;
+        }
+        .col-filter-btn.col-filter-sort-asc {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M8 13V3M4 7l4-4 4 4' stroke='%232980b9' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+        }
+        .col-filter-btn.col-filter-sort-desc {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M8 3v10M4 9l4 4 4-4' stroke='%232980b9' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+        }
+        /* フィルタ・ソートの両方が適用中：Excelと同じく漏斗＋矢印の複合アイコンにする */
+        .col-filter-btn.col-filter-active.col-filter-sort-asc,
+        .col-filter-btn.col-filter-active.col-filter-sort-desc {
+            background-color: #eceff1;
+            border-color: #90a4ae;
+            background-size: 15px 15px;
+        }
+        .col-filter-btn.col-filter-active.col-filter-sort-asc {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1 1h8l-3 4.5v3.5l-2 1v-4.5z' fill='%232980b9'/%3E%3Cpath d='M12.5 15V8M9.5 11l3-3 3 3' stroke='%232980b9' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+        }
+        .col-filter-btn.col-filter-active.col-filter-sort-desc {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1 1h8l-3 4.5v3.5l-2 1v-4.5z' fill='%232980b9'/%3E%3Cpath d='M12.5 8v7M9.5 12l3 3 3-3' stroke='%232980b9' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+        }
+        .col-filter-dropdown {
+            position: fixed;
+            background: #fff;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            z-index: 10001;
+            padding: 4px 0;
+            min-width: 150px;
+            max-width: 260px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            font-size: 13px;
+            font-family: 'メイリオ', Meiryo, sans-serif;
+        }
+        .col-filter-sort-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            cursor: pointer;
+        }
+        .col-filter-sort-row:hover { background: #f0f4f8; }
+        .col-filter-sort-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 20px;
+            height: 15px;
+            border: 1px solid #90a4ae;
+            border-radius: 2px;
+            background: #eceff1;
+            font-size: 9px;
+            line-height: 1;
+            color: #555;
+        }
+        .col-filter-dropdown-sep { height: 1px; background: #eee; margin: 4px 0; }
+        .col-filter-all-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 3px 10px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .col-filter-dropdown-list { overflow-y: auto; max-height: 220px; }
+        .col-filter-item-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 3px 10px;
+            cursor: pointer;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+        .col-filter-item-row:hover { background: #f0f4f8; }
+
+        /* 日付列：年→月→日の階層ツリー */
+        #col_filter_chk_list .col-filter-tree-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 3px 10px;
+            cursor: pointer;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+        #col_filter_chk_list .col-filter-tree-row:hover { background: #f0f4f8; }
+        #col_filter_chk_list .col-filter-tree-toggle {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex: 0 0 13px;
+            width: 13px;
+            height: 13px;
+            box-sizing: border-box;
+            border: 1px solid #999;
+            border-radius: 2px;
+            background: #fff;
+            color: #555;
+            cursor: pointer;
+            user-select: none;
+            font-size: 11px;
+            line-height: 1;
+        }
+        #col_filter_chk_list .col-filter-tree-toggle:empty { border: none; background: transparent; }
+        #col_filter_chk_list .col-filter-tree-month { padding-left: 20px; }
+        #col_filter_chk_list .col-filter-tree-day   { padding-left: 36px; }
 

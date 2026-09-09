@@ -1586,7 +1586,7 @@
             gantt.render();
             if (currentFilter) {
                 _openOnlyFilteredProjectVirtual(currentFilter);
-            } else if (!_hasActiveSearchFilter()) {
+            } else {
                 _collapseLastProjectFilterVirtual();
             }
             
@@ -1744,97 +1744,6 @@
             });
             _lastProjectFilterOpenedVirtualIds.clear();
         }
-        function _hasActiveSearchFilter() {
-            return !!(currentOwnerFilter || currentMachineFilter || currentTaskFilter);
-        }
-
-        function _showFilterLoading(show) {
-            let el = document.getElementById('search-filter-loading');
-            if (!el) return;
-            el.style.display = show ? 'flex' : 'none';
-        }
-
-        let _filterDebounceTimer = null;
-        function _applyFilterDebounced(setFn, expandIfActive) {
-            setFn();
-            clearTimeout(_filterDebounceTimer);
-            _showFilterLoading(true);
-            _filterDebounceTimer = setTimeout(function() {
-                const scrollState = gantt.getScrollState();
-                gantt.render();
-                if (expandIfActive()) {
-                    _expandAllVirtual();
-                } else if (!_hasActiveSearchFilter()) {
-                    _collapseAllVirtual();
-                }
-                gantt.scrollTo(scrollState.x, scrollState.y);
-                _showFilterLoading(false);
-            }, 300);
-        }
-
-        async function filterByOwner(val) {
-            _applyFilterDebounced(
-                () => { currentOwnerFilter = (val || "").trim(); },
-                () => !!currentOwnerFilter
-            );
-        }
-        function filterByMachine(val) {
-            _applyFilterDebounced(
-                () => { currentMachineFilter = (val || "").trim(); },
-                () => !!currentMachineFilter
-            );
-        }
-        function filterByTaskName(val) {
-            _applyFilterDebounced(
-                () => { currentTaskFilter = (val || "").trim(); },
-                () => !!currentTaskFilter
-            );
-        }
-
-        function toggleSearchFilterPanel() {
-            const popup = document.getElementById('search-filter-popup');
-            const btn = document.getElementById('search-filter-toggle');
-            const isVisible = popup.style.display !== 'none';
-            if (isVisible) {
-                popup.style.display = 'none';
-                btn.classList.remove('active');
-            } else {
-                const rect = btn.getBoundingClientRect();
-                let left = rect.left;
-                const popupWidth = 220;
-                if (left + popupWidth > window.innerWidth - 8) left = window.innerWidth - popupWidth - 8;
-                popup.style.left = left + 'px';
-                popup.style.top = (rect.bottom + 4) + 'px';
-                popup.style.display = 'block';
-                btn.classList.add('active');
-                const ownerInput = document.getElementById('owner_search');
-                if (ownerInput) ownerInput.removeAttribute('readonly');
-            }
-        }
-
-        // ポップアップ外クリックで閉じる
-        document.addEventListener('click', function(e) {
-            const popup = document.getElementById('search-filter-popup');
-            const btn = document.getElementById('search-filter-toggle');
-            if (popup && popup.style.display !== 'none' && !popup.contains(e.target) && e.target !== btn && !btn.contains(e.target)) {
-                popup.style.display = 'none';
-                btn.classList.remove('active');
-            }
-        });
-
-        function toggleUnassignedFilter() {
-            const btn = document.getElementById("unassigned_filter_btn");
-            isUnassignedOnly = !isUnassignedOnly;
-            
-            if (isUnassignedOnly) {
-                btn.classList.add("active");
-            } else {
-                btn.classList.remove("active");
-            }
-            
-            gantt.render();
-        }
-
         function toggleNewProjectForm() {
             const btn = document.getElementById('new_project_btn');
             const rect = btn.getBoundingClientRect();
@@ -3077,3 +2986,298 @@
                 }
             });
         });
+
+        // ===== 左サイドアイコンバー =====
+        // バーにホバーすると幅が広がり、内部の階層（サブメニュー）も最初から展開した状態で表示する。
+        // グループごとの個別開閉はせず、バー全体の開閉だけを1本のタイマーで管理する単純な状態機械にする。
+        (function () {
+            const bar = document.getElementById('side-icon-bar');
+            if (!bar) return;
+
+            let closeTimer = null;
+
+            function closeAll() {
+                bar.classList.remove('open');
+            }
+            function openBar() {
+                clearTimeout(closeTimer);
+                closeTimer = null;
+                bar.classList.add('open');
+            }
+            function scheduleClose() {
+                clearTimeout(closeTimer);
+                closeTimer = setTimeout(closeAll, 300);
+            }
+
+            bar.addEventListener('mouseenter', openBar);
+            bar.addEventListener('mouseleave', scheduleClose);
+
+            // ヒント表示（openHelp）実行時：💡をクリックする都合上、直前にバー領域へマウスが
+            // 入って開いてしまっているため、ヒント表示中はアイコンのみの閉じた状態に固定する
+            // （中の項目一覧はヒント対象から外しているので展開する必要がない）。
+            // 幅の transition が残ったままだと閉じる瞬間の中間位置を拾ってしまうので、
+            // 一時的にtransitionを無効化してから強制リフローで即座に確定させる。
+            window._openSideBarForHelp = function () {
+                clearTimeout(closeTimer);
+                closeTimer = null;
+                const prevTransition = bar.style.transition;
+                bar.style.transition = 'none';
+                bar.classList.remove('open');
+                void bar.offsetWidth;
+                bar.style.transition = prevTransition;
+                bar.style.pointerEvents = 'none';
+            };
+            window._closeSideBarForHelp = function () {
+                bar.style.pointerEvents = '';
+            };
+        })();
+
+        // ===== Excel風 列フィルター（グリッド各列ヘッダーの▼ボタン） =====
+        (function () {
+            let _openColFilterName = null;
+            let _activeSortState = null; // { colName, direction } | null。ソート適用中の列とボタンの見た目切替に使う
+            const COL_SORT_ENABLED = new Set(['start_date', 'end_date']); // 昇順・降順は開始日・終了日のみ
+
+            function _isDateColumn(colName) {
+                return colName === 'start_date' || colName === 'end_date';
+            }
+
+            function _positionDropdownNear(dd, anchorEl) {
+                const rect = anchorEl.getBoundingClientRect();
+                const ddWidth = 200;
+                let left = rect.left;
+                if (left + ddWidth > window.innerWidth - 8) left = window.innerWidth - ddWidth - 8;
+                if (left < 4) left = 4;
+                dd.style.left = left + 'px';
+                dd.style.top = (rect.bottom + 2) + 'px';
+            }
+
+            window.onColumnFilterBtnClick = function (e, colName) {
+                const dd = document.getElementById('col_filter_dropdown');
+                const wasOpenSame = _openColFilterName === colName && dd.style.display !== 'none';
+                dd.style.display = 'none';
+                _openColFilterName = null;
+                if (wasOpenSame) return;
+
+                _openColFilterName = colName;
+                _renderGenericColumnFilterList(colName);
+                const sortSection = document.getElementById('col_filter_sort_section');
+                if (sortSection) sortSection.style.display = COL_SORT_ENABLED.has(colName) ? '' : 'none';
+                const headerCell = (e.currentTarget.closest && e.currentTarget.closest('.gantt_grid_head_cell')) || e.currentTarget;
+                _positionDropdownNear(dd, headerCell);
+                dd.style.display = 'block';
+            };
+
+            window.applyColumnSort = function (direction) {
+                if (!_openColFilterName || !COL_SORT_ENABLED.has(_openColFilterName)) return;
+                const colName = _openColFilterName;
+                gantt.sort(function (a, b) {
+                    // 見出し行（$virtual）はソート対象外。工程の並び順（PHASE_PARENT_ORDER）を崩さないため、
+                    // 各見出し行の直下にある実タスクだけを開始日・終了日で並べ替える
+                    if (a.$virtual || b.$virtual) return 0;
+                    const va = _colFilterValueForTask(colName, a);
+                    const vb = _colFilterValueForTask(colName, b);
+                    const aEmpty = (va === '' || va === COL_FILTER_EMPTY_LABEL);
+                    const bEmpty = (vb === '' || vb === COL_FILTER_EMPTY_LABEL);
+                    if (aEmpty && !bEmpty) return 1;
+                    if (!aEmpty && bEmpty) return -1;
+                    if (aEmpty && bEmpty) return 0;
+                    const cmp = String(va).localeCompare(String(vb), 'ja', { numeric: true });
+                    return direction === 'desc' ? -cmp : cmp;
+                });
+                _activeSortState = { colName: colName, direction: direction };
+                document.getElementById('col_filter_dropdown').style.display = 'none';
+                _openColFilterName = null;
+                _refreshColumnFilterBtnStyles();
+            };
+
+            function _renderGenericColumnFilterList(colName) {
+                const listEl = document.getElementById('col_filter_chk_list');
+                const allChk = document.getElementById('col_filter_chk_all');
+                const values = _collectColumnFilterValues(colName);
+                const selected = columnFilters[colName];
+                const isFilterActive = !!(selected && selected.length > 0);
+
+                if (_isDateColumn(colName)) {
+                    listEl.innerHTML = _buildDateFilterTreeHtml(values, isFilterActive ? selected : null);
+                } else {
+                    listEl.innerHTML = values.map(function (v) {
+                        const checked = !isFilterActive || selected.indexOf(v) !== -1;
+                        const esc = String(v).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+                        return '<label class="col-filter-item-row"><input type="checkbox" class="col-filter-chk-item" value="' + esc + '"' + (checked ? ' checked' : '') + ' onchange="colFilterItemChanged()"> ' + (esc || '&nbsp;') + '</label>';
+                    }).join('');
+                }
+                allChk.checked = !isFilterActive || (selected.length >= values.length);
+            }
+            window._renderGenericColumnFilterList = _renderGenericColumnFilterList;
+
+            window.colFilterAllChanged = function (checked) {
+                document.querySelectorAll('#col_filter_chk_list .col-filter-chk-item').forEach(function (cb) { cb.checked = checked; });
+                document.querySelectorAll('#col_filter_chk_list .col-filter-chk-year, #col_filter_chk_list .col-filter-chk-month').forEach(function (cb) {
+                    cb.checked = checked;
+                    cb.indeterminate = false;
+                });
+                colFilterItemChanged();
+            };
+
+            window.colFilterItemChanged = function () {
+                if (!_openColFilterName) return;
+                const colName = _openColFilterName;
+                const items = Array.prototype.slice.call(document.querySelectorAll('#col_filter_chk_list .col-filter-chk-item'));
+                const checkedValues = items.filter(function (cb) { return cb.checked; }).map(function (cb) { return cb.value; });
+                if (checkedValues.length === items.length) {
+                    delete columnFilters[colName]; // 全選択＝フィルタなし
+                } else {
+                    columnFilters[colName] = checkedValues;
+                }
+                const allChk = document.getElementById('col_filter_chk_all');
+                if (allChk) allChk.checked = checkedValues.length === items.length;
+                window._syncDateFilterTreeState();
+                gantt.render();
+                _refreshColumnFilterBtnStyles();
+            };
+
+            window._isColumnFilterActive = function (colName) {
+                const selected = columnFilters[colName];
+                return !!(selected && selected.length > 0);
+            };
+
+            function _refreshColumnFilterBtnStyles() {
+                document.querySelectorAll('.col-filter-btn').forEach(function (btn) {
+                    const colName = btn.getAttribute('data-col');
+                    const isSortAsc = !!(_activeSortState && _activeSortState.colName === colName && _activeSortState.direction === 'asc');
+                    const isSortDesc = !!(_activeSortState && _activeSortState.colName === colName && _activeSortState.direction === 'desc');
+                    btn.classList.toggle('col-filter-sort-asc', isSortAsc);
+                    btn.classList.toggle('col-filter-sort-desc', isSortDesc);
+                    btn.classList.toggle('col-filter-active', window._isColumnFilterActive(colName));
+                });
+            }
+            window._refreshColumnFilterBtnStyles = _refreshColumnFilterBtnStyles;
+            gantt.attachEvent('onGanttRender', _refreshColumnFilterBtnStyles);
+
+            // ドロップダウン外クリックで閉じる
+            document.addEventListener('click', function (e) {
+                const dd = document.getElementById('col_filter_dropdown');
+                if (!dd || dd.style.display === 'none') return;
+                if (dd.contains(e.target)) return;
+                if (e.target.closest && e.target.closest('.col-filter-btn')) return;
+                dd.style.display = 'none';
+                _openColFilterName = null;
+            });
+
+            // ===== 日付列（開始日・終了日）の年→月→日 階層ツリー =====
+            function _parseDateFilterValue(v) {
+                const m = /^(\d{2})\/(\d{2})\/(\d{2})$/.exec(v);
+                if (!m) return null;
+                return { year: '20' + m[1], month: parseInt(m[2], 10), day: parseInt(m[3], 10), value: v };
+            }
+
+            function _buildDateFilterTreeHtml(values, selectedOrNull) {
+                const selectedSet = selectedOrNull ? new Set(selectedOrNull) : null;
+                const isChecked = function (v) { return !selectedSet || selectedSet.has(v); };
+
+                const emptyValues = values.filter(function (v) { return v === COL_FILTER_EMPTY_LABEL; });
+                const parsed = values.map(_parseDateFilterValue).filter(Boolean);
+
+                const byYear = {};
+                parsed.forEach(function (p) {
+                    byYear[p.year] = byYear[p.year] || {};
+                    byYear[p.year][p.month] = byYear[p.year][p.month] || [];
+                    byYear[p.year][p.month].push(p);
+                });
+
+                let html = '';
+                emptyValues.forEach(function (v) {
+                    const checked = isChecked(v) ? ' checked' : '';
+                    html += '<label class="col-filter-tree-row"><span class="col-filter-tree-toggle"></span><input type="checkbox" class="col-filter-chk-item" value="' + v + '"' + checked + ' onchange="colFilterItemChanged()"> ' + v + '</label>';
+                });
+
+                Object.keys(byYear).sort().forEach(function (year) {
+                    const months = byYear[year];
+                    const yearValues = [];
+                    Object.keys(months).forEach(function (m) { months[m].forEach(function (p) { yearValues.push(p.value); }); });
+                    const yearChecked = yearValues.every(isChecked);
+
+                    html += '<div class="col-filter-tree-node">'
+                        + '<label class="col-filter-tree-row col-filter-tree-year">'
+                        + '<span class="col-filter-tree-toggle" onclick="event.preventDefault(); _toggleDateTreeNode(this)">-</span>'
+                        + '<input type="checkbox" class="col-filter-chk-year" data-values=\'' + JSON.stringify(yearValues) + '\'' + (yearChecked ? ' checked' : '') + ' onchange="_dateFilterGroupChanged(this)"> ' + year + '年'
+                        + '</label>'
+                        + '<div class="col-filter-tree-children">';
+
+                    Object.keys(months).sort(function (a, b) { return Number(a) - Number(b); }).forEach(function (monthKey) {
+                        const days = months[monthKey];
+                        const monthValues = days.map(function (d) { return d.value; });
+                        const monthChecked = monthValues.every(isChecked);
+
+                        html += '<div class="col-filter-tree-node">'
+                            + '<label class="col-filter-tree-row col-filter-tree-month">'
+                            + '<span class="col-filter-tree-toggle" onclick="event.preventDefault(); _toggleDateTreeNode(this)">+</span>'
+                            + '<input type="checkbox" class="col-filter-chk-month" data-values=\'' + JSON.stringify(monthValues) + '\'' + (monthChecked ? ' checked' : '') + ' onchange="_dateFilterGroupChanged(this)"> ' + monthKey + '月'
+                            + '</label>'
+                            + '<div class="col-filter-tree-children" style="display:none;">';
+
+                        days.sort(function (a, b) { return a.day - b.day; }).forEach(function (d) {
+                            const checked = isChecked(d.value) ? ' checked' : '';
+                            html += '<label class="col-filter-tree-row col-filter-tree-day"><span class="col-filter-tree-toggle"></span><input type="checkbox" class="col-filter-chk-item" value="' + d.value + '"' + checked + ' onchange="colFilterItemChanged()"> ' + d.day + '日</label>';
+                        });
+
+                        html += '</div></div>';
+                    });
+
+                    html += '</div></div>';
+                });
+
+                return html;
+            }
+            window._buildDateFilterTreeHtml = _buildDateFilterTreeHtml;
+
+            window._toggleDateTreeNode = function (toggleEl) {
+                const row = toggleEl.closest('.col-filter-tree-row');
+                const node = row.closest('.col-filter-tree-node');
+                const children = node.querySelector('.col-filter-tree-children');
+                if (!children) return;
+                const isOpen = children.style.display !== 'none';
+                children.style.display = isOpen ? 'none' : '';
+                toggleEl.textContent = isOpen ? '+' : '-';
+            };
+
+            window._dateFilterGroupChanged = function (groupChk) {
+                const values = JSON.parse(groupChk.getAttribute('data-values'));
+                const checked = groupChk.checked;
+                const list = document.getElementById('col_filter_chk_list');
+                values.forEach(function (v) {
+                    const item = list.querySelector('.col-filter-chk-item[value="' + CSS.escape(v) + '"]');
+                    if (item) item.checked = checked;
+                });
+                groupChk.indeterminate = false;
+                colFilterItemChanged();
+            };
+
+            window._syncDateFilterTreeState = function () {
+                const list = document.getElementById('col_filter_chk_list');
+                if (!list) return;
+                list.querySelectorAll('.col-filter-chk-month').forEach(function (monthChk) {
+                    const values = JSON.parse(monthChk.getAttribute('data-values'));
+                    const states = values.map(function (v) {
+                        const item = list.querySelector('.col-filter-chk-item[value="' + CSS.escape(v) + '"]');
+                        return item ? item.checked : true;
+                    });
+                    const allChecked = states.every(Boolean);
+                    const noneChecked = states.every(function (s) { return !s; });
+                    monthChk.checked = allChecked;
+                    monthChk.indeterminate = !allChecked && !noneChecked;
+                });
+                list.querySelectorAll('.col-filter-chk-year').forEach(function (yearChk) {
+                    const values = JSON.parse(yearChk.getAttribute('data-values'));
+                    const states = values.map(function (v) {
+                        const item = list.querySelector('.col-filter-chk-item[value="' + CSS.escape(v) + '"]');
+                        return item ? item.checked : true;
+                    });
+                    const allChecked = states.every(Boolean);
+                    const noneChecked = states.every(function (s) { return !s; });
+                    yearChk.checked = allChecked;
+                    yearChk.indeterminate = !allChecked && !noneChecked;
+                });
+            };
+        })();

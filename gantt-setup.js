@@ -63,6 +63,11 @@
                 title: '操業工程表は準備中です（公開後に有効化します）',
                 disabled: true,
             },
+            viewer3d: {
+                url: 'https://kemcokurosaki-oss.github.io/3d-viewer/',
+                title: '3Dモデルビューアを別タブで開く',
+                disabled: false,
+            },
         };
 
         function _deptLinkButtonId(key) {
@@ -70,11 +75,12 @@
             if (key === 'design') return 'dept_link_design';
             if (key === 'assembly') return 'dept_link_assembly';
             if (key === 'operations') return 'dept_link_operations';
+            if (key === 'viewer3d') return 'dept_link_viewer3d';
             return '';
         }
 
         function updateDeptScheduleLinkButtons() {
-            ['approval', 'design', 'assembly', 'operations'].forEach(function (key) {
+            ['approval', 'design', 'assembly', 'operations', 'viewer3d'].forEach(function (key) {
                 const cfg = DEPT_SCHEDULE_LINK_CONFIG[key];
                 const btnId = _deptLinkButtonId(key);
                 const btn = btnId ? document.getElementById(btnId) : null;
@@ -113,11 +119,14 @@
             document.getElementById('kanryo-btn').style.display = '';
             document.getElementById('kanryo-btn').disabled = !isEditor;
             const authBtn = document.getElementById('auth_btn');
+            const showLogout = _isEditor || _hasAuthSession;
             if (authBtn) {
-                const showLogout = _isEditor || _hasAuthSession;
-                authBtn.textContent = showLogout ? 'ログアウト' : 'ログイン';
+                const authLabel = document.getElementById('auth_btn_label');
+                if (authLabel) authLabel.textContent = showLogout ? 'ログアウト' : 'ログイン';
                 authBtn.classList.toggle('logged-in', showLogout);
             }
+            const authStatusDot = document.getElementById('auth_status_dot');
+            if (authStatusDot) authStatusDot.classList.toggle('logged-in', showLogout);
             if (typeof gantt.render === 'function') gantt.render();
             // 公開ボタン・ポーリング制御
             if (typeof window._onAuthChanged === 'function') window._onAuthChanged(isEditor);
@@ -224,11 +233,7 @@
         let currentResourceMode = 'individual'; // 'individual' か 'dept'
         let lastDeptName = ''; 
         let lastOwnerName = '';
-        let currentOwnerFilter = "";
-        let isUnassignedOnly = false; // 担当未定フィルタの状態
-        let currentOwnerFilterNoData = false; // tasks と task_template の両方に該当がないとき true
-        let currentMachineFilter = "";
-        let currentTaskFilter = "";
+        let columnFilters = Object.create(null); // { colName: string[] } 列ごとのExcel風フィルター選択値
         let currentLocationResourceMode = false; // 組立場所リソースモード
         let locationExpandedGroups = { "E1": true, "E3": true }; // 展開状態
         const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
