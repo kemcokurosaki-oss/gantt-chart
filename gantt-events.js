@@ -107,7 +107,7 @@
                     (!obj.$virtual && obj.text === "受注説明会")
                 );
                 if (isDesignDetail || isSpecFolder) {
-                    return `<button class='zoom-btn' style='padding: 2px 5px; font-size: 12px; cursor: pointer;' onclick='openDetail("${obj.id}")'>🔍</button>`;
+                    return `<button class='zoom-btn detail-btn' title='詳細' onclick='openDetail("${obj.id}")'><svg viewBox='0 0 16 16' aria-hidden='true'><circle cx='7' cy='7' r='4.4'/><path d='M10.4 10.4 L14 14'/></svg></button>`;
                 }
                 return "";
             }},
@@ -1302,7 +1302,8 @@
             if (typeof gantt.addMarker === 'function') {
                 gantt.addMarker({
                     id: "today_marker",
-                    start_date: new Date(),
+                    // new Date() は現在時刻を含むため列の途中に線が出る。列の左端に合わせる
+                    start_date: gantt.date.day_start(new Date()),
                     css: "today-line",
                     text: ""
                 });
@@ -1404,6 +1405,12 @@
             return holidaySet.has(ds);
         };
 
+        // 今日の列：ヘッダーの日付チップ（scale_today）とタイムライン側の帯（today-cell）に使う
+        const isToday = (date) => {
+            const t = new Date();
+            return date.getFullYear() === t.getFullYear() && date.getMonth() === t.getMonth() && date.getDate() === t.getDate();
+        };
+
         gantt.templates.scale_cell_class = (date) => {
             const nextDay = new Date(date);
             nextDay.setDate(nextDay.getDate() + 1);
@@ -1411,7 +1418,7 @@
             const isDays = (gantt.ext.zoom.getCurrentLevel() || "days") === "days";
             const day = date.getDay();
             const dayClass = isDays ? (day === 6 ? " scale_saturday" : day === 0 ? " scale_sunday" : "") : "";
-            return (isDays && isWeekendOrHoliday(date) ? "weekend" : "") + (isMonthEnd ? " month-end-cell" : "") + dayClass;
+            return (isDays && isWeekendOrHoliday(date) ? "weekend" : "") + (isMonthEnd ? " month-end-cell" : "") + dayClass + (isDays && isToday(date) ? " scale_today" : "");
         };
 
         gantt.templates.timeline_cell_class = (task, date) => {
@@ -1419,7 +1426,7 @@
             nextDay.setDate(nextDay.getDate() + 1);
             const isMonthEnd = nextDay.getDate() === 1;
             const isDays = (gantt.ext.zoom.getCurrentLevel() || "days") === "days";
-            return (isDays && isWeekendOrHoliday(date) ? "weekend" : "") + (isMonthEnd ? " month-end-cell" : "");
+            return (isDays && isWeekendOrHoliday(date) ? "weekend" : "") + (isMonthEnd ? " month-end-cell" : "") + (isDays && isToday(date) ? " today-cell" : "");
         };
 
         const isMonthEndDate = (date) => {
@@ -1432,8 +1439,8 @@
             levels: [
                 { name: "days", scale_height: 60, min_column_width: 22, scales: [
                     { unit: "month", step: 1, format: "%Y/%n", css: () => "month-end-cell" },
-                    { unit: "day", step: 1, format: "%j", css: (date) => { const ds = date.getFullYear()+"-"+String(date.getMonth()+1).padStart(2,"0")+"-"+String(date.getDate()).padStart(2,"0"); const isHol = holidaySet.has(ds) && date.getDay()!==0; return (isWeekendOrHoliday(date) ? "weekend" : "") + (isMonthEndDate(date) ? " month-end-cell" : "") + (date.getDay() === 0 ? " scale_sunday" : isHol ? " scale_holiday" : date.getDay() === 6 ? " scale_saturday" : ""); } },
-                    { unit: "day", step: 1, format: (date) => dayNames[date.getDay()], css: (date) => { const ds = date.getFullYear()+"-"+String(date.getMonth()+1).padStart(2,"0")+"-"+String(date.getDate()).padStart(2,"0"); const isHol = holidaySet.has(ds) && date.getDay()!==0; return (isWeekendOrHoliday(date) ? "weekend" : "") + (isMonthEndDate(date) ? " month-end-cell" : "") + (date.getDay() === 0 ? " scale_sunday" : isHol ? " scale_holiday" : date.getDay() === 6 ? " scale_saturday" : ""); } }
+                    { unit: "day", step: 1, format: "%j", css: (date) => { const ds = date.getFullYear()+"-"+String(date.getMonth()+1).padStart(2,"0")+"-"+String(date.getDate()).padStart(2,"0"); const isHol = holidaySet.has(ds) && date.getDay()!==0; return (isWeekendOrHoliday(date) ? "weekend" : "") + (isMonthEndDate(date) ? " month-end-cell" : "") + (date.getDay() === 0 ? " scale_sunday" : isHol ? " scale_holiday" : date.getDay() === 6 ? " scale_saturday" : "") + (isToday(date) ? " scale_today" : ""); } },
+                    { unit: "day", step: 1, format: (date) => dayNames[date.getDay()], css: (date) => { const ds = date.getFullYear()+"-"+String(date.getMonth()+1).padStart(2,"0")+"-"+String(date.getDate()).padStart(2,"0"); const isHol = holidaySet.has(ds) && date.getDay()!==0; return (isWeekendOrHoliday(date) ? "weekend" : "") + (isMonthEndDate(date) ? " month-end-cell" : "") + (date.getDay() === 0 ? " scale_sunday" : isHol ? " scale_holiday" : date.getDay() === 6 ? " scale_saturday" : "") + (isToday(date) ? " scale_today" : ""); } }
                 ]},
                 { name: "weeks", scale_height: 60, min_column_width: 22, scales: [
                     { unit: "month", step: 1, format: "%Y/%n" },

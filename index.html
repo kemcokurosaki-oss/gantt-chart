@@ -21,19 +21,19 @@
                 <span class="side-nav-icon">🔗</span><span class="side-nav-label">工程表・外部リンク</span>
             </div>
             <div class="side-nav-submenu">
-                <button type="button" id="approval_flow_link_btn" class="side-nav-subitem" onclick="openDeptScheduleLink('approval')" title="承認フローを別タブで開く（ログインはリンク先で行います）">
+                <button type="button" id="approval_flow_link_btn" class="side-nav-subitem" onclick="openDeptScheduleLink('approval')">
                     <span class="side-nav-icon side-nav-icon--badge side-nav-icon--approval"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M6 25V16M13 25V9M20 25V18M26 25V12" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round"/></svg></span><span class="side-nav-label">承認フロー</span>
                 </button>
-                <button type="button" id="dept_link_design" class="side-nav-subitem" onclick="openDeptScheduleLink('design')" title="">
+                <button type="button" id="dept_link_design" class="side-nav-subitem" onclick="openDeptScheduleLink('design')">
                     <span class="side-nav-icon">📐</span><span class="side-nav-label">設計</span>
                 </button>
-                <button type="button" id="dept_link_assembly" class="side-nav-subitem" onclick="openDeptScheduleLink('assembly')" title="">
+                <button type="button" id="dept_link_assembly" class="side-nav-subitem" onclick="openDeptScheduleLink('assembly')">
                     <span class="side-nav-icon">🔧</span><span class="side-nav-label">組立</span>
                 </button>
-                <button type="button" id="dept_link_operations" class="side-nav-subitem" disabled title="">
+                <button type="button" id="dept_link_operations" class="side-nav-subitem" disabled>
                     <span class="side-nav-icon">⚙️</span><span class="side-nav-label">操業</span>
                 </button>
-                <button type="button" id="dept_link_viewer3d" class="side-nav-subitem" onclick="openDeptScheduleLink('viewer3d')" title="3Dモデルビューアを別タブで開く">
+                <button type="button" id="dept_link_viewer3d" class="side-nav-subitem" onclick="openDeptScheduleLink('viewer3d')">
                     <span class="side-nav-icon side-nav-icon--badge side-nav-icon--viewer3d"><svg viewBox="0 0 32 32" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 7 25 12v9l-9 5-9-5v-9z"/><path d="M7 12l9 5 9-5"/><path d="M16 17v9"/></svg></span><span class="side-nav-label">3Dモデル</span>
                 </button>
             </div>
@@ -46,7 +46,7 @@
         </button>
         <div class="side-nav-group" id="side-nav-more">
             <div class="side-nav-item" aria-hidden="true">
-                <span class="side-nav-icon side-nav-icon--has-status">⚙️<span class="side-nav-status-dot" id="auth_status_dot" title="ログイン中"></span></span><span class="side-nav-label">その他</span>
+                <span class="side-nav-icon side-nav-icon--has-status">⚙️<span class="side-nav-status-dot" id="auth_status_dot"></span></span><span class="side-nav-label">その他</span>
             </div>
             <div class="side-nav-submenu">
                 <button type="button" class="side-nav-subitem" id="new_project_btn" onclick="toggleNewProjectForm()" disabled>
