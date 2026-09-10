@@ -355,7 +355,7 @@
                     const isWeekend = date.getDay() === 0 || date.getDay() === 6;
                     const ds = date.getFullYear() + "-" + String(date.getMonth()+1).padStart(2,"0") + "-" + String(date.getDate()).padStart(2,"0");
                     if (isWeekend || holidaySet.has(ds)) {
-                        weekendBackgroundHtml += `<div style="position: absolute; top: 0; bottom: 0; left: ${firstPos + i * columnWidth}px; width: ${columnWidth}px; background: #f4f4f4; z-index: 0;"></div>`;
+                        weekendBackgroundHtml += `<div style="position: absolute; top: 0; bottom: 0; left: ${firstPos + i * columnWidth}px; width: ${columnWidth}px; background: #e9edf0; z-index: 0;"></div>`;
                     }
                 });
             }
@@ -365,7 +365,7 @@
             const verticalLinesHtml = _tlGridDept.verticalLinesHtml;
 
             // 今日線は各データ行のタイムライン内のみ（ヘッダー行には置かず、メイン線の「途切れ」を作る）
-            const todayPos = gantt.posFromDate(new Date());
+            const todayPos = gantt.posFromDate(gantt.date.day_start(new Date()));
             const todayLineHtml = `<div class="resource-today-line" style="left: ${todayPos}px;"></div>`;
 
             let html = "";
@@ -1095,7 +1095,7 @@
                     const isWeekend = date.getDay() === 0 || date.getDay() === 6;
                     const ds = date.getFullYear() + "-" + String(date.getMonth()+1).padStart(2,"0") + "-" + String(date.getDate()).padStart(2,"0");
                     if (isWeekend || holidaySet.has(ds)) {
-                        weekendBackgroundHtml += `<div style="position: absolute; top: 0; bottom: 0; left: ${firstPos + i * columnWidth}px; width: ${columnWidth}px; background: #f4f4f4; z-index: 0;"></div>`;
+                        weekendBackgroundHtml += `<div style="position: absolute; top: 0; bottom: 0; left: ${firstPos + i * columnWidth}px; width: ${columnWidth}px; background: #e9edf0; z-index: 0;"></div>`;
                     }
                 });
             }
@@ -1105,7 +1105,7 @@
             const verticalLinesHtml = _tlGridLoc.verticalLinesHtml;
 
             // 今日線は各データ行のタイムライン内のみ（ヘッダー行には置かず、メイン線の「途切れ」を作る）
-            const todayPos = gantt.posFromDate(new Date());
+            const todayPos = gantt.posFromDate(gantt.date.day_start(new Date()));
             const todayLineHtml = `<div class="resource-today-line" style="left: ${todayPos}px;"></div>`;
 
             let html = "";
@@ -1339,7 +1339,7 @@
                     const isWeekend = date.getDay() === 0 || date.getDay() === 6;
                     const ds = date.getFullYear() + "-" + String(date.getMonth()+1).padStart(2,"0") + "-" + String(date.getDate()).padStart(2,"0");
                     if (isWeekend || holidaySet.has(ds)) {
-                        weekendBackgroundHtml += `<div style="position: absolute; top: 0; bottom: 0; left: ${firstPos + i * columnWidth}px; width: ${columnWidth}px; background: #f4f4f4; z-index: 0;"></div>`;
+                        weekendBackgroundHtml += `<div style="position: absolute; top: 0; bottom: 0; left: ${firstPos + i * columnWidth}px; width: ${columnWidth}px; background: #e9edf0; z-index: 0;"></div>`;
                     }
                 });
             }
@@ -1349,7 +1349,7 @@
             const verticalLinesHtml = _tlGridOwner.verticalLinesHtml;
 
             // 今日線は各データ行のタイムライン内のみ（ヘッダー行には置かず、メイン線の「途切れ」を作る）
-            const todayPos = gantt.posFromDate(new Date());
+            const todayPos = gantt.posFromDate(gantt.date.day_start(new Date()));
             const todayLineHtml = `<div class="resource-today-line" style="left: ${todayPos}px;"></div>`;
 
             let html = "";

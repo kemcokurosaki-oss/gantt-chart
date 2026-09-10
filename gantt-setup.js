@@ -86,7 +86,8 @@
                 const btn = btnId ? document.getElementById(btnId) : null;
                 if (!btn || !cfg) return;
                 btn.disabled = !!cfg.disabled;
-                btn.title = cfg.title;
+                // サイドバーのホバー吹き出し（title 属性）は表示しない
+                btn.removeAttribute('title');
             });
         }
 
