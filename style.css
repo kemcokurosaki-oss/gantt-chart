@@ -1921,14 +1921,14 @@
         #kanryo-close-btn { background:none; border:none; color:#fff; font-size:18px; cursor:pointer; line-height:1; padding:0 4px; }
 
         /* ===== 完了行の表現（3b：明度差と色温度で分ける） =====
-           完了は純グレーのほぼ白 #fafafa、見出し行は青寄りグレー #dfe4e8。
+           完了は純グレー #efefef、見出し行は青寄りグレー #dfe4e8。
            見づらい場合はこのブロックを 3a（下のコメント）と差し替える。 */
         .task-checked {
-            background-color: #fafafa !important;
-            color: #6a757d !important;
+            background-color: #efefef !important;
+            color: #5d666c !important;
         }
         .task-checked .gantt_tree_content {
-            color: #6a757d !important;
+            color: #5d666c !important;
         }
         /* 子タスクが全て完了した見出し行：#fafafa に塗り潰されないよう帯・太字・左3pxを維持する */
         .gantt_group_row.task-checked {
