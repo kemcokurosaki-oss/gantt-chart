@@ -20,8 +20,8 @@
                         <input type="text" id="inline-edit-ms-search" placeholder="検索..." />
                         <div id="inline-edit-ms-options"></div>
                         <div id="inline-edit-free-row" style="display:none; margin-top:6px; border-top:1px solid #eee; padding-top:6px;">
-                            <div style="font-size:11px; color:#666; margin-bottom:3px;">自由入力（入力した場合はリスト選択より優先）</div>
-                            <input type="text" id="inline-edit-free-text" placeholder="タスク名を自由入力..." style="width:100%; box-sizing:border-box; padding:5px 8px; border:1px solid #aaa; border-radius:4px; font-size:13px;" />
+                            <div id="inline-edit-free-desc" style="font-size:11px; color:#666; margin-bottom:3px;">自由入力（入力した場合はリスト選択より優先）</div>
+                            <input type="text" id="inline-edit-free-text" placeholder="自由入力..." style="width:100%; box-sizing:border-box; padding:5px 8px; border:1px solid #aaa; border-radius:4px; font-size:13px;" />
                         </div>
                     </div>
                     <div class="inline-edit-section" id="inline-edit-date-section">
@@ -269,7 +269,7 @@
                 const popup = getPopup();
                 popup.querySelector('#inline-edit-field-label').textContent = labels[field] || field;
 
-                // タスク名以外では自由入力欄を隠す
+                // タスク名・担当以外では自由入力欄を隠す
                 const _freeRow = popup.querySelector('#inline-edit-free-row');
                 if (_freeRow) _freeRow.style.display = 'none';
 
@@ -280,16 +280,33 @@
                     showMsSection(buildTaskNameOpts(task), sel);
                     // 自由入力欄を表示し、既存値がリストにない場合はプリセット
                     const freeRow = popup.querySelector('#inline-edit-free-row');
+                    const freeDesc = popup.querySelector('#inline-edit-free-desc');
                     const freeText = popup.querySelector('#inline-edit-free-text');
                     if (freeRow && freeText) {
                         freeRow.style.display = '';
+                        if (freeDesc) freeDesc.textContent = '自由入力（入力した場合はリスト選択より優先）';
+                        freeText.placeholder = 'タスク名を自由入力...';
                         const allOpts = buildTaskNameOpts(task);
                         const allValues = allOpts.filter(function(o) { return !o.isGroup; }).map(function(o) { return o.value; });
                         const hasUnknown = sel.some(function(s) { return !allValues.includes(s); });
                         freeText.value = hasUnknown ? sel.filter(function(s) { return !allValues.includes(s); }).join(',') : '';
                     }
                 } else if (field === 'owner') {
-                    showMsSection(buildOwnerOpts(task.major_item || ''), getNormalizedOwners(task.owner || ''), task.main_owner || '', false);
+                    const selOwners = getNormalizedOwners(task.owner || '');
+                    showMsSection(buildOwnerOpts(task.major_item || ''), selOwners, task.main_owner || '', false);
+                    // 自由入力欄を表示し、マスターに存在しない担当者名（前回自由入力で保存した値等）をプリセット
+                    const freeRow = popup.querySelector('#inline-edit-free-row');
+                    const freeDesc = popup.querySelector('#inline-edit-free-desc');
+                    const freeText = popup.querySelector('#inline-edit-free-text');
+                    if (freeRow && freeText) {
+                        freeRow.style.display = '';
+                        if (freeDesc) freeDesc.textContent = '自由入力（未登録の担当者を追加できます。複数はカンマ区切り）';
+                        freeText.placeholder = '担当者名を自由入力...';
+                        const allOpts = buildOwnerOpts(task.major_item || '');
+                        const allValues = allOpts.filter(function(o) { return !o.isGroup; }).map(function(o) { return o.value; });
+                        const unknown = selOwners.filter(function(s) { return !allValues.includes(s); });
+                        freeText.value = unknown.join(',');
+                    }
                 } else if (field === 'area_number') {
                     showMsSection(buildLocationOpts(), locationCheckboxValuesFromTask(task), undefined, false);
                 } else if (field === 'start_date') {
@@ -331,6 +348,15 @@
 
                 } else if (field === 'owner') {
                     const ownerVals = Array.from(document.querySelectorAll('#inline-edit-ms-options .inline-ms-owner-check-wrap input[type=checkbox]')).filter(function(el) { return el.checked; }).map(function(cb) { return cb.value; });
+                    // 自由入力欄に入力された担当者名を追加（複数はカンマ区切り）。
+                    // 選択肢（チェックボックス）には自動追加しない＝常に自由入力欄側に表示され続ける
+                    const freeVal = (document.getElementById('inline-edit-free-text')?.value || '').trim();
+                    if (freeVal) {
+                        const freeNames = freeVal.split(/[,，]/).map(function(s) { return s.trim(); }).filter(Boolean);
+                        freeNames.forEach(function(name) {
+                            if (!ownerVals.includes(name)) ownerVals.push(name);
+                        });
+                    }
                     task.owner = ownerVals.join(',');
                     const mainEl = document.querySelector('#inline-edit-ms-options input[name="ie_main_owner_checkbox"]:checked');
                     let main = mainEl ? mainEl.value : '';
