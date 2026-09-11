@@ -198,6 +198,7 @@
             // リサイズ対象列：name / COLUMN_WIDTHS の添字 / 元のデフォルト最小幅
             var RESIZABLE = [
                 { name: 'text',        minIdx: 3, minW: COLUMN_WIDTHS[3] },
+                { name: 'unit',        minIdx: 5, minW: COLUMN_WIDTHS[5] },
                 { name: 'owner',       minIdx: 6, minW: COLUMN_WIDTHS[6] },
                 { name: 'area_number', minIdx: 7, minW: COLUMN_WIDTHS[7] }
             ];
