@@ -490,7 +490,7 @@
         };
 
         gantt.plugins({ marker: true, grouplist: true, inline_editors: true, dnd: true });
-        
+
         gantt.config.start_date = GANTT_CALENDAR_CONFIG.start_date;
         gantt.config.end_date = GANTT_CALENDAR_CONFIG.end_date;
         gantt.config.fit_tasks = false; // タスクの有無に関わらず設定期間を維持（下段が10月で終わらないように）
@@ -578,48 +578,6 @@
             return list.map(name => ({ key: name, label: name }));
         }
 
-        // インラインエディタの設定
-        const ownerEditor = {
-            type: "select",
-            map_to: "owner",
-            options: [] // 動的に変更される
-        };
-
-        gantt.config.editor_types.owner_editor = {
-            show: function (id, column, config, placeholder) {
-                const task = gantt.getTask(id);
-                const options = getOwnerOptions(task.major_item);
-                
-                let html = "<select style='width:100%; height:100%; border:none;'>";
-                html += "<option value=''>未選択</option>";
-                options.forEach(opt => {
-                    html += `<option value="${opt.key}" ${task.owner === opt.key ? "selected" : ""}>${opt.label}</option>`;
-                });
-                html += "</select>";
-                placeholder.innerHTML = html;
-            },
-            hide: function () {
-            },
-            set_value: function (value, id, column, node) {
-                node.firstChild.value = value || "";
-            },
-            get_value: function (id, column, node) {
-                return node.firstChild.value;
-            },
-            is_changed: function (value, id, column, node) {
-                const task = gantt.getTask(id);
-                return value !== task.owner;
-            },
-            is_valid: function (value, id, column, node) {
-                return true;
-            },
-            save: function (id, column, node) {
-            },
-            focus: function (node) {
-                node.firstChild.focus();
-            }
-        };
-
         // インラインエディタを有効化
         gantt.config.show_errors = false;
 
@@ -650,8 +608,8 @@
                 return `<div class='owner_selector_wrapper' style='padding:5px;'>
                             <div class='owner_selector_container' style='height:100px; overflow-y:auto; border:1px solid #ccc; padding:5px; background:#fff;'></div>
                             <div style='margin-top:5px; display:flex; gap:5px;'>
-                                <button class='add_owner_option' style='flex-grow:1; height:25px; cursor:pointer; background:#4CAF50; color:white; border:none; border-radius:4px; font-weight:bold; font-size:12px;'>+ 担当者追加</button>
-                                <button class='remove_owner_option' style='flex-grow:1; height:25px; cursor:pointer; background:#f44336; color:white; border:none; border-radius:4px; font-weight:bold; font-size:12px;'>- 選択中を削除</button>
+                                <input type='text' class='owner_free_input' placeholder='担当者名を自由入力（複数はカンマ区切り）' style='flex-grow:1; min-width:0; height:25px; font-size:12px; padding:0 6px; border:1px solid #aaa; border-radius:4px; box-sizing:border-box;'>
+                                <button class='remove_owner_option' style='flex-shrink:0; height:25px; padding:0 10px; cursor:pointer; background:#f44336; color:white; border:none; border-radius:4px; font-weight:bold; font-size:12px;'>- 削除</button>
                             </div>
                         </div>`;
             },
@@ -660,27 +618,10 @@
                 if (!container) return;
 
                 const majorItem = task.major_item || "";
-                
+
                 // イベントリスナーの設定（初回のみ）
                 if (!node._events_attached) {
-                    node.querySelector(".add_owner_option").onclick = function() {
-                        const currentMajorItem = task.major_item;
-                        if (!currentMajorItem) {
-                            alert("先に「フィルタ色分け（部署）」を選択してください。");
-                            return;
-                        }
-                        const newOwnerName = prompt(`「${currentMajorItem}」に新しい担当者を追加します:`);
-                        if (newOwnerName && newOwnerName.trim() !== "") {
-                            if (!ownerMaster[currentMajorItem]) {
-                                ownerMaster[currentMajorItem] = [];
-                            }
-                            if (!ownerMaster[currentMajorItem].includes(newOwnerName)) {
-                                ownerMaster[currentMajorItem].push(newOwnerName);
-                                const curVal = Array.from(container.querySelectorAll('input[name="owner_checkbox"]:checked')).map(cb => cb.value).join(", ");
-                                gantt.form_blocks["owner_selector"].set_value(node, curVal, task);
-                            }
-                        }
-                    };
+                    const freeInput = node.querySelector(".owner_free_input");
 
                     node.querySelector(".remove_owner_option").onclick = function() {
                         const currentMajorItem = task.major_item;
@@ -700,6 +641,15 @@
                         }
                     };
                     node._events_attached = true;
+
+                    // 初回表示時：マスターに存在しない担当者名（自由入力で保存された値等）を
+                    // 自由入力欄に復元表示する（ページ更新でownerMasterがリセットされても消えないように）
+                    const owners0 = ownerMaster[majorItem] || [];
+                    const selected0 = (value || "").split(",").map(function(s) { return s.trim(); }).filter(Boolean);
+                    const unknown0 = selected0.filter(function(n) { return !owners0.includes(n); });
+                    if (unknown0.length > 0) {
+                        freeInput.value = unknown0.join(", ");
+                    }
                 }
 
                 // 部署プルダウン変更時に担当チェックボックスをリアルタイム更新
@@ -754,6 +704,18 @@
                 const container = node.querySelector(".owner_selector_container");
                 if (!container) return "";
                 const checked = Array.from(container.querySelectorAll('input[name="owner_checkbox"]:checked')).map(cb => cb.value);
+
+                // 自由入力欄の値も保存対象に含める（カンマ区切りの複数名に対応）。
+                // 選択肢（チェックボックス）には自動追加しない＝常に自由入力欄側に表示され続ける
+                const freeInput = node.querySelector(".owner_free_input");
+                const freeValue = freeInput ? freeInput.value.trim() : "";
+                if (freeValue) {
+                    const freeNames = freeValue.split(/[,，]/).map(function(s) { return s.trim(); }).filter(Boolean);
+                    freeNames.forEach(function(name) {
+                        if (!checked.includes(name)) checked.push(name);
+                    });
+                }
+
                 const mainEl = container.querySelector('input[name="main_owner_checkbox"]:checked');
                 let main = mainEl ? mainEl.value : "";
                 if (main && !checked.includes(main)) main = "";
