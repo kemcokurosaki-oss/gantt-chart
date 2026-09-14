@@ -898,10 +898,10 @@
         });
 
         // 保存失敗モーダル表示
-        function _showSaveStatus(state, detail) {
+        function _showSaveStatus(state, detail, customMessage) {
             if (state === 'error') {
                 const msg = document.getElementById('save-error-modal-msg');
-                if (msg) msg.textContent = (detail || '') + ' の保存に失敗しました。';
+                if (msg) msg.textContent = customMessage || ((detail || '') + ' の保存に失敗しました。');
                 const overlay = document.getElementById('save-error-modal-overlay');
                 if (overlay) overlay.classList.add('visible');
             }
@@ -951,6 +951,40 @@
             }, (window._editorLastTouchPatch && window._editorLastTouchPatch()) || {});
             if (currentDisplayMode === 'business_trip') {
                 updateData.task_type = 'business_trip';
+            }
+
+            // 出荷確定日ロック中（常務承認済み）は、全体工程表からの出荷日変更を拒否する
+            // （変更は承認フロー[出荷確定日変更]経由のみ許可。ロック自体はapp.js側のlockShippingDateOnApprovalが設定）
+            const isLockedShippingTask = !!(oldTask && oldTask.shipping_date_locked &&
+                (oldTask.text === '工場出荷' || oldTask.text === '梱包出荷'));
+            const shippingDateChanged = isLockedShippingTask &&
+                (oldTask.start_date !== updateData.start_date || Number(oldTask.duration) !== Number(updateData.duration));
+            if (shippingDateChanged) {
+                console.warn('出荷確定日はロック中のため工程表からの変更を拒否しました:', realId);
+                if (gantt.isTaskExists(id)) {
+                    try {
+                        Object.assign(gantt.getTask(id), {
+                            text: oldTask.text,
+                            start_date: oldTask.start_date instanceof Date ? oldTask.start_date : new Date(oldTask.start_date),
+                            duration: oldTask.duration,
+                            owner: oldTask.owner,
+                            project_number: oldTask.project_number,
+                            customer_name: oldTask.customer_name,
+                            project_details: oldTask.project_details,
+                            machine: oldTask.machine,
+                            unit: oldTask.unit,
+                            major_item: oldTask.major_item,
+                            area_group: oldTask.area_group,
+                            area_number: oldTask.area_number,
+                            is_business_trip: oldTask.is_business_trip,
+                            main_owner: oldTask.main_owner,
+                            parent_name: oldTask.parent_name
+                        });
+                        gantt.refreshTask(id);
+                    } catch (e) {}
+                }
+                _showSaveStatus('error', null, '出荷確定日は常務承認済みのため、工程表からは変更できません。承認フロー画面から変更してください。');
+                return;
             }
 
             console.log("Sending to Supabase (Update):", updateData, "Real ID:", realId);
