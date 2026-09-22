@@ -962,8 +962,10 @@
             const realId = item.original_id || id;
 
             // 変更前のデータを取得（allTasks はまだ旧データ）
-            const oldTask = (window.allTasks || []).find(t => String(t.id) === String(realId));
-            console.log('[操業履歴デバッグ] id:', id, 'realId:', realId, 'oldTask found:', !!oldTask, 'allTasksLen:', (window.allTasks || []).length);
+            // 出張タスクは window.allTasks 内で design_trip_<realId> という合成IDで保持され、
+            // 本来の id は original_id 側にしか入っていないため、両方で検索する
+            const oldTask = (window.allTasks || []).find(t =>
+                String(t.id) === String(realId) || String(t.original_id) === String(realId));
 
             // onBeforeLightboxSave でキャプチャした値があればそれを優先（map_to タイミング問題の対策）
             // ※ 同一保存で onAfterTaskUpdate が2回発火するため、ここではクリアしない
