@@ -1091,6 +1091,7 @@
                     // 操業工程表の変更履歴（source='操業工程表'）にも記録する
                     if (oldTask && typeof _opHistoryModeTag === 'function') {
                         const opTag = _opHistoryModeTag(updateData) || _opHistoryModeTag(oldTask);
+                        console.log('[操業履歴デバッグ] oldTask:', oldTask, 'updateData:', updateData, 'opTag:', opTag);
                         if (opTag) {
                             const dispDate = v => {
                                 if (!v) return '(未設定)';
@@ -1103,7 +1104,12 @@
                             const oldStart = dispDate(oldTask.start_date);
                             const newStart = dispDate(updateData.start_date);
                             if (oldStart !== newStart) opChanges.push(`開始日を変更：${oldStart} → ${newStart}`);
-                            const oldEnd = dispDate(oldTask.end_date);
+                            // oldTask（window.allTasks 由来）は end_date を持たず duration のみのため、
+                            // start_date + duration から旧終了日を逆算する
+                            const oldEndRaw = (typeof inclusiveEndDateToDb === 'function')
+                                ? inclusiveEndDateToDb(oldTask.start_date, oldTask.duration)
+                                : oldTask.end_date;
+                            const oldEnd = dispDate(oldEndRaw);
                             const newEnd = dispDate(updateData.end_date);
                             if (oldEnd !== newEnd) opChanges.push(`終了日を変更：${oldEnd} → ${newEnd}`);
                             if ((oldTask.owner || '') !== (updateData.owner || '')) {
@@ -1115,7 +1121,12 @@
                             if ((oldTask.unit || '') !== (updateData.unit || '')) {
                                 opChanges.push(`ユニットを変更：${oldTask.unit || '(未設定)'} → ${updateData.unit || '(未設定)'}`);
                             }
-                            if (opChanges.length > 0) _opInsertLinkedHistory(updateData, opTag, opChanges.join('／'));
+                            console.log('[操業履歴デバッグ] opChanges:', opChanges);
+                            if (opChanges.length > 0) {
+                                _opInsertLinkedHistory(updateData, opTag, opChanges.join('／'))
+                                    .then(() => console.log('[操業履歴デバッグ] insert完了'))
+                                    .catch(e => console.error('[操業履歴デバッグ] insert失敗', e));
+                            }
                         }
                     }
 
