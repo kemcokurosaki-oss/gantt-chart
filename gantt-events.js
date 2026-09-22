@@ -963,6 +963,7 @@
 
             // 変更前のデータを取得（allTasks はまだ旧データ）
             const oldTask = (window.allTasks || []).find(t => String(t.id) === String(realId));
+            console.log('[操業履歴デバッグ] id:', id, 'realId:', realId, 'oldTask found:', !!oldTask, 'allTasksLen:', (window.allTasks || []).length);
 
             // onBeforeLightboxSave でキャプチャした値があればそれを優先（map_to タイミング問題の対策）
             // ※ 同一保存で onAfterTaskUpdate が2回発火するため、ここではクリアしない
