@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>外注業者向け 工事詳細シート（たたき台）｜2816 大洋金属㈱殿</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+        font-family: 'Noto Sans JP', sans-serif;
+        font-size: 15px;
+        background: #f4f6f9;
+        color: #2c3e50;
+        line-height: 1.6;
+    }
+
+    .sticky-wrapper {
+        position: sticky;
+        top: 0;
+        z-index: 200;
+        box-shadow: 0 3px 12px rgba(0,0,0,0.25);
+    }
+
+    /* ヘッダー */
+    .page-header {
+        background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+        color: #fff;
+        padding: 16px 40px 14px;
+    }
+    .page-header__inner {
+        max-width: 1520px;
+        margin: 0 auto;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 10px 24px;
+    }
+    .page-header h1 {
+        font-size: 19px;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        white-space: nowrap;
+    }
+    .page-header .sub {
+        font-size: 12.5px;
+        color: #9aa7b5;
+        margin-top: 2px;
+    }
+    .header-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 10px;
+    }
+    .header-meta .chip {
+        background: rgba(255,255,255,0.12);
+        border: 1px solid rgba(255,255,255,0.25);
+        border-radius: 5px;
+        padding: 4px 11px;
+        font-size: 12.5px;
+        white-space: nowrap;
+    }
+    .header-meta .chip b { font-weight: 700; margin-right: 4px; color: #9fd3ff; }
+
+    .back-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 12.5px;
+        color: #9fd3ff;
+        text-decoration: none;
+        margin-bottom: 4px;
+    }
+    .back-link:hover { text-decoration: underline; }
+
+    /* タブ切り替えナビ */
+    .tab-nav {
+        background: #fff;
+        border-bottom: 1px solid #e0e6ef;
+        max-width: 1520px;
+        margin: 0 auto;
+        padding: 0 40px;
+        display: flex;
+        gap: 2px;
+        overflow-x: auto;
+    }
+    .tab-btn {
+        appearance: none;
+        border: none;
+        background: transparent;
+        font-family: inherit;
+        font-size: 14.5px;
+        font-weight: 700;
+        color: #5a6a7e;
+        padding: 13px 20px;
+        cursor: pointer;
+        border-bottom: 3px solid transparent;
+        white-space: nowrap;
+        transition: color .15s, border-color .15s, background .15s;
+    }
+    .tab-btn:hover { color: #2c3e50; background: #f8fafc; }
+    .tab-btn.active { color: #2166a3; border-bottom-color: #3498db; background: #eaf2fb; }
+    .tab-btn .num {
+        display: inline-block;
+        width: 18px; height: 18px;
+        line-height: 18px;
+        border-radius: 50%;
+        background: #dbe2ea;
+        color: #5a6a7e;
+        font-size: 12px;
+        text-align: center;
+        margin-right: 6px;
+    }
+    .tab-btn.active .num { background: #3498db; color: #fff; }
+
+    /* メインコンテンツ */
+    .content {
+        max-width: 1520px;
+        margin: 22px auto 50px;
+        padding: 0 40px;
+    }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; animation: fadeIn .2s ease; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    .panel-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-bottom: 14px;
+        padding-bottom: 8px;
+        border-bottom: 2px solid #e0e6ef;
+    }
+    .panel-head h2 { font-size: 17px; font-weight: 700; color: #2c3e50; }
+    .panel-head .src { font-size: 12px; color: #8a97a8; }
+
+    .card {
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+        padding: 18px 20px 20px;
+        margin-bottom: 16px;
+    }
+
+    /* 汎用テーブル */
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13.5px;
+    }
+    .data-table th {
+        background: #f8fafc;
+        color: #5a6a7e;
+        font-weight: 700;
+        font-size: 12px;
+        padding: 6px 9px;
+        border: 1px solid #e0e6ef;
+        text-align: center;
+        white-space: nowrap;
+    }
+    .data-table td {
+        padding: 7px 9px;
+        border: 1px solid #eef1f5;
+        vertical-align: middle;
+        text-align: center;
+    }
+    .data-table tr:hover td { background: #fafcff; }
+
+    /* 2カラム分割レイアウト（横長活用） */
+    .split-2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 22px;
+        align-items: start;
+    }
+    .split-3 {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 22px;
+        align-items: start;
+    }
+    @media (max-width: 1100px) { .split-2, .split-3 { grid-template-columns: 1fr; } }
+
+    /* 基本情報 定義リスト */
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1px;
+        background: #e0e6ef;
+        border: 1px solid #e0e6ef;
+        border-radius: 6px;
+        overflow: hidden;
+        margin-bottom: 16px;
+    }
+    @media (max-width: 900px) { .info-grid { grid-template-columns: repeat(2, 1fr); } }
+    .info-item {
+        background: #fff;
+        display: flex;
+        padding: 10px 14px;
+        gap: 10px;
+    }
+    .info-item .k {
+        flex: 0 0 96px;
+        font-size: 12.5px;
+        color: #8a97a8;
+        font-weight: 700;
+        padding-top: 1px;
+    }
+    .info-item .v { font-size: 14px; color: #2c3e50; font-weight: 500; }
+    .info-item .v small { display: block; color: #8a97a8; font-weight: 400; font-size: 12px; margin-top: 2px; }
+
+    /* 図面カード */
+    .figure-card {
+        border: 1px solid #e0e6ef;
+        border-radius: 6px;
+        overflow: hidden;
+        background: #fafbfc;
+    }
+    .figure-card img { width: 100%; display: block; background: #dfe6ee; }
+    .figure-caption {
+        padding: 7px 14px;
+        font-size: 12.5px;
+        color: #5a6a7e;
+        border-top: 1px solid #e0e6ef;
+        background: #fff;
+    }
+    .figure-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        margin-bottom: 18px;
+    }
+    @media (max-width: 900px) { .figure-row { grid-template-columns: 1fr; } }
+
+    /* 色分けチップ */
+    .party-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12.5px;
+        font-weight: 700;
+        padding: 3px 9px;
+        border-radius: 999px;
+        white-space: nowrap;
+    }
+    .party-chip .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .party-taiyo    { background: #fff3e0; color: #a0521d; }
+    .party-taiyo .dot    { background: #e67e22; }
+    .party-kusakabe { background: #eaf2fb; color: #1a5a94; }
+    .party-kusakabe .dot { background: #3498db; }
+    .party-nisshin  { background: #eafaf1; color: #1a7a47; }
+    .party-nisshin .dot  { background: #27ae60; }
+
+    /* 簡易ガント */
+    .gantt-wrap { overflow-x: auto; }
+    .mini-gantt {
+        display: grid;
+        grid-template-columns: 150px repeat(8, minmax(80px, 1fr));
+        min-width: 900px;
+        font-size: 13px;
+        border: 1px solid #e0e6ef;
+        border-radius: 6px;
+        overflow: hidden;
+    }
+    .mg-cell {
+        padding: 8px 10px;
+        border-bottom: 1px solid #eef1f5;
+        border-right: 1px solid #eef1f5;
+        display: flex;
+        align-items: center;
+    }
+    .mg-head {
+        background: #f8fafc;
+        color: #5a6a7e;
+        font-weight: 700;
+        font-size: 12px;
+        justify-content: center;
+        text-align: center;
+    }
+    .mg-head.year { background: #eef2f6; color: #8a97a8; font-size: 11.5px; }
+    .mg-row-label { background: #fbfcfd; color: #2c3e50; font-weight: 500; font-size: 13px; }
+    .mg-track { position: relative; grid-column: span 8; height: 34px; border-bottom: 1px solid #eef1f5; }
+    .mg-track .bar { position: absolute; top: 6px; height: 22px; border-radius: 4px; background: #3498db; opacity: 0.85; }
+    .mg-track .bar.taiyo { background: #e67e22; }
+    .mg-track .bar.kusakabe { background: #3498db; }
+    .mg-track .bar.joint { background: linear-gradient(90deg, #3498db 0%, #3498db 50%, #e67e22 50%, #e67e22 100%); }
+
+    .gantt-legend { display: flex; gap: 18px; margin-top: 10px; font-size: 13px; color: #5a6a7e; flex-wrap: wrap; }
+    .gantt-legend .li { display: flex; align-items: center; gap: 6px; }
+    .gantt-legend .sw { width: 16px; height: 10px; border-radius: 2px; }
+
+    /* 連絡先カード（シンプル・非階層用） */
+    .contact-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 12px;
+    }
+    .contact-card { border: 1px solid #e0e6ef; border-radius: 6px; padding: 12px 14px; background: #fafbfc; }
+    .contact-card .role {
+        font-size: 12px; font-weight: 700; color: #fff; background: #3498db;
+        display: inline-block; padding: 2px 8px; border-radius: 3px; margin-bottom: 8px;
+    }
+    .contact-card .org { font-size: 13px; color: #8a97a8; margin-bottom: 2px; }
+    .contact-card .name { font-size: 15px; font-weight: 700; color: #2c3e50; margin-bottom: 4px; }
+    .contact-card .tel { font-size: 13.5px; color: #3498db; display: block; }
+
+    /* ===== 組織図（体制表・枠を線でつなぐ） ===== */
+    .org-section-title {
+        font-size: 13.5px;
+        font-weight: 700;
+        color: #5a6a7e;
+        margin-bottom: 2px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .org-section-title::before {
+        content: '';
+        width: 8px; height: 8px; border-radius: 2px;
+        background: #3498db;
+        display: inline-block;
+    }
+    .org-chart-row {
+        display: flex;
+        gap: 40px;
+        align-items: flex-start;
+        overflow-x: auto;
+        padding: 10px 4px 18px;
+    }
+    .org-chart-col { flex: 0 0 auto; }
+    .org-chart-col.wide { flex: 1 1 60%; }
+
+    .tree, .tree ul { display: flex; justify-content: center; list-style: none; }
+    .tree { padding: 4px 0 0; }
+    .tree ul { padding-top: 26px; position: relative; }
+    .tree li {
+        position: relative;
+        padding: 26px 12px 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+    .tree > li { padding-top: 0; }
+    .tree li::before, .tree li::after {
+        content: '';
+        position: absolute; top: 0; right: 50%;
+        border-top: 2px solid #c3ccd8;
+        width: 50%; height: 26px;
+    }
+    .tree li::after { right: auto; left: 50%; border-left: 2px solid #c3ccd8; }
+    .tree li:only-child::after, .tree li:only-child::before { display: none; }
+    .tree li:only-child { padding-top: 0; }
+    .tree li:first-child::before, .tree li:last-child::after { border: 0 none; }
+    .tree li:last-child::before { border-right: 2px solid #c3ccd8; border-radius: 0 6px 0 0; }
+    .tree li:first-child::after { border-radius: 6px 0 0 0; }
+    .tree li ul::before {
+        content: '';
+        position: absolute; top: 0; left: 50%;
+        border-left: 2px solid #c3ccd8;
+        width: 0; height: 26px;
+    }
+
+    .org-box {
+        border: 1px solid #dbe2ea;
+        border-radius: 8px;
+        background: #fff;
+        padding: 9px 13px;
+        min-width: 172px;
+        text-align: left;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .org-box--root { border-color: #3498db; box-shadow: 0 2px 10px rgba(52,152,219,0.18); }
+    .org-box--label {
+        min-width: auto;
+        padding: 4px 14px;
+        border-radius: 999px;
+        background: #f4f6f9;
+        color: #8a97a8;
+        font-size: 12px;
+        font-weight: 700;
+        text-align: center;
+        border-style: dashed;
+        box-shadow: none;
+    }
+    .org-role {
+        display: inline-block;
+        font-size: 11.5px; font-weight: 700; color: #fff;
+        background: #3498db; padding: 2px 8px; border-radius: 3px; margin-bottom: 5px;
+    }
+    .org-role.alt { background: #95a5a6; }
+    .org-org { font-size: 12px; color: #8a97a8; }
+    .org-name { font-size: 14px; font-weight: 700; color: #2c3e50; margin: 2px 0; }
+    .org-name small, .org-tel small { color: #8a97a8; font-weight: 400; font-size: 11.5px; }
+    .org-tel { font-size: 12px; color: #3498db; }
+
+    /* 注記 */
+    .note-box {
+        background: #fef9e7; border: 1px solid #f5d76e; border-radius: 6px;
+        padding: 10px 14px; font-size: 13.5px; color: #7a6000; margin-top: 14px;
+        display: flex; gap: 8px; align-items: flex-start;
+    }
+    .note-box::before { content: "⚠️"; flex-shrink: 0; }
+    .tip-box {
+        background: #eaf2fb; border: 1px solid #b8d8f0; border-radius: 6px;
+        padding: 10px 14px; font-size: 13.5px; color: #1a5a94; margin-bottom: 14px;
+        display: flex; gap: 8px; align-items: flex-start;
+    }
+    .tip-box::before { content: "ℹ️"; flex-shrink: 0; }
+
+    .subhead {
+        font-size: 13.5px; font-weight: 700; color: #5a6a7e;
+        margin: 18px 0 8px; padding-bottom: 4px; border-bottom: 1px dashed #e0e6ef;
+    }
+    .subhead:first-child { margin-top: 0; }
+
+    footer { text-align: center; font-size: 13px; color: #aab4be; padding: 20px; }
+</style>
+</head>
+<body>
+
+<div class="sticky-wrapper">
+<header class="page-header">
+    <div class="page-header__inner">
+        <div>
+            <a class="back-link" href="外注業者向け工程表_一覧.html">← 工番一覧へ戻る</a>
+            <h1>外注業者向け 工事詳細シート</h1>
+            <p class="sub">組立・試運転を外注いただく業者様向け ／ 工番ごとに1ページ作成</p>
+        </div>
+        <div class="header-meta">
+            <span class="chip"><b>工番</b>2816</span>
+            <span class="chip"><b>工事名称</b>16インチライン管端処理設備</span>
+            <span class="chip"><b>お客様</b>大洋金属株式会社</span>
+            <span class="chip"><b>出荷納期</b>2027/4/23</span>
+            <span class="chip"><b>弊社担当</b>製造管理部 森村象平</span>
+        </div>
+    </div>
+</header>
+
+<nav class="tab-nav">
+    <button class="tab-btn active" data-tab="order-spec"><span class="num">1</span>組立発注仕様書 概要</button>
+    <button class="tab-btn" data-tab="scope"><span class="num">2</span>組立範囲（図面）</button>
+    <button class="tab-btn" data-tab="trial"><span class="num">3</span>試運転体制表</button>
+    <button class="tab-btn" data-tab="schedule"><span class="num">4</span>簡易行程</button>
+</nav>
+</div><!-- /.sticky-wrapper -->
+
+<main class="content">
+
+    <!-- 1. 組立発注仕様書 基本概要 -->
+    <section class="tab-panel active" id="panel-order-spec">
+        <div class="panel-head">
+            <h2>① 組立発注仕様書　基本概要</h2>
+            <span class="src">出典：組立発注仕様書R2（2816大洋金属殿）.xlsx</span>
+        </div>
+
+        <div class="card">
+            <div class="info-grid">
+                <div class="info-item"><div class="k">1-1) 工事番号</div><div class="v">2816</div></div>
+                <div class="info-item"><div class="k">1-2) 工事名称</div><div class="v">16インチライン管端処理設備</div></div>
+                <div class="info-item"><div class="k">1-3) 貴社名</div><div class="v">大洋金属株式会社</div></div>
+                <div class="info-item"><div class="k">1-4) ご担当者</div><div class="v">取締役工場長　湯本 洋一 様</div></div>
+                <div class="info-item"><div class="k">1-5) 出荷納期</div><div class="v">2027/4/23</div></div>
+                <div class="info-item"><div class="k">改訂</div><div class="v">R2（2026/9/2）<small>初版：2026/6/18／発注機械・塗料の手配について</small></div></div>
+            </div>
+
+            <div class="subhead">1-6) 発注機械</div>
+            <table class="data-table">
+                <thead><tr><th>機械</th><th>ユニット</th><th>装置名称</th><th>数量</th><th>備考</th></tr></thead>
+                <tbody>
+                    <tr><td>TR</td><td>CV1＆2＆3</td><td>チェーンコンベア</td><td>各1</td><td>貴社組立</td></tr>
+                    <tr><td>TR</td><td>PV1</td><td>取出し装置</td><td>1</td><td>貴社組立</td></tr>
+                    <tr><td>TR</td><td>RV3</td><td>ローラーコンベア</td><td>1</td><td>※当社組立後支給</td></tr>
+                    <tr><td>TR</td><td>WK</td><td>移載装置</td><td>1</td><td>※当社組立後支給</td></tr>
+                </tbody>
+            </table>
+
+            <div class="subhead">1-7) 塗装色</div>
+            <table class="data-table">
+                <thead>
+                    <tr><th>機械色</th><th>安全色</th><th>安全柵</th><th>空圧配管</th><th>油配管</th><th>ミスト配管</th><th>ソリブル配管</th><th>水配管</th><th>ガス配管</th><th>電気配管</th><th>ダクト配管</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>10GY8/4</td><td>2.5Y8/12</td><td>2.5Y8/12</td><td>N9.5</td><td>7.5YR5/6</td><td>―</td><td>10BG6/4</td><td>2.5PB5/8.5</td><td>―</td><td>2.5YR7/6</td><td>シルバー</td></tr>
+                </tbody>
+            </table>
+
+            <div class="subhead">1-8) ユーティリティ</div>
+            <table class="data-table">
+                <thead>
+                    <tr><th colspan="2">動力電源</th><th colspan="2">補助電源</th><th>圧縮空気</th><th>冷却水</th><th colspan="2">クレーン</th></tr>
+                    <tr><th>電圧(V)</th><th>容量(kVA)</th><th>電圧(V)</th><th>容量(kVA)</th><th>(kg/cm2)</th><th>圧力(kPa)</th><th>重量(t)×基</th><th>揚程(m)</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>AC400V 50Hz</td><td>120kVA</td><td>―</td><td>―</td><td>コンプレッサ用意 938L/m</td><td>―</td><td>2.8×2</td><td>5</td></tr>
+                </tbody>
+            </table>
+
+            <div class="subhead">1-9) 発注範囲（甲＝日下部電機㈱／乙＝請負者）</div>
+            <div class="split-2">
+                <table class="data-table">
+                    <thead><tr><th style="width:30px;">No.</th><th style="text-align:left;">項目</th><th style="width:38px;">甲</th><th style="width:38px;">乙</th><th style="text-align:left;">備考</th></tr></thead>
+                    <tbody>
+                        <tr><td>1</td><td style="text-align:left;">機械設計（部品図及び組立図・据付図・出荷荷姿図の作成）</td><td>〇</td><td></td><td></td></tr>
+                        <tr><td>2</td><td style="text-align:left;">電気設計</td><td>〇</td><td></td><td></td></tr>
+                        <tr><td>3</td><td style="text-align:left;">制御設計</td><td>〇</td><td></td><td></td></tr>
+                        <tr><td>4</td><td style="text-align:left;">各種盤製作</td><td>〇</td><td></td><td></td></tr>
+                        <tr><td>5</td><td style="text-align:left;">部品製作</td><td>〇</td><td>〇</td><td style="text-align:left;">出図時に都度相談し担当を決定。担当は別紙①支給品リスト（製作品）に明記。</td></tr>
+                        <tr><td>6</td><td style="text-align:left;">完成購入品調達</td><td>〇</td><td></td><td style="text-align:left;">別紙②支給品リスト（購入品・締結品等）に明記。締結部品は別紙③で範囲確認。</td></tr>
+                        <tr><td>7</td><td style="text-align:left;">締結部品調達</td><td></td><td>〇</td><td></td></tr>
+                        <tr><td>8</td><td style="text-align:left;">塗料調達</td><td>〇</td><td>〇</td><td style="text-align:left;">必要な塗料は支給（部品製作時の錆止め用塗料は除く）。焼付塗料は乙手配。</td></tr>
+                        <tr><td>9</td><td style="text-align:left;">塗装</td><td></td><td>〇</td><td></td></tr>
+                        <tr><td>10</td><td style="text-align:left;">横持ちの運搬車両</td><td></td><td>〇</td><td style="text-align:left;">甲から乙へ製作品や購入品を支給する際の運搬</td></tr>
+                        <tr><td>11</td><td style="text-align:left;">機械組立</td><td>〇</td><td>〇</td><td style="text-align:left;">一部機械は甲が組立、乙へ支給。組立SVは必要に応じて訪問。</td></tr>
+                        <tr><td>12</td><td style="text-align:left;">据付及びレベル出し</td><td></td><td>〇</td><td></td></tr>
+                    </tbody>
+                </table>
+                <table class="data-table">
+                    <thead><tr><th style="width:30px;">No.</th><th style="text-align:left;">項目</th><th style="width:38px;">甲</th><th style="width:38px;">乙</th><th style="text-align:left;">備考</th></tr></thead>
+                    <tbody>
+                        <tr><td>13</td><td style="text-align:left;">油圧配管工事</td><td colspan="2">―</td><td></td></tr>
+                        <tr><td>14</td><td style="text-align:left;">エアー配管工事</td><td></td><td>〇</td><td></td></tr>
+                        <tr><td>15</td><td style="text-align:left;">機内配線のための艤装部品の取り付け</td><td></td><td>〇</td><td style="text-align:left;">センサー等取付のためのブラケット等の取付</td></tr>
+                        <tr><td>16</td><td style="text-align:left;">機内配線（中継箱～各機器）</td><td>〇</td><td></td><td style="text-align:left;">センサーの取付を含む</td></tr>
+                        <tr><td>17</td><td style="text-align:left;">テスト配線（中継箱～制御盤～分電盤）</td><td>〇</td><td></td><td style="text-align:left;">分電盤は貴社範囲</td></tr>
+                        <tr><td>18</td><td style="text-align:left;">試運転</td><td>〇</td><td></td><td></td></tr>
+                        <tr><td>19</td><td style="text-align:left;">試運転補助作業</td><td></td><td>〇</td><td style="text-align:left;">一部解体、復元、クレーン操作等が想定される。</td></tr>
+                        <tr><td>20</td><td style="text-align:left;">出荷準備（解体・養生・梱包）</td><td></td><td>〇</td><td style="text-align:left;">当社指示に従い解体。国内輸送用の出荷養生・梱包を乙にて実施。</td></tr>
+                        <tr><td>21</td><td style="text-align:left;">梱包用資材</td><td></td><td>〇</td><td></td></tr>
+                        <tr><td>22</td><td style="text-align:left;">車両への積込</td><td></td><td>〇</td><td></td></tr>
+                        <tr><td>23</td><td style="text-align:left;">出荷用車両手配</td><td>〇</td><td></td><td></td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="subhead">2-4) 弊社担当（問い合わせ窓口）</div>
+            <div class="contact-grid">
+                <div class="contact-card">
+                    <span class="role">製造管理部 課長</span>
+                    <div class="name">森村 象平</div>
+                    <span class="tel">TEL 090-8056-9219</span>
+                    <span class="tel">Email s-morimura@kusakabe.com</span>
+                </div>
+                <div class="contact-card">
+                    <span class="role" style="background:#95a5a6;">製造管理部 主任</span>
+                    <div class="name">酢谷 隆</div>
+                    <span class="tel">TEL 090-9701-6455</span>
+                    <span class="tel">Email t-sutani@kusakabe.com</span>
+                </div>
+            </div>
+
+            <div class="note-box">検収・支払、その他取り決め（2-1〜2-3）など詳細条件の全文は、別途配布する組立発注仕様書の原本（Excel/PDF）をご確認ください。本ページは概要の抜粋です。</div>
+        </div>
+    </section>
+
+    <!-- 2. 組立範囲（図面） -->
+    <section class="tab-panel" id="panel-scope">
+        <div class="panel-head">
+            <h2>② 組立範囲（図面）</h2>
+            <span class="src">出典：レイアウト図（担当範囲）.xlsx</span>
+        </div>
+
+        <div class="card">
+            <div class="figure-row">
+                <div class="figure-card">
+                    <img src="assets/partner-format/layout-overview.png" alt="全体レイアウト図（俯瞰）">
+                    <div class="figure-caption">【DF前 全体図】ライン全体の俯瞰図</div>
+                </div>
+                <div class="figure-card">
+                    <img src="assets/partner-format/layout-detail.png" alt="拡大図">
+                    <div class="figure-caption">【拡大図】RV4〜RV6 コンベヤ部</div>
+                </div>
+            </div>
+
+            <div class="split-2">
+                <div>
+                    <div class="subhead">担当範囲一覧（DF前）</div>
+                    <table class="data-table">
+                        <thead><tr><th>ユニット</th><th>機械名</th><th>組立</th><th>配管＆電気艤装</th><th>据付＆レベル出し</th><th>試運転</th></tr></thead>
+                        <tbody>
+                            <tr><td>CV1&amp;2&amp;3</td><td>チェーンコンベヤ</td>
+                                <td><span class="party-chip party-taiyo"><span class="dot"></span>大洋金属㈱殿</span></td>
+                                <td><span class="party-chip party-taiyo"><span class="dot"></span>大洋金属㈱殿</span></td>
+                                <td><span class="party-chip party-taiyo"><span class="dot"></span>大洋金属㈱殿</span></td>
+                                <td>大洋</td></tr>
+                            <tr><td>RV3</td><td>面取出側ローラーテーブル</td>
+                                <td><span class="party-chip party-kusakabe"><span class="dot"></span>日下部電機㈱</span></td>
+                                <td><span class="party-chip party-taiyo"><span class="dot"></span>大洋金属㈱殿</span></td>
+                                <td><span class="party-chip party-taiyo"><span class="dot"></span>大洋金属㈱殿</span></td>
+                                <td>大洋</td></tr>
+                            <tr><td>WK</td><td>移載装置</td>
+                                <td><span class="party-chip party-kusakabe"><span class="dot"></span>日下部電機㈱</span></td>
+                                <td><span class="party-chip party-taiyo"><span class="dot"></span>大洋金属㈱殿</span></td>
+                                <td><span class="party-chip party-taiyo"><span class="dot"></span>大洋金属㈱殿</span></td>
+                                <td>大洋</td></tr>
+                            <tr><td>PV1</td><td>面取入側ピックアップ</td>
+                                <td><span class="party-chip party-taiyo"><span class="dot"></span>大洋金属㈱殿</span></td>
+                                <td><span class="party-chip party-taiyo"><span class="dot"></span>大洋金属㈱殿</span></td>
+                                <td><span class="party-chip party-taiyo"><span class="dot"></span>大洋金属㈱殿</span></td>
+                                <td>大洋</td></tr>
+                            <tr><td>RV1&amp;2</td><td>ローラーテーブル</td>
+                                <td><span class="party-chip party-kusakabe"><span class="dot"></span>日下部電機㈱</span></td>
+                                <td><span class="party-chip party-kusakabe"><span class="dot"></span>日下部電機㈱</span></td>
+                                <td><span class="party-chip party-kusakabe"><span class="dot"></span>日下部電機㈱</span></td>
+                                <td>―</td></tr>
+                            <tr><td>RVC</td><td>センタリング装置</td>
+                                <td><span class="party-chip party-kusakabe"><span class="dot"></span>日下部電機㈱</span></td>
+                                <td><span class="party-chip party-kusakabe"><span class="dot"></span>日下部電機㈱</span></td>
+                                <td><span class="party-chip party-kusakabe"><span class="dot"></span>日下部電機㈱</span></td>
+                                <td>―</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div>
+                    <div class="subhead">担当範囲一覧（DF後）</div>
+                    <table class="data-table">
+                        <thead><tr><th>ユニット</th><th>機械名</th><th>組立</th><th>配管＆電気艤装</th><th>据付＆レベル出し</th><th>試運転</th></tr></thead>
+                        <tbody>
+                            <tr><td>RV4&amp;CV4&amp;PV2</td><td>ローラーテーブル</td>
+                                <td><span class="party-chip party-nisshin"><span class="dot"></span>株式会社ニッシン殿</span></td>
+                                <td><span class="party-chip party-nisshin"><span class="dot"></span>株式会社ニッシン殿</span></td>
+                                <td><span class="party-chip party-nisshin"><span class="dot"></span>株式会社ニッシン殿</span></td>
+                                <td>日下部電機㈱</td></tr>
+                            <tr><td>RV6&amp;CV5&amp;PV3</td><td>コンベヤ</td>
+                                <td><span class="party-chip party-nisshin"><span class="dot"></span>株式会社ニッシン殿</span></td>
+                                <td><span class="party-chip party-nisshin"><span class="dot"></span>株式会社ニッシン殿</span></td>
+                                <td><span class="party-chip party-nisshin"><span class="dot"></span>株式会社ニッシン殿</span></td>
+                                <td>日下部電機㈱</td></tr>
+                            <tr><td>RV5</td><td>ローラーテーブル</td>
+                                <td><span class="party-chip party-kusakabe"><span class="dot"></span>日下部電機㈱</span></td>
+                                <td><span class="party-chip party-kusakabe"><span class="dot"></span>日下部電機㈱</span></td>
+                                <td><span class="party-chip party-kusakabe"><span class="dot"></span>日下部電機㈱</span></td>
+                                <td>―</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="note-box">図面は3Dモデルのスクリーンショットを仮掲載しています。清書版の図面（担当範囲を色分けしたPDF/画像）に差し替え予定です。</div>
+        </div>
+    </section>
+
+    <!-- 3. 試運転体制表 -->
+    <section class="tab-panel" id="panel-trial">
+        <div class="panel-head">
+            <h2>③ 試運転体制表</h2>
+            <span class="src">出典：試運転体制表.xlsx（記入例／工番2783）</span>
+        </div>
+
+        <div class="card">
+            <div class="tip-box">このセクションは体制表フォーマットの記入イメージです。実データは2816工番の試運転計画が固まり次第、差し替えます。枠と枠は原本Excelのコネクタ線に基づき接続関係を再現しています。</div>
+
+            <div class="info-grid" style="grid-template-columns:repeat(4,1fr);">
+                <div class="info-item"><div class="k">工事番号</div><div class="v">2783</div></div>
+                <div class="info-item"><div class="k">試運転対象</div><div class="v">エントリー全般</div></div>
+                <div class="info-item"><div class="k">試運転期間</div><div class="v">4/21 ～ 5/8</div></div>
+                <div class="info-item"><div class="k">試運転時間</div><div class="v">8:30～17:30<small>残業は最大19:00／休日対応は相談</small></div></div>
+            </div>
+
+            <div class="org-chart-row">
+                <div class="org-chart-col wide">
+                    <div class="org-section-title">試運転指揮系統</div>
+                    <ul class="tree">
+                        <li>
+                            <div class="org-box org-box--root">
+                                <span class="org-role">試運転責任者</span>
+                                <div class="org-org">日下部電機㈱ 操業部</div>
+                                <div class="org-name">三浦 雅樹</div>
+                                <div class="org-tel">090-8056-8988</div>
+                            </div>
+                            <ul>
+                                <li>
+                                    <div class="org-box">
+                                        <span class="org-role alt">全般</span>
+                                        <div class="org-org">日下部電機㈱</div>
+                                        <div class="org-name">日下部 光正<br><small>（廣瀬 厚生）</small></div>
+                                        <div class="org-tel">090-8056-9219<br><small>（080-5674-4158）</small></div>
+                                    </div>
+                                </li>
+                                <li>
+                                    <div class="org-box">
+                                        <span class="org-role">組立業者 責任者（及び助勢）</span>
+                                        <div class="org-org">シマブンエンジニアリング株式会社</div>
+                                        <div class="org-name">岸田 嘉彦</div>
+                                        <div class="org-tel">080-5704-9982</div>
+                                    </div>
+                                    <ul>
+                                        <li>
+                                            <div class="org-box org-box--label">岸田氏 不在時</div>
+                                            <ul>
+                                                <li>
+                                                    <div class="org-box">
+                                                        <span class="org-role alt">組立業者 助勢</span>
+                                                        <div class="org-org">シマブンエンジニアリング株式会社</div>
+                                                        <div class="org-name">シマブン現場作業員</div>
+                                                        <div class="org-tel">079-435-7233</div>
+                                                    </div>
+                                                </li>
+                                                <li>
+                                                    <div class="org-box">
+                                                        <span class="org-role alt">電気業者</span>
+                                                        <div class="org-org">三宝電機株式会社</div>
+                                                        <div class="org-name">古川 康樹</div>
+                                                        <div class="org-tel">090-7356-0209</div>
+                                                    </div>
+                                                </li>
+                                            </ul>
+                                        </li>
+                                    </ul>
+                                </li>
+                            </ul>
+                        </li>
+                    </ul>
+                </div>
+                <div class="org-chart-col">
+                    <div class="org-section-title">組立発注担当系統</div>
+                    <ul class="tree">
+                        <li>
+                            <div class="org-box org-box--root">
+                                <span class="org-role">組立発注担当者</span>
+                                <div class="org-org">日下部電機㈱ 製造管理部</div>
+                                <div class="org-name">森村 象平</div>
+                                <div class="org-tel">090-8056-9219</div>
+                            </div>
+                            <ul>
+                                <li>
+                                    <div class="org-box">
+                                        <span class="org-role alt">機械</span>
+                                        <div class="org-org">日下部電機㈱</div>
+                                        <div class="org-name">長谷川 亮介</div>
+                                        <div class="org-tel">090-9701-6918</div>
+                                    </div>
+                                </li>
+                                <li>
+                                    <div class="org-box">
+                                        <span class="org-role alt">電気</span>
+                                        <div class="org-org">日下部電機㈱</div>
+                                        <div class="org-name">木村 至</div>
+                                        <div class="org-tel">090-9701-6820</div>
+                                    </div>
+                                </li>
+                            </ul>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 4. 簡易行程 -->
+    <section class="tab-panel" id="panel-schedule">
+        <div class="panel-head">
+            <h2>④ 簡易行程</h2>
+            <span class="src">出典：組立発注仕様書R2「1-10）工程」</span>
+        </div>
+
+        <div class="card">
+            <div class="gantt-wrap">
+                <div class="mini-gantt">
+                    <div class="mg-cell mg-head year"></div>
+                    <div class="mg-cell mg-head year" style="grid-column: span 4;">2026年</div>
+                    <div class="mg-cell mg-head year" style="grid-column: span 4;">2027年</div>
+
+                    <div class="mg-cell mg-head"></div>
+                    <div class="mg-cell mg-head">9月</div>
+                    <div class="mg-cell mg-head">10月</div>
+                    <div class="mg-cell mg-head">11月</div>
+                    <div class="mg-cell mg-head">12月</div>
+                    <div class="mg-cell mg-head">1月</div>
+                    <div class="mg-cell mg-head">2月</div>
+                    <div class="mg-cell mg-head">3月</div>
+                    <div class="mg-cell mg-head">4月</div>
+
+                    <div class="mg-cell mg-row-label">部品図出図</div>
+                    <div class="mg-track"><div class="bar kusakabe" style="left:0%; width:18%;"></div></div>
+
+                    <div class="mg-cell mg-row-label">部品製作</div>
+                    <div class="mg-track"><div class="bar joint" style="left:6%; width:38%;"></div></div>
+
+                    <div class="mg-cell mg-row-label">組立図製作</div>
+                    <div class="mg-track"><div class="bar kusakabe" style="left:0%; width:25%;"></div></div>
+
+                    <div class="mg-cell mg-row-label">塗装</div>
+                    <div class="mg-track"><div class="bar taiyo" style="left:38%; width:12%;"></div></div>
+
+                    <div class="mg-cell mg-row-label">組立（艤装含む）</div>
+                    <div class="mg-track"><div class="bar taiyo" style="left:44%; width:25%;"></div></div>
+
+                    <div class="mg-cell mg-row-label">据付</div>
+                    <div class="mg-track"><div class="bar taiyo" style="left:63%; width:12%;"></div></div>
+
+                    <div class="mg-cell mg-row-label">電気艤装</div>
+                    <div class="mg-track"><div class="bar kusakabe" style="left:56%; width:19%;"></div></div>
+
+                    <div class="mg-cell mg-row-label">組立確認検査</div>
+                    <div class="mg-track"><div class="bar kusakabe" style="left:75%; width:7%;"></div></div>
+
+                    <div class="mg-cell mg-row-label">試運転</div>
+                    <div class="mg-track"><div class="bar kusakabe" style="left:82%; width:12%;"></div></div>
+
+                    <div class="mg-cell mg-row-label">解体・養生・梱包</div>
+                    <div class="mg-track"><div class="bar taiyo" style="left:88%; width:6%;"></div></div>
+
+                    <div class="mg-cell mg-row-label">出荷</div>
+                    <div class="mg-track"><div class="bar kusakabe" style="left:94%; width:4%;"></div></div>
+                </div>
+            </div>
+            <div class="gantt-legend">
+                <span class="li"><span class="sw" style="background:#3498db;"></span>日下部電機㈱ 主担当</span>
+                <span class="li"><span class="sw" style="background:#e67e22;"></span>組立業者（外注先） 主担当</span>
+                <span class="li"><span class="sw" style="background:linear-gradient(90deg,#3498db,#e67e22);"></span>両社共同</span>
+            </div>
+            <div class="note-box">各バーの期間は現時点のイメージです。実データが確定次第、正確な日付で更新します。</div>
+        </div>
+    </section>
+
+</main>
+
+<footer>
+    外注業者向け 工事詳細シート（たたき台） ／ 工番ごとにページを作成し、全体工程表から各業者ページへリンクする想定です<br>
+    作成：日下部電機株式会社 製造管理部
+</footer>
+
+<script>
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
+    });
+});
+</script>
+
+</body>
+</html>
