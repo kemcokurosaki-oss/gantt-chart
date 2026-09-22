@@ -620,6 +620,11 @@
                 if (typeof window.markLocalTaskMutation === 'function') window.markLocalTaskMutation(newId);
                 console.log("New task added with ID:", newId);
 
+                if (typeof _opHistoryModeTag === 'function') {
+                    const opTag = _opHistoryModeTag(newTaskData);
+                    if (opTag) _opInsertLinkedHistory(newTaskData, opTag, 'タスクを追加しました');
+                }
+
                 if (typeof window.persistTaskLocations === "function") {
                     await window.persistTaskLocations(newId, item.locations);
                 }
@@ -907,6 +912,49 @@
             }
         }
 
+        // ===== 操業工程表にリンクされたタスク（社内試運転／出張）の変更履歴を、
+        // 操業工程表の変更履歴モーダル（source='操業工程表'）にも記録する =====
+        // 判定基準は 操業工程表/data.js の _passesDrawingModeFilter / _isTripTask と同じ
+        function _opTrialKeywordBlob(task) {
+            const norm = s => String(s == null ? '' : s).replace(/\s+/g, '');
+            let blob = [norm(task && task.text), norm(task && task.part_number), norm(task && task.model_type)].join('|');
+            try { blob = blob.normalize('NFKC'); } catch (e) { /* noop */ }
+            return blob;
+        }
+        function _opIsTripTask(task) {
+            return !!task && (String(task.task_type) === 'business_trip'
+                || task.is_business_trip === true
+                || String(task.is_business_trip).toUpperCase() === 'TRUE');
+        }
+        // 操業工程表の変更履歴に載せるべきタスクなら '社内試運転' か '出張' を返す。対象外なら null
+        function _opHistoryModeTag(task) {
+            if (!task) return null;
+            const isOperationDept = String(task.major_item || '').replace(/\s+/g, '').includes('操業');
+            if (_opIsTripTask(task)) return isOperationDept ? '出張' : null;
+            if (!isOperationDept) return null;
+            const tt = String(task.task_type || '').trim().toLowerCase();
+            // 操業工程表自身が作成した専用タスク（planning/operation/field_trip）は全体工程表に表示されず
+            // ここには来ないはずだが、念のため試運転タブ相当以外は除外する
+            if (tt === 'planning' || tt === 'long_lead_item') return null;
+            const blob = _opTrialKeywordBlob(task);
+            return (blob.includes('試運転') || blob.includes('試験運転')) ? '社内試運転' : null;
+        }
+        async function _opInsertLinkedHistory(task, tag, description) {
+            try {
+                await supabaseClient.from('change_log').insert({
+                    source: '操業工程表',
+                    changed_by: (window._getCurrentEditorName && window._getCurrentEditorName()) || '',
+                    project_number: String((task && task.project_number) || ''),
+                    machine: String((task && task.machine) || ''),
+                    unit: String((task && task.unit) || ''),
+                    task_text: String((task && task.text) || ''),
+                    description: `[${tag}] ${description}`
+                });
+            } catch (e) {
+                console.warn('操業工程表向け変更履歴の記録エラー:', e);
+            }
+        }
+
         // 編集内容をデータベースに保存（バックグラウンド・UIブロックなし）
         gantt.attachEvent("onAfterTaskUpdate", function(id, item) {
             if (item.$virtual) return; // 見出し行は仮想的なものなので保存対象外
@@ -1039,31 +1087,36 @@
                     }
                     if (typeof window.markLocalTaskMutation === 'function') window.markLocalTaskMutation(realId);
 
-                    // 変更履歴を記録
-                    if (oldTask && typeof window.logChange === 'function') {
-                        const newStartDb = dateToDb(item.start_date);
-                        const oldStartDb = (oldTask.start_date instanceof Date)
-                            ? dateToDb(oldTask.start_date)
-                            : (oldTask.start_date || '').substring(0, 10);
-                        const changes = [];
-                        if ((oldTask.text || '') !== (item.text || '')) changes.push('タスク名を変更');
-                        const startChanged = oldStartDb !== newStartDb;
-                        const durChanged = Number(oldTask.duration) !== Number(item.duration);
-                        if (startChanged && durChanged) changes.push('開始日・終了日を変更');
-                        else if (startChanged) changes.push('開始日を変更');
-                        else if (durChanged) changes.push('終了日を変更');
-                        const ownerStrChanged = (oldTask.owner || '') !== (item.owner || '');
-                        const mainOwnerChanged = String(oldTask.main_owner || '').trim() !== String(item.main_owner || '').trim();
-                        if (ownerStrChanged || mainOwnerChanged) changes.push('担当者を変更');
-                        if ((oldTask.machine || '') !== (item.machine || '')) changes.push('機械を変更');
-                        if ((oldTask.unit || '') !== (item.unit || '')) changes.push('ユニットを変更');
-                        if (String(oldTask.major_item || '') !== String(item.major_item || '')) changes.push('部署を変更');
-                        if (String(oldTask.parent_name || '') !== String(item.parent_name || '')) changes.push('見出しを変更');
-                        const oldAg = String(oldTask.area_group || '').trim();
-                        const oldAn = String(oldTask.area_number || '').trim();
-                        const newAg = String(item.area_group || '').trim();
-                        const newAn = String(item.area_number || '').trim();
-                        if (oldAg !== newAg || oldAn !== newAn) changes.push('場所を変更');
+                    // 操業工程表にリンクされたタスク（社内試運転／出張）なら、
+                    // 操業工程表の変更履歴（source='操業工程表'）にも記録する
+                    if (oldTask && typeof _opHistoryModeTag === 'function') {
+                        const opTag = _opHistoryModeTag(updateData) || _opHistoryModeTag(oldTask);
+                        if (opTag) {
+                            const dispDate = v => {
+                                if (!v) return '(未設定)';
+                                return (v instanceof Date) ? dateToDb(v) : String(v).substring(0, 10);
+                            };
+                            const opChanges = [];
+                            if ((oldTask.text || '') !== (updateData.text || '')) {
+                                opChanges.push(`タスク名を変更：${oldTask.text || '(未設定)'} → ${updateData.text || '(未設定)'}`);
+                            }
+                            const oldStart = dispDate(oldTask.start_date);
+                            const newStart = dispDate(updateData.start_date);
+                            if (oldStart !== newStart) opChanges.push(`開始日を変更：${oldStart} → ${newStart}`);
+                            const oldEnd = dispDate(oldTask.end_date);
+                            const newEnd = dispDate(updateData.end_date);
+                            if (oldEnd !== newEnd) opChanges.push(`終了日を変更：${oldEnd} → ${newEnd}`);
+                            if ((oldTask.owner || '') !== (updateData.owner || '')) {
+                                opChanges.push(`担当者を変更：${oldTask.owner || '(未設定)'} → ${updateData.owner || '(未設定)'}`);
+                            }
+                            if ((oldTask.machine || '') !== (updateData.machine || '')) {
+                                opChanges.push(`機械を変更：${oldTask.machine || '(未設定)'} → ${updateData.machine || '(未設定)'}`);
+                            }
+                            if ((oldTask.unit || '') !== (updateData.unit || '')) {
+                                opChanges.push(`ユニットを変更：${oldTask.unit || '(未設定)'} → ${updateData.unit || '(未設定)'}`);
+                            }
+                            if (opChanges.length > 0) _opInsertLinkedHistory(updateData, opTag, opChanges.join('／'));
+                        }
                     }
 
                     _showSaveStatus('success');
@@ -1156,6 +1209,10 @@
                                 console.warn("changeTaskId skipped:", e);
                             }
                             if (typeof window.markLocalTaskMutation === 'function') window.markLocalTaskMutation(newId);
+                            if (typeof _opHistoryModeTag === 'function') {
+                                const opTag = _opHistoryModeTag(newTaskData);
+                                if (opTag) _opInsertLinkedHistory(newTaskData, opTag, 'タスクを追加しました');
+                            }
                             if (typeof window.persistTaskLocations === "function") {
                                 await window.persistTaskLocations(newId, item.locations);
                             }
@@ -1207,6 +1264,10 @@
                     alert('非表示への切り替えに失敗しました。');
                     hideLoading();
                 } else {
+                    if (typeof _opHistoryModeTag === 'function') {
+                        const opTag = _opHistoryModeTag(item);
+                        if (opTag) _opInsertLinkedHistory(item, opTag, 'タスクを削除しました');
+                    }
                     await fetchTasks();
                     hideLoading();
                 }
@@ -1234,6 +1295,10 @@
                 alert("削除に失敗しました。" + (rpcErr ? " change_log_task_delete_trigger.sql（RPC 含む）を Supabase で実行済みか確認してください。" : ""));
                 hideLoading();
             } else {
+                if (typeof _opHistoryModeTag === 'function') {
+                    const opTag = _opHistoryModeTag(item);
+                    if (opTag) _opInsertLinkedHistory(item, opTag, 'タスクを削除しました');
+                }
                 await fetchTasks();
                 hideLoading();
             }
