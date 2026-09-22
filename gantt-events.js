@@ -955,39 +955,11 @@
             }
         }
 
-        // 操業工程表向け履歴の「編集前」スナップショットを、DHTMLXが実際の更新を
-        // 反映する直前（onBeforeTaskUpdate）に取得する。window.allTasks は
-        // onAfterTaskUpdate 内で同期的に新データへ上書きされる上、id の持ち方が
-        // タスク種別によって異なる（出張タスクは design_trip_<id> 合成IDなど）ため、
-        // 独自配列の突き合わせに頼らずDHTMLX自身の直前状態をそのまま使う。
-        let _opBeforeUpdateSnapshot = null;
-        gantt.attachEvent("onBeforeTaskUpdate", function(id, task) {
-            _opBeforeUpdateSnapshot = (task && !task.$virtual) ? {
-                text: task.text,
-                start_date: task.start_date,
-                end_date: task.end_date,
-                duration: task.duration,
-                owner: task.owner,
-                machine: task.machine,
-                unit: task.unit,
-                major_item: task.major_item,
-                task_type: task.task_type,
-                is_business_trip: task.is_business_trip,
-                project_number: task.project_number,
-                part_number: task.part_number,
-                model_type: task.model_type
-            } : null;
-        });
-
         // 編集内容をデータベースに保存（バックグラウンド・UIブロックなし）
         gantt.attachEvent("onAfterTaskUpdate", function(id, item) {
             if (item.$virtual) return; // 見出し行は仮想的なものなので保存対象外
 
             const realId = item.original_id || id;
-            // このタイミングで直前の onBeforeTaskUpdate スナップショットを確定させる
-            // （同一保存で onAfterTaskUpdate が2回発火しても、それぞれ直前の状態を正しく捕まえる）
-            const opBeforeSnapshot = _opBeforeUpdateSnapshot;
-            _opBeforeUpdateSnapshot = null;
 
             // 変更前のデータを取得（allTasks はまだ旧データ）
             // 出張タスクは window.allTasks 内で design_trip_<realId> という合成IDで保持され、
@@ -1078,87 +1050,91 @@
 
             _showSaveStatus('saving');
 
-            // バックグラウンドで保存（fetchTasks不要・UIをブロックしない）
-            supabaseClient.from('tasks').update(updateData).eq('id', realId)
-                .then(function(_ref) {
-                    var taskError = _ref.error;
-                    if (taskError) {
-                        console.error("Update error:", taskError);
-                        // allTasks を元に戻す
-                        if (oldTask && window.allTasks) {
-                            const _ri = window.allTasks.findIndex(t => String(t.id) === String(realId));
-                            if (_ri !== -1) window.allTasks[_ri] = oldTask;
-                        }
-                        // ガントチャートのタスクを元の値に戻す
-                        if (oldTask && gantt.isTaskExists(id)) {
-                            try {
-                                Object.assign(gantt.getTask(id), {
-                                    text: oldTask.text,
-                                    start_date: oldTask.start_date instanceof Date ? oldTask.start_date : new Date(oldTask.start_date),
-                                    duration: oldTask.duration,
-                                    owner: oldTask.owner,
-                                    project_number: oldTask.project_number,
-                                    customer_name: oldTask.customer_name,
-                                    project_details: oldTask.project_details,
-                                    machine: oldTask.machine,
-                                    unit: oldTask.unit,
-                                    major_item: oldTask.major_item,
-                                    area_group: oldTask.area_group,
-                                    area_number: oldTask.area_number,
-                                    is_business_trip: oldTask.is_business_trip,
-                                    main_owner: oldTask.main_owner,
-                                    parent_name: oldTask.parent_name
-                                });
-                                gantt.refreshTask(id);
-                            } catch(e) {}
-                        }
-                        var _errDetail = [item.project_number, item.machine, item.text].filter(Boolean).join(' ');
-                        _showSaveStatus('error', _errDetail);
-                        return;
-                    }
-                    if (typeof window.markLocalTaskMutation === 'function') window.markLocalTaskMutation(realId);
+            // 操業工程表向け履歴の対象候補かどうかを、まずクライアント側キャッシュ（oldTask）で仮判定する。
+            // 部署名・タスク名（キーワード判定に使う項目）は日付ほど頻繁に変わらないため、
+            // ここでの判定はこの後DBへ問い合わせるかどうかの足切りとしてのみ使う。
+            const opTagGuess = (typeof _opHistoryModeTag === 'function')
+                ? (_opHistoryModeTag(updateData) || _opHistoryModeTag(oldTask))
+                : null;
 
-                    // 操業工程表にリンクされたタスク（社内試運転／出張）なら、
-                    // 操業工程表の変更履歴（source='操業工程表'）にも記録する
-                    // 「編集前」は window.allTasks ではなく onBeforeTaskUpdate で取得した
-                    // DHTMLX自身のスナップショット（opBeforeSnapshot）を使う
-                    if (opBeforeSnapshot && typeof _opHistoryModeTag === 'function') {
-                        const opTag = _opHistoryModeTag(updateData) || _opHistoryModeTag(opBeforeSnapshot);
-                        console.log('[操業履歴デバッグ] opBeforeSnapshot:', opBeforeSnapshot, 'updateData:', updateData, 'opTag:', opTag);
-                        if (opTag) {
-                            const dispDate = v => {
-                                if (!v) return '(未設定)';
-                                return (v instanceof Date) ? dateToDb(v) : String(v).substring(0, 10);
-                            };
+            // 対象候補の場合のみ、更新の直前にDB上の現在値を取得しておく。
+            // window.allTasks のようなクライアント側キャッシュは、同一保存でonAfterTaskUpdateが
+            // 2回発火する場合や他ユーザーの並行編集の影響で「更新後の値」を指してしまうことが
+            // 実機テストで判明したため、履歴の比較対象は必ずこの直前フェッチのDB値を正とする。
+            const _opPreFetch = opTagGuess
+                ? supabaseClient.from('tasks').select('text,start_date,duration,owner,machine,unit').eq('id', realId).maybeSingle()
+                : Promise.resolve({ data: null });
+
+            // バックグラウンドで保存（fetchTasks不要・UIをブロックしない）
+            _opPreFetch.then(function(_preRef) {
+                const opDbBefore = _preRef && _preRef.data;
+                return supabaseClient.from('tasks').update(updateData).eq('id', realId)
+                    .then(function(_ref) {
+                        var taskError = _ref.error;
+                        if (taskError) {
+                            console.error("Update error:", taskError);
+                            // allTasks を元に戻す
+                            if (oldTask && window.allTasks) {
+                                const _ri = window.allTasks.findIndex(t => String(t.id) === String(realId));
+                                if (_ri !== -1) window.allTasks[_ri] = oldTask;
+                            }
+                            // ガントチャートのタスクを元の値に戻す
+                            if (oldTask && gantt.isTaskExists(id)) {
+                                try {
+                                    Object.assign(gantt.getTask(id), {
+                                        text: oldTask.text,
+                                        start_date: oldTask.start_date instanceof Date ? oldTask.start_date : new Date(oldTask.start_date),
+                                        duration: oldTask.duration,
+                                        owner: oldTask.owner,
+                                        project_number: oldTask.project_number,
+                                        customer_name: oldTask.customer_name,
+                                        project_details: oldTask.project_details,
+                                        machine: oldTask.machine,
+                                        unit: oldTask.unit,
+                                        major_item: oldTask.major_item,
+                                        area_group: oldTask.area_group,
+                                        area_number: oldTask.area_number,
+                                        is_business_trip: oldTask.is_business_trip,
+                                        main_owner: oldTask.main_owner,
+                                        parent_name: oldTask.parent_name
+                                    });
+                                    gantt.refreshTask(id);
+                                } catch(e) {}
+                            }
+                            var _errDetail = [item.project_number, item.machine, item.text].filter(Boolean).join(' ');
+                            _showSaveStatus('error', _errDetail);
+                            return;
+                        }
+                        if (typeof window.markLocalTaskMutation === 'function') window.markLocalTaskMutation(realId);
+
+                        // 操業工程表にリンクされたタスク（社内試運転／出張）なら、
+                        // 操業工程表の変更履歴（source='操業工程表'）にも記録する
+                        if (opTagGuess && opDbBefore) {
+                            const opTag = opTagGuess;
+                            console.log('[操業履歴デバッグ] opDbBefore:', opDbBefore, 'updateData:', updateData, 'opTag:', opTag);
+                            const dispDate = v => (v ? String(v).substring(0, 10) : '(未設定)');
                             const opChanges = [];
-                            if ((opBeforeSnapshot.text || '') !== (updateData.text || '')) {
-                                opChanges.push(`タスク名を変更：${opBeforeSnapshot.text || '(未設定)'} → ${updateData.text || '(未設定)'}`);
+                            if ((opDbBefore.text || '') !== (updateData.text || '')) {
+                                opChanges.push(`タスク名を変更：${opDbBefore.text || '(未設定)'} → ${updateData.text || '(未設定)'}`);
                             }
-                            const oldStart = dispDate(opBeforeSnapshot.start_date);
+                            const oldStart = dispDate(opDbBefore.start_date);
                             const newStart = dispDate(updateData.start_date);
-                            const startChanged = oldStart !== newStart;
-                            if (startChanged) opChanges.push(`開始日を変更：${oldStart} → ${newStart}`);
-                            // 終了日の変更判定は、日付変換の誤差を避けるため duration の数値比較で行う
-                            // （表示用の日付は DHTMLX の end_date が排他的＝DB上のend_date+1日である前提で-1日して算出）
-                            const durationChanged = Number(opBeforeSnapshot.duration) !== Number(updateData.duration);
-                            if (durationChanged && !startChanged) {
-                                const oldEndInclusive = opBeforeSnapshot.end_date
-                                    ? gantt.date.add(opBeforeSnapshot.end_date, -1, 'day')
-                                    : null;
-                                const oldEnd = dispDate(oldEndInclusive);
-                                const newEnd = dispDate(updateData.end_date);
-                                opChanges.push(`終了日を変更：${oldEnd} → ${newEnd}`);
-                            } else if (durationChanged && startChanged) {
-                                opChanges.push('終了日を変更');
+                            if (oldStart !== newStart) opChanges.push(`開始日を変更：${oldStart} → ${newStart}`);
+                            const durationChanged = Number(opDbBefore.duration) !== Number(updateData.duration);
+                            if (durationChanged) {
+                                const oldEnd = (typeof inclusiveEndDateToDb === 'function')
+                                    ? dispDate(inclusiveEndDateToDb(opDbBefore.start_date, opDbBefore.duration))
+                                    : '(不明)';
+                                opChanges.push(`終了日を変更：${oldEnd} → ${dispDate(updateData.end_date)}`);
                             }
-                            if ((opBeforeSnapshot.owner || '') !== (updateData.owner || '')) {
-                                opChanges.push(`担当者を変更：${opBeforeSnapshot.owner || '(未設定)'} → ${updateData.owner || '(未設定)'}`);
+                            if ((opDbBefore.owner || '') !== (updateData.owner || '')) {
+                                opChanges.push(`担当者を変更：${opDbBefore.owner || '(未設定)'} → ${updateData.owner || '(未設定)'}`);
                             }
-                            if ((opBeforeSnapshot.machine || '') !== (updateData.machine || '')) {
-                                opChanges.push(`機械を変更：${opBeforeSnapshot.machine || '(未設定)'} → ${updateData.machine || '(未設定)'}`);
+                            if ((opDbBefore.machine || '') !== (updateData.machine || '')) {
+                                opChanges.push(`機械を変更：${opDbBefore.machine || '(未設定)'} → ${updateData.machine || '(未設定)'}`);
                             }
-                            if ((opBeforeSnapshot.unit || '') !== (updateData.unit || '')) {
-                                opChanges.push(`ユニットを変更：${opBeforeSnapshot.unit || '(未設定)'} → ${updateData.unit || '(未設定)'}`);
+                            if ((opDbBefore.unit || '') !== (updateData.unit || '')) {
+                                opChanges.push(`ユニットを変更：${opDbBefore.unit || '(未設定)'} → ${updateData.unit || '(未設定)'}`);
                             }
                             console.log('[操業履歴デバッグ] opChanges:', opChanges);
                             if (opChanges.length > 0) {
@@ -1167,10 +1143,10 @@
                                     .catch(e => console.error('[操業履歴デバッグ] insert失敗', e));
                             }
                         }
-                    }
 
-                    _showSaveStatus('success');
-                });
+                        _showSaveStatus('success');
+                    });
+            });
         });
 
         // 保存ボタンが押された瞬間に実行されるイベント
