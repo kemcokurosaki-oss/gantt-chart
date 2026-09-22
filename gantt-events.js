@@ -966,6 +966,7 @@
                 text: task.text,
                 start_date: task.start_date,
                 end_date: task.end_date,
+                duration: task.duration,
                 owner: task.owner,
                 machine: task.machine,
                 unit: task.unit,
@@ -1135,14 +1136,21 @@
                             }
                             const oldStart = dispDate(opBeforeSnapshot.start_date);
                             const newStart = dispDate(updateData.start_date);
-                            if (oldStart !== newStart) opChanges.push(`開始日を変更：${oldStart} → ${newStart}`);
-                            // DHTMLXのend_dateは排他的（DB上のend_date+1日）なので-1日して比較する
-                            const oldEndInclusive = opBeforeSnapshot.end_date
-                                ? gantt.date.add(opBeforeSnapshot.end_date, -1, 'day')
-                                : null;
-                            const oldEnd = dispDate(oldEndInclusive);
-                            const newEnd = dispDate(updateData.end_date);
-                            if (oldEnd !== newEnd) opChanges.push(`終了日を変更：${oldEnd} → ${newEnd}`);
+                            const startChanged = oldStart !== newStart;
+                            if (startChanged) opChanges.push(`開始日を変更：${oldStart} → ${newStart}`);
+                            // 終了日の変更判定は、日付変換の誤差を避けるため duration の数値比較で行う
+                            // （表示用の日付は DHTMLX の end_date が排他的＝DB上のend_date+1日である前提で-1日して算出）
+                            const durationChanged = Number(opBeforeSnapshot.duration) !== Number(updateData.duration);
+                            if (durationChanged && !startChanged) {
+                                const oldEndInclusive = opBeforeSnapshot.end_date
+                                    ? gantt.date.add(opBeforeSnapshot.end_date, -1, 'day')
+                                    : null;
+                                const oldEnd = dispDate(oldEndInclusive);
+                                const newEnd = dispDate(updateData.end_date);
+                                opChanges.push(`終了日を変更：${oldEnd} → ${newEnd}`);
+                            } else if (durationChanged && startChanged) {
+                                opChanges.push('終了日を変更');
+                            }
                             if ((opBeforeSnapshot.owner || '') !== (updateData.owner || '')) {
                                 opChanges.push(`担当者を変更：${opBeforeSnapshot.owner || '(未設定)'} → ${updateData.owner || '(未設定)'}`);
                             }
