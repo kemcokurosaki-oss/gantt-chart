@@ -1111,7 +1111,6 @@
                         // 操業工程表の変更履歴（source='操業工程表'）にも記録する
                         if (opTagGuess && opDbBefore) {
                             const opTag = opTagGuess;
-                            console.log('[操業履歴デバッグ] opDbBefore:', opDbBefore, 'updateData:', updateData, 'opTag:', opTag);
                             const dispDate = v => (v ? String(v).substring(0, 10) : '(未設定)');
                             const opChanges = [];
                             if ((opDbBefore.text || '') !== (updateData.text || '')) {
@@ -1136,12 +1135,7 @@
                             if ((opDbBefore.unit || '') !== (updateData.unit || '')) {
                                 opChanges.push(`ユニットを変更：${opDbBefore.unit || '(未設定)'} → ${updateData.unit || '(未設定)'}`);
                             }
-                            console.log('[操業履歴デバッグ] opChanges:', opChanges);
-                            if (opChanges.length > 0) {
-                                _opInsertLinkedHistory(updateData, opTag, opChanges.join('／'))
-                                    .then(() => console.log('[操業履歴デバッグ] insert完了'))
-                                    .catch(e => console.error('[操業履歴デバッグ] insert失敗', e));
-                            }
+                            if (opChanges.length > 0) _opInsertLinkedHistory(updateData, opTag, opChanges.join('／'));
                         }
 
                         _showSaveStatus('success');
