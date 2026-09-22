@@ -955,11 +955,38 @@
             }
         }
 
+        // 操業工程表向け履歴の「編集前」スナップショットを、DHTMLXが実際の更新を
+        // 反映する直前（onBeforeTaskUpdate）に取得する。window.allTasks は
+        // onAfterTaskUpdate 内で同期的に新データへ上書きされる上、id の持ち方が
+        // タスク種別によって異なる（出張タスクは design_trip_<id> 合成IDなど）ため、
+        // 独自配列の突き合わせに頼らずDHTMLX自身の直前状態をそのまま使う。
+        let _opBeforeUpdateSnapshot = null;
+        gantt.attachEvent("onBeforeTaskUpdate", function(id, task) {
+            _opBeforeUpdateSnapshot = (task && !task.$virtual) ? {
+                text: task.text,
+                start_date: task.start_date,
+                end_date: task.end_date,
+                owner: task.owner,
+                machine: task.machine,
+                unit: task.unit,
+                major_item: task.major_item,
+                task_type: task.task_type,
+                is_business_trip: task.is_business_trip,
+                project_number: task.project_number,
+                part_number: task.part_number,
+                model_type: task.model_type
+            } : null;
+        });
+
         // 編集内容をデータベースに保存（バックグラウンド・UIブロックなし）
         gantt.attachEvent("onAfterTaskUpdate", function(id, item) {
             if (item.$virtual) return; // 見出し行は仮想的なものなので保存対象外
 
             const realId = item.original_id || id;
+            // このタイミングで直前の onBeforeTaskUpdate スナップショットを確定させる
+            // （同一保存で onAfterTaskUpdate が2回発火しても、それぞれ直前の状態を正しく捕まえる）
+            const opBeforeSnapshot = _opBeforeUpdateSnapshot;
+            _opBeforeUpdateSnapshot = null;
 
             // 変更前のデータを取得（allTasks はまだ旧データ）
             // 出張タスクは window.allTasks 内で design_trip_<realId> という合成IDで保持され、
@@ -1092,37 +1119,38 @@
 
                     // 操業工程表にリンクされたタスク（社内試運転／出張）なら、
                     // 操業工程表の変更履歴（source='操業工程表'）にも記録する
-                    if (oldTask && typeof _opHistoryModeTag === 'function') {
-                        const opTag = _opHistoryModeTag(updateData) || _opHistoryModeTag(oldTask);
-                        console.log('[操業履歴デバッグ] oldTask:', oldTask, 'updateData:', updateData, 'opTag:', opTag);
+                    // 「編集前」は window.allTasks ではなく onBeforeTaskUpdate で取得した
+                    // DHTMLX自身のスナップショット（opBeforeSnapshot）を使う
+                    if (opBeforeSnapshot && typeof _opHistoryModeTag === 'function') {
+                        const opTag = _opHistoryModeTag(updateData) || _opHistoryModeTag(opBeforeSnapshot);
+                        console.log('[操業履歴デバッグ] opBeforeSnapshot:', opBeforeSnapshot, 'updateData:', updateData, 'opTag:', opTag);
                         if (opTag) {
                             const dispDate = v => {
                                 if (!v) return '(未設定)';
                                 return (v instanceof Date) ? dateToDb(v) : String(v).substring(0, 10);
                             };
                             const opChanges = [];
-                            if ((oldTask.text || '') !== (updateData.text || '')) {
-                                opChanges.push(`タスク名を変更：${oldTask.text || '(未設定)'} → ${updateData.text || '(未設定)'}`);
+                            if ((opBeforeSnapshot.text || '') !== (updateData.text || '')) {
+                                opChanges.push(`タスク名を変更：${opBeforeSnapshot.text || '(未設定)'} → ${updateData.text || '(未設定)'}`);
                             }
-                            const oldStart = dispDate(oldTask.start_date);
+                            const oldStart = dispDate(opBeforeSnapshot.start_date);
                             const newStart = dispDate(updateData.start_date);
                             if (oldStart !== newStart) opChanges.push(`開始日を変更：${oldStart} → ${newStart}`);
-                            // oldTask（window.allTasks 由来）は end_date を持たず duration のみのため、
-                            // start_date + duration から旧終了日を逆算する
-                            const oldEndRaw = (typeof inclusiveEndDateToDb === 'function')
-                                ? inclusiveEndDateToDb(oldTask.start_date, oldTask.duration)
-                                : oldTask.end_date;
-                            const oldEnd = dispDate(oldEndRaw);
+                            // DHTMLXのend_dateは排他的（DB上のend_date+1日）なので-1日して比較する
+                            const oldEndInclusive = opBeforeSnapshot.end_date
+                                ? gantt.date.add(opBeforeSnapshot.end_date, -1, 'day')
+                                : null;
+                            const oldEnd = dispDate(oldEndInclusive);
                             const newEnd = dispDate(updateData.end_date);
                             if (oldEnd !== newEnd) opChanges.push(`終了日を変更：${oldEnd} → ${newEnd}`);
-                            if ((oldTask.owner || '') !== (updateData.owner || '')) {
-                                opChanges.push(`担当者を変更：${oldTask.owner || '(未設定)'} → ${updateData.owner || '(未設定)'}`);
+                            if ((opBeforeSnapshot.owner || '') !== (updateData.owner || '')) {
+                                opChanges.push(`担当者を変更：${opBeforeSnapshot.owner || '(未設定)'} → ${updateData.owner || '(未設定)'}`);
                             }
-                            if ((oldTask.machine || '') !== (updateData.machine || '')) {
-                                opChanges.push(`機械を変更：${oldTask.machine || '(未設定)'} → ${updateData.machine || '(未設定)'}`);
+                            if ((opBeforeSnapshot.machine || '') !== (updateData.machine || '')) {
+                                opChanges.push(`機械を変更：${opBeforeSnapshot.machine || '(未設定)'} → ${updateData.machine || '(未設定)'}`);
                             }
-                            if ((oldTask.unit || '') !== (updateData.unit || '')) {
-                                opChanges.push(`ユニットを変更：${oldTask.unit || '(未設定)'} → ${updateData.unit || '(未設定)'}`);
+                            if ((opBeforeSnapshot.unit || '') !== (updateData.unit || '')) {
+                                opChanges.push(`ユニットを変更：${opBeforeSnapshot.unit || '(未設定)'} → ${updateData.unit || '(未設定)'}`);
                             }
                             console.log('[操業履歴デバッグ] opChanges:', opChanges);
                             if (opChanges.length > 0) {
