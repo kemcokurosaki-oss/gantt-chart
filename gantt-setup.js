@@ -63,6 +63,11 @@
                 title: '操業工程表は準備中です（公開後に有効化します）',
                 disabled: true,
             },
+            delivery: {
+                url: 'https://kemcokurosaki-oss.github.io/delivery-schedule/',
+                title: '入出荷予定一覧を別タブで開く（ログインはリンク先で行います）',
+                disabled: false,
+            },
             viewer3d: {
                 url: 'https://kemcokurosaki-oss.github.io/3d-viewer/',
                 title: '3Dモデルビューアを別タブで開く',
@@ -75,12 +80,13 @@
             if (key === 'design') return 'dept_link_design';
             if (key === 'assembly') return 'dept_link_assembly';
             if (key === 'operations') return 'dept_link_operations';
+            if (key === 'delivery') return 'dept_link_delivery';
             if (key === 'viewer3d') return 'dept_link_viewer3d';
             return '';
         }
 
         function updateDeptScheduleLinkButtons() {
-            ['approval', 'design', 'assembly', 'operations', 'viewer3d'].forEach(function (key) {
+            ['approval', 'design', 'assembly', 'operations', 'delivery', 'viewer3d'].forEach(function (key) {
                 const cfg = DEPT_SCHEDULE_LINK_CONFIG[key];
                 const btnId = _deptLinkButtonId(key);
                 const btn = btnId ? document.getElementById(btnId) : null;
