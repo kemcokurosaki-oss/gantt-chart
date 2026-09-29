@@ -269,6 +269,34 @@
         // 組立場所の選択肢
         const LOCATION_GROUPS = ["E1", "E3"];
         const LOCATION_NUMBERS = ["0", "1", "2", "3", "4", "5", "6"];
+        // 外注は番号なしの単独選択肢。DBには area_group / area_number とも "外注" で保存する
+        // （組立場所リソース表示の対象外、E1/E3 とは併用不可）
+        const OUTSOURCE_LOCATION = "外注";
+
+        /** 場所の表示文字列（外注は番号を付けず「外注」のみ） */
+        function formatLocationText(group, number) {
+            if (group === OUTSOURCE_LOCATION) return OUTSOURCE_LOCATION;
+            if (group && number) return group + "-" + number;
+            return group || number || "";
+        }
+
+        /**
+         * 場所チェックボックス群で外注と E1/E3 を排他にする。
+         * @param {HTMLElement} container
+         * @param {string} selector チェックボックスのセレクタ
+         * @param {(cb:HTMLInputElement)=>boolean} isOutsource
+         */
+        function bindOutsourceLocationExclusive(container, selector, isOutsource) {
+            container.querySelectorAll(selector).forEach(function (cb) {
+                cb.addEventListener("change", function () {
+                    if (!cb.checked) return;
+                    const outsource = isOutsource(cb);
+                    container.querySelectorAll(selector).forEach(function (o) {
+                        if (o !== cb && isOutsource(o) !== outsource) o.checked = false;
+                    });
+                });
+            });
+        }
 
         // カスタムライトボックスセクション：組立場所
         gantt.form_blocks["location_selector"] = {
@@ -294,10 +322,15 @@
                     });
                     inner += "</div>";
                 });
+                inner += `<div style='margin-bottom: 8px;'><strong>${OUTSOURCE_LOCATION}:</strong><br/>` +
+                    `<label style='margin-right: 10px; display: inline-block; cursor: pointer;'>` +
+                    `<input type='checkbox' name='loc_cb' value='${OUTSOURCE_LOCATION}-${OUTSOURCE_LOCATION}' data-group='${OUTSOURCE_LOCATION}' data-num='${OUTSOURCE_LOCATION}' style='vertical-align: middle; cursor: pointer;'> ${OUTSOURCE_LOCATION}` +
+                    `</label></div>`;
                 body.innerHTML = inner;
 
                 const checkboxes = node.querySelectorAll("input[name='loc_cb']");
                 checkboxes.forEach(cb => { cb.checked = false; });
+                bindOutsourceLocationExclusive(node, "input[name='loc_cb']", cb => cb.getAttribute("data-group") === OUTSOURCE_LOCATION);
 
                 /** @type {{g:string,n:string}[]} */
                 let pairs = [];

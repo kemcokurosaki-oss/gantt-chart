@@ -149,10 +149,7 @@
             }},
             { name: "area_number", label: "場所", width: COLUMN_WIDTHS[7], align: "center", template: function(obj) {
                 if (obj.$virtual) return "";
-                if (obj.area_group && obj.area_number) {
-                    return obj.area_group + "-" + obj.area_number;
-                }
-                return obj.area_group || obj.area_number || "";
+                return formatLocationText(obj.area_group, obj.area_number);
             }},
             { name: "start_date", label: "開始日", width: COLUMN_WIDTHS[8], align: "center", template: function(t) {
                 if (t.unscheduled) return "<span class='unassigned-warning'>⚠️</span>";
@@ -279,9 +276,7 @@
                                 text = owners.join(', ');
                             }
                         } else if (name === 'area_number') {
-                            text = (task.area_group && task.area_number)
-                                ? task.area_group + '-' + task.area_number
-                                : (task.area_group || task.area_number || '');
+                            text = formatLocationText(task.area_group, task.area_number);
                         } else if (name === 'customer_name') {
                             text = task.customer_name || '';
                         } else if (name === 'project_details') {
@@ -1687,8 +1682,7 @@
                     return (o === '' || o === '未定') ? COL_FILTER_EMPTY_LABEL : o;
                 }
                 case 'area_number':
-                    if (task.area_group && task.area_number) return task.area_group + '-' + task.area_number;
-                    return task.area_group || task.area_number || '';
+                    return formatLocationText(task.area_group, task.area_number);
                 case 'start_date':
                     if (!task.start_date || task.unscheduled) return COL_FILTER_EMPTY_LABEL;
                     return dateToDisplay(task.start_date);

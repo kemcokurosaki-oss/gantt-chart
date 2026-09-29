@@ -233,6 +233,8 @@
                     out.push({ isGroup: true, label: g });
                     LOCATION_NUMBERS.forEach(function(n) { out.push({ value: g + '-' + n, label: g + '-' + n }); });
                 });
+                out.push({ isGroup: true, label: OUTSOURCE_LOCATION });
+                out.push({ value: OUTSOURCE_LOCATION + '-' + OUTSOURCE_LOCATION, label: OUTSOURCE_LOCATION });
                 return out;
             }
 
@@ -309,6 +311,9 @@
                     }
                 } else if (field === 'area_number') {
                     showMsSection(buildLocationOpts(), locationCheckboxValuesFromTask(task), undefined, false);
+                    bindOutsourceLocationExclusive(popup.querySelector('#inline-edit-ms-options'), 'input[type=checkbox]', function(cb) {
+                        return cb.value === OUTSOURCE_LOCATION + '-' + OUTSOURCE_LOCATION;
+                    });
                 } else if (field === 'start_date') {
                     // unscheduled タスクは gantt が内部的に仮の日付を割り当てているため、
                     // そのまま表示すると未入力に見えなくなる。入力欄は空のまま出す。
@@ -370,20 +375,19 @@
                         return { area_group: val.slice(0, i), area_number: val.slice(i + 1) };
                     });
                     const realId = task.original_id || taskId;
-                    const oldTask = (window.allTasks || []).find(function(t) { return String(t.id) === String(realId); });
-                    const oldKey = oldTask ? locationCheckboxValuesFromTask(oldTask).slice().sort().join(",") : "";
-                    const newKey = checkedVals.slice().sort().join(",");
-                    if (typeof window.persistTaskLocations !== "function") {
-                        closeIE();
-                        return;
-                    }
-                    const ok = await window.persistTaskLocations(realId, pairs);
-                    if (!ok) {
-                        closeIE();
-                        return;
-                    }
                     closeIE();
-                    await fetchTasks();
+                    if (typeof window.persistTaskLocations !== "function") return;
+                    // 画面を先に更新し、DB 保存は後ろで行う（失敗時は DB から読み直して元に戻す）
+                    if (typeof window.applyTaskLocationsLocally === "function") {
+                        window.applyTaskLocationsLocally(realId, pairs);
+                    }
+                    window.persistTaskLocations(realId, pairs).then(function(ok) {
+                        if (!ok) {
+                            fetchTasks();
+                        } else if (currentLocationResourceMode) {
+                            updateResourceVisibility();
+                        }
+                    });
                     return;
 
                 } else if (field === 'start_date') {
