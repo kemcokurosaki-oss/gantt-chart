@@ -31,8 +31,6 @@
         padding: 16px 40px 14px;
     }
     .page-header__inner {
-        max-width: 1520px;
-        margin: 0 auto;
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -81,56 +79,122 @@
     }
     .back-link:hover { text-decoration: underline; }
 
-    /* タブ切り替えナビ */
-    .tab-nav {
-        background: #fff;
-        border-bottom: 1px solid #e0e6ef;
-        max-width: 1520px;
-        margin: 0 auto;
-        padding: 0 40px;
-        display: flex;
-        gap: 2px;
-        overflow-x: auto;
+    /* レイアウト（左サイドバー＋メイン） */
+    .layout-wrap {
+        margin: 0;
+        padding: 0;
     }
-    .tab-btn {
+    .side-nav {
+        position: fixed;
+        left: 0;
+        bottom: 0;
+        width: 152px;
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        background: #fff;
+        border-right: 1px solid #e0e6ef;
+        padding: 16px 10px;
+        overflow-y: auto;
+        z-index: 100;
+    }
+    .side-nav-label {
+        font-size: 10.5px;
+        font-weight: 700;
+        color: #aab4be;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        padding: 4px 8px 2px;
+    }
+    .side-nav-btn {
         appearance: none;
         border: none;
         background: transparent;
         font-family: inherit;
-        font-size: 14.5px;
+        font-size: 13px;
         font-weight: 700;
         color: #5a6a7e;
-        padding: 13px 20px;
+        text-align: left;
+        padding: 11px 10px;
+        border-radius: 6px;
         cursor: pointer;
-        border-bottom: 3px solid transparent;
-        white-space: nowrap;
-        transition: color .15s, border-color .15s, background .15s;
+        line-height: 1.4;
+        transition: color .15s, background .15s;
     }
-    .tab-btn:hover { color: #2c3e50; background: #f8fafc; }
-    .tab-btn.active { color: #2166a3; border-bottom-color: #3498db; background: #eaf2fb; }
-    .tab-btn .num {
-        display: inline-block;
-        width: 18px; height: 18px;
-        line-height: 18px;
-        border-radius: 50%;
-        background: #dbe2ea;
+    .side-nav-btn:hover { color: #2166a3; background: #eaf2fb; }
+
+    /* 表示切替トグル（②組立範囲／④簡易行程） */
+    .view-toggle {
+        display: inline-flex;
+        background: #eef1f5;
+        border-radius: 8px;
+        padding: 3px;
+        margin-bottom: 10px;
+    }
+    .view-toggle-btn {
+        appearance: none;
+        border: none;
+        background: transparent;
+        font-family: inherit;
+        font-size: 13px;
+        font-weight: 700;
         color: #5a6a7e;
-        font-size: 12px;
-        text-align: center;
-        margin-right: 6px;
+        padding: 8px 20px;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: background .15s, color .15s;
     }
-    .tab-btn.active .num { background: #3498db; color: #fff; }
+    .view-toggle-btn.active { background: #fff; color: #2166a3; box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
 
     /* メインコンテンツ */
     .content {
-        max-width: 1520px;
-        margin: 22px auto 50px;
-        padding: 0 40px;
+        margin-left: 152px;
+        padding: 14px 24px 30px;
     }
+    .view-panel { display: none; }
+    .view-panel.active { display: block; animation: fadeIn .15s ease; }
 
     .tab-panel { display: none; }
     .tab-panel.active { display: block; animation: fadeIn .2s ease; }
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    /* 全画面オーバーレイ（①仕様書・③体制表／ヘッダーの下に表示） */
+    .fullscreen-overlay {
+        display: none;
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: #f4f6f9;
+        z-index: 150;
+        overflow-y: auto;
+        padding: 30px 0 60px;
+    }
+    .fullscreen-overlay.active { display: block; animation: fadeIn .15s ease; }
+    .overlay-inner {
+        max-width: 1520px;
+        margin: 0 auto;
+        padding: 0 40px;
+    }
+    .fullscreen-overlay .panel-head { padding-left: 150px; }
+    .overlay-close-btn {
+        position: fixed;
+        left: 24px;
+        z-index: 210;
+        background: #2c3e50;
+        color: #fff;
+        border: none;
+        border-radius: 6px;
+        padding: 10px 18px;
+        font-family: inherit;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.25);
+    }
+    .overlay-close-btn:hover { background: #34495e; }
+
+    /* ②④常時表示セクション */
 
     .panel-head {
         display: flex;
@@ -227,7 +291,7 @@
         overflow: hidden;
         background: #fafbfc;
     }
-    .figure-card img { width: 100%; display: block; background: #dfe6ee; }
+    .figure-card img { width: 100%; height: 230px; object-fit: contain; display: block; background: #dfe6ee; }
     .figure-caption {
         padding: 7px 14px;
         font-size: 12.5px;
@@ -425,6 +489,16 @@
     .subhead:first-child { margin-top: 0; }
 
     footer { text-align: center; font-size: 13px; color: #aab4be; padding: 20px; }
+
+    /* ②組立範囲：画面内に収まるよう余白・サイズを圧縮 */
+    #panel-scope .panel-head { margin-bottom: 8px; padding-bottom: 6px; }
+    #panel-scope .card { padding: 12px 16px 14px; }
+    #panel-scope .figure-row { margin-bottom: 10px; }
+    #panel-scope .figure-caption { padding: 4px 12px; font-size: 11px; }
+    #panel-scope .subhead { margin: 8px 0 5px; font-size: 12.5px; }
+    #panel-scope .data-table th, #panel-scope .data-table td { padding: 4px 8px; }
+    #panel-scope .data-table { font-size: 12.5px; }
+    #panel-scope .note-box { margin-top: 8px; padding: 6px 12px; font-size: 11px; }
 </style>
 </head>
 <body>
@@ -444,21 +518,27 @@
         </div>
     </div>
 </header>
-
-<nav class="tab-nav">
-    <button class="tab-btn active" data-tab="order-spec"><span class="num">1</span>組立発注仕様書 概要</button>
-    <button class="tab-btn" data-tab="scope"><span class="num">2</span>組立範囲（図面）</button>
-    <button class="tab-btn" data-tab="trial"><span class="num">3</span>試運転体制表</button>
-    <button class="tab-btn" data-tab="schedule"><span class="num">4</span>簡易行程</button>
-</nav>
 </div><!-- /.sticky-wrapper -->
 
-<main class="content">
+<div class="layout-wrap">
+    <nav class="side-nav" id="sideNav">
+        <button class="side-nav-btn" data-open="order-spec">組立発注仕様書</button>
+        <button class="side-nav-btn" data-open="trial">試運転体制表</button>
+    </nav>
+
+    <main class="content">
+
+    <div class="view-toggle">
+        <button class="view-toggle-btn active" data-view="scope">組立範囲（図面）</button>
+        <button class="view-toggle-btn" data-view="schedule">簡易行程</button>
+    </div>
 
     <!-- 1. 組立発注仕様書 基本概要 -->
-    <section class="tab-panel active" id="panel-order-spec">
+    <section class="fullscreen-overlay" id="panel-order-spec">
+        <button class="overlay-close-btn" data-close="order-spec">✕ 閉じる</button>
+        <div class="overlay-inner">
         <div class="panel-head">
-            <h2>① 組立発注仕様書　基本概要</h2>
+            <h2>組立発注仕様書　基本概要</h2>
             <span class="src">出典：組立発注仕様書R2（2816大洋金属殿）.xlsx</span>
         </div>
 
@@ -552,12 +632,12 @@
 
             <div class="note-box">検収・支払、その他取り決め（2-1〜2-3）など詳細条件の全文は、別途配布する組立発注仕様書の原本（Excel/PDF）をご確認ください。本ページは概要の抜粋です。</div>
         </div>
+        </div><!-- /.overlay-inner -->
     </section>
 
     <!-- 2. 組立範囲（図面） -->
-    <section class="tab-panel" id="panel-scope">
+    <section class="view-panel active" id="panel-scope">
         <div class="panel-head">
-            <h2>② 組立範囲（図面）</h2>
             <span class="src">出典：レイアウト図（担当範囲）.xlsx</span>
         </div>
 
@@ -624,15 +704,15 @@
                         <td>―</td></tr>
                 </tbody>
             </table>
-
-            <div class="note-box">図面は3Dモデルのスクリーンショットを仮掲載しています。清書版の図面（担当範囲を色分けしたPDF/画像）に差し替え予定です。</div>
         </div>
     </section>
 
     <!-- 3. 試運転体制表 -->
-    <section class="tab-panel" id="panel-trial">
+    <section class="fullscreen-overlay" id="panel-trial">
+        <button class="overlay-close-btn" data-close="trial">✕ 閉じる</button>
+        <div class="overlay-inner">
         <div class="panel-head">
-            <h2>③ 試運転体制表</h2>
+            <h2>試運転体制表</h2>
             <span class="src">出典：試運転体制表.xlsx（記入例／工番2783）</span>
         </div>
 
@@ -734,12 +814,12 @@
                 </div>
             </div>
         </div>
+        </div><!-- /.overlay-inner -->
     </section>
 
     <!-- 4. 簡易行程 -->
-    <section class="tab-panel" id="panel-schedule">
+    <section class="view-panel" id="panel-schedule">
         <div class="panel-head">
-            <h2>④ 簡易行程</h2>
             <span class="src">出典：組立発注仕様書R2「1-10）工程」</span>
         </div>
 
@@ -799,18 +879,30 @@
                 <span class="li"><span class="sw" style="background:#e67e22;"></span>組立業者（外注先） 主担当</span>
                 <span class="li"><span class="sw" style="background:linear-gradient(90deg,#3498db,#e67e22);"></span>両社共同</span>
             </div>
-            <div class="note-box">各バーの期間は現時点のイメージです。実データが確定次第、正確な日付で更新します。</div>
         </div>
     </section>
 
-</main>
+    </main>
+</div><!-- /.layout-wrap -->
 
 <footer>
-    外注業者向け 工事詳細シート ／ 工番ごとにページを作成し、全体工程表から各業者ページへリンクする想定です<br>
     作成：日下部電機株式会社 製造管理部
 </footer>
 
 <script>
+function updateSideNavPosition() {
+    const headerHeight = document.querySelector('.page-header').offsetHeight;
+    document.getElementById('sideNav').style.top = headerHeight + 'px';
+    document.querySelectorAll('.fullscreen-overlay').forEach(el => {
+        el.style.top = headerHeight + 'px';
+    });
+    document.querySelectorAll('.overlay-close-btn').forEach(btn => {
+        btn.style.top = (headerHeight + 18) + 'px';
+    });
+}
+updateSideNavPosition();
+window.addEventListener('resize', updateSideNavPosition);
+
 const PROJECT_NUMBER = '2816';
 const S_URL = "https://dgekjzkrybrswsxlcbvh.supabase.co";
 const S_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRnZWtqemtyeWJyc3dzeGxjYnZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg4ODQ3MjIsImV4cCI6MjA4NDQ2MDcyMn0.BsEj53lV3p76yE9fMPTaLn7ocKTNzYPTqIAnBafYItU";
@@ -835,12 +927,33 @@ const S_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJl
     }
 })();
 
-document.querySelectorAll('.tab-btn').forEach(btn => {
+document.querySelectorAll('.side-nav-btn[data-open]').forEach(btn => {
     btn.addEventListener('click', () => {
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        document.getElementById('panel-' + btn.dataset.open).classList.add('active');
+        document.body.style.overflow = 'hidden';
+    });
+});
+document.querySelectorAll('.overlay-close-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.getElementById('panel-' + btn.dataset.close).classList.remove('active');
+        document.body.style.overflow = '';
+    });
+});
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        document.querySelectorAll('.fullscreen-overlay.active').forEach(el => {
+            el.classList.remove('active');
+            document.body.style.overflow = '';
+        });
+    }
+});
+
+document.querySelectorAll('.view-toggle-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.view-toggle-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.view-panel').forEach(p => p.classList.remove('active'));
         btn.classList.add('active');
-        document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
+        document.getElementById('panel-' + btn.dataset.view).classList.add('active');
     });
 });
 </script>
