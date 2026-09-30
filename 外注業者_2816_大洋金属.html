@@ -241,6 +241,22 @@
     }
     .data-table tr:hover td { background: #fafcff; }
 
+    /* 発注範囲：甲乙トグル・該当なし操作 */
+    .editable-scope .cell-toggle {
+        cursor: pointer;
+        user-select: none;
+        color: #2c3e50;
+        font-weight: 700;
+    }
+    .editable-scope .cell-toggle:hover { background: #eaf2fb; }
+    .editable-scope tr.na .cell-toggle {
+        pointer-events: none;
+        color: #c3ccd8;
+        background: #f8fafc;
+    }
+    .editable-scope .na-cell { background: #fafbfc; }
+    .editable-scope .na-checkbox { cursor: pointer; width: 15px; height: 15px; }
+
     /* 2カラム分割レイアウト（横長活用） */
     .split-2 {
         display: grid;
@@ -585,32 +601,32 @@
             </table>
 
             <div class="subhead">1-9) 発注範囲（甲＝日下部電機㈱／乙＝請負者）</div>
-            <table class="data-table">
-                <thead><tr><th style="width:30px;">No.</th><th style="text-align:left;">項目</th><th style="width:38px;">甲</th><th style="width:38px;">乙</th><th style="text-align:left;">備考</th></tr></thead>
+            <table class="data-table editable-scope">
+                <thead><tr><th style="width:30px;">No.</th><th style="text-align:left;">項目</th><th style="width:38px;">甲</th><th style="width:38px;">乙</th><th style="width:70px;">該当なし</th><th style="text-align:left;">備考</th></tr></thead>
                 <tbody>
-                    <tr><td>1</td><td style="text-align:left;">機械設計（部品図及び組立図・据付図・出荷荷姿図の作成）</td><td>〇</td><td></td><td></td></tr>
-                    <tr><td>2</td><td style="text-align:left;">電気設計</td><td>〇</td><td></td><td></td></tr>
-                    <tr><td>3</td><td style="text-align:left;">制御設計</td><td>〇</td><td></td><td></td></tr>
-                    <tr><td>4</td><td style="text-align:left;">各種盤製作</td><td>〇</td><td></td><td></td></tr>
-                    <tr><td>5</td><td style="text-align:left;">部品製作</td><td>〇</td><td>〇</td><td style="text-align:left;">出図時に都度相談し担当を決定。担当は別紙①支給品リスト（製作品）に明記。</td></tr>
-                    <tr><td>6</td><td style="text-align:left;">完成購入品調達</td><td>〇</td><td></td><td style="text-align:left;">別紙②支給品リスト（購入品・締結品等）に明記。締結部品は別紙③で範囲確認。</td></tr>
-                    <tr><td>7</td><td style="text-align:left;">締結部品調達</td><td></td><td>〇</td><td></td></tr>
-                    <tr><td>8</td><td style="text-align:left;">塗料調達</td><td>〇</td><td>〇</td><td style="text-align:left;">必要な塗料は支給（部品製作時の錆止め用塗料は除く）。焼付塗料は乙手配。</td></tr>
-                    <tr><td>9</td><td style="text-align:left;">塗装</td><td></td><td>〇</td><td></td></tr>
-                    <tr><td>10</td><td style="text-align:left;">横持ちの運搬車両</td><td></td><td>〇</td><td style="text-align:left;">甲から乙へ製作品や購入品を支給する際の運搬</td></tr>
-                    <tr><td>11</td><td style="text-align:left;">機械組立</td><td>〇</td><td>〇</td><td style="text-align:left;">一部機械は甲が組立、乙へ支給。組立SVは必要に応じて訪問。</td></tr>
-                    <tr><td>12</td><td style="text-align:left;">据付及びレベル出し</td><td></td><td>〇</td><td></td></tr>
-                    <tr><td>13</td><td style="text-align:left;">油圧配管工事</td><td colspan="2">―</td><td></td></tr>
-                    <tr><td>14</td><td style="text-align:left;">エアー配管工事</td><td></td><td>〇</td><td></td></tr>
-                    <tr><td>15</td><td style="text-align:left;">機内配線のための艤装部品の取り付け</td><td></td><td>〇</td><td style="text-align:left;">センサー等取付のためのブラケット等の取付</td></tr>
-                    <tr><td>16</td><td style="text-align:left;">機内配線（中継箱～各機器）</td><td>〇</td><td></td><td style="text-align:left;">センサーの取付を含む</td></tr>
-                    <tr><td>17</td><td style="text-align:left;">テスト配線（中継箱～制御盤～分電盤）</td><td>〇</td><td></td><td style="text-align:left;">分電盤は貴社範囲</td></tr>
-                    <tr><td>18</td><td style="text-align:left;">試運転</td><td>〇</td><td></td><td></td></tr>
-                    <tr><td>19</td><td style="text-align:left;">試運転補助作業</td><td></td><td>〇</td><td style="text-align:left;">一部解体、復元、クレーン操作等が想定される。</td></tr>
-                    <tr><td>20</td><td style="text-align:left;">出荷準備（解体・養生・梱包）</td><td></td><td>〇</td><td style="text-align:left;">当社指示に従い解体。国内輸送用の出荷養生・梱包を乙にて実施。</td></tr>
-                    <tr><td>21</td><td style="text-align:left;">梱包用資材</td><td></td><td>〇</td><td></td></tr>
-                    <tr><td>22</td><td style="text-align:left;">車両への積込</td><td></td><td>〇</td><td></td></tr>
-                    <tr><td>23</td><td style="text-align:left;">出荷用車両手配</td><td>〇</td><td></td><td></td></tr>
+                    <tr><td>1</td><td style="text-align:left;">機械設計（部品図及び組立図・据付図・出荷荷姿図の作成）</td><td class="cell-toggle" data-value="on">〇</td><td class="cell-toggle" data-value="off"></td><td class="na-cell"><input type="checkbox" class="na-checkbox"></td><td style="text-align:left;"></td></tr>
+                    <tr><td>2</td><td style="text-align:left;">電気設計</td><td class="cell-toggle" data-value="on">〇</td><td class="cell-toggle" data-value="off"></td><td class="na-cell"><input type="checkbox" class="na-checkbox"></td><td style="text-align:left;"></td></tr>
+                    <tr><td>3</td><td style="text-align:left;">制御設計</td><td class="cell-toggle" data-value="on">〇</td><td class="cell-toggle" data-value="off"></td><td class="na-cell"><input type="checkbox" class="na-checkbox"></td><td style="text-align:left;"></td></tr>
+                    <tr><td>4</td><td style="text-align:left;">各種盤製作</td><td class="cell-toggle" data-value="on">〇</td><td class="cell-toggle" data-value="off"></td><td class="na-cell"><input type="checkbox" class="na-checkbox"></td><td style="text-align:left;"></td></tr>
+                    <tr><td>5</td><td style="text-align:left;">部品製作</td><td class="cell-toggle" data-value="on">〇</td><td class="cell-toggle" data-value="on">〇</td><td class="na-cell"><input type="checkbox" class="na-checkbox"></td><td style="text-align:left;">出図時に都度相談し担当を決定。担当は別紙①支給品リスト（製作品）に明記。</td></tr>
+                    <tr><td>6</td><td style="text-align:left;">完成購入品調達</td><td class="cell-toggle" data-value="on">〇</td><td class="cell-toggle" data-value="off"></td><td class="na-cell"><input type="checkbox" class="na-checkbox"></td><td style="text-align:left;">別紙②支給品リスト（購入品・締結品等）に明記。締結部品は別紙③で範囲確認。</td></tr>
+                    <tr><td>7</td><td style="text-align:left;">締結部品調達</td><td class="cell-toggle" data-value="off"></td><td class="cell-toggle" data-value="on">〇</td><td class="na-cell"><input type="checkbox" class="na-checkbox"></td><td style="text-align:left;"></td></tr>
+                    <tr><td>8</td><td style="text-align:left;">塗料調達</td><td class="cell-toggle" data-value="on">〇</td><td class="cell-toggle" data-value="on">〇</td><td class="na-cell"><input type="checkbox" class="na-checkbox"></td><td style="text-align:left;">必要な塗料は支給（部品製作時の錆止め用塗料は除く）。焼付塗料は乙手配。</td></tr>
+                    <tr><td>9</td><td style="text-align:left;">塗装</td><td class="cell-toggle" data-value="off"></td><td class="cell-toggle" data-value="on">〇</td><td class="na-cell"><input type="checkbox" class="na-checkbox"></td><td style="text-align:left;"></td></tr>
+                    <tr><td>10</td><td style="text-align:left;">横持ちの運搬車両</td><td class="cell-toggle" data-value="off"></td><td class="cell-toggle" data-value="on">〇</td><td class="na-cell"><input type="checkbox" class="na-checkbox"></td><td style="text-align:left;">甲から乙へ製作品や購入品を支給する際の運搬</td></tr>
+                    <tr><td>11</td><td style="text-align:left;">機械組立</td><td class="cell-toggle" data-value="on">〇</td><td class="cell-toggle" data-value="on">〇</td><td class="na-cell"><input type="checkbox" class="na-checkbox"></td><td style="text-align:left;">一部機械は甲が組立、乙へ支給。組立SVは必要に応じて訪問。</td></tr>
+                    <tr><td>12</td><td style="text-align:left;">据付及びレベル出し</td><td class="cell-toggle" data-value="off"></td><td class="cell-toggle" data-value="on">〇</td><td class="na-cell"><input type="checkbox" class="na-checkbox"></td><td style="text-align:left;"></td></tr>
+                    <tr class="na"><td>13</td><td style="text-align:left;">油圧配管工事</td><td class="cell-toggle" data-value="off">―</td><td class="cell-toggle" data-value="off">―</td><td class="na-cell"><input type="checkbox" class="na-checkbox" checked></td><td style="text-align:left;"></td></tr>
+                    <tr><td>14</td><td style="text-align:left;">エアー配管工事</td><td class="cell-toggle" data-value="off"></td><td class="cell-toggle" data-value="on">〇</td><td class="na-cell"><input type="checkbox" class="na-checkbox"></td><td style="text-align:left;"></td></tr>
+                    <tr><td>15</td><td style="text-align:left;">機内配線のための艤装部品の取り付け</td><td class="cell-toggle" data-value="off"></td><td class="cell-toggle" data-value="on">〇</td><td class="na-cell"><input type="checkbox" class="na-checkbox"></td><td style="text-align:left;">センサー等取付のためのブラケット等の取付</td></tr>
+                    <tr><td>16</td><td style="text-align:left;">機内配線（中継箱～各機器）</td><td class="cell-toggle" data-value="on">〇</td><td class="cell-toggle" data-value="off"></td><td class="na-cell"><input type="checkbox" class="na-checkbox"></td><td style="text-align:left;">センサーの取付を含む</td></tr>
+                    <tr><td>17</td><td style="text-align:left;">テスト配線（中継箱～制御盤～分電盤）</td><td class="cell-toggle" data-value="on">〇</td><td class="cell-toggle" data-value="off"></td><td class="na-cell"><input type="checkbox" class="na-checkbox"></td><td style="text-align:left;">分電盤は貴社範囲</td></tr>
+                    <tr><td>18</td><td style="text-align:left;">試運転</td><td class="cell-toggle" data-value="on">〇</td><td class="cell-toggle" data-value="off"></td><td class="na-cell"><input type="checkbox" class="na-checkbox"></td><td style="text-align:left;"></td></tr>
+                    <tr><td>19</td><td style="text-align:left;">試運転補助作業</td><td class="cell-toggle" data-value="off"></td><td class="cell-toggle" data-value="on">〇</td><td class="na-cell"><input type="checkbox" class="na-checkbox"></td><td style="text-align:left;">一部解体、復元、クレーン操作等が想定される。</td></tr>
+                    <tr><td>20</td><td style="text-align:left;">出荷準備（解体・養生・梱包）</td><td class="cell-toggle" data-value="off"></td><td class="cell-toggle" data-value="on">〇</td><td class="na-cell"><input type="checkbox" class="na-checkbox"></td><td style="text-align:left;">当社指示に従い解体。国内輸送用の出荷養生・梱包を乙にて実施。</td></tr>
+                    <tr><td>21</td><td style="text-align:left;">梱包用資材</td><td class="cell-toggle" data-value="off"></td><td class="cell-toggle" data-value="on">〇</td><td class="na-cell"><input type="checkbox" class="na-checkbox"></td><td style="text-align:left;"></td></tr>
+                    <tr><td>22</td><td style="text-align:left;">車両への積込</td><td class="cell-toggle" data-value="off"></td><td class="cell-toggle" data-value="on">〇</td><td class="na-cell"><input type="checkbox" class="na-checkbox"></td><td style="text-align:left;"></td></tr>
+                    <tr><td>23</td><td style="text-align:left;">出荷用車両手配</td><td class="cell-toggle" data-value="on">〇</td><td class="cell-toggle" data-value="off"></td><td class="na-cell"><input type="checkbox" class="na-checkbox"></td><td style="text-align:left;"></td></tr>
                 </tbody>
             </table>
 
@@ -984,6 +1000,29 @@ document.querySelectorAll('.view-toggle-btn').forEach(btn => {
         document.querySelectorAll('.view-panel').forEach(p => p.classList.remove('active'));
         btn.classList.add('active');
         document.getElementById('panel-' + btn.dataset.view).classList.add('active');
+    });
+});
+
+document.querySelectorAll('.editable-scope .cell-toggle').forEach(cell => {
+    cell.addEventListener('click', () => {
+        const tr = cell.closest('tr');
+        if (tr.classList.contains('na')) return;
+        const isOn = cell.dataset.value === 'on';
+        cell.dataset.value = isOn ? 'off' : 'on';
+        cell.textContent = isOn ? '' : '〇';
+    });
+});
+document.querySelectorAll('.editable-scope .na-checkbox').forEach(cb => {
+    cb.addEventListener('change', () => {
+        const tr = cb.closest('tr');
+        const cells = tr.querySelectorAll('.cell-toggle');
+        if (cb.checked) {
+            tr.classList.add('na');
+            cells.forEach(c => { c.textContent = '―'; });
+        } else {
+            tr.classList.remove('na');
+            cells.forEach(c => { c.textContent = c.dataset.value === 'on' ? '〇' : ''; });
+        }
     });
 });
 </script>
