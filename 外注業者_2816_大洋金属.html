@@ -717,13 +717,15 @@
         </div>
 
         <div class="card">
-            <div class="tip-box">このセクションは体制表フォーマットの記入イメージです。実データは2816工番の試運転計画が固まり次第、差し替えます。枠と枠は原本Excelのコネクタ線に基づき接続関係を再現しています。</div>
+            <div class="tip-box">体制表の詳細（責任者・連絡先）は記入例です。</div>
 
-            <div class="info-grid" style="grid-template-columns:repeat(4,1fr);">
-                <div class="info-item"><div class="k">工事番号</div><div class="v">2783</div></div>
+            <div class="info-grid" style="grid-template-columns:repeat(3,1fr);">
+                <div class="info-item"><div class="k">工事番号</div><div class="v">2816</div></div>
+                <div class="info-item"><div class="k">工事名称</div><div class="v">16インチライン管端処理設備</div></div>
                 <div class="info-item"><div class="k">試運転対象</div><div class="v">エントリー全般</div></div>
                 <div class="info-item"><div class="k">試運転期間</div><div class="v">4/21 ～ 5/8</div></div>
                 <div class="info-item"><div class="k">試運転時間</div><div class="v">8:30～17:30<small>残業は最大19:00／休日対応は相談</small></div></div>
+                <div class="info-item"></div>
             </div>
 
             <div class="org-chart-row">
@@ -820,64 +822,17 @@
     <!-- 4. 簡易行程 -->
     <section class="view-panel" id="panel-schedule">
         <div class="panel-head">
-            <span class="src">出典：組立発注仕様書R2「1-10）工程」</span>
+            <span class="src">出典：全体工程表データ（担当が「外注」のタスク）</span>
         </div>
 
         <div class="card">
             <div class="gantt-wrap">
-                <div class="mini-gantt">
-                    <div class="mg-cell mg-head year"></div>
-                    <div class="mg-cell mg-head year" style="grid-column: span 4;">2026年</div>
-                    <div class="mg-cell mg-head year" style="grid-column: span 4;">2027年</div>
-
-                    <div class="mg-cell mg-head"></div>
-                    <div class="mg-cell mg-head">9月</div>
-                    <div class="mg-cell mg-head">10月</div>
-                    <div class="mg-cell mg-head">11月</div>
-                    <div class="mg-cell mg-head">12月</div>
-                    <div class="mg-cell mg-head">1月</div>
-                    <div class="mg-cell mg-head">2月</div>
-                    <div class="mg-cell mg-head">3月</div>
-                    <div class="mg-cell mg-head">4月</div>
-
-                    <div class="mg-cell mg-row-label">部品図出図</div>
-                    <div class="mg-track"><div class="bar kusakabe" style="left:0%; width:18%;"></div></div>
-
-                    <div class="mg-cell mg-row-label">部品製作</div>
-                    <div class="mg-track"><div class="bar joint" style="left:6%; width:38%;"></div></div>
-
-                    <div class="mg-cell mg-row-label">組立図製作</div>
-                    <div class="mg-track"><div class="bar kusakabe" style="left:0%; width:25%;"></div></div>
-
-                    <div class="mg-cell mg-row-label">塗装</div>
-                    <div class="mg-track"><div class="bar taiyo" style="left:38%; width:12%;"></div></div>
-
-                    <div class="mg-cell mg-row-label">組立（艤装含む）</div>
-                    <div class="mg-track"><div class="bar taiyo" style="left:44%; width:25%;"></div></div>
-
-                    <div class="mg-cell mg-row-label">据付</div>
-                    <div class="mg-track"><div class="bar taiyo" style="left:63%; width:12%;"></div></div>
-
-                    <div class="mg-cell mg-row-label">電気艤装</div>
-                    <div class="mg-track"><div class="bar kusakabe" style="left:56%; width:19%;"></div></div>
-
-                    <div class="mg-cell mg-row-label">組立確認検査</div>
-                    <div class="mg-track"><div class="bar kusakabe" style="left:75%; width:7%;"></div></div>
-
-                    <div class="mg-cell mg-row-label">試運転</div>
-                    <div class="mg-track"><div class="bar kusakabe" style="left:82%; width:12%;"></div></div>
-
-                    <div class="mg-cell mg-row-label">解体・養生・梱包</div>
-                    <div class="mg-track"><div class="bar taiyo" style="left:88%; width:6%;"></div></div>
-
-                    <div class="mg-cell mg-row-label">出荷</div>
-                    <div class="mg-track"><div class="bar kusakabe" style="left:94%; width:4%;"></div></div>
+                <div class="mini-gantt" id="miniGantt">
+                    <div style="padding:20px;color:#8a97a8;">読込中…</div>
                 </div>
             </div>
             <div class="gantt-legend">
-                <span class="li"><span class="sw" style="background:#3498db;"></span>日下部電機㈱ 主担当</span>
-                <span class="li"><span class="sw" style="background:#e67e22;"></span>組立業者（外注先） 主担当</span>
-                <span class="li"><span class="sw" style="background:linear-gradient(90deg,#3498db,#e67e22);"></span>両社共同</span>
+                <span class="li"><span class="sw" style="background:#e67e22;"></span>組立業者（外注先） 担当タスク</span>
             </div>
         </div>
     </section>
@@ -924,6 +879,81 @@ const S_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJl
     } catch (e) {
         console.error('客先名の取得に失敗しました', e);
         el.textContent = '―';
+    }
+})();
+
+function daysInMonth(year, month) { return new Date(year, month, 0).getDate(); }
+function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+(async () => {
+    const container = document.getElementById('miniGantt');
+    try {
+        const client = supabase.createClient(S_URL, S_KEY);
+        const { data, error } = await client
+            .from('tasks')
+            .select('id, text, unit, major_item, start_date, end_date')
+            .eq('project_number', PROJECT_NUMBER)
+            .eq('owner', '外注')
+            .order('start_date');
+        if (error) throw error;
+
+        const tasks = (data || [])
+            .filter(t => t.start_date && t.end_date)
+            .map(t => ({ ...t, start: new Date(t.start_date), end: new Date(t.end_date) }));
+
+        if (tasks.length === 0) {
+            container.innerHTML = '<div style="padding:20px;color:#8a97a8;">外注担当のタスクが見つかりませんでした。</div>';
+            return;
+        }
+
+        const minStart = new Date(Math.min(...tasks.map(t => t.start.getTime())));
+        const maxEnd = new Date(Math.max(...tasks.map(t => t.end.getTime())));
+
+        const months = [];
+        let y = minStart.getFullYear();
+        let m = minStart.getMonth() + 1;
+        const endY = maxEnd.getFullYear();
+        const endM = maxEnd.getMonth() + 1;
+        while (y < endY || (y === endY && m <= endM)) {
+            months.push({ year: y, month: m, days: daysInMonth(y, m) });
+            m++;
+            if (m > 12) { m = 1; y++; }
+        }
+
+        const rangeStart = new Date(minStart.getFullYear(), minStart.getMonth(), 1);
+        const rangeEnd = new Date(maxEnd.getFullYear(), maxEnd.getMonth() + 1, 0);
+        const totalDays = (rangeEnd - rangeStart) / 86400000 + 1;
+
+        container.style.gridTemplateColumns = `150px ${months.map(mo => `${mo.days}fr`).join(' ')}`;
+
+        let html = '<div class="mg-cell mg-head year"></div>';
+        let i = 0;
+        while (i < months.length) {
+            let span = 1;
+            while (i + span < months.length && months[i + span].year === months[i].year) span++;
+            html += `<div class="mg-cell mg-head year" style="grid-column: span ${span};">${months[i].year}年</div>`;
+            i += span;
+        }
+
+        html += '<div class="mg-cell mg-head"></div>';
+        months.forEach(mo => { html += `<div class="mg-cell mg-head">${mo.month}月</div>`; });
+
+        tasks.forEach(t => {
+            const offsetDays = (t.start - rangeStart) / 86400000;
+            const durationDays = (t.end - t.start) / 86400000 + 1;
+            const leftPct = (offsetDays / totalDays) * 100;
+            const widthPct = (durationDays / totalDays) * 100;
+            const label = t.unit ? `${t.text}（${t.unit}）` : t.text;
+            html += `<div class="mg-cell mg-row-label">${escapeHtml(label)}</div>`;
+            html += `<div class="mg-track" style="grid-column: span ${months.length};"><div class="bar taiyo" style="left:${leftPct}%; width:${widthPct}%;"></div></div>`;
+        });
+
+        container.innerHTML = html;
+    } catch (e) {
+        console.error('簡易行程データの取得に失敗しました', e);
+        container.innerHTML = '<div style="padding:20px;color:#8a97a8;">データの取得に失敗しました。</div>';
     }
 })();
 
