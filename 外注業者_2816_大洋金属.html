@@ -155,7 +155,7 @@
     }
     .side-nav-btn:hover { color: #2166a3; background: #eaf2fb; }
 
-    /* 表示切替トグル（②組立範囲／④簡易行程） */
+    /* 表示切替トグル（②組立範囲／④工程表） */
     .view-toggle {
         display: inline-flex;
         background: #eef1f5;
@@ -380,10 +380,10 @@
         display: grid;
         grid-template-columns: 150px repeat(8, minmax(80px, 1fr));
         min-width: 900px;
+        width: max-content;
         font-size: 13px;
         border: 1px solid #e0e6ef;
         border-radius: 6px;
-        overflow: hidden;
     }
     .mg-cell {
         padding: 8px 10px;
@@ -411,6 +411,30 @@
     .gantt-legend { display: flex; gap: 18px; margin-top: 10px; font-size: 13px; color: #5a6a7e; flex-wrap: wrap; }
     .gantt-legend .li { display: flex; align-items: center; gap: 6px; }
     .gantt-legend .sw { width: 16px; height: 10px; border-radius: 2px; }
+
+    .gantt-unit-toggle {
+        display: inline-flex;
+        background: #eef1f5;
+        border-radius: 8px;
+        padding: 3px;
+        margin-bottom: 12px;
+    }
+    .gantt-unit-btn {
+        appearance: none;
+        border: none;
+        background: transparent;
+        font-family: inherit;
+        font-size: 13px;
+        font-weight: 700;
+        color: #5a6a7e;
+        padding: 7px 18px;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: background .15s, color .15s;
+    }
+    .gantt-unit-btn.active { background: #fff; color: #2166a3; box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
+    .mg-head.weekend { color: #e05a5a; }
+    .mg-head small { font-size: 9.5px; display: block; }
 
     /* 連絡先カード（シンプル・非階層用） */
     .contact-grid {
@@ -740,7 +764,7 @@
             <span class="home-label"><b>工事一覧</b><small>外注先用</small></span>
         </a>
         <button class="side-nav-btn" data-open="order-spec">組立発注仕様書</button>
-        <button class="side-nav-btn" data-open="trial">試運転体制表</button>
+        <button class="side-nav-btn" data-open="trial">体制表</button>
         <button class="side-nav-btn side-nav-print" id="printBtn">印刷／PDF保存</button>
     </nav>
 
@@ -749,7 +773,7 @@
     <div class="toolbar-row">
         <div class="view-toggle">
             <button class="view-toggle-btn active" data-view="scope">組立範囲（図面）</button>
-            <button class="view-toggle-btn" data-view="schedule">簡易行程</button>
+            <button class="view-toggle-btn" data-view="schedule">工程表</button>
         </div>
         <div class="party-legend">
             <span class="lg-label">担当の色分け</span>
@@ -882,64 +906,83 @@
 
             <div class="subhead">担当範囲一覧（DF前／DF後）</div>
             <table class="data-table">
-                <thead><tr><th>区分</th><th>ユニット</th><th>機械名</th><th>組立</th><th>配管＆電気艤装</th><th>据付＆レベル出し</th><th>試運転</th></tr></thead>
+                <thead><tr><th>区分</th><th>ユニット</th><th>機械名</th><th>組立</th><th>配管</th><th>電気艤装</th><th>据付＆レベル出し</th><th>試運転</th><th>試運転場所</th></tr></thead>
                 <tbody>
                     <tr><td>DF前</td><td>CV1&amp;2&amp;3</td><td>チェーンコンベヤ</td>
                         <td><span class="party-chip party-taiyo"><span class="dot"></span>大洋金属㈱殿</span></td>
                         <td><span class="party-chip party-taiyo"><span class="dot"></span>大洋金属㈱殿</span></td>
                         <td><span class="party-chip party-taiyo"><span class="dot"></span>大洋金属㈱殿</span></td>
+                        <td><span class="party-chip party-taiyo"><span class="dot"></span>大洋金属㈱殿</span></td>
+                        <td><span class="party-chip party-kusakabe"><span class="dot"></span>日下部電機㈱</span></td>
                         <td><span class="party-chip party-taiyo"><span class="dot"></span>大洋金属㈱殿</span></td></tr>
                     <tr><td>DF前</td><td>RV3</td><td>面取出側ローラーテーブル</td>
                         <td><span class="party-chip party-kusakabe"><span class="dot"></span>日下部電機㈱</span></td>
                         <td><span class="party-chip party-taiyo"><span class="dot"></span>大洋金属㈱殿</span></td>
                         <td><span class="party-chip party-taiyo"><span class="dot"></span>大洋金属㈱殿</span></td>
+                        <td><span class="party-chip party-taiyo"><span class="dot"></span>大洋金属㈱殿</span></td>
+                        <td><span class="party-chip party-kusakabe"><span class="dot"></span>日下部電機㈱</span></td>
                         <td><span class="party-chip party-taiyo"><span class="dot"></span>大洋金属㈱殿</span></td></tr>
                     <tr><td>DF前</td><td>WK</td><td>移載装置</td>
                         <td><span class="party-chip party-kusakabe"><span class="dot"></span>日下部電機㈱</span></td>
                         <td><span class="party-chip party-taiyo"><span class="dot"></span>大洋金属㈱殿</span></td>
                         <td><span class="party-chip party-taiyo"><span class="dot"></span>大洋金属㈱殿</span></td>
+                        <td><span class="party-chip party-taiyo"><span class="dot"></span>大洋金属㈱殿</span></td>
+                        <td><span class="party-chip party-kusakabe"><span class="dot"></span>日下部電機㈱</span></td>
                         <td><span class="party-chip party-taiyo"><span class="dot"></span>大洋金属㈱殿</span></td></tr>
                     <tr><td>DF前</td><td>PV1</td><td>面取入側ピックアップ</td>
                         <td><span class="party-chip party-taiyo"><span class="dot"></span>大洋金属㈱殿</span></td>
                         <td><span class="party-chip party-taiyo"><span class="dot"></span>大洋金属㈱殿</span></td>
                         <td><span class="party-chip party-taiyo"><span class="dot"></span>大洋金属㈱殿</span></td>
+                        <td><span class="party-chip party-taiyo"><span class="dot"></span>大洋金属㈱殿</span></td>
+                        <td><span class="party-chip party-kusakabe"><span class="dot"></span>日下部電機㈱</span></td>
                         <td><span class="party-chip party-taiyo"><span class="dot"></span>大洋金属㈱殿</span></td></tr>
                     <tr><td>DF前</td><td>RV1&amp;2</td><td>ローラーテーブル</td>
                         <td><span class="party-chip party-kusakabe"><span class="dot"></span>日下部電機㈱</span></td>
                         <td><span class="party-chip party-kusakabe"><span class="dot"></span>日下部電機㈱</span></td>
                         <td><span class="party-chip party-kusakabe"><span class="dot"></span>日下部電機㈱</span></td>
+                        <td><span class="party-chip party-kusakabe"><span class="dot"></span>日下部電機㈱</span></td>
+                        <td>―</td>
                         <td>―</td></tr>
                     <tr><td>DF前</td><td>RVC</td><td>センタリング装置</td>
                         <td><span class="party-chip party-kusakabe"><span class="dot"></span>日下部電機㈱</span></td>
                         <td><span class="party-chip party-kusakabe"><span class="dot"></span>日下部電機㈱</span></td>
                         <td><span class="party-chip party-kusakabe"><span class="dot"></span>日下部電機㈱</span></td>
+                        <td><span class="party-chip party-kusakabe"><span class="dot"></span>日下部電機㈱</span></td>
+                        <td>―</td>
                         <td>―</td></tr>
                     <tr><td>DF後</td><td>RV4&amp;CV4&amp;PV2</td><td>ローラーテーブル</td>
                         <td><span class="party-chip party-nisshin"><span class="dot"></span>株式会社ニッシン殿</span></td>
                         <td><span class="party-chip party-nisshin"><span class="dot"></span>株式会社ニッシン殿</span></td>
                         <td><span class="party-chip party-nisshin"><span class="dot"></span>株式会社ニッシン殿</span></td>
+                        <td><span class="party-chip party-nisshin"><span class="dot"></span>株式会社ニッシン殿</span></td>
+                        <td><span class="party-chip party-kusakabe"><span class="dot"></span>日下部電機㈱</span></td>
                         <td><span class="party-chip party-kusakabe"><span class="dot"></span>日下部電機㈱</span></td></tr>
                     <tr><td>DF後</td><td>RV6&amp;CV5&amp;PV3</td><td>コンベヤ</td>
                         <td><span class="party-chip party-nisshin"><span class="dot"></span>株式会社ニッシン殿</span></td>
                         <td><span class="party-chip party-nisshin"><span class="dot"></span>株式会社ニッシン殿</span></td>
                         <td><span class="party-chip party-nisshin"><span class="dot"></span>株式会社ニッシン殿</span></td>
+                        <td><span class="party-chip party-nisshin"><span class="dot"></span>株式会社ニッシン殿</span></td>
+                        <td><span class="party-chip party-kusakabe"><span class="dot"></span>日下部電機㈱</span></td>
                         <td><span class="party-chip party-kusakabe"><span class="dot"></span>日下部電機㈱</span></td></tr>
                     <tr><td>DF後</td><td>RV5</td><td>ローラーテーブル</td>
                         <td><span class="party-chip party-kusakabe"><span class="dot"></span>日下部電機㈱</span></td>
                         <td><span class="party-chip party-kusakabe"><span class="dot"></span>日下部電機㈱</span></td>
                         <td><span class="party-chip party-kusakabe"><span class="dot"></span>日下部電機㈱</span></td>
+                        <td><span class="party-chip party-kusakabe"><span class="dot"></span>日下部電機㈱</span></td>
+                        <td>―</td>
+                        <td>―</td>
                         <td>―</td></tr>
                 </tbody>
             </table>
         </div>
     </section>
 
-    <!-- 3. 試運転体制表 -->
+    <!-- 3. 体制表 -->
     <section class="fullscreen-overlay" id="panel-trial">
-        <div class="drawer-bar"><h2>試運転体制表</h2><button class="overlay-close-btn" data-close="trial">✕ 閉じる</button></div>
+        <div class="drawer-bar"><h2>体制表</h2><button class="overlay-close-btn" data-close="trial">✕ 閉じる</button></div>
         <div class="overlay-inner">
         <div class="panel-head">
-            <h2 class="print-only">試運転体制表</h2>
+            <h2 class="print-only">体制表</h2>
             <span class="src">出典：試運転体制表.xlsx（記入例／工番2783）</span>
         </div>
 
@@ -1046,14 +1089,18 @@
         </div><!-- /.overlay-inner -->
     </section>
 
-    <!-- 4. 簡易行程 -->
+    <!-- 4. 工程表 -->
     <section class="view-panel" id="panel-schedule">
         <div class="panel-head">
-            <h2 class="print-only">簡易行程</h2>
+            <h2 class="print-only">工程表</h2>
             <span class="src">出典：全体工程表データ（担当が「外注」のタスク）</span>
         </div>
 
         <div class="card">
+            <div class="gantt-unit-toggle">
+                <button class="gantt-unit-btn active" data-unit="week" type="button">週単位</button>
+                <button class="gantt-unit-btn" data-unit="day" type="button">日単位</button>
+            </div>
             <div class="gantt-wrap">
                 <div class="mini-gantt" id="miniGantt">
                     <div style="padding:20px;color:#8a97a8;">読込中…</div>
@@ -1131,7 +1178,7 @@ const S_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJl
     }
 })();
 
-// 簡易行程のバー色：ユニット名から担当外注先を判定（組立範囲の担当一覧と対応）
+// 工程表のバー色：ユニット名から担当外注先を判定（組立範囲の担当一覧と対応）
 const NISSHIN_UNITS = ['RV4', 'CV4', 'PV2', 'RV6', 'CV5', 'PV3'];
 function vendorOf(t) {
     const s = ((t.unit || '') + ' ' + (t.text || '')).toUpperCase();
@@ -1140,10 +1187,105 @@ function vendorOf(t) {
         : { cls: 'taiyo', name: '大洋金属㈱殿' };
 }
 
-function daysInMonth(year, month) { return new Date(year, month, 0).getDate(); }
 function escapeHtml(s) {
     return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
+function startOfWeekMon(date) {
+    const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const day = d.getDay();
+    const diff = (day === 0 ? -6 : 1) - day;
+    d.setDate(d.getDate() + diff);
+    return d;
+}
+const WEEKDAY_JA = ['日', '月', '火', '水', '木', '金', '土'];
+
+let ganttTasks = [];
+let ganttUnit = 'week';
+
+function renderGanttRowsHtml(rangeStart, totalUnits, columnBuilder) {
+    let html = '';
+    ganttTasks.forEach(t => {
+        const offsetDays = (t.start - rangeStart) / 86400000;
+        const durationDays = (t.end - t.start) / 86400000 + 1;
+        const leftPct = (offsetDays / totalUnits) * 100;
+        const widthPct = (durationDays / totalUnits) * 100;
+        const label = t.unit ? `${t.text}（${t.unit}）` : t.text;
+        html += `<div class="mg-cell mg-row-label">${escapeHtml(label)}</div>`;
+        const v = vendorOf(t);
+        html += `<div class="mg-track" style="grid-column: span ${columnBuilder};"><div class="bar ${v.cls}" title="${v.name}" style="left:${leftPct}%; width:${widthPct}%;"></div></div>`;
+    });
+    return html;
+}
+
+function renderGantt() {
+    const container = document.getElementById('miniGantt');
+    if (ganttTasks.length === 0) {
+        container.innerHTML = '<div style="padding:20px;color:#8a97a8;">外注担当のタスクが見つかりませんでした。</div>';
+        return;
+    }
+    const minStart = new Date(Math.min(...ganttTasks.map(t => t.start.getTime())));
+    const maxEnd = new Date(Math.max(...ganttTasks.map(t => t.end.getTime())));
+
+    if (ganttUnit === 'day') {
+        const rangeStart = new Date(minStart.getFullYear(), minStart.getMonth(), minStart.getDate());
+        const rangeEnd = new Date(maxEnd.getFullYear(), maxEnd.getMonth(), maxEnd.getDate());
+        const days = [];
+        for (let d = new Date(rangeStart); d <= rangeEnd; d.setDate(d.getDate() + 1)) days.push(new Date(d));
+        const totalDays = days.length;
+
+        container.style.gridTemplateColumns = `150px repeat(${days.length}, minmax(34px, 1fr))`;
+
+        let html = '<div class="mg-cell mg-head year"></div>';
+        let i = 0;
+        while (i < days.length) {
+            let span = 1;
+            const baseM = days[i].getMonth(), baseY = days[i].getFullYear();
+            while (i + span < days.length && days[i + span].getMonth() === baseM && days[i + span].getFullYear() === baseY) span++;
+            html += `<div class="mg-cell mg-head year" style="grid-column: span ${span};">${baseY}年${baseM + 1}月</div>`;
+            i += span;
+        }
+        html += '<div class="mg-cell mg-head"></div>';
+        days.forEach(d => {
+            const weekend = d.getDay() === 0 || d.getDay() === 6;
+            html += `<div class="mg-cell mg-head${weekend ? ' weekend' : ''}">${d.getDate()}<small>${WEEKDAY_JA[d.getDay()]}</small></div>`;
+        });
+        html += renderGanttRowsHtml(rangeStart, totalDays, days.length);
+        container.innerHTML = html;
+    } else {
+        const rangeStart = startOfWeekMon(minStart);
+        const lastWeekStart = startOfWeekMon(maxEnd);
+        const rangeEnd = new Date(lastWeekStart);
+        rangeEnd.setDate(rangeEnd.getDate() + 6);
+        const weeks = [];
+        for (let d = new Date(rangeStart); d <= rangeEnd; d.setDate(d.getDate() + 7)) weeks.push(new Date(d));
+        const totalDays = (rangeEnd - rangeStart) / 86400000 + 1;
+
+        container.style.gridTemplateColumns = `150px ${weeks.map(() => '1fr').join(' ')}`;
+
+        let html = '<div class="mg-cell mg-head year"></div>';
+        let i = 0;
+        while (i < weeks.length) {
+            let span = 1;
+            const baseM = weeks[i].getMonth(), baseY = weeks[i].getFullYear();
+            while (i + span < weeks.length && weeks[i + span].getMonth() === baseM && weeks[i + span].getFullYear() === baseY) span++;
+            html += `<div class="mg-cell mg-head year" style="grid-column: span ${span};">${baseY}年${baseM + 1}月</div>`;
+            i += span;
+        }
+        html += '<div class="mg-cell mg-head"></div>';
+        weeks.forEach(w => { html += `<div class="mg-cell mg-head">${w.getMonth() + 1}/${w.getDate()}</div>`; });
+        html += renderGanttRowsHtml(rangeStart, totalDays, weeks.length);
+        container.innerHTML = html;
+    }
+}
+
+document.querySelectorAll('.gantt-unit-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.gantt-unit-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        ganttUnit = btn.dataset.unit;
+        renderGantt();
+    });
+});
 
 (async () => {
     const container = document.getElementById('miniGantt');
@@ -1157,61 +1299,13 @@ function escapeHtml(s) {
             .order('start_date');
         if (error) throw error;
 
-        const tasks = (data || [])
+        ganttTasks = (data || [])
             .filter(t => t.start_date && t.end_date)
             .map(t => ({ ...t, start: new Date(t.start_date), end: new Date(t.end_date) }));
 
-        if (tasks.length === 0) {
-            container.innerHTML = '<div style="padding:20px;color:#8a97a8;">外注担当のタスクが見つかりませんでした。</div>';
-            return;
-        }
-
-        const minStart = new Date(Math.min(...tasks.map(t => t.start.getTime())));
-        const maxEnd = new Date(Math.max(...tasks.map(t => t.end.getTime())));
-
-        const months = [];
-        let y = minStart.getFullYear();
-        let m = minStart.getMonth() + 1;
-        const endY = maxEnd.getFullYear();
-        const endM = maxEnd.getMonth() + 1;
-        while (y < endY || (y === endY && m <= endM)) {
-            months.push({ year: y, month: m, days: daysInMonth(y, m) });
-            m++;
-            if (m > 12) { m = 1; y++; }
-        }
-
-        const rangeStart = new Date(minStart.getFullYear(), minStart.getMonth(), 1);
-        const rangeEnd = new Date(maxEnd.getFullYear(), maxEnd.getMonth() + 1, 0);
-        const totalDays = (rangeEnd - rangeStart) / 86400000 + 1;
-
-        container.style.gridTemplateColumns = `150px ${months.map(mo => `${mo.days}fr`).join(' ')}`;
-
-        let html = '<div class="mg-cell mg-head year"></div>';
-        let i = 0;
-        while (i < months.length) {
-            let span = 1;
-            while (i + span < months.length && months[i + span].year === months[i].year) span++;
-            html += `<div class="mg-cell mg-head year" style="grid-column: span ${span};">${months[i].year}年</div>`;
-            i += span;
-        }
-
-        html += '<div class="mg-cell mg-head"></div>';
-        months.forEach(mo => { html += `<div class="mg-cell mg-head">${mo.month}月</div>`; });
-
-        tasks.forEach(t => {
-            const offsetDays = (t.start - rangeStart) / 86400000;
-            const durationDays = (t.end - t.start) / 86400000 + 1;
-            const leftPct = (offsetDays / totalDays) * 100;
-            const widthPct = (durationDays / totalDays) * 100;
-            const label = t.unit ? `${t.text}（${t.unit}）` : t.text;
-            html += `<div class="mg-cell mg-row-label">${escapeHtml(label)}</div>`;
-            const v = vendorOf(t);
-            html += `<div class="mg-track" style="grid-column: span ${months.length};"><div class="bar ${v.cls}" title="${v.name}" style="left:${leftPct}%; width:${widthPct}%;"></div></div>`;
-        });
-
-        container.innerHTML = html;
+        renderGantt();
     } catch (e) {
-        console.error('簡易行程データの取得に失敗しました', e);
+        console.error('工程表データの取得に失敗しました', e);
         container.innerHTML = '<div style="padding:20px;color:#8a97a8;">データの取得に失敗しました。</div>';
     }
 })();
@@ -1310,7 +1404,7 @@ function rotatePoint(px, py, cx, cy, deg) {
         const im = card.querySelector('img');
         const figureId = card.dataset.figureId;
         const hint = document.createElement('span');
-        hint.className = 'fig-zoom-hint'; hint.textContent = '🔍 クリックで拡大';
+        hint.className = 'fig-zoom-hint'; hint.textContent = '🔍 クリックで拡大・編集';
         card.appendChild(hint);
         im.addEventListener('click', () => open(im.src, card.querySelector('.figure-caption')?.textContent || '', figureId));
     });
