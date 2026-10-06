@@ -396,14 +396,16 @@
         background: #f8fafc;
         color: #5a6a7e;
         font-weight: 700;
-        font-size: 12px;
+        font-size: 13px;
+        flex-direction: column;
         justify-content: center;
         text-align: center;
     }
-    .mg-head.year { background: #eef2f6; color: #8a97a8; font-size: 11.5px; }
+    .mg-head.year { background: #eef2f6; color: #8a97a8; font-size: 12.5px; }
     .mg-row-label { background: #fbfcfd; color: #2c3e50; font-weight: 500; font-size: 13px; }
     .mg-track { position: relative; grid-column: span 8; height: 34px; border-bottom: 1px solid #eef1f5; }
-    .mg-track .bar { position: absolute; top: 6px; height: 22px; border-radius: 4px; background: #3498db; opacity: 0.85; }
+    .mg-track .bar { position: absolute; top: 6px; height: 22px; border-radius: 4px; background: #3498db; opacity: 0.85; overflow: hidden; }
+    .mg-track .bar .bar-label { display: block; padding: 0 6px; color: #fff; font-size: 11px; font-weight: 600; line-height: 22px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .mg-track .bar.taiyo { background: #e67e22; }
     .mg-track .bar.kusakabe { background: #3498db; }
     .mg-track .bar.joint { background: linear-gradient(90deg, #3498db 0%, #3498db 50%, #e67e22 50%, #e67e22 100%); }
@@ -434,7 +436,12 @@
     }
     .gantt-unit-btn.active { background: #fff; color: #2166a3; box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
     .mg-head.weekend { color: #e05a5a; }
-    .mg-head small { font-size: 9.5px; display: block; }
+    .mg-head .mg-date { display: block; width: 100%; }
+    .mg-head small { font-size: 9.5px; display: block; width: 100%; }
+    .mini-gantt.day-mode .mg-head { padding: 6px 2px; }
+    .mini-gantt.day-mode .mg-head { font-size: 14px; }
+    .mini-gantt.day-mode .mg-head small { font-size: 11.5px; }
+    .mini-gantt.day-mode .mg-head.year { font-size: 13px; }
 
     /* 連絡先カード（シンプル・非階層用） */
     .contact-grid {
@@ -1183,8 +1190,8 @@ const NISSHIN_UNITS = ['RV4', 'CV4', 'PV2', 'RV6', 'CV5', 'PV3'];
 function vendorOf(t) {
     const s = ((t.unit || '') + ' ' + (t.text || '')).toUpperCase();
     return NISSHIN_UNITS.some(u => s.includes(u))
-        ? { cls: 'nisshin', name: '株式会社ニッシン殿' }
-        : { cls: 'taiyo', name: '大洋金属㈱殿' };
+        ? { cls: 'nisshin', name: '株式会社ニッシン殿', short: 'ニッシン' }
+        : { cls: 'taiyo', name: '大洋金属㈱殿', short: '大洋金属' };
 }
 
 function escapeHtml(s) {
@@ -1212,7 +1219,7 @@ function renderGanttRowsHtml(rangeStart, totalUnits, columnBuilder) {
         const label = t.unit ? `${t.text}（${t.unit}）` : t.text;
         html += `<div class="mg-cell mg-row-label">${escapeHtml(label)}</div>`;
         const v = vendorOf(t);
-        html += `<div class="mg-track" style="grid-column: span ${columnBuilder};"><div class="bar ${v.cls}" title="${v.name}" style="left:${leftPct}%; width:${widthPct}%;"></div></div>`;
+        html += `<div class="mg-track" style="grid-column: span ${columnBuilder};"><div class="bar ${v.cls}" title="${v.name}" style="left:${leftPct}%; width:${widthPct}%;"><span class="bar-label">${v.short}</span></div></div>`;
     });
     return html;
 }
@@ -1233,7 +1240,8 @@ function renderGantt() {
         for (let d = new Date(rangeStart); d <= rangeEnd; d.setDate(d.getDate() + 1)) days.push(new Date(d));
         const totalDays = days.length;
 
-        container.style.gridTemplateColumns = `150px repeat(${days.length}, minmax(34px, 1fr))`;
+        container.classList.add('day-mode');
+        container.style.gridTemplateColumns = `150px repeat(${days.length}, minmax(22px, 1fr))`;
 
         let html = '<div class="mg-cell mg-head year"></div>';
         let i = 0;
@@ -1247,7 +1255,7 @@ function renderGantt() {
         html += '<div class="mg-cell mg-head"></div>';
         days.forEach(d => {
             const weekend = d.getDay() === 0 || d.getDay() === 6;
-            html += `<div class="mg-cell mg-head${weekend ? ' weekend' : ''}">${d.getDate()}<small>${WEEKDAY_JA[d.getDay()]}</small></div>`;
+            html += `<div class="mg-cell mg-head${weekend ? ' weekend' : ''}"><span class="mg-date">${d.getDate()}</span><small>${WEEKDAY_JA[d.getDay()]}</small></div>`;
         });
         html += renderGanttRowsHtml(rangeStart, totalDays, days.length);
         container.innerHTML = html;
@@ -1260,6 +1268,7 @@ function renderGantt() {
         for (let d = new Date(rangeStart); d <= rangeEnd; d.setDate(d.getDate() + 7)) weeks.push(new Date(d));
         const totalDays = (rangeEnd - rangeStart) / 86400000 + 1;
 
+        container.classList.remove('day-mode');
         container.style.gridTemplateColumns = `150px ${weeks.map(() => '1fr').join(' ')}`;
 
         let html = '<div class="mg-cell mg-head year"></div>';
