@@ -823,6 +823,17 @@
                             return;
                         }
                         const realId = task.original_id || tid;
+                        // 開催案内送付済みの検査・会議タスクは日程変更を拒否し、バーを元の位置に戻す
+                        const lockRow = window.allTasks
+                            ? window.allTasks.find(function(t) { return String(t.id) === String(realId); })
+                            : null;
+                        if (lockRow && lockRow.invite_date_locked && INVITE_LOCK_TASK_TEXTS.includes(lockRow.text)) {
+                            previewStart = new Date(startOrig);
+                            previewDur = durOrig;
+                            paint();
+                            alert(INVITE_LOCK_MESSAGE);
+                            return;
+                        }
                         const upd = Object.assign({
                             start_date: startDb1,
                             duration: dur1,

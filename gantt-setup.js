@@ -28,6 +28,11 @@
             }
         });
 
+        // 承認フローアプリから開催案内を送付済みの検査・会議タスク（tasks.invite_date_locked=true）は
+        // 全体工程表からの日程変更を禁止する（gantt-events.js の保存処理・gantt-resource.js のバードラッグで判定）
+        const INVITE_LOCK_TASK_TEXTS = ['簡易検査', '外観検査', '出荷品確認検査', '出荷確認会議'];
+        const INVITE_LOCK_MESSAGE = '開催案内を送付済みです。日程変更は承認フローアプリから行ってください。';
+
         // ===== 認証管理 =====
         // 編集可能なメールアドレスリスト（確定後に追加してください）
         const EDITORS = [
