@@ -302,6 +302,7 @@
                     main_owner: t.main_owner || "",
                     is_completed: t.is_completed || false,
                     shipping_date_locked: t.shipping_date_locked || false,
+                    invite_date_locked: t.invite_date_locked || false,
                     bar_color: t.bar_color || '',
                     $design_trip: t.$design_trip || false,
                     original_id: t.original_id || null,

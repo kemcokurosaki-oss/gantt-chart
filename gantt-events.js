@@ -1003,10 +1003,14 @@
             // （変更は承認フロー[出荷確定日変更]経由のみ許可。ロック自体はapp.js側のlockShippingDateOnApprovalが設定）
             const isLockedShippingTask = !!(oldTask && oldTask.shipping_date_locked &&
                 (oldTask.text === '工場出荷' || oldTask.text === '梱包出荷'));
-            const shippingDateChanged = isLockedShippingTask &&
+            // 検査・会議（簡易検査/外観検査/出荷品確認検査/出荷確認会議）は開催案内送付済みなら日程変更を拒否する
+            // （変更は承認フロー[詳細変更]経由のみ許可。ロック自体はapp.js側のsyncInspectionDateToTasksが設定）
+            const isLockedInviteTask = !!(oldTask && oldTask.invite_date_locked &&
+                INVITE_LOCK_TASK_TEXTS.includes(oldTask.text));
+            const lockedDateChanged = (isLockedShippingTask || isLockedInviteTask) &&
                 (oldTask.start_date !== updateData.start_date || Number(oldTask.duration) !== Number(updateData.duration));
-            if (shippingDateChanged) {
-                console.warn('出荷確定日はロック中のため工程表からの変更を拒否しました:', realId);
+            if (lockedDateChanged) {
+                console.warn('日程ロック中のため工程表からの変更を拒否しました:', realId);
                 if (gantt.isTaskExists(id)) {
                     try {
                         Object.assign(gantt.getTask(id), {
@@ -1029,7 +1033,9 @@
                         gantt.refreshTask(id);
                     } catch (e) {}
                 }
-                _showSaveStatus('error', null, '出荷確定日は常務承認済みのため、工程表からは変更できません。承認フロー画面から変更してください。');
+                _showSaveStatus('error', null, isLockedInviteTask
+                    ? INVITE_LOCK_MESSAGE
+                    : '出荷確定日は常務承認済みのため、工程表からは変更できません。承認フロー画面から変更してください。');
                 return;
             }
 
