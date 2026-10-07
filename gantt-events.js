@@ -1011,11 +1011,19 @@
                 (oldTask.start_date !== updateData.start_date || Number(oldTask.duration) !== Number(updateData.duration));
             if (lockedDateChanged) {
                 console.warn('日程ロック中のため工程表からの変更を拒否しました:', realId);
-                if (gantt.isTaskExists(id)) {
+                // ドラッグ等の更新処理が終わった後に戻さないと、変更後の位置で描画されたままになるため次のタイミングで戻す
+                // end_date も再計算しないとバー・マークが変更後の位置に残る。開始日は "YYYY-MM-DD" をローカル日付として解釈する
+                const _revertStart = oldTask.start_date instanceof Date
+                    ? oldTask.start_date
+                    : gantt.date.str_to_date("%Y-%m-%d")(String(oldTask.start_date).substring(0, 10));
+                setTimeout(function() {
+                    if (!gantt.isTaskExists(id)) return;
                     try {
-                        Object.assign(gantt.getTask(id), {
+                        const _t = gantt.getTask(id);
+                        Object.assign(_t, {
                             text: oldTask.text,
-                            start_date: oldTask.start_date instanceof Date ? oldTask.start_date : new Date(oldTask.start_date),
+                            start_date: _revertStart,
+                            end_date: gantt.calculateEndDate({ start_date: _revertStart, duration: oldTask.duration, task: _t }),
                             duration: oldTask.duration,
                             owner: oldTask.owner,
                             project_number: oldTask.project_number,
@@ -1030,9 +1038,9 @@
                             main_owner: oldTask.main_owner,
                             parent_name: oldTask.parent_name
                         });
-                        gantt.refreshTask(id);
+                        gantt.render();
                     } catch (e) {}
-                }
+                }, 0);
                 _showSaveStatus('error', null, isLockedInviteTask
                     ? INVITE_LOCK_MESSAGE
                     : '出荷確定日は常務承認済みのため、工程表からは変更できません。承認フロー画面から変更してください。');
