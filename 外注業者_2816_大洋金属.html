@@ -547,6 +547,92 @@
     .org-name small, .org-tel small { color: #8a97a8; font-weight: 400; font-size: 11.5px; }
     .org-tel { font-size: 12px; color: #3498db; }
 
+    /* ===== 体制表の編集（org-chart.js） ===== */
+    .oc-tools { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; margin-bottom: 6px; }
+    .oc-tools:has(.oc-toolrow) {
+        position: sticky; top: 52px; z-index: 4; align-items: stretch;
+        background: #fff; padding: 6px 0; border-bottom: 1px solid #e0e6ef;
+    }
+    .oc-toolrow { display: flex; gap: 8px; align-items: center; }
+    .oc-spacer { flex: 1; }
+    .oc-selbar {
+        display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+        background: #eaf2fb; border: 1px solid #b8d8f0; border-radius: 6px; padding: 6px 10px; font-size: 12.5px;
+    }
+    .oc-selbar--idle { background: #f7f9fb; border-color: #e0e6ef; color: #8a97a8; }
+    .oc-selname b { color: #2166a3; }
+    .oc-hint { color: #5a6a7e; margin-right: auto; }
+    .oc-btn:disabled { opacity: .4; cursor: default; background: #fff; }
+    .oc-btn--danger { border-color: #e74c3c; color: #c0392b; }
+    .oc-btn--danger:hover { background: #fdecea; }
+    .tree > li::before, .tree > li::after { display: none; }
+    .oc-editing .org-box[data-uid] { cursor: pointer; user-select: none; transition: box-shadow .12s, border-color .12s; }
+    .oc-editing .org-box[data-uid]:hover { border-color: #3498db; }
+    .org-box.oc-sel { border: 2px solid #2166a3 !important; box-shadow: 0 0 0 4px rgba(52,152,219,0.25) !important; }
+    .org-box.oc-drop, .oc-rootzone.oc-drop, .oc-tray.oc-drop { box-shadow: 0 0 0 3px #27ae60 !important; border-color: #27ae60 !important; }
+    .oc-rootzone {
+        border: 1px dashed #b8d8f0; border-radius: 6px; padding: 4px 10px; margin-bottom: 8px;
+        font-size: 11.5px; color: #8a97a8; text-align: center; cursor: pointer;
+    }
+    .oc-rootzone:hover { background: #eaf2fb; color: #2166a3; }
+    .oc-tray {
+        flex: 1 0 100%; border: 2px dashed #d5dce5; border-radius: 8px; padding: 10px; margin-top: 8px; background: #fff;
+    }
+    .oc-tray-head { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; font-size: 13px; font-weight: 700; color: #5a6a7e; }
+    .oc-tray-head span { margin-right: auto; }
+    .oc-tray .tree { justify-content: flex-start; flex-wrap: wrap; gap: 8px; }
+    .oc-tray-empty { font-size: 12px; color: #9aa7b5; padding: 8px; }
+    .oc-btn {
+        font: inherit; font-size: 12.5px; padding: 5px 12px; border-radius: 5px; cursor: pointer;
+        border: 1px solid #3498db; background: #fff; color: #2166a3;
+    }
+    .oc-btn:hover { background: #eaf2fb; }
+    a.oc-btn { text-decoration: none; display: inline-block; }
+    .oc-btn--primary { background: #3498db; color: #fff; }
+    .oc-btn--primary:hover { background: #2a83c4; }
+    .oc-btn--ghost { border-color: #c3ccd8; color: #5a6a7e; }
+    .oc-tools .oc-btn--ghost:only-child { font-size: 11.5px; padding: 3px 10px; }
+    .fullscreen-overlay.oc-full { width: 100vw; z-index: 300; }
+    .oc-editing { background: #fbfcfe; outline: 2px dashed #b8d8f0; border-radius: 8px; flex-wrap: wrap; }
+    .oc-chart-head button {
+        font-size: 11px; padding: 1px 6px; border: 1px solid #c3ccd8; border-radius: 4px;
+        background: #fff; color: #5a6a7e; cursor: pointer;
+    }
+    .oc-chart-head button:hover { background: #eaf2fb; border-color: #3498db; color: #2166a3; }
+    .oc-chart-head button[data-ca="del"]:hover { background: #fdecea; border-color: #e74c3c; color: #c0392b; }
+    .oc-chart-head { display: flex; gap: 4px; align-items: center; margin-bottom: 8px; }
+    .oc-title-input { font: inherit; font-size: 13.5px; font-weight: 700; padding: 3px 8px; border: 1px solid #c3ccd8; border-radius: 4px; }
+    .oc-modal-bg {
+        position: fixed; inset: 0; z-index: 2000; background: rgba(30,40,55,0.45);
+        display: flex; align-items: center; justify-content: center;
+    }
+    .oc-modal {
+        background: #fff; border-radius: 10px; width: min(520px, 94vw); max-height: 90vh;
+        display: flex; flex-direction: column; box-shadow: 0 10px 40px rgba(0,0,0,0.25);
+    }
+    .oc-modal--wide { width: min(900px, 96vw); }
+    .oc-modal-head { padding: 14px 20px; font-weight: 700; color: #2c3e50; border-bottom: 1px solid #e0e6ef; }
+    .oc-modal-body { padding: 14px 20px; overflow-y: auto; font-size: 13px; }
+    .oc-modal-foot { padding: 12px 20px; display: flex; gap: 8px; justify-content: flex-end; border-top: 1px solid #e0e6ef; }
+    .oc-field { display: flex; flex-direction: column; gap: 3px; margin-bottom: 10px; }
+    .oc-field span { font-size: 12px; color: #5a6a7e; font-weight: 700; }
+    .oc-field input, .oc-field select, .oc-paste textarea, .oc-staff input {
+        font: inherit; font-size: 13px; padding: 5px 8px; border: 1px solid #c3ccd8; border-radius: 4px; width: 100%; box-sizing: border-box;
+    }
+    .oc-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 10px; }
+    .oc-fs { border: 1px solid #e0e6ef; border-radius: 6px; padding: 8px 12px 0; margin: 0 0 10px; }
+    .oc-fs legend { font-size: 12px; color: #8a97a8; padding: 0 4px; }
+    .oc-type { display: flex; gap: 16px; margin-bottom: 10px; }
+    .oc-note { font-size: 12px; color: #8a97a8; margin: 0 0 10px; }
+    .oc-err { color: #c0392b; font-size: 12.5px; min-height: 1em; }
+    .oc-paste { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 10px; }
+    .oc-staff-wrap { max-height: 50vh; overflow-y: auto; margin-bottom: 8px; }
+    .oc-staff { width: 100%; border-collapse: collapse; }
+    .oc-staff th { font-size: 12px; color: #5a6a7e; text-align: left; padding: 4px; position: sticky; top: 0; background: #fff; }
+    .oc-staff td { padding: 2px 4px; }
+    .oc-staff .oc-num { width: 56px; }
+    .oc-staff td button { border: 0; background: none; color: #c0392b; cursor: pointer; }
+
     /* 注記 */
     .note-box {
         background: #fef9e7; border: 1px solid #f5d76e; border-radius: 6px;
@@ -744,6 +830,7 @@
         .org-chart-row { overflow: visible; }
         footer { padding: 8px; }
         .drawer-bar { display: none !important; }
+        .oc-tools, .oc-rootzone, .oc-tray { display: none !important; }
         .fullscreen-overlay { transform: none !important; visibility: visible !important; width: auto !important; box-shadow: none; border: 0; }
         body.drawer-open .content { margin-right: 0; }
     }
@@ -1005,7 +1092,8 @@
                 <div class="info-item"></div>
             </div>
 
-            <div class="org-chart-row">
+            <div class="oc-tools" id="orgChartTools"></div>
+            <div class="org-chart-row" id="orgChartRow">
                 <div class="org-chart-col wide">
                     <div class="org-section-title">試運転指揮系統</div>
                     <ul class="tree">
@@ -1727,6 +1815,7 @@ document.querySelectorAll('.editable-scope .na-checkbox').forEach(cb => {
 });
 
 </script>
+<script src="org-chart.js"></script>
 
 </body>
 </html>
