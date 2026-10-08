@@ -482,7 +482,9 @@
         padding: 10px 4px 18px;
     }
     .org-chart-col { flex: 0 0 auto; }
-    .org-chart-col.wide { flex: 1 1 60%; }
+    /* 通常表示（右パネル）は系統を上から縦に並べる。幅に収まらない系統は org-chart.js が縮小する */
+    .org-chart-row:not(.oc-editing) { flex-direction: column; align-items: stretch; gap: 26px; overflow-x: visible; }
+    .org-chart-row:not(.oc-editing) .org-chart-col { width: 100%; }
 
     .tree, .tree ul { display: flex; justify-content: center; list-style: none; }
     .tree { padding: 4px 0 0; }
@@ -518,19 +520,18 @@
         border: 1px solid #dbe2ea;
         border-radius: 8px;
         background: #fff;
-        padding: 9px 13px;
-        min-width: 172px;
+        padding: 11px 16px;
+        min-width: 196px;
         text-align: left;
         box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     }
-    .org-box--root { border-color: #3498db; box-shadow: 0 2px 10px rgba(52,152,219,0.18); }
     .org-box--label {
         min-width: auto;
-        padding: 4px 14px;
+        padding: 5px 16px;
         border-radius: 999px;
         background: #f4f6f9;
         color: #8a97a8;
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 700;
         text-align: center;
         border-style: dashed;
@@ -538,14 +539,14 @@
     }
     .org-role {
         display: inline-block;
-        font-size: 11.5px; font-weight: 700; color: #fff;
-        background: #3498db; padding: 2px 8px; border-radius: 3px; margin-bottom: 5px;
+        font-size: 12.5px; font-weight: 700; color: #fff;
+        background: #3498db; padding: 2px 8px; border-radius: 3px; margin-bottom: 6px;
     }
     .org-role.alt { background: #95a5a6; }
-    .org-org { font-size: 12px; color: #8a97a8; }
-    .org-name { font-size: 14px; font-weight: 700; color: #2c3e50; margin: 2px 0; }
-    .org-name small, .org-tel small { color: #8a97a8; font-weight: 400; font-size: 11.5px; }
-    .org-tel { font-size: 12px; color: #3498db; }
+    .org-org { font-size: 13px; color: #8a97a8; }
+    .org-name { font-size: 15.5px; font-weight: 700; color: #2c3e50; margin: 2px 0; }
+    .org-name small, .org-tel small { color: #8a97a8; font-weight: 400; font-size: 12.5px; }
+    .org-tel { font-size: 13px; color: #3498db; }
 
     /* ===== 体制表の編集（org-chart.js） ===== */
     .oc-tools { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; margin-bottom: 6px; }
@@ -560,34 +561,59 @@
         background: #eaf2fb; border: 1px solid #b8d8f0; border-radius: 6px; padding: 6px 10px; font-size: 12.5px;
     }
     .oc-selbar--idle { background: #f7f9fb; border-color: #e0e6ef; color: #8a97a8; }
-    .oc-selname b { color: #2166a3; }
-    .oc-hint { color: #5a6a7e; margin-right: auto; }
     .oc-btn:disabled { opacity: .4; cursor: default; background: #fff; }
     .oc-btn--danger { border-color: #e74c3c; color: #c0392b; }
     .oc-btn--danger:hover { background: #fdecea; }
     .tree > li::before, .tree > li::after { display: none; }
+    /* 一番上に複数のカードが並ぶとき（共同責任者など）は、カード同士を横線で結ぶ */
+    .tree .org-box { position: relative; z-index: 1; }
+    .tree > li:not(:only-child)::before, .tree > li:not(:only-child)::after {
+        display: block; top: 24px; width: 50%; height: 0;
+        border: 0; border-top: 2px solid #c3ccd8; border-radius: 0;
+    }
+    .tree > li:first-child::before, .tree > li:last-child::after { display: none; }
     .oc-editing .org-box[data-uid] { cursor: pointer; user-select: none; transition: box-shadow .12s, border-color .12s; }
     .oc-editing .org-box[data-uid]:hover { border-color: #3498db; }
-    .org-box.oc-sel { border: 2px solid #2166a3 !important; box-shadow: 0 0 0 4px rgba(52,152,219,0.25) !important; }
-    .org-box.oc-drop, .oc-rootzone.oc-drop, .oc-tray.oc-drop { box-shadow: 0 0 0 3px #27ae60 !important; border-color: #27ae60 !important; }
-    .oc-rootzone {
-        border: 1px dashed #b8d8f0; border-radius: 6px; padding: 4px 10px; margin-bottom: 8px;
-        font-size: 11.5px; color: #8a97a8; text-align: center; cursor: pointer;
+    .oc-editing .tree { padding-top: 32px; padding-bottom: 32px; }
+    /* 編集中は＋ボタンの分だけカードの間隔を広げる（親の下の＋と子の上の＋が重ならないよう段の間を2倍に） */
+    .oc-editing .tree li { padding: 34px 26px 0; }
+    .oc-editing .tree > li { padding-top: 0; }
+    .oc-editing .tree ul { padding-top: 34px; }
+    .oc-editing .tree li::before, .oc-editing .tree li::after, .oc-editing .tree li ul::before { height: 34px; }
+    .oc-editing ul ul > li:only-child::after {
+        display: block; left: 50%; width: 0; height: 34px;
+        border-top: 0; border-left: 2px solid #c3ccd8; border-radius: 0;
     }
-    .oc-rootzone:hover { background: #eaf2fb; color: #2166a3; }
-    .oc-tray {
-        flex: 1 0 100%; border: 2px dashed #d5dce5; border-radius: 8px; padding: 10px; margin-top: 8px; background: #fff;
+    .oc-cell { position: relative; }
+    /* マウスを乗せたカードの＋だけを表示。カードから＋へ移る間に消えないよう、反応範囲を＋の位置まで広げる */
+    .oc-cell::before { content: ""; position: absolute; inset: -28px -26px; }
+    .oc-plus {
+        position: absolute; z-index: 2; width: 22px; height: 22px; border-radius: 50%;
+        border: 1px dashed #3498db; background: #fff; color: #3498db;
+        font-size: 14px; line-height: 1; font-weight: 700; cursor: pointer; padding: 0;
+        visibility: hidden; opacity: 0; transition: opacity .12s, background .12s, visibility 0s linear .12s;
     }
-    .oc-tray-head { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; font-size: 13px; font-weight: 700; color: #5a6a7e; }
-    .oc-tray-head span { margin-right: auto; }
-    .oc-tray .tree { justify-content: flex-start; flex-wrap: wrap; gap: 8px; }
-    .oc-tray-empty { font-size: 12px; color: #9aa7b5; padding: 8px; }
+    .oc-cell:hover .oc-plus { visibility: visible; opacity: 1; transition: opacity .12s, background .12s; }
+    .oc-plus:hover { background: #3498db; color: #fff; border-style: solid; }
+    .oc-plus--up    { left: 50%; top: -28px; transform: translateX(-50%); }
+    .oc-plus--down  { left: 50%; bottom: -28px; transform: translateX(-50%); }
+    .oc-plus--left  { top: 50%; left: -26px; transform: translateY(-50%); }
+    .oc-plus--right { top: 50%; right: -26px; transform: translateY(-50%); }
+    .oc-first {
+        display: block; margin: 20px auto; padding: 22px 34px; border: 2px dashed #3498db; border-radius: 8px;
+        background: #fff; color: #2166a3; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer;
+    }
+    .oc-first:hover { background: #eaf2fb; }
+    .oc-check { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: #5a6a7e; margin: 18px 0 10px; }
+    .oc-free { border-left: 3px solid #e0e6ef; padding-left: 10px; }
+    .oc-sub { margin: 4px 0 6px; }
+    .oc-sub summary { cursor: pointer; font-size: 12.5px; color: #2166a3; margin-bottom: 8px; }
+    .oc-foot-side + .oc-btn:not(.oc-foot-side) { margin-left: auto; }
     .oc-btn {
         font: inherit; font-size: 12.5px; padding: 5px 12px; border-radius: 5px; cursor: pointer;
         border: 1px solid #3498db; background: #fff; color: #2166a3;
     }
     .oc-btn:hover { background: #eaf2fb; }
-    a.oc-btn { text-decoration: none; display: inline-block; }
     .oc-btn--primary { background: #3498db; color: #fff; }
     .oc-btn--primary:hover { background: #2a83c4; }
     .oc-btn--ghost { border-color: #c3ccd8; color: #5a6a7e; }
@@ -620,8 +646,6 @@
         font: inherit; font-size: 13px; padding: 5px 8px; border: 1px solid #c3ccd8; border-radius: 4px; width: 100%; box-sizing: border-box;
     }
     .oc-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 10px; }
-    .oc-fs { border: 1px solid #e0e6ef; border-radius: 6px; padding: 8px 12px 0; margin: 0 0 10px; }
-    .oc-fs legend { font-size: 12px; color: #8a97a8; padding: 0 4px; }
     .oc-type { display: flex; gap: 16px; margin-bottom: 10px; }
     .oc-note { font-size: 12px; color: #8a97a8; margin: 0 0 10px; }
     .oc-err { color: #c0392b; font-size: 12.5px; min-height: 1em; }
@@ -632,6 +656,33 @@
     .oc-staff td { padding: 2px 4px; }
     .oc-staff .oc-num { width: 56px; }
     .oc-staff td button { border: 0; background: none; color: #c0392b; cursor: pointer; }
+    /* ヒント表示（工程表 style.css のヘルプモードと同じ見た目） */
+    .oc-help-active { background: #1565c0 !important; color: #fff !important; border-color: #1565c0 !important; }
+    #ocHelp { position: fixed; inset: 0; z-index: 200000; }
+    .oc-help-bg { position: absolute; inset: 0; background: rgba(0,0,0,0.52); }
+    .oc-help-hl {
+        position: fixed; z-index: 200001; cursor: help; border-radius: 4px;
+        box-shadow: 0 0 0 2px rgba(255,255,255,0.55), 0 0 8px 2px rgba(100,170,255,0.45); transition: box-shadow 0.18s;
+    }
+    .oc-help-hl:hover { box-shadow: 0 0 0 3px #fff, 0 0 18px 6px rgba(80,160,255,0.9); }
+    .oc-help-tip {
+        position: fixed; z-index: 200002; pointer-events: none; background: #fff; border: 2px solid #1565c0; border-radius: 6px;
+        padding: 7px 10px; min-width: 150px; max-width: 260px; box-shadow: 0 3px 14px rgba(0,0,0,0.35);
+        font-size: 12px; line-height: 1.55; color: #333; opacity: 0; visibility: hidden; transition: opacity 0.15s;
+    }
+    .oc-help-tip--wide { max-width: min(440px, calc(100vw - 24px)); }
+    .oc-help-tip--show { opacity: 1; visibility: visible; }
+    .oc-help-tip-title { font-weight: bold; font-size: 12.5px; color: #1565c0; margin-bottom: 3px; }
+    .oc-help-tip::before { content: ''; position: absolute; top: -8px; left: 12px; border-left: 7px solid transparent; border-right: 7px solid transparent; border-bottom: 8px solid #1565c0; }
+    .oc-help-tip::after { content: ''; position: absolute; top: -5px; left: 13px; border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 6px solid #fff; }
+    .oc-help-tip--above::before { top: auto; bottom: -8px; border-bottom: none; border-top: 8px solid #1565c0; }
+    .oc-help-tip--above::after { top: auto; bottom: -5px; border-bottom: none; border-top: 6px solid #fff; }
+    .oc-help-guide {
+        position: fixed; top: 12px; right: 16px; z-index: 200003; padding: 5px 14px; font: inherit; font-size: 13px; font-weight: bold;
+        background: #fff; color: #1565c0; border: 2px solid #1565c0; border-radius: 6px; cursor: pointer;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.35); transition: background 0.15s, color 0.15s; white-space: nowrap;
+    }
+    .oc-help-guide:hover { background: #1565c0; color: #fff; }
 
     /* 注記 */
     .note-box {
@@ -830,7 +881,7 @@
         .org-chart-row { overflow: visible; }
         footer { padding: 8px; }
         .drawer-bar { display: none !important; }
-        .oc-tools, .oc-rootzone, .oc-tray { display: none !important; }
+        .oc-tools, .oc-plus, .oc-first { display: none !important; }
         .fullscreen-overlay { transform: none !important; visibility: visible !important; width: auto !important; box-shadow: none; border: 0; }
         body.drawer-open .content { margin-right: 0; }
     }
@@ -1081,7 +1132,6 @@
         </div>
 
         <div class="card">
-            <div class="tip-box">体制表の詳細（責任者・連絡先）は記入例です。</div>
 
             <div class="info-grid" style="grid-template-columns:repeat(3,1fr);">
                 <div class="info-item"><div class="k">工事番号</div><div class="v">2816</div></div>
@@ -1094,11 +1144,11 @@
 
             <div class="oc-tools" id="orgChartTools"></div>
             <div class="org-chart-row" id="orgChartRow">
-                <div class="org-chart-col wide">
+                <div class="org-chart-col">
                     <div class="org-section-title">試運転指揮系統</div>
                     <ul class="tree">
                         <li>
-                            <div class="org-box org-box--root">
+                            <div class="org-box">
                                 <span class="org-role">試運転責任者</span>
                                 <div class="org-org">日下部電機㈱ 操業部</div>
                                 <div class="org-name">三浦 雅樹</div>
@@ -1152,7 +1202,7 @@
                     <div class="org-section-title">組立発注担当系統</div>
                     <ul class="tree">
                         <li>
-                            <div class="org-box org-box--root">
+                            <div class="org-box">
                                 <span class="org-role">組立発注担当者</span>
                                 <div class="org-org">日下部電機㈱ 製造管理部</div>
                                 <div class="org-name">森村 象平</div>
