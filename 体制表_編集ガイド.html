@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>体制表 編集ガイド</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+            font-size: 14px;
+            background: #f4f6f9;
+            color: #2c3e50;
+            line-height: 1.6;
+        }
+
+        /* 固定ヘッダーラッパー */
+        .sticky-wrapper { position: sticky; top: 0; z-index: 200; box-shadow: 0 3px 12px rgba(0,0,0,0.25); }
+
+        /* ヘッダー */
+        .page-header { background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%); color: #fff; padding: 28px 40px 24px; }
+        .page-header__inner { max-width: 940px; margin: 0 auto; padding-left: 40px; }
+        .page-header h1 { font-size: 22px; font-weight: 700; letter-spacing: 0.04em; }
+        .page-header p { font-size: 13px; color: #bdc3cb; margin-top: 6px; }
+
+        /* ナビゲーション */
+        .toc { background: #fff; border-bottom: 1px solid #e0e6ef; padding: 10px 40px; font-size: 12px; }
+        .toc__inner { max-width: 940px; margin: 0 auto; padding-left: 40px; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+        .toc a { color: #3498db; text-decoration: none; white-space: nowrap; }
+        .toc a:hover { text-decoration: underline; }
+
+        /* メインコンテンツ */
+        .content { max-width: 860px; margin: 32px auto 60px; padding: 0 24px; }
+
+        /* セクション */
+        .section { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); margin-bottom: 24px; overflow: hidden; }
+        .section-header { background: #f0f4f8; border-left: 4px solid #3498db; padding: 12px 20px; display: flex; align-items: center; gap: 10px; }
+        .section-header .icon { font-size: 18px; line-height: 1; }
+        .section-header h2 { font-size: 15px; font-weight: 700; color: #2c3e50; }
+        .section-body { padding: 16px 20px 20px; }
+
+        /* 操作説明テーブル */
+        .op-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .op-table th {
+            background: #f8fafc; color: #5a6a7e; font-weight: 700; font-size: 11px; letter-spacing: 0.06em;
+            padding: 7px 12px; border-bottom: 2px solid #e0e6ef; text-align: left; white-space: nowrap;
+        }
+        .op-table td { padding: 9px 12px; border-bottom: 1px solid #f0f4f8; vertical-align: top; }
+        .op-table tr:last-child td { border-bottom: none; }
+        .op-table td:first-child { white-space: nowrap; font-weight: 500; width: 190px; }
+
+        /* 操作キー */
+        .op-key {
+            display: inline-block; background: #eaf2fb; color: #1a6faa; border: 1px solid #b8d8f0;
+            border-radius: 4px; padding: 1px 8px; font-size: 12px; font-weight: 700; white-space: nowrap;
+        }
+        .op-key--click { background: #eafaf1; color: #1a7a47; border-color: #a8dfc0; }
+        .op-key--dbl   { background: #fef9e7; color: #8a6d00; border-color: #f5d76e; }
+
+        /* 手順 */
+        .steps { list-style: none; counter-reset: step; display: flex; flex-direction: column; gap: 10px; }
+        .steps li { counter-increment: step; position: relative; padding-left: 34px; font-size: 13.5px; }
+        .steps li::before {
+            content: counter(step); position: absolute; left: 0; top: 0;
+            width: 24px; height: 24px; border-radius: 50%; background: #3498db; color: #fff;
+            font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center;
+        }
+
+        /* 画面の図 */
+        .demo {
+            background: #f8fafc; border: 1px solid #e0e6ef; border-radius: 8px;
+            padding: 16px; margin: 12px 0; display: flex; align-items: center; justify-content: center; gap: 18px; flex-wrap: wrap;
+        }
+        .demo-col { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+        .demo-cap { font-size: 12px; color: #5a6a7e; font-weight: 700; }
+        .demo-arrow { font-size: 22px; color: #95a5a6; }
+        .card {
+            border: 1px solid #dbe2ea; border-radius: 7px; background: #fff; padding: 5px 10px;
+            min-width: 108px; font-size: 12px; text-align: left; box-shadow: 0 1px 3px rgba(0,0,0,0.05); position: relative;
+        }
+        .card .r { display: inline-block; font-size: 10.5px; font-weight: 700; color: #fff; background: #3498db; padding: 0 6px; border-radius: 3px; }
+        .card .r.alt { background: #95a5a6; }
+        .card .n { font-weight: 700; font-size: 12.5px; }
+        .card--sel { border: 2px solid #2166a3; box-shadow: 0 0 0 4px rgba(52,152,219,0.25); }
+        .card--drop { border-color: #27ae60; box-shadow: 0 0 0 3px #27ae60; }
+        .card--label { min-width: auto; border-style: dashed; border-radius: 999px; background: #f4f6f9; color: #8a97a8; font-weight: 700; text-align: center; padding: 3px 12px; }
+        .badge {
+            position: absolute; top: -9px; left: -9px; width: 20px; height: 20px; border-radius: 50%;
+            background: #e67e22; color: #fff; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center;
+        }
+        .mini-tree { display: flex; flex-direction: column; align-items: center; }
+        .mini-tree .line { width: 2px; height: 14px; background: #c3ccd8; }
+        .mini-tree .kids { display: flex; gap: 10px; position: relative; padding-top: 14px; }
+        .mini-tree .kids::before { content: ''; position: absolute; top: 0; left: 25%; right: 25%; border-top: 2px solid #c3ccd8; }
+        .mini-tree .kids > div { display: flex; flex-direction: column; align-items: center; position: relative; }
+        .mini-tree .kids > div::before { content: ''; position: absolute; top: -14px; width: 2px; height: 14px; background: #c3ccd8; }
+        .mini-tree .kids.one::before { display: none; }
+
+        /* 画面構成の図 */
+        .screen { border: 1px solid #c3ccd8; border-radius: 8px; overflow: hidden; margin: 12px 0; font-size: 12px; }
+        .screen > div { padding: 8px 12px; border-bottom: 1px solid #e0e6ef; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+        .screen > div:last-child { border-bottom: 0; }
+        .screen .tag {
+            flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%; background: #e67e22; color: #fff;
+            font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center;
+        }
+        .screen .b { border: 1px solid #3498db; color: #2166a3; border-radius: 4px; padding: 1px 8px; background: #fff; white-space: nowrap; }
+        .screen .b.g { border-color: #c3ccd8; color: #5a6a7e; }
+        .screen .b.p { background: #3498db; color: #fff; }
+        .screen .sp { flex: 1; }
+        .screen .bar-sel { background: #eaf2fb; }
+        .screen .bar-chart { background: #fbfcfe; }
+        .screen .zone { border: 1px dashed #b8d8f0; border-radius: 4px; padding: 1px 10px; color: #8a97a8; }
+        .screen .bar-tray { background: #fff; border-top: 2px dashed #d5dce5; }
+
+        /* ヒント */
+        .tip-box, .note-box {
+            border-radius: 6px; padding: 10px 14px; font-size: 13px; margin-top: 12px;
+            display: flex; gap: 8px; align-items: flex-start;
+        }
+        .tip-box { background: #eafaf1; border: 1px solid #a8dfc0; color: #1a6640; }
+        .tip-box::before { content: "💡"; flex-shrink: 0; }
+        .note-box { background: #fef9e7; border: 1px solid #f5d76e; color: #7a6000; }
+        .note-box::before { content: "⚠️"; flex-shrink: 0; }
+
+        .desc { font-size: 13px; color: #5a6a7e; margin-bottom: 12px; }
+        b.em { color: #2166a3; }
+
+        footer { text-align: center; font-size: 12px; color: #aab4be; padding: 24px; }
+        [id] { scroll-margin-top: 130px; }
+    </style>
+</head>
+<body>
+
+<div class="sticky-wrapper">
+<header class="page-header">
+    <div class="page-header__inner">
+        <h1>🧩 体制表 編集ガイド</h1>
+        <p>管理者向け — 外注業者向け工事詳細シートの「体制表（指揮系統）」の編集方法をまとめています</p>
+    </div>
+</header>
+
+<nav class="toc">
+    <div class="toc__inner">
+        <a href="#start">① 編集を始める</a>
+        <a href="#screen">② 編集画面の見方</a>
+        <a href="#connect">③ カードをつなぐ</a>
+        <a href="#new">④ カードを作る</a>
+        <a href="#edit">⑤ カードの内容を変える</a>
+        <a href="#move">⑥ 並べ替え・切り離し・削除</a>
+        <a href="#chart">⑦ 系統（表）の追加・削除</a>
+        <a href="#save">⑧ 保存・やり直し</a>
+        <a href="#staff">⑨ 社内名簿の登録</a>
+        <a href="#example">⑩ 例：不在時の分岐を作る</a>
+        <a href="#keys">⑪ 操作一覧・注意点</a>
+    </div>
+</nav>
+</div><!-- /.sticky-wrapper -->
+
+<main class="content">
+
+    <!-- ① 編集を始める -->
+    <section class="section" id="start">
+        <div class="section-header"><span class="icon">🔑</span><h2>① 編集を始める</h2></div>
+        <div class="section-body">
+            <ol class="steps">
+                <li>先に、<b>同じブラウザで工程表にログイン</b>しておきます（工程表のログインがそのまま使われます）。</li>
+                <li>工事詳細シートの左メニューから <span class="op-key op-key--click">体制表</span> を開きます。</li>
+                <li>体制表の右上にある <span class="op-key">体制表を編集</span> を押します。</li>
+                <li>画面いっぱいに編集画面が開きます。</li>
+            </ol>
+            <div class="note-box"><span><span class="op-key">体制表を編集</span> ボタンは、<b>管理者としてログインしているときだけ</b>表示されます。外注先や、管理者でない人の画面には出ません（体制表を見ることはできます）。<br>
+            ボタンが出ないときは、工程表にログインしているかを確かめてから、工事詳細シートを再読み込みしてください。ログインしていても出ない場合は、そのアカウントが管理者に登録されていません。</span></div>
+        </div>
+    </section>
+
+    <!-- ② 編集画面の見方 -->
+    <section class="section" id="screen">
+        <div class="section-header"><span class="icon">🖥️</span><h2>② 編集画面の見方</h2></div>
+        <div class="section-body">
+            <div class="screen">
+                <div><span class="tag">A</span>
+                    <span class="b">↶ 元に戻す</span><span class="b">＋系統を追加</span><span class="b">社内名簿の管理</span><span class="b g">？ 使い方</span>
+                    <span class="sp"></span><span class="b g">キャンセル</span><span class="b p">保存</span></div>
+                <div class="bar-sel"><span class="tag">B</span>選択中：<b>試運転責任者：三浦 雅樹</b>
+                    <span class="sp"></span><span class="b">✎ 編集</span><span class="b">◀</span><span class="b">▶</span><span class="b">切り離す</span><span class="b">削除</span><span class="b g">選択解除</span></div>
+                <div class="bar-chart"><span class="tag">C</span><span class="b g">試運転指揮系統</span> ◀ ▶ ✕
+                    <span class="tag">D</span><span class="zone">ここをクリック／ドロップで最上位に置く</span></div>
+                <div class="bar-chart"><span class="tag">E</span>カード（線でつながった体制表本体）</div>
+                <div class="bar-tray"><span class="tag">F</span><b>未接続カード置き場</b><span class="sp"></span><span class="b">＋人カード</span><span class="b">＋分岐ラベル（不在時など）</span></div>
+            </div>
+            <table class="op-table">
+                <thead><tr><th>場所</th><th>役割</th></tr></thead>
+                <tbody>
+                    <tr><td>A ツールバー</td><td>元に戻す、系統の追加、社内名簿の管理、保存・キャンセルを行います。</td></tr>
+                    <tr><td>B 案内バー</td><td>カードを選んでいないときは操作のヒントが、選んでいるときは<b>選んだカードへの操作ボタン</b>が出ます。</td></tr>
+                    <tr><td>C 系統名</td><td>表の名前（例：試運転指揮系統）。欄に直接入力して変更できます。◀▶で表の左右の順を入れ替え、✕で表ごと削除します。</td></tr>
+                    <tr><td>D 最上位の欄</td><td>カードをその表のいちばん上（線の起点）に置きたいときに使います。</td></tr>
+                    <tr><td>E カード</td><td>1枚が1人（または分岐ラベル1つ）です。<b>位置は自動で整列</b>されるので、手で配置を整える必要はありません。</td></tr>
+                    <tr><td>F 置き場</td><td>新しく作ったカードや、切り離したカードが入る場所です。ここからつなぎます。</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- ③ カードをつなぐ -->
+    <section class="section" id="connect">
+        <div class="section-header"><span class="icon">🔗</span><h2>③ カードをつなぐ（いちばん大事な操作）</h2></div>
+        <div class="section-body">
+            <p class="desc">カードを<b class="em">2回クリック</b>するだけでつながります。<b>1枚目</b>に上に置くカード、<b>2枚目</b>にその下につなぐカードをクリックします。</p>
+            <div class="demo">
+                <div class="demo-col">
+                    <span class="demo-cap">1. 上に置くカードをクリック</span>
+                    <div style="display:flex;gap:10px;">
+                        <div class="card card--sel"><span class="badge">1</span><span class="r">試運転責任者</span><div class="n">三浦 雅樹</div></div>
+                        <div class="card"><span class="r alt">電気業者</span><div class="n">古川 康樹</div></div>
+                    </div>
+                    <span style="font-size:11px;color:#2166a3;">青い枠＝選択中</span>
+                </div>
+                <span class="demo-arrow">➜</span>
+                <div class="demo-col">
+                    <span class="demo-cap">2. 下につなぐカードをクリック</span>
+                    <div style="display:flex;gap:10px;">
+                        <div class="card card--sel"><span class="r">試運転責任者</span><div class="n">三浦 雅樹</div></div>
+                        <div class="card"><span class="badge">2</span><span class="r alt">電気業者</span><div class="n">古川 康樹</div></div>
+                    </div>
+                    <span style="font-size:11px;color:transparent;">.</span>
+                </div>
+                <span class="demo-arrow">➜</span>
+                <div class="demo-col">
+                    <span class="demo-cap">線でつながる</span>
+                    <div class="mini-tree">
+                        <div class="card"><span class="r">試運転責任者</span><div class="n">三浦 雅樹</div></div>
+                        <div class="kids one"><div><div class="card"><span class="r alt">電気業者</span><div class="n">古川 康樹</div></div></div></div>
+                    </div>
+                </div>
+            </div>
+            <table class="op-table">
+                <thead><tr><th>操作</th><th>動き</th></tr></thead>
+                <tbody>
+                    <tr><td><span class="op-key op-key--click">クリック</span> → <span class="op-key op-key--click">クリック</span></td><td>2枚目のカードが、1枚目のカードの下につながります。<b>2枚目の下にあるカードも一緒に移動</b>します。</td></tr>
+                    <tr><td><span class="op-key">ドラッグ</span></td><td>カードをつかんで、別のカードの上に落としても同じようにつながります。落とせる場所は<b style="color:#27ae60;">緑の枠</b>で表示されます。</td></tr>
+                    <tr><td>同じカードをもう一度クリック</td><td>選択が解除されます（<span class="op-key">Esc</span>キーでも解除できます）。</td></tr>
+                    <tr><td>付け替え</td><td>すでにつながっているカードも、同じ操作で別のカードの下へ移せます。元の線は自動で消えます。</td></tr>
+                </tbody>
+            </table>
+            <div class="tip-box">カードの上下は線の起点とつながり先を表すだけで、必ずしも上司・部下の関係を意味しません。役割に合わせて自由に組み立ててください。</div>
+            <div class="note-box">あるカードを、自分の下につながっているカードの下に移すことはできません（輪になってしまうため）。この場合はメッセージが出て、何も変わりません。</div>
+        </div>
+    </section>
+
+    <!-- ④ カードを作る -->
+    <section class="section" id="new">
+        <div class="section-header"><span class="icon">➕</span><h2>④ 新しいカードを作る</h2></div>
+        <div class="section-body">
+            <ol class="steps">
+                <li>画面下の置き場にある <span class="op-key">＋人カード</span>（分岐ラベルなら <span class="op-key">＋分岐ラベル</span>）を押します。</li>
+                <li>入力画面が開くので、担当者などを入力して <span class="op-key">作成</span> を押します（入力項目は <a href="#edit">⑤</a> を参照）。</li>
+                <li>作ったカードが<b>置き場</b>に入ります。</li>
+                <li><a href="#connect">③</a> の方法で、<b>上に置くカード → 置き場の新しいカード</b>の順にクリックしてつなぎます（新しいカードを上に置くカードへドラッグしてもOK）。</li>
+            </ol>
+            <div class="note-box">置き場に残ったカードは<b>保存されません</b>。保存するときに「未接続のカードが○枚あります」と確認が出ます。</div>
+        </div>
+    </section>
+
+    <!-- ⑤ カードの内容を変える -->
+    <section class="section" id="edit">
+        <div class="section-header"><span class="icon">✏️</span><h2>⑤ カードの内容を変える</h2></div>
+        <div class="section-body">
+            <p class="desc">カードを <span class="op-key op-key--dbl">ダブルクリック</span> すると入力画面が開きます（カードを選んで案内バーの <span class="op-key">✎ 編集</span> でも開けます）。</p>
+            <table class="op-table">
+                <thead><tr><th>項目</th><th>説明</th></tr></thead>
+                <tbody>
+                    <tr><td>人 ／ 分岐ラベル</td><td>カードの種類。分岐ラベルは「岸田氏 不在時」のような、点線で囲まれた見出しです。</td></tr>
+                    <tr><td>担当者（社内名簿から選択）</td><td>プルダウンから社内の人を選ぶと、<b>所属・氏名・電話が自動で入ります</b>。外注先など社外の人は「― 社外・手入力 ―」のまま、下の欄に直接入力します。</td></tr>
+                    <tr><td>役割</td><td>カード上部の帯に表示される文字（例：試運転責任者、電気業者）。よく使う役割は入力欄に候補として出ます。</td></tr>
+                    <tr><td>役割の色</td><td><span style="background:#3498db;color:#fff;padding:0 6px;border-radius:3px;font-size:11px;">青</span> 責任者向け ／ <span style="background:#95a5a6;color:#fff;padding:0 6px;border-radius:3px;font-size:11px;">灰</span> 担当・助勢向け</td></tr>
+                    <tr><td>所属・氏名・電話</td><td>自動で入った内容も、手で直せます。</td></tr>
+                    <tr><td>代理（任意）</td><td>代わりに対応する人。氏名・電話の下に（ ）書きで表示されます。こちらも名簿から選べます。</td></tr>
+                </tbody>
+            </table>
+            <p class="desc" style="margin-top:12px;">入力が終わったら <span class="op-key">反映</span> を押します（この時点ではまだ保存されていません）。</p>
+            <div class="note-box">カードには、選んだ時点の氏名・電話が写して入ります。あとで社内名簿の電話番号を変えても、作成済みのカードは変わりません。変えたいときは、カードを開いてプルダウンで選び直してください。</div>
+        </div>
+    </section>
+
+    <!-- ⑥ 並べ替え・切り離し・削除 -->
+    <section class="section" id="move">
+        <div class="section-header"><span class="icon">↔️</span><h2>⑥ 並べ替え・切り離し・削除</h2></div>
+        <div class="section-body">
+            <p class="desc">カードを<span class="op-key op-key--click">クリック</span>で選ぶと、上の案内バーにボタンが出ます。</p>
+            <table class="op-table">
+                <thead><tr><th>ボタン</th><th>動き</th></tr></thead>
+                <tbody>
+                    <tr><td><span class="op-key">◀</span> <span class="op-key">▶</span></td><td>同じカードの下に並んでいるカード同士で、左右の順番を入れ替えます。</td></tr>
+                    <tr><td><span class="op-key">切り離す</span></td><td>線を外して置き場へ移します（下につながっているカードも一緒です）。別の場所につなぎ直すときに使います。</td></tr>
+                    <tr><td><span class="op-key">削除</span></td><td>カードを消します。下にカードがつながっている場合は、確認のうえ一緒に消えます。<span class="op-key">Delete</span> キーでも削除できます。</td></tr>
+                    <tr><td>最上位の欄</td><td>カードを選んで、系統名の下の「ここをクリック／ドロップで最上位に置く」欄をクリックすると、その表のいちばん上に置かれます。</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- ⑦ 系統 -->
+    <section class="section" id="chart">
+        <div class="section-header"><span class="icon">🗂️</span><h2>⑦ 系統（表）の追加・名前変更・削除</h2></div>
+        <div class="section-body">
+            <p class="desc">「試運転指揮系統」「組立発注担当系統」のように、1つの工事に複数の表を並べられます。</p>
+            <table class="op-table">
+                <tbody>
+                    <tr><td><span class="op-key">＋系統を追加</span></td><td>空の表が右端に追加されます。最初のカードは「最上位に置く」欄を使って置きます。</td></tr>
+                    <tr><td>名前の欄</td><td>直接入力して名前を変えます。</td></tr>
+                    <tr><td><span class="op-key">◀</span> <span class="op-key">▶</span> <span class="op-key">✕</span></td><td>表の左右の順番の入れ替え ／ 表ごと削除。</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- ⑧ 保存 -->
+    <section class="section" id="save">
+        <div class="section-header"><span class="icon">💾</span><h2>⑧ 保存・やり直し</h2></div>
+        <div class="section-body">
+            <table class="op-table">
+                <tbody>
+                    <tr><td><span class="op-key">↶ 元に戻す</span></td><td>直前の操作を取り消します（<span class="op-key">Ctrl</span>+<span class="op-key">Z</span> でも可）。50回前までさかのぼれます。</td></tr>
+                    <tr><td><span class="op-key">保存</span></td><td>変更を保存して編集を終えます。保存した内容は、外注先が見る画面にすぐ反映されます。</td></tr>
+                    <tr><td><span class="op-key">キャンセル</span></td><td>保存せずに編集を終え、編集を始める前の状態に戻します。</td></tr>
+                </tbody>
+            </table>
+            <div class="note-box">保存するまでは何も反映されません。編集を終えるときは、必ず <b>保存</b> を押してください。</div>
+        </div>
+    </section>
+
+    <!-- ⑨ 社内名簿 -->
+    <section class="section" id="staff">
+        <div class="section-header"><span class="icon">👥</span><h2>⑨ 社内名簿の登録</h2></div>
+        <div class="section-body">
+            <p class="desc">⑤のプルダウンに出る社内の人は、ツールバーの <span class="op-key">社内名簿の管理</span> で登録します。登録した名簿はすべての工事で共通です。</p>
+            <ol class="steps">
+                <li>Excel で <b>「氏名」「部署」「電話」</b> の3列を用意します（見出しの行はコピーしません）。</li>
+                <li>3列のセルを選んでコピーし、名簿画面上部の欄に貼り付けて <span class="op-key">貼り付け分を追加</span> を押します。</li>
+                <li>一覧に追加されるので、必要なら会社名・表示順を直します。1人ずつ足すときは <span class="op-key">＋1行追加</span> を使います。</li>
+                <li><span class="op-key">名簿を保存</span> を押します。</li>
+            </ol>
+            <table class="op-table" style="margin-top:12px;">
+                <thead><tr><th>列</th><th>説明</th></tr></thead>
+                <tbody>
+                    <tr><td>会社</td><td>空欄なら「日下部電機㈱」になります。カードの所属は「会社＋部署」で入ります。</td></tr>
+                    <tr><td>順</td><td>プルダウンでの並び順（小さい順）。同じ値の場合は部署・氏名順です。</td></tr>
+                    <tr><td>使用</td><td>チェックを外すと、プルダウンに出なくなります（退職・異動時など。データは残ります）。</td></tr>
+                    <tr><td>✕</td><td>名簿から削除します。</td></tr>
+                </tbody>
+            </table>
+            <div class="tip-box">名簿の電話番号は社内でログインした人だけが見られ、外注先には見えません。外注先に見えるのは、体制表のカードに載せた人の情報だけです。</div>
+        </div>
+    </section>
+
+    <!-- ⑩ 例 -->
+    <section class="section" id="example">
+        <div class="section-header"><span class="icon">🧪</span><h2>⑩ 例：「岸田氏 不在時」の分岐を作る</h2></div>
+        <div class="section-body">
+            <div class="demo">
+                <div class="mini-tree">
+                    <div class="card"><span class="r">組立業者 責任者</span><div class="n">岸田 嘉彦</div></div>
+                    <div class="kids one"><div>
+                        <div class="card card--label">岸田氏 不在時</div>
+                        <div class="kids"><div><div class="card"><span class="r alt">組立業者 助勢</span><div class="n">現場作業員</div></div></div><div><div class="card"><span class="r alt">電気業者</span><div class="n">古川 康樹</div></div></div></div>
+                    </div></div>
+                </div>
+            </div>
+            <ol class="steps">
+                <li>置き場の <span class="op-key">＋分岐ラベル</span> を押し、ラベル文字に「岸田氏 不在時」と入れて <span class="op-key">作成</span>。</li>
+                <li><b>岸田さんのカード</b> → <b>置き場の「岸田氏 不在時」</b> の順にクリック（ラベルが岸田さんの下につながります）。</li>
+                <li><span class="op-key">＋人カード</span> で「組立業者 助勢」「電気業者」のカードを作ります。</li>
+                <li><b>「岸田氏 不在時」</b> → <b>助勢のカード</b>、もう一度 <b>「岸田氏 不在時」</b> → <b>電気業者のカード</b> の順にクリック。</li>
+                <li>並び順を変えたいときは、カードを選んで <span class="op-key">◀</span> <span class="op-key">▶</span>。最後に <span class="op-key">保存</span>。</li>
+            </ol>
+        </div>
+    </section>
+
+    <!-- ⑪ 操作一覧 -->
+    <section class="section" id="keys">
+        <div class="section-header"><span class="icon">⌨️</span><h2>⑪ 操作一覧・注意点</h2></div>
+        <div class="section-body">
+            <table class="op-table">
+                <thead><tr><th>操作</th><th>動き</th></tr></thead>
+                <tbody>
+                    <tr><td><span class="op-key op-key--click">クリック</span></td><td>カードを選ぶ ／ 選んだ状態で別のカードをクリックするとつなぐ</td></tr>
+                    <tr><td><span class="op-key op-key--dbl">ダブルクリック</span></td><td>カードの内容を編集</td></tr>
+                    <tr><td><span class="op-key">ドラッグ</span></td><td>カードの上に落とす＝つなぐ ／ 最上位の欄に落とす＝最上位へ ／ 置き場に落とす＝切り離す</td></tr>
+                    <tr><td><span class="op-key">Esc</span></td><td>選択を解除</td></tr>
+                    <tr><td><span class="op-key">Delete</span></td><td>選んだカードを削除</td></tr>
+                    <tr><td><span class="op-key">Ctrl</span>+<span class="op-key">Z</span></td><td>元に戻す</td></tr>
+                </tbody>
+            </table>
+            <div class="note-box">カードを選んだまま別のカードをダブルクリックすると、編集画面が開く前にそのカードがつながってしまいます。意図せずつながったときは <span class="op-key">Ctrl</span>+<span class="op-key">Z</span> で戻してください。先に <span class="op-key">Esc</span> で選択を解除しておくと安全です。</div>
+            <div class="note-box">同じ体制表を2人が同時に編集すると、後から保存した人の内容で上書きされます。編集は1人ずつ行ってください。</div>
+        </div>
+    </section>
+
+</main>
+
+<footer>体制表 編集ガイド（管理者向け）</footer>
+
+</body>
+</html>
