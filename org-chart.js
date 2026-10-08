@@ -628,11 +628,15 @@
         return { el: wrap, close: () => wrap.remove() };
     }
 
-    // 工程表など別タブでログイン／ログアウトしたときも、ボタンの表示を追従させる
-    client.auth.onAuthStateChange(async (event) => {
+    // 工程表など別タブでログイン／ログアウトしたときも、ボタンの表示を追従させる。
+    // このコールバックは認証処理の途中（ロック中）に呼ばれ、ログイン情報が残っていると起動時にも SIGNED_IN が来る。
+    // ここで直接 getSession/rpc を await すると互いに待ち合って止まるため、setTimeout で処理を後ろにずらす
+    client.auth.onAuthStateChange((event) => {
         if (event !== 'SIGNED_IN' && event !== 'SIGNED_OUT') return;
-        canEdit = event === 'SIGNED_IN' && await checkAdmin();
-        if (!editing) renderTools();
+        setTimeout(async () => {
+            canEdit = event === 'SIGNED_IN' && await checkAdmin();
+            if (!editing) renderTools();
+        }, 0);
     });
 
     checkAdmin().then(ok => { canEdit = ok; }).finally(load);
