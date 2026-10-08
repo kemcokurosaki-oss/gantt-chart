@@ -130,6 +130,20 @@
 
         footer { text-align: center; font-size: 12px; color: #aab4be; padding: 24px; }
         [id] { scroll-margin-top: 130px; }
+
+        /* ＋ボタンの図 */
+        .pl {
+            display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%;
+            border: 1px dashed #3498db; background: #fff; color: #3498db; font-size: 13px; font-weight: 700; line-height: 1; vertical-align: middle;
+        }
+        .pl--on { background: #3498db; color: #fff; border-style: solid; }
+        .plus-demo { display: grid; grid-template-columns: 30px auto 30px; grid-template-rows: 30px auto 30px; align-items: center; justify-items: center; }
+        .plus-demo .card { grid-column: 2; grid-row: 2; }
+        .plus-demo .u { grid-column: 2; grid-row: 1; }
+        .plus-demo .d { grid-column: 2; grid-row: 3; }
+        .plus-demo .l { grid-column: 1; grid-row: 2; }
+        .plus-demo .r2 { grid-column: 3; grid-row: 2; }
+        .first-btn { border: 2px dashed #3498db; border-radius: 8px; color: #2166a3; font-weight: 700; padding: 12px 22px; background: #fff; font-size: 13px; }
     </style>
 </head>
 <body>
@@ -145,16 +159,14 @@
 <nav class="toc">
     <div class="toc__inner">
         <a href="#start">① 編集を始める</a>
-        <a href="#screen">② 編集画面の見方</a>
-        <a href="#connect">③ カードをつなぐ</a>
-        <a href="#new">④ カードを作る</a>
-        <a href="#edit">⑤ カードの内容を変える</a>
-        <a href="#move">⑥ 並べ替え・切り離し・削除</a>
-        <a href="#chart">⑦ 系統（表）の追加・削除</a>
-        <a href="#save">⑧ 保存・やり直し</a>
-        <a href="#staff">⑨ 社内名簿の登録</a>
-        <a href="#example">⑩ 例：不在時の分岐を作る</a>
-        <a href="#keys">⑪ 操作一覧・注意点</a>
+        <a href="#flow">② 基本の流れ</a>
+        <a href="#plus">③ ＋でカードを追加</a>
+        <a href="#input">④ カードの入力</a>
+        <a href="#edit">⑤ 修正・削除・並べ替え</a>
+        <a href="#chart">⑥ 系統（表）の追加・削除</a>
+        <a href="#save">⑦ 保存・やり直し</a>
+        <a href="#staff">⑧ 社内名簿の登録</a>
+        <a href="#example">⑨ 例：不在時の分岐を作る</a>
     </div>
 </nav>
 </div><!-- /.sticky-wrapper -->
@@ -176,141 +188,109 @@
         </div>
     </section>
 
-    <!-- ② 編集画面の見方 -->
-    <section class="section" id="screen">
-        <div class="section-header"><span class="icon">🖥️</span><h2>② 編集画面の見方</h2></div>
+    <!-- ② 基本の流れ -->
+    <section class="section" id="flow">
+        <div class="section-header"><span class="icon">🧭</span><h2>② 基本の流れ</h2></div>
         <div class="section-body">
-            <div class="screen">
-                <div><span class="tag">A</span>
-                    <span class="b">↶ 元に戻す</span><span class="b">＋系統を追加</span><span class="b">社内名簿の管理</span><span class="b g">？ 使い方</span>
-                    <span class="sp"></span><span class="b g">キャンセル</span><span class="b p">保存</span></div>
-                <div class="bar-sel"><span class="tag">B</span>選択中：<b>試運転責任者：三浦 雅樹</b>
-                    <span class="sp"></span><span class="b">✎ 編集</span><span class="b">◀</span><span class="b">▶</span><span class="b">切り離す</span><span class="b">削除</span><span class="b g">選択解除</span></div>
-                <div class="bar-chart"><span class="tag">C</span><span class="b g">試運転指揮系統</span> ◀ ▶ ✕
-                    <span class="tag">D</span><span class="zone">ここをクリック／ドロップで最上位に置く</span></div>
-                <div class="bar-chart"><span class="tag">E</span>カード（線でつながった体制表本体）</div>
-                <div class="bar-tray"><span class="tag">F</span><b>未接続カード置き場</b><span class="sp"></span><span class="b">＋人カード</span><span class="b">＋分岐ラベル（不在時など）</span></div>
-            </div>
-            <table class="op-table">
-                <thead><tr><th>場所</th><th>役割</th></tr></thead>
-                <tbody>
-                    <tr><td>A ツールバー</td><td>元に戻す、系統の追加、社内名簿の管理、保存・キャンセルを行います。</td></tr>
-                    <tr><td>B 案内バー</td><td>カードを選んでいないときは操作のヒントが、選んでいるときは<b>選んだカードへの操作ボタン</b>が出ます。</td></tr>
-                    <tr><td>C 系統名</td><td>表の名前（例：試運転指揮系統）。欄に直接入力して変更できます。◀▶で表の左右の順を入れ替え、✕で表ごと削除します。</td></tr>
-                    <tr><td>D 最上位の欄</td><td>カードをその表のいちばん上（線の起点）に置きたいときに使います。</td></tr>
-                    <tr><td>E カード</td><td>1枚が1人（または分岐ラベル1つ）です。<b>位置は自動で整列</b>されるので、手で配置を整える必要はありません。</td></tr>
-                    <tr><td>F 置き場</td><td>新しく作ったカードや、切り離したカードが入る場所です。ここからつなぎます。</td></tr>
-                </tbody>
-            </table>
-        </div>
-    </section>
-
-    <!-- ③ カードをつなぐ -->
-    <section class="section" id="connect">
-        <div class="section-header"><span class="icon">🔗</span><h2>③ カードをつなぐ（いちばん大事な操作）</h2></div>
-        <div class="section-body">
-            <p class="desc">カードを<b class="em">2回クリック</b>するだけでつながります。<b>1枚目</b>に上に置くカード、<b>2枚目</b>にその下につなぐカードをクリックします。</p>
             <div class="demo">
-                <div class="demo-col">
-                    <span class="demo-cap">1. 上に置くカードをクリック</span>
-                    <div style="display:flex;gap:10px;">
-                        <div class="card card--sel"><span class="badge">1</span><span class="r">試運転責任者</span><div class="n">三浦 雅樹</div></div>
-                        <div class="card"><span class="r alt">電気業者</span><div class="n">古川 康樹</div></div>
+                <div class="demo-col"><span class="demo-cap">1. 最初のカードを追加</span><span class="first-btn">＋ カードを追加</span></div>
+                <span class="demo-arrow">➜</span>
+                <div class="demo-col"><span class="demo-cap">2. まわりの＋で追加していく</span>
+                    <div class="plus-demo">
+                        <span class="pl u">＋</span><span class="pl l">＋</span>
+                        <div class="card"><span class="r">試運転責任者</span><div class="n">山田 太郎</div></div>
+                        <span class="pl r2">＋</span><span class="pl d pl--on">＋</span>
                     </div>
-                    <span style="font-size:11px;color:#2166a3;">青い枠＝選択中</span>
                 </div>
                 <span class="demo-arrow">➜</span>
-                <div class="demo-col">
-                    <span class="demo-cap">2. 下につなぐカードをクリック</span>
-                    <div style="display:flex;gap:10px;">
-                        <div class="card card--sel"><span class="r">試運転責任者</span><div class="n">三浦 雅樹</div></div>
-                        <div class="card"><span class="badge">2</span><span class="r alt">電気業者</span><div class="n">古川 康樹</div></div>
-                    </div>
-                    <span style="font-size:11px;color:transparent;">.</span>
-                </div>
-                <span class="demo-arrow">➜</span>
-                <div class="demo-col">
-                    <span class="demo-cap">線でつながる</span>
+                <div class="demo-col"><span class="demo-cap">3. 保存すると表示が整う</span><span class="op-key" style="font-size:13px;padding:4px 14px;background:#3498db;color:#fff;border-color:#3498db;">保存</span></div>
+            </div>
+            <p class="desc">カードの位置や線は<b>自動で整列</b>されます。手で配置を整える必要はありません。</p>
+            <div class="tip-box">編集画面のツールバーにある <span class="op-key">💡 ヒント表示</span> を押すと、各ボタンやカードが光る枠で囲まれ、マウスを乗せると説明の吹き出しが出ます（暗い部分のクリックか Esc で閉じます）。</div>
+        </div>
+    </section>
+
+    <!-- ③ ＋で追加 -->
+    <section class="section" id="plus">
+        <div class="section-header"><span class="icon">➕</span><h2>③ ＋でカードを追加する</h2></div>
+        <div class="section-body">
+            <p class="desc">編集中にカードへマウスを乗せると、そのカードの<b>上・下・左・右に <span class="pl">＋</span></b> が出ます。<b>マウスを乗せたカードの＋だけ</b>が表示されるので、どのカードの＋かで迷うことはありません。押した場所にカードが追加されます。</p>
+            <table class="op-table">
+                <thead><tr><th>押す ＋</th><th>追加される場所</th></tr></thead>
+                <tbody>
+                    <tr><td>下の <span class="pl">＋</span></td><td>そのカードの<b>下</b>につながるカード。すでに下にカードがあれば、その右隣に並びます。</td></tr>
+                    <tr><td>右・左の <span class="pl">＋</span></td><td>そのカードと<b>同じ段の隣</b>（右側／左側）。上のカードから枝分かれした線でつながります。<br>
+                        <b>一番上のカード</b>の左右に追加した場合は、上にカードがないため、<b>一番上のカード同士が横線で結ばれます</b>（共同責任者など、起点が複数いる場合に使います）。</td></tr>
+                    <tr><td>上の <span class="pl">＋</span></td><td>そのカードの<b>上に差し込み</b>。もとのカード（とその下）は、新しいカードの下に入ります。</td></tr>
+                </tbody>
+            </table>
+            <div class="demo">
+                <div class="demo-col"><span class="demo-cap">上の＋を押す前</span>
                     <div class="mini-tree">
-                        <div class="card"><span class="r">試運転責任者</span><div class="n">三浦 雅樹</div></div>
-                        <div class="kids one"><div><div class="card"><span class="r alt">電気業者</span><div class="n">古川 康樹</div></div></div></div>
+                        <div class="card"><span class="r">組立業者 責任者</span><div class="n">鈴木 一郎</div></div>
+                        <div class="kids one"><div><div class="card"><span class="r alt">電気業者</span><div class="n">佐藤 次郎</div></div></div></div>
+                    </div>
+                    <span style="font-size:11px;color:#5a6a7e;">佐藤さんの上の＋を押して「不在時」ラベルを追加</span>
+                </div>
+                <span class="demo-arrow">➜</span>
+                <div class="demo-col"><span class="demo-cap">間に差し込まれる</span>
+                    <div class="mini-tree">
+                        <div class="card"><span class="r">組立業者 責任者</span><div class="n">鈴木 一郎</div></div>
+                        <div class="kids one"><div>
+                            <div class="card card--label">鈴木氏 不在時</div>
+                            <div class="kids one"><div><div class="card"><span class="r alt">電気業者</span><div class="n">佐藤 次郎</div></div></div></div>
+                        </div></div>
                     </div>
                 </div>
             </div>
-            <table class="op-table">
-                <thead><tr><th>操作</th><th>動き</th></tr></thead>
-                <tbody>
-                    <tr><td><span class="op-key op-key--click">クリック</span> → <span class="op-key op-key--click">クリック</span></td><td>2枚目のカードが、1枚目のカードの下につながります。<b>2枚目の下にあるカードも一緒に移動</b>します。</td></tr>
-                    <tr><td><span class="op-key">ドラッグ</span></td><td>カードをつかんで、別のカードの上に落としても同じようにつながります。落とせる場所は<b style="color:#27ae60;">緑の枠</b>で表示されます。</td></tr>
-                    <tr><td>同じカードをもう一度クリック</td><td>選択が解除されます（<span class="op-key">Esc</span>キーでも解除できます）。</td></tr>
-                    <tr><td>付け替え</td><td>すでにつながっているカードも、同じ操作で別のカードの下へ移せます。元の線は自動で消えます。</td></tr>
-                </tbody>
-            </table>
-            <div class="tip-box">カードの上下は線の起点とつながり先を表すだけで、必ずしも上司・部下の関係を意味しません。役割に合わせて自由に組み立ててください。</div>
-            <div class="note-box">あるカードを、自分の下につながっているカードの下に移すことはできません（輪になってしまうため）。この場合はメッセージが出て、何も変わりません。</div>
+            <div class="tip-box">カードの上下は線のつながりを表すだけで、必ずしも上司・部下の関係を意味しません。</div>
         </div>
     </section>
 
-    <!-- ④ カードを作る -->
-    <section class="section" id="new">
-        <div class="section-header"><span class="icon">➕</span><h2>④ 新しいカードを作る</h2></div>
+    <!-- ④ カードの入力 -->
+    <section class="section" id="input">
+        <div class="section-header"><span class="icon">✏️</span><h2>④ カードの入力</h2></div>
         <div class="section-body">
-            <ol class="steps">
-                <li>画面下の置き場にある <span class="op-key">＋人カード</span>（分岐ラベルなら <span class="op-key">＋分岐ラベル</span>）を押します。</li>
-                <li>入力画面が開くので、担当者などを入力して <span class="op-key">作成</span> を押します（入力項目は <a href="#edit">⑤</a> を参照）。</li>
-                <li>作ったカードが<b>置き場</b>に入ります。</li>
-                <li><a href="#connect">③</a> の方法で、<b>上に置くカード → 置き場の新しいカード</b>の順にクリックしてつなぎます（新しいカードを上に置くカードへドラッグしてもOK）。</li>
-            </ol>
-            <div class="note-box">置き場に残ったカードは<b>保存されません</b>。保存するときに「未接続のカードが○枚あります」と確認が出ます。</div>
-        </div>
-    </section>
-
-    <!-- ⑤ カードの内容を変える -->
-    <section class="section" id="edit">
-        <div class="section-header"><span class="icon">✏️</span><h2>⑤ カードの内容を変える</h2></div>
-        <div class="section-body">
-            <p class="desc">カードを <span class="op-key op-key--dbl">ダブルクリック</span> すると入力画面が開きます（カードを選んで案内バーの <span class="op-key">✎ 編集</span> でも開けます）。</p>
+            <p class="desc">＋を押すと入力画面が開きます。<b>社内の人はプルダウンで選ぶだけ</b>、社外の人は自由入力です。</p>
             <table class="op-table">
                 <thead><tr><th>項目</th><th>説明</th></tr></thead>
                 <tbody>
-                    <tr><td>人 ／ 分岐ラベル</td><td>カードの種類。分岐ラベルは「岸田氏 不在時」のような、点線で囲まれた見出しです。</td></tr>
-                    <tr><td>担当者（社内名簿から選択）</td><td>プルダウンから社内の人を選ぶと、<b>所属・氏名・電話が自動で入ります</b>。外注先など社外の人は「― 社外・手入力 ―」のまま、下の欄に直接入力します。</td></tr>
-                    <tr><td>役割</td><td>カード上部の帯に表示される文字（例：試運転責任者、電気業者）。よく使う役割は入力欄に候補として出ます。</td></tr>
-                    <tr><td>役割の色</td><td><span style="background:#3498db;color:#fff;padding:0 6px;border-radius:3px;font-size:11px;">青</span> 責任者向け ／ <span style="background:#95a5a6;color:#fff;padding:0 6px;border-radius:3px;font-size:11px;">灰</span> 担当・助勢向け</td></tr>
-                    <tr><td>所属・氏名・電話</td><td>自動で入った内容も、手で直せます。</td></tr>
-                    <tr><td>代理（任意）</td><td>代わりに対応する人。氏名・電話の下に（ ）書きで表示されます。こちらも名簿から選べます。</td></tr>
+                    <tr><td>人 ／ 分岐ラベル</td><td>ふつうは「人」。「鈴木氏 不在時」のような点線の見出しを作るときは「分岐ラベル」を選び、文字を入力します。</td></tr>
+                    <tr><td>担当者（プルダウン）</td><td>社内の人を選ぶと、<b>所属・氏名・電話が自動で入ります</b>。外注先など社外の人は「― 自由入力 ―」のまま、下の所属・氏名・電話に直接入力します。</td></tr>
+                    <tr><td>役割</td><td>カード上部の帯に出る文字（例：試運転責任者、電気業者）。入力欄をクリックすると候補が出ます。</td></tr>
+                    <tr><td>責任者として青で表示</td><td>チェックすると帯が <span style="background:#3498db;color:#fff;padding:0 6px;border-radius:3px;font-size:11px;">青</span>、外すと <span style="background:#95a5a6;color:#fff;padding:0 6px;border-radius:3px;font-size:11px;">灰</span> になります。</td></tr>
+                    <tr><td>代理の人を追加（任意）</td><td>開くと、代わりに対応する人を選べます。氏名・電話の下に（ ）書きで表示されます。</td></tr>
                 </tbody>
             </table>
-            <p class="desc" style="margin-top:12px;">入力が終わったら <span class="op-key">反映</span> を押します（この時点ではまだ保存されていません）。</p>
+            <p class="desc" style="margin-top:12px;">入力したら <span class="op-key">追加</span> を押します（この時点ではまだ保存されていません）。</p>
             <div class="note-box">カードには、選んだ時点の氏名・電話が写して入ります。あとで社内名簿の電話番号を変えても、作成済みのカードは変わりません。変えたいときは、カードを開いてプルダウンで選び直してください。</div>
         </div>
     </section>
 
-    <!-- ⑥ 並べ替え・切り離し・削除 -->
-    <section class="section" id="move">
-        <div class="section-header"><span class="icon">↔️</span><h2>⑥ 並べ替え・切り離し・削除</h2></div>
+    <!-- ⑤ 修正・削除・並べ替え -->
+    <section class="section" id="edit">
+        <div class="section-header"><span class="icon">🛠️</span><h2>⑤ 修正・削除・並べ替え</h2></div>
         <div class="section-body">
-            <p class="desc">カードを<span class="op-key op-key--click">クリック</span>で選ぶと、上の案内バーにボタンが出ます。</p>
+            <p class="desc">カードを <span class="op-key op-key--click">クリック</span> すると、入力画面が開きます。</p>
             <table class="op-table">
-                <thead><tr><th>ボタン</th><th>動き</th></tr></thead>
                 <tbody>
-                    <tr><td><span class="op-key">◀</span> <span class="op-key">▶</span></td><td>同じカードの下に並んでいるカード同士で、左右の順番を入れ替えます。</td></tr>
-                    <tr><td><span class="op-key">切り離す</span></td><td>線を外して置き場へ移します（下につながっているカードも一緒です）。別の場所につなぎ直すときに使います。</td></tr>
-                    <tr><td><span class="op-key">削除</span></td><td>カードを消します。下にカードがつながっている場合は、確認のうえ一緒に消えます。<span class="op-key">Delete</span> キーでも削除できます。</td></tr>
-                    <tr><td>最上位の欄</td><td>カードを選んで、系統名の下の「ここをクリック／ドロップで最上位に置く」欄をクリックすると、その表のいちばん上に置かれます。</td></tr>
+                    <tr><td>内容を直す</td><td>項目を書き換えて <span class="op-key">反映</span>。</td></tr>
+                    <tr><td><span class="op-key">◀ 左へ</span> <span class="op-key">右へ ▶</span></td><td>同じ段の隣のカードと順番を入れ替えます。</td></tr>
+                    <tr><td><span class="op-key">削除</span></td><td>そのカードを消します。<b>下につながっていたカードは消えずに、その位置へ繰り上がります。</b></td></tr>
                 </tbody>
             </table>
+            <div class="tip-box">カードを別の枝へ移したいときは、移したい場所に ＋ で同じ人を追加してから、元のカードを削除してください。</div>
         </div>
     </section>
 
-    <!-- ⑦ 系統 -->
+    <!-- ⑥ 系統 -->
     <section class="section" id="chart">
-        <div class="section-header"><span class="icon">🗂️</span><h2>⑦ 系統（表）の追加・名前変更・削除</h2></div>
+        <div class="section-header"><span class="icon">🗂️</span><h2>⑥ 系統（表）の追加・名前変更・削除</h2></div>
         <div class="section-body">
             <p class="desc">「試運転指揮系統」「組立発注担当系統」のように、1つの工事に複数の表を並べられます。</p>
             <table class="op-table">
                 <tbody>
-                    <tr><td><span class="op-key">＋系統を追加</span></td><td>空の表が右端に追加されます。最初のカードは「最上位に置く」欄を使って置きます。</td></tr>
+                    <tr><td><span class="op-key">＋系統を追加</span></td><td>空の表が右端に追加されます。「＋ カードを追加」から作り始めます。</td></tr>
                     <tr><td>名前の欄</td><td>直接入力して名前を変えます。</td></tr>
                     <tr><td><span class="op-key">◀</span> <span class="op-key">▶</span> <span class="op-key">✕</span></td><td>表の左右の順番の入れ替え ／ 表ごと削除。</td></tr>
                 </tbody>
@@ -318,26 +298,26 @@
         </div>
     </section>
 
-    <!-- ⑧ 保存 -->
+    <!-- ⑦ 保存 -->
     <section class="section" id="save">
-        <div class="section-header"><span class="icon">💾</span><h2>⑧ 保存・やり直し</h2></div>
+        <div class="section-header"><span class="icon">💾</span><h2>⑦ 保存・やり直し</h2></div>
         <div class="section-body">
             <table class="op-table">
                 <tbody>
                     <tr><td><span class="op-key">↶ 元に戻す</span></td><td>直前の操作を取り消します（<span class="op-key">Ctrl</span>+<span class="op-key">Z</span> でも可）。50回前までさかのぼれます。</td></tr>
-                    <tr><td><span class="op-key">保存</span></td><td>変更を保存して編集を終えます。保存した内容は、外注先が見る画面にすぐ反映されます。</td></tr>
+                    <tr><td><span class="op-key">保存</span></td><td>変更を保存して編集を終え、整った体制表の表示に戻ります。外注先の画面にも反映されます。</td></tr>
                     <tr><td><span class="op-key">キャンセル</span></td><td>保存せずに編集を終え、編集を始める前の状態に戻します。</td></tr>
                 </tbody>
             </table>
-            <div class="note-box">保存するまでは何も反映されません。編集を終えるときは、必ず <b>保存</b> を押してください。</div>
+            <div class="note-box">保存するまでは何も反映されません。また、同じ体制表を2人が同時に編集すると、後から保存した人の内容で上書きされます。編集は1人ずつ行ってください。</div>
         </div>
     </section>
 
-    <!-- ⑨ 社内名簿 -->
+    <!-- ⑧ 社内名簿 -->
     <section class="section" id="staff">
-        <div class="section-header"><span class="icon">👥</span><h2>⑨ 社内名簿の登録</h2></div>
+        <div class="section-header"><span class="icon">👥</span><h2>⑧ 社内名簿の登録</h2></div>
         <div class="section-body">
-            <p class="desc">⑤のプルダウンに出る社内の人は、ツールバーの <span class="op-key">社内名簿の管理</span> で登録します。登録した名簿はすべての工事で共通です。</p>
+            <p class="desc">④のプルダウンに出る社内の人は、ツールバーの <span class="op-key">社内名簿の管理</span> で登録します。登録した名簿はすべての工事で共通です。</p>
             <ol class="steps">
                 <li>Excel で <b>「氏名」「部署」「電話」</b> の3列を用意します（見出しの行はコピーしません）。</li>
                 <li>3列のセルを選んでコピーし、名簿画面上部の欄に貼り付けて <span class="op-key">貼り付け分を追加</span> を押します。</li>
@@ -357,46 +337,25 @@
         </div>
     </section>
 
-    <!-- ⑩ 例 -->
+    <!-- ⑨ 例 -->
     <section class="section" id="example">
-        <div class="section-header"><span class="icon">🧪</span><h2>⑩ 例：「岸田氏 不在時」の分岐を作る</h2></div>
+        <div class="section-header"><span class="icon">🧪</span><h2>⑨ 例：「鈴木氏 不在時」の分岐を作る</h2></div>
         <div class="section-body">
             <div class="demo">
                 <div class="mini-tree">
-                    <div class="card"><span class="r">組立業者 責任者</span><div class="n">岸田 嘉彦</div></div>
+                    <div class="card"><span class="r">組立業者 責任者</span><div class="n">鈴木 一郎</div></div>
                     <div class="kids one"><div>
-                        <div class="card card--label">岸田氏 不在時</div>
-                        <div class="kids"><div><div class="card"><span class="r alt">組立業者 助勢</span><div class="n">現場作業員</div></div></div><div><div class="card"><span class="r alt">電気業者</span><div class="n">古川 康樹</div></div></div></div>
+                        <div class="card card--label">鈴木氏 不在時</div>
+                        <div class="kids"><div><div class="card"><span class="r alt">組立業者 助勢</span><div class="n">現場作業員</div></div></div><div><div class="card"><span class="r alt">電気業者</span><div class="n">佐藤 次郎</div></div></div></div>
                     </div></div>
                 </div>
             </div>
             <ol class="steps">
-                <li>置き場の <span class="op-key">＋分岐ラベル</span> を押し、ラベル文字に「岸田氏 不在時」と入れて <span class="op-key">作成</span>。</li>
-                <li><b>岸田さんのカード</b> → <b>置き場の「岸田氏 不在時」</b> の順にクリック（ラベルが岸田さんの下につながります）。</li>
-                <li><span class="op-key">＋人カード</span> で「組立業者 助勢」「電気業者」のカードを作ります。</li>
-                <li><b>「岸田氏 不在時」</b> → <b>助勢のカード</b>、もう一度 <b>「岸田氏 不在時」</b> → <b>電気業者のカード</b> の順にクリック。</li>
-                <li>並び順を変えたいときは、カードを選んで <span class="op-key">◀</span> <span class="op-key">▶</span>。最後に <span class="op-key">保存</span>。</li>
+                <li>鈴木さんのカードの<b>下の <span class="pl">＋</span></b> を押し、「分岐ラベル」を選んで「鈴木氏 不在時」と入力 → <span class="op-key">追加</span>。</li>
+                <li>「鈴木氏 不在時」の<b>下の <span class="pl">＋</span></b> を押し、「組立業者 助勢」の人を入力 → <span class="op-key">追加</span>。</li>
+                <li>助勢のカードの<b>右の <span class="pl">＋</span></b> を押し、「電気業者」の人を入力 → <span class="op-key">追加</span>。</li>
+                <li>できあがったら <span class="op-key">保存</span>。</li>
             </ol>
-        </div>
-    </section>
-
-    <!-- ⑪ 操作一覧 -->
-    <section class="section" id="keys">
-        <div class="section-header"><span class="icon">⌨️</span><h2>⑪ 操作一覧・注意点</h2></div>
-        <div class="section-body">
-            <table class="op-table">
-                <thead><tr><th>操作</th><th>動き</th></tr></thead>
-                <tbody>
-                    <tr><td><span class="op-key op-key--click">クリック</span></td><td>カードを選ぶ ／ 選んだ状態で別のカードをクリックするとつなぐ</td></tr>
-                    <tr><td><span class="op-key op-key--dbl">ダブルクリック</span></td><td>カードの内容を編集</td></tr>
-                    <tr><td><span class="op-key">ドラッグ</span></td><td>カードの上に落とす＝つなぐ ／ 最上位の欄に落とす＝最上位へ ／ 置き場に落とす＝切り離す</td></tr>
-                    <tr><td><span class="op-key">Esc</span></td><td>選択を解除</td></tr>
-                    <tr><td><span class="op-key">Delete</span></td><td>選んだカードを削除</td></tr>
-                    <tr><td><span class="op-key">Ctrl</span>+<span class="op-key">Z</span></td><td>元に戻す</td></tr>
-                </tbody>
-            </table>
-            <div class="note-box">カードを選んだまま別のカードをダブルクリックすると、編集画面が開く前にそのカードがつながってしまいます。意図せずつながったときは <span class="op-key">Ctrl</span>+<span class="op-key">Z</span> で戻してください。先に <span class="op-key">Esc</span> で選択を解除しておくと安全です。</div>
-            <div class="note-box">同じ体制表を2人が同時に編集すると、後から保存した人の内容で上書きされます。編集は1人ずつ行ってください。</div>
         </div>
     </section>
 
