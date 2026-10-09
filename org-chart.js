@@ -297,25 +297,9 @@
         const buList = [...new Set(rows.map(r => r.bu).filter(Boolean))];
         const kaList = [...new Set(rows.map(r => r.ka).filter(Boolean))];
         const m = openModal('社内名簿の管理', `
-            <div class="oc-howto">
-                <div class="oc-howto-box">
-                    <div class="oc-howto-title">1人ずつ追加する</div>
-                    <p>一覧のいちばん下の <b>「＋1行追加」</b> を押して入力し、<b>「名簿を保存」</b>。</p>
-                    <p class="oc-note">変更・削除も一覧で直接行い、最後に「名簿を保存」を押します。</p>
-                </div>
-                <div class="oc-howto-box oc-howto-box--wide">
-                    <div class="oc-howto-title">Excel からまとめて追加する</div>
-                    <ol class="oc-howto-steps">
-                        <li>Excel で、次の順に <b>4列</b> を並べます（見出しの行はコピーしません）
-                            <table class="oc-sample"><tr><th>氏名</th><th>部</th><th>課</th><th>電話</th></tr>
-                            <tr><td>山田 太郎</td><td>組立部</td><td>電装課</td><td>090-1234-5678</td></tr></table></li>
-                        <li>4列のセルを選んで <b>Ctrl+C</b> でコピー</li>
-                        <li>下の枠をクリックして <b>Ctrl+V</b> で貼り付け →「一覧に追加」</li>
-                        <li>一覧の最後に追加された人（黄色の行）を確認して「名簿を保存」</li>
-                    </ol>
-                    <div class="oc-paste"><textarea rows="3" placeholder="ここをクリックして Ctrl+V で貼り付け"></textarea><button type="button" class="oc-btn oc-btn--primary" data-s="paste">一覧に追加</button></div>
-                    <div class="oc-paste-msg"></div>
-                </div>
+            <div class="oc-howto-box">
+                <b>追加</b>：一覧のいちばん下の「＋1行追加」を押して入力 ／ <b>変更</b>：一覧の欄を直接書き換え ／ <b>削除</b>：行の ✕<br>
+                最後に <b>「名簿を保存」</b> を押すと反映されます（「使用」のチェックを外すと、プルダウンに出なくなります）。
             </div>
             <datalist id="ocBuList">${buList.map(v => `<option value="${esc(v)}">`).join('')}</datalist>
             <datalist id="ocKaList">${kaList.map(v => `<option value="${esc(v)}">`).join('')}</datalist>
@@ -362,7 +346,6 @@
         ], 'oc-modal--wide');
         const tbody = m.el.querySelector('tbody');
         const wrap = m.el.querySelector('.oc-staff-wrap');
-        const msg = m.el.querySelector('.oc-paste-msg');
         function draw() {
             tbody.innerHTML = rows.map((r, i) => `<tr data-i="${i}"${r.id ? '' : ' class="oc-new"'}>
                 <td><input data-f="name" value="${esc(r.name)}"></td>
@@ -385,7 +368,6 @@
         function isDirty() {
             return removed.length > 0 || rows.some(r => !r.id || original.get(r.id) !== JSON.stringify(r));
         }
-        const normName = s => String(s || '').replace(/[\s　]+/g, '');
         // 新しい行は一覧の最後に並ぶよう、今の最大の並び順より後ろの値にする
         function nextOrder() { return rows.reduce((mx, r) => Math.max(mx, Number(r.sort_order) || 0), 0) + 10; }
         function blank() { return { id: null, name: '', bu: '', ka: '', tel: '', sort_order: nextOrder(), active: true }; }
@@ -395,25 +377,6 @@
             if (t.dataset.s === 'add') {
                 collect(); rows.push(blank()); draw(); scrollToEnd();
                 tbody.lastElementChild.querySelector('[data-f="name"]').focus();
-            }
-            if (t.dataset.s === 'paste') {
-                collect();
-                const ta = m.el.querySelector('.oc-paste textarea');
-                const lines = ta.value.split(/\r?\n/).map(l => l.split('\t')).filter(c => c[0] && c[0].trim());
-                if (!lines.length) { msg.textContent = '貼り付けられた内容がありません。Excel の4列をコピーして、上の枠に Ctrl+V で貼り付けてください。'; msg.className = 'oc-paste-msg oc-paste-msg--err'; return; }
-                const added = [], skipped = [];
-                lines.forEach(c => {
-                    // 4列（氏名・部・課・電話）。旧3列（氏名・部署・電話）も受け付ける
-                    const [name, bu, ka, tel] = c.length >= 4 ? c : [c[0], ...Object.values(splitDept(c[1])), c[2]];
-                    if (rows.some(r => normName(r.name) === normName(name))) { skipped.push(name.trim()); return; }
-                    rows.push({ ...blank(), name: name.trim(), bu: (bu || '').trim(), ka: (ka || '').trim(), tel: (tel || '').trim() });
-                    added.push(name.trim());
-                });
-                ta.value = '';
-                draw(); scrollToEnd();
-                msg.className = 'oc-paste-msg';
-                msg.textContent = `${added.length}人を一覧の最後に追加しました（黄色の行）。内容を確認して「名簿を保存」を押してください。`
-                    + (skipped.length ? `　※すでに名簿にいるため追加しなかった人：${skipped.join('、')}` : '');
             }
             if (t.dataset.del != null) {
                 collect();
@@ -618,7 +581,7 @@
         { sel: '[data-t="help"]', title: 'ヒント表示', text: '各所の説明吹き出しを表示します\n暗い部分をクリック（または Esc）で閉じます', noBullets: true, closeOnClick: true },
         { sel: '[data-t="undo"]', title: '元に戻す', text: '直前の操作を取り消します（Ctrl+Z でも可）\n50回前までさかのぼれます', noBullets: true },
         { sel: '[data-t="addchart"]', title: '系統を追加', text: '空の系統（表）を右端に追加します\n「＋ カードを追加」から作り始めます', noBullets: true },
-        { sel: '[data-t="staff"]', title: '社内名簿の管理', text: 'カードのプルダウンに出る社内の人を登録します\nExcel の「氏名・部・課・電話」4列を貼り付けて一括登録できます', noBullets: true },
+        { sel: '[data-t="staff"]', title: '社内名簿の管理', text: 'カードのプルダウンに出る社内の人の\n追加・変更・削除を行います', noBullets: true },
         { sel: '[data-t="cancel"]', title: 'キャンセル', text: '保存せずに編集を終え、編集前の状態に戻します', noBullets: true },
         { sel: '[data-t="save"]', title: '保存', text: '変更を保存して編集を終えます\n整った体制表の表示に戻り、外注先の画面にも反映されます', noBullets: true },
         { sel: '.oc-chart-head', title: '系統名', text: '欄に直接入力して名前を変更\n◀ ▶ で系統の並び順を入れ替え\n✕ で系統ごと削除' },
