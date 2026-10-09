@@ -283,25 +283,60 @@
         ).join('');
     }
 
+    // 名簿は社内の人だけなので会社は画面に出さない（DB の company は既定値「日下部電機㈱」のまま、カードの所属表示に使う）。
+    // 部署は DB では「組立部 電装課」のように部と課を1つにまとめて持ち、画面では部と課に分けて編集する
+    function splitDept(dept) {
+        const [bu, ...ka] = String(dept || '').trim().split(/\s+/);
+        return { bu: bu || '', ka: ka.join(' ') };
+    }
     function staffDialog() {
-        let rows = staff.map(s => ({ ...s }));
+        const toRow = s => ({ id: s.id, name: s.name || '', ...splitDept(s.department), tel: s.tel || '', sort_order: s.sort_order ?? 0, active: s.active !== false });
+        let rows = staff.map(toRow);
+        const original = new Map(rows.map(r => [r.id, JSON.stringify(r)]));
         const removed = [];
+        const buList = [...new Set(rows.map(r => r.bu).filter(Boolean))];
+        const kaList = [...new Set(rows.map(r => r.ka).filter(Boolean))];
         const m = openModal('社内名簿の管理', `
-            <p class="oc-note">Excel の「氏名・部・課・電話」の4列（見出し行なし）をコピーして下の欄に貼り付けると、まとめて追加できます。</p>
-            <div class="oc-paste"><textarea rows="3" placeholder="氏名[Tab]部[Tab]課[Tab]電話"></textarea><button type="button" class="oc-btn" data-s="paste">貼り付け分を追加</button></div>
+            <div class="oc-howto">
+                <div class="oc-howto-box">
+                    <div class="oc-howto-title">1人ずつ追加する</div>
+                    <p>一覧のいちばん下の <b>「＋1行追加」</b> を押して入力し、<b>「名簿を保存」</b>。</p>
+                    <p class="oc-note">変更・削除も一覧で直接行い、最後に「名簿を保存」を押します。</p>
+                </div>
+                <div class="oc-howto-box oc-howto-box--wide">
+                    <div class="oc-howto-title">Excel からまとめて追加する</div>
+                    <ol class="oc-howto-steps">
+                        <li>Excel で、次の順に <b>4列</b> を並べます（見出しの行はコピーしません）
+                            <table class="oc-sample"><tr><th>氏名</th><th>部</th><th>課</th><th>電話</th></tr>
+                            <tr><td>山田 太郎</td><td>組立部</td><td>電装課</td><td>090-1234-5678</td></tr></table></li>
+                        <li>4列のセルを選んで <b>Ctrl+C</b> でコピー</li>
+                        <li>下の枠をクリックして <b>Ctrl+V</b> で貼り付け →「一覧に追加」</li>
+                        <li>一覧の最後に追加された人（黄色の行）を確認して「名簿を保存」</li>
+                    </ol>
+                    <div class="oc-paste"><textarea rows="3" placeholder="ここをクリックして Ctrl+V で貼り付け"></textarea><button type="button" class="oc-btn oc-btn--primary" data-s="paste">一覧に追加</button></div>
+                    <div class="oc-paste-msg"></div>
+                </div>
+            </div>
+            <datalist id="ocBuList">${buList.map(v => `<option value="${esc(v)}">`).join('')}</datalist>
+            <datalist id="ocKaList">${kaList.map(v => `<option value="${esc(v)}">`).join('')}</datalist>
             <div class="oc-staff-wrap"><table class="oc-staff">
-                <thead><tr><th>氏名</th><th>会社</th><th>部署</th><th>電話</th><th>順</th><th>使用</th><th></th></tr></thead>
+                <thead><tr><th>氏名</th><th>部</th><th>課</th><th>電話</th><th title="プルダウンでの並び順（小さい順）">順</th><th title="外すとプルダウンに出なくなります">使用</th><th></th></tr></thead>
                 <tbody></tbody></table></div>
             <button type="button" class="oc-btn" data-s="add">＋1行追加</button>
             <div class="oc-err"></div>`, [
-            { label: '閉じる', ghost: true, onClick: () => m.close() },
+            { label: '閉じる', ghost: true, onClick: () => {
+                collect();
+                if (isDirty() && !confirm('保存していない変更があります。破棄して閉じますか？')) return;
+                m.close();
+            } },
             { label: '名簿を保存', primary: true, onClick: async () => {
                 collect();
                 const bad = rows.find(r => !r.name.trim());
                 if (bad) { m.el.querySelector('.oc-err').textContent = '氏名が空欄の行があります。'; return; }
                 try {
-                    for (const r of rows) {
-                        const rec = { name: r.name.trim(), company: r.company.trim() || '日下部電機㈱', department: r.department.trim() || null,
+                    // 変更のあった行・新しい行だけを書き込む
+                    for (const r of rows.filter(r => !r.id || original.get(r.id) !== JSON.stringify(r))) {
+                        const rec = { name: r.name.trim(), department: [r.bu, r.ka].map(s => s.trim()).filter(Boolean).join(' ') || null,
                             tel: r.tel.trim() || null, sort_order: Number(r.sort_order) || 0, active: !!r.active, updated_at: new Date().toISOString() };
                         if (r.id) {
                             const { data, error } = await client.from('staff_directory').update(rec).eq('id', r.id).select('id');
@@ -326,12 +361,14 @@
             } },
         ], 'oc-modal--wide');
         const tbody = m.el.querySelector('tbody');
+        const wrap = m.el.querySelector('.oc-staff-wrap');
+        const msg = m.el.querySelector('.oc-paste-msg');
         function draw() {
-            tbody.innerHTML = rows.map((r, i) => `<tr data-i="${i}">
+            tbody.innerHTML = rows.map((r, i) => `<tr data-i="${i}"${r.id ? '' : ' class="oc-new"'}>
                 <td><input data-f="name" value="${esc(r.name)}"></td>
-                <td><input data-f="company" value="${esc(r.company)}"></td>
-                <td><input data-f="department" value="${esc(r.department)}"></td>
-                <td><input data-f="tel" value="${esc(r.tel)}"></td>
+                <td><input data-f="bu" list="ocBuList" value="${esc(r.bu)}"></td>
+                <td><input data-f="ka" list="ocKaList" value="${esc(r.ka)}"></td>
+                <td><input data-f="tel" value="${esc(r.tel)}" placeholder="090-1234-5678"></td>
                 <td><input data-f="sort_order" type="number" value="${esc(r.sort_order)}" class="oc-num"></td>
                 <td><input data-f="active" type="checkbox"${r.active ? ' checked' : ''}></td>
                 <td><button type="button" data-del="${i}" title="削除">✕</button></td></tr>`).join('');
@@ -340,24 +377,43 @@
             tbody.querySelectorAll('tr').forEach(tr => {
                 const r = rows[tr.dataset.i];
                 tr.querySelectorAll('[data-f]').forEach(inp => {
-                    r[inp.dataset.f] = inp.type === 'checkbox' ? inp.checked : inp.value;
+                    const f = inp.dataset.f;
+                    r[f] = inp.type === 'checkbox' ? inp.checked : f === 'sort_order' ? (Number(inp.value) || 0) : inp.value;
                 });
             });
         }
-        function blank() { return { id: null, name: '', company: '日下部電機㈱', department: '', tel: '', sort_order: 0, active: true }; }
+        function isDirty() {
+            return removed.length > 0 || rows.some(r => !r.id || original.get(r.id) !== JSON.stringify(r));
+        }
+        const normName = s => String(s || '').replace(/[\s　]+/g, '');
+        // 新しい行は一覧の最後に並ぶよう、今の最大の並び順より後ろの値にする
+        function nextOrder() { return rows.reduce((mx, r) => Math.max(mx, Number(r.sort_order) || 0), 0) + 10; }
+        function blank() { return { id: null, name: '', bu: '', ka: '', tel: '', sort_order: nextOrder(), active: true }; }
+        function scrollToEnd() { wrap.scrollTop = wrap.scrollHeight; }
         m.el.addEventListener('click', e => {
             const t = e.target;
-            if (t.dataset.s === 'add') { collect(); rows.push(blank()); draw(); }
+            if (t.dataset.s === 'add') {
+                collect(); rows.push(blank()); draw(); scrollToEnd();
+                tbody.lastElementChild.querySelector('[data-f="name"]').focus();
+            }
             if (t.dataset.s === 'paste') {
                 collect();
                 const ta = m.el.querySelector('.oc-paste textarea');
-                ta.value.split(/\r?\n/).map(l => l.split('\t')).filter(c => c[0] && c[0].trim()).forEach(c => {
-                    // 4列（氏名・部・課・電話）。部と課は「組立部 電装課」のように1つの部署名にまとめる。旧3列（氏名・部署・電話）も受け付ける
-                    const [name, bu, ka, tel] = c.length >= 4 ? c : [c[0], c[1], '', c[2]];
-                    rows.push({ ...blank(), name: name.trim(), department: [bu, ka].map(s => (s || '').trim()).filter(Boolean).join(' '), tel: (tel || '').trim() });
+                const lines = ta.value.split(/\r?\n/).map(l => l.split('\t')).filter(c => c[0] && c[0].trim());
+                if (!lines.length) { msg.textContent = '貼り付けられた内容がありません。Excel の4列をコピーして、上の枠に Ctrl+V で貼り付けてください。'; msg.className = 'oc-paste-msg oc-paste-msg--err'; return; }
+                const added = [], skipped = [];
+                lines.forEach(c => {
+                    // 4列（氏名・部・課・電話）。旧3列（氏名・部署・電話）も受け付ける
+                    const [name, bu, ka, tel] = c.length >= 4 ? c : [c[0], ...Object.values(splitDept(c[1])), c[2]];
+                    if (rows.some(r => normName(r.name) === normName(name))) { skipped.push(name.trim()); return; }
+                    rows.push({ ...blank(), name: name.trim(), bu: (bu || '').trim(), ka: (ka || '').trim(), tel: (tel || '').trim() });
+                    added.push(name.trim());
                 });
                 ta.value = '';
-                draw();
+                draw(); scrollToEnd();
+                msg.className = 'oc-paste-msg';
+                msg.textContent = `${added.length}人を一覧の最後に追加しました（黄色の行）。内容を確認して「名簿を保存」を押してください。`
+                    + (skipped.length ? `　※すでに名簿にいるため追加しなかった人：${skipped.join('、')}` : '');
             }
             if (t.dataset.del != null) {
                 collect();
