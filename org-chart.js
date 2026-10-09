@@ -287,8 +287,8 @@
         let rows = staff.map(s => ({ ...s }));
         const removed = [];
         const m = openModal('社内名簿の管理', `
-            <p class="oc-note">Excel の「氏名・部署・電話」の3列（見出し行なし）をコピーして下の欄に貼り付けると、まとめて追加できます。</p>
-            <div class="oc-paste"><textarea rows="3" placeholder="氏名[Tab]部署[Tab]電話"></textarea><button type="button" class="oc-btn" data-s="paste">貼り付け分を追加</button></div>
+            <p class="oc-note">Excel の「氏名・部・課・電話」の4列（見出し行なし）をコピーして下の欄に貼り付けると、まとめて追加できます。</p>
+            <div class="oc-paste"><textarea rows="3" placeholder="氏名[Tab]部[Tab]課[Tab]電話"></textarea><button type="button" class="oc-btn" data-s="paste">貼り付け分を追加</button></div>
             <div class="oc-staff-wrap"><table class="oc-staff">
                 <thead><tr><th>氏名</th><th>会社</th><th>部署</th><th>電話</th><th>順</th><th>使用</th><th></th></tr></thead>
                 <tbody></tbody></table></div>
@@ -352,7 +352,9 @@
                 collect();
                 const ta = m.el.querySelector('.oc-paste textarea');
                 ta.value.split(/\r?\n/).map(l => l.split('\t')).filter(c => c[0] && c[0].trim()).forEach(c => {
-                    rows.push({ ...blank(), name: c[0].trim(), department: (c[1] || '').trim(), tel: (c[2] || '').trim() });
+                    // 4列（氏名・部・課・電話）。部と課は「組立部 電装課」のように1つの部署名にまとめる。旧3列（氏名・部署・電話）も受け付ける
+                    const [name, bu, ka, tel] = c.length >= 4 ? c : [c[0], c[1], '', c[2]];
+                    rows.push({ ...blank(), name: name.trim(), department: [bu, ka].map(s => (s || '').trim()).filter(Boolean).join(' '), tel: (tel || '').trim() });
                 });
                 ta.value = '';
                 draw();
@@ -560,7 +562,7 @@
         { sel: '[data-t="help"]', title: 'ヒント表示', text: '各所の説明吹き出しを表示します\n暗い部分をクリック（または Esc）で閉じます', noBullets: true, closeOnClick: true },
         { sel: '[data-t="undo"]', title: '元に戻す', text: '直前の操作を取り消します（Ctrl+Z でも可）\n50回前までさかのぼれます', noBullets: true },
         { sel: '[data-t="addchart"]', title: '系統を追加', text: '空の系統（表）を右端に追加します\n「＋ カードを追加」から作り始めます', noBullets: true },
-        { sel: '[data-t="staff"]', title: '社内名簿の管理', text: 'カードのプルダウンに出る社内の人を登録します\nExcel の「氏名・部署・電話」3列を貼り付けて一括登録できます', noBullets: true },
+        { sel: '[data-t="staff"]', title: '社内名簿の管理', text: 'カードのプルダウンに出る社内の人を登録します\nExcel の「氏名・部・課・電話」4列を貼り付けて一括登録できます', noBullets: true },
         { sel: '[data-t="cancel"]', title: 'キャンセル', text: '保存せずに編集を終え、編集前の状態に戻します', noBullets: true },
         { sel: '[data-t="save"]', title: '保存', text: '変更を保存して編集を終えます\n整った体制表の表示に戻り、外注先の画面にも反映されます', noBullets: true },
         { sel: '.oc-chart-head', title: '系統名', text: '欄に直接入力して名前を変更\n◀ ▶ で系統の並び順を入れ替え\n✕ で系統ごと削除' },
