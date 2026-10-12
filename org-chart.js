@@ -701,11 +701,16 @@
             const body = m.el.querySelector('.oc-modal-body');
             const syncScroll = () => {
                 body.style.overflowY = 'auto';
+                // 代理を閉じた状態で中身が増えたとき（案内文・代理の（ ）表示など）は、その分だけ画面を高くする（縮めはしない）
+                const over = body.scrollHeight - body.clientHeight;
+                if (!det.open && over > 0) box.style.height = Math.ceil(box.getBoundingClientRect().height) + over + 2 + 'px';
                 const fits = !det.open && body.scrollHeight <= body.clientHeight + 4;
                 body.style.overflowY = fits ? 'hidden' : 'auto';
                 if (fits) body.scrollTop = 0;
             };
             det.addEventListener('toggle', syncScroll);
+            m.el.addEventListener('input', () => setTimeout(syncScroll, 0));
+            m.el.addEventListener('change', () => setTimeout(syncScroll, 0));
             m.el.querySelectorAll('[name=type]').forEach(r => r.addEventListener('change', syncScroll));
             const onResize = () => { if (!document.body.contains(m.el)) return window.removeEventListener('resize', onResize); syncScroll(); };
             window.addEventListener('resize', onResize);
