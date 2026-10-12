@@ -605,37 +605,55 @@
         } });
 
         const m = openModal(opts.title, `
-            <div class="oc-type">
-                <label><input type="radio" name="type" value="person"${d.type !== 'label' ? ' checked' : ''}> 人</label>
-                <label><input type="radio" name="type" value="label"${d.type === 'label' ? ' checked' : ''}> 分岐ラベル（例：○○氏 不在時）</label>
+            <div class="oc-cd-typehead">カードの種類</div>
+            <div class="oc-cd-seg" role="radiogroup">
+                <label><input type="radio" name="type" value="person"${d.type !== 'label' ? ' checked' : ''}><span>人</span></label>
+                <label><input type="radio" name="type" value="label"${d.type === 'label' ? ' checked' : ''}><span>分岐ラベル<small>（例：○○氏 不在時）</small></span></label>
             </div>
             <div class="oc-for-label">
-                <label class="oc-field"><span>ラベルの文字</span><input name="text" value="${esc(d.text)}" placeholder="例：○○氏 不在時"></label>
-            </div>
-            <div class="oc-for-person">
-                <label class="oc-field"><span>担当者</span><select name="staff">${staffOptions(d.staffId)}</select></label>
-                ${staff.length ? '' : '<p class="oc-note">社内名簿が未登録です。「社内名簿の管理」から登録すると、ここで選べるようになります。</p>'}
-                <div class="oc-grid2">
-                    <label class="oc-field"><span>役割</span><input name="role" list="ocRoleList" value="${esc(d.role)}" placeholder="例：試運転責任者"></label>
-                    <label class="oc-check"><input type="checkbox" name="roleBlue"${!d.roleAlt ? ' checked' : ''}> 責任者として青で表示</label>
-                </div>
-                <datalist id="ocRoleList">${ROLE_SUGGEST.map(r => `<option value="${esc(r)}">`).join('')}</datalist>
-                <div class="oc-free">
-                    <label class="oc-field"><span>所属</span><input name="org" value="${esc(d.org)}" placeholder="例：シマブンエンジニアリング株式会社"></label>
-                    <div class="oc-grid2">
-                        <label class="oc-field"><span>氏名</span><input name="name" value="${esc(d.name)}"></label>
-                        <label class="oc-field"><span>電話</span><input name="tel" value="${esc(d.tel)}"></label>
+                <div class="oc-cd-sec oc-cd-preview">
+                    <div class="oc-cd-sechead"><b>ラベルの文字</b><small>ラベルの中を直接クリックして入力します</small></div>
+                    <div class="oc-cd-stage">
+                        <div class="org-box org-box--label oc-cd-labelbox"><input name="text" value="${esc(d.text)}" placeholder="例：○○氏 不在時" autocomplete="off"></div>
                     </div>
                 </div>
-                <details class="oc-sub"${hasSub ? ' open' : ''}><summary>代理の人を追加（任意・（ ）書きで表示）</summary>
-                    <label class="oc-field"><span>代理</span><select name="subStaff">${staffOptions(d.subStaffId)}</select></label>
-                    <div class="oc-grid2">
-                        <label class="oc-field"><span>氏名</span><input name="subName" value="${esc(d.subName)}"></label>
-                        <label class="oc-field"><span>電話</span><input name="subTel" value="${esc(d.subTel)}"></label>
+            </div>
+            <div class="oc-for-person">
+                <div class="oc-cd-sec">
+                    <div class="oc-cd-sechead"><b>担当者</b><small>名簿から選ぶと所属・氏名・電話が自動で入ります</small></div>
+                    <select name="staff" class="oc-cd-staff">${staffOptions(d.staffId)}</select>
+                    <p class="oc-cd-hint"></p>
+                    ${staff.length ? '' : '<p class="oc-note">社内名簿が未登録です。「社内名簿の管理」から登録すると、ここで選べるようになります。</p>'}
+                </div>
+                <div class="oc-cd-sec oc-cd-preview oc-cd-content">
+                    <div class="oc-cd-sechead"><b>カードに表示する内容</b><small>カードの文字を直接クリックして入力します</small><span class="oc-cd-freetag">ここに直接入力</span></div>
+                    <div class="oc-cd-stage">
+                        <div class="org-box oc-cd-box">
+                            <span class="org-role oc-cd-role"><input name="role" autocomplete="off" value="${esc(d.role)}" placeholder="役割（例：試運転責任者）" aria-label="役割"></span>
+                            <input name="org" class="org-org" value="${esc(d.org)}" placeholder="所属（例：シマブンエンジニアリング株式会社）" aria-label="所属">
+                            <input name="name" class="org-name oc-cd-name" value="${esc(d.name)}" placeholder="氏名" aria-label="氏名">
+                            <small class="oc-cd-subprev oc-cd-subprev--name"></small>
+                            <input name="tel" class="org-tel" value="${esc(d.tel)}" placeholder="電話（090-1234-5678）" inputmode="tel" aria-label="電話">
+                            <small class="oc-cd-subprev oc-cd-subprev--tel"></small>
+                        </div>
+                    </div>
+                    <label class="oc-sd-card oc-sd-toggle oc-cd-toggle">
+                        <div><b>責任者として青で表示</b><small>オフにすると通常の色で表示します</small></div>
+                        <input type="checkbox" name="roleBlue" class="oc-cd-switch"${!d.roleAlt ? ' checked' : ''}>
+                    </label>
+                </div>
+                <details class="oc-cd-sub"${hasSub ? ' open' : ''}>
+                    <summary><b>代理の人</b><small>任意・カードに（ ）書きで表示</small></summary>
+                    <div class="oc-cd-subbody">
+                        <label class="oc-field"><span>代理</span><select name="subStaff">${staffOptions(d.subStaffId)}</select></label>
+                        <div class="oc-grid2">
+                            <label class="oc-field"><span>氏名</span><input name="subName" value="${esc(d.subName)}"></label>
+                            <label class="oc-field"><span>電話</span><input name="subTel" value="${esc(d.subTel)}" inputmode="tel"></label>
+                        </div>
                     </div>
                 </details>
             </div>
-            <div class="oc-err"></div>`, buttons);
+            <div class="oc-err"></div>`, buttons, 'oc-modal--card');
 
         function f(n) { return m.el.querySelector(`[name=${n.replace(':checked', '')}]${n.endsWith(':checked') ? ':checked' : ''}`); }
         const syncType = () => {
@@ -646,9 +664,57 @@
         m.el.querySelectorAll('[name=type]').forEach(r => r.addEventListener('change', syncType));
         syncType();
         // 名簿から選ぶと所属・氏名・電話を自動入力（入力後の手直しも可）
+        // 自由入力のときは下の所属・氏名・電話に直接入力することを案内する
+        const syncFree = (picked) => {
+            const free = !f('staff').value && picked;
+            m.el.querySelector('.oc-cd-content').classList.toggle('is-free', free);
+            const hint = m.el.querySelector('.oc-cd-hint');
+            hint.className = 'oc-cd-hint' + (free ? ' is-free' : '');
+            hint.textContent = free ? '名簿にいない人は、下の「所属・氏名・電話」に直接入力してください。'
+                : f('staff').value && picked ? '名簿の内容を下に入れました。必要なら直接修正できます。' : '';
+        };
+        syncFree(false);
+        // カード見本：役割の色・幅と代理の（ ）表示を入力に合わせて更新
+        const syncCard = () => {
+            const role = f('role');
+            const rolePill = m.el.querySelector('.oc-cd-role');
+            rolePill.classList.toggle('alt', !f('roleBlue').checked);
+            rolePill.classList.toggle('is-empty', !role.value);
+            role.style.width = Math.max(4, [...(role.value || role.placeholder)].length + 1) + 'em';
+            const sn = f('subName').value.trim(), st = f('subTel').value.trim();
+            m.el.querySelector('.oc-cd-subprev--name').textContent = sn ? `（${sn}）` : '';
+            m.el.querySelector('.oc-cd-subprev--tel').textContent = st ? `（${st}）` : '';
+        };
+        m.el.addEventListener('input', syncCard);
+        m.el.addEventListener('change', syncCard);
+        syncCard();
+        // 画面の高さは「人」で代理を閉じた状態の中身に合わせて固定する（種類を切り替えても大きさが変わらないように）
+        {
+            const box = m.el.querySelector('.oc-modal'), det = m.el.querySelector('.oc-cd-sub');
+            const forL = m.el.querySelector('.oc-for-label'), forP = m.el.querySelector('.oc-for-person');
+            const keep = [det.open, forL.style.display, forP.style.display];
+            det.open = false; forL.style.display = 'none'; forP.style.display = '';
+            box.style.height = 'auto';
+            box.style.height = Math.ceil(box.getBoundingClientRect().height) + 2 + 'px';
+            [det.open, forL.style.display, forP.style.display] = keep;
+            // 代理を閉じているときは、端数のずれで出る細いスクロールバーを出さない
+            const body = m.el.querySelector('.oc-modal-body');
+            const syncScroll = () => {
+                body.style.overflowY = 'auto';
+                const fits = !det.open && body.scrollHeight <= body.clientHeight + 4;
+                body.style.overflowY = fits ? 'hidden' : 'auto';
+                if (fits) body.scrollTop = 0;
+            };
+            det.addEventListener('toggle', syncScroll);
+            m.el.querySelectorAll('[name=type]').forEach(r => r.addEventListener('change', syncScroll));
+            const onResize = () => { if (!document.body.contains(m.el)) return window.removeEventListener('resize', onResize); syncScroll(); };
+            window.addEventListener('resize', onResize);
+            syncScroll();
+        }
         f('staff').addEventListener('change', e => {
+            syncFree(true);
             const s = staff.find(x => x.id === Number(e.target.value));
-            if (!s) return;
+            if (!s) { setTimeout(() => f('org').focus(), 0); return; }
             f('org').value = staffOrg(s);
             f('name').value = s.name;
             f('tel').value = s.tel || '';
@@ -659,7 +725,132 @@
             f('subName').value = s.name;
             f('subTel').value = s.tel || '';
         });
-        (d.type === 'label' ? f('text') : f('staff')).focus();
+        const staffPick = pickerFor(f('staff'));
+        pickerFor(f('subStaff'));
+        suggestFor(f('role'), ROLE_SUGGEST);
+        (d.type === 'label' ? f('text') : staffPick).focus();
+
+        // ===== プルダウン（社内名簿の管理と同じ見た目の一覧） =====
+        // 元の select は値の保持用に残して隠し、選ぶと change を発火させる（自動入力の処理はそのまま動く）
+        let pop = null;
+        function closePop() { if (pop) { pop.remove(); pop = null; } }
+        function openPop(anchor, build) {
+            closePop();
+            pop = document.createElement('div');
+            pop.className = 'oc-cd-pop';
+            m.el.appendChild(pop);
+            const r = anchor.getBoundingClientRect();
+            const below = window.innerHeight - r.bottom - 12, above = r.top - 12;
+            const up = below < 240 && above > below;
+            const w = Math.max(r.width, 260);
+            pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8)) + 'px';
+            pop.style.width = w + 'px';
+            pop.style.maxHeight = Math.min(360, up ? above : below) + 'px';
+            if (up) pop.style.bottom = (window.innerHeight - r.top + 4) + 'px'; else pop.style.top = (r.bottom + 4) + 'px';
+            build(pop);
+            return pop;
+        }
+        m.el.addEventListener('mousedown', e => {
+            if (pop && !pop.contains(e.target) && !e.target.closest('.oc-cd-pick, [name=role]')) closePop();
+        });
+        m.el.querySelector('.oc-modal-body').addEventListener('scroll', closePop);
+
+        function pickerFor(sel) {
+            sel.classList.add('oc-cd-hidden');
+            sel.tabIndex = -1;
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'oc-cd-pick' + (sel.classList.contains('oc-cd-staff') ? ' oc-cd-pick--main' : '');
+            sel.after(btn);
+            const items = [];
+            [...sel.children].forEach(c => {
+                if (c.tagName === 'OPTGROUP') [...c.children].forEach(o => items.push({ v: o.value, g: c.label, o }));
+                else items.push({ v: c.value, g: '', o: c });
+            });
+            const info = v => { const s = staff.find(x => String(x.id) === String(v)); return s ? { name: s.name, sub: staffOrg(s), tel: s.tel || '' } : null; };
+            function paint() {
+                const s = info(sel.value);
+                btn.innerHTML = s
+                    ? `<span class="oc-cd-pick-main"><b>${esc(s.name)}</b><small>${esc(s.sub)}</small></span><span class="oc-cd-pick-tel">${esc(s.tel)}</span><i></i>`
+                    : `<span class="oc-cd-pick-main"><span class="oc-cd-pick-free">自由入力（社外の人など）</span></span><i></i>`;
+            }
+            paint();
+            function open() {
+                let q = '', idx = -1;
+                openPop(btn, p => {
+                    p.innerHTML = `<div class="oc-cd-pop-search"><input type="search" placeholder="氏名・電話・部署で検索"></div><div class="oc-cd-pop-list"></div>`;
+                    const inp = p.querySelector('input'), list = p.querySelector('.oc-cd-pop-list');
+                    const norm = s => String(s || '').replace(/[-\s　]/g, '').toLowerCase();
+                    let shown = [];
+                    function draw() {
+                        const qn = norm(q);
+                        shown = items.filter(it => !it.v || !qn || norm(it.o.textContent + it.g).includes(qn));
+                        let html = '', lastG = null;
+                        shown.forEach((it, i) => {
+                            if (it.g !== lastG && it.g) html += `<div class="oc-cd-pop-g"><i></i>${esc(it.g)}</div>`;
+                            lastG = it.g;
+                            const s = info(it.v);
+                            const cls = 'oc-cd-pop-item' + (it.v === sel.value ? ' is-sel' : '') + (i === idx ? ' is-hi' : '');
+                            html += s
+                                ? `<div class="${cls}" data-i="${i}"><b>${esc(s.name)}</b><span>${esc(s.tel)}</span></div>`
+                                : `<div class="${cls} oc-cd-pop-free" data-i="${i}">自由入力（社外の人など）</div>`;
+                        });
+                        if (shown.length <= 1 && qn) html += '<div class="oc-cd-pop-empty">該当する社員がいません</div>';
+                        list.innerHTML = html;
+                        const hi = list.querySelector('.is-hi') || list.querySelector('.is-sel');
+                        if (hi) { const lr = list.getBoundingClientRect(), er = hi.getBoundingClientRect();
+                            if (er.top < lr.top + 28 || er.bottom > lr.bottom) list.scrollTop += er.top - lr.top - lr.height / 2; }
+                    }
+                    function choose(it) {
+                        if (!it) return;
+                        sel.value = it.v;
+                        sel.dispatchEvent(new Event('change', { bubbles: true }));
+                        paint(); closePop(); btn.focus();
+                    }
+                    list.addEventListener('mousedown', e => e.preventDefault());
+                    list.addEventListener('click', e => { const el = e.target.closest('[data-i]'); if (el) choose(shown[Number(el.dataset.i)]); });
+                    inp.addEventListener('input', () => { q = inp.value; idx = q ? 1 : -1; if (idx >= shown.length) idx = 0; draw(); });
+                    inp.addEventListener('keydown', e => {
+                        if (e.key === 'ArrowDown') { e.preventDefault(); idx = Math.min(shown.length - 1, idx + 1); draw(); }
+                        else if (e.key === 'ArrowUp') { e.preventDefault(); idx = Math.max(0, idx - 1); draw(); }
+                        else if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); choose(shown[idx]); }
+                        else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closePop(); btn.focus(); }
+                    });
+                    draw();
+                    setTimeout(() => inp.focus(), 0);
+                });
+            }
+            btn.addEventListener('click', () => (pop && pop._owner === btn) ? closePop() : (open(), pop._owner = btn));
+            btn.addEventListener('keydown', e => { if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); pop._owner = btn; } });
+            return btn;
+        }
+
+        function suggestFor(inp, words) {
+            let idx = -1, shown = [];
+            function draw() {
+                const v = inp.value.trim();
+                shown = words.filter(w => !v || (w.includes(v) && w !== v));
+                if (!shown.length) { closePop(); return; }
+                const p = pop && pop._owner === inp ? pop : openPop(inp, () => {});
+                p._owner = inp;
+                p.innerHTML = `<div class="oc-cd-pop-head">よく使う役割</div><div class="oc-cd-pop-list">${shown.map((w, i) =>
+                    `<div class="oc-cd-pop-item${i === idx ? ' is-hi' : ''}" data-i="${i}"><b>${esc(w)}</b></div>`).join('')}</div>`;
+                const list = p.querySelector('.oc-cd-pop-list');
+                list.addEventListener('mousedown', e => e.preventDefault());
+                list.addEventListener('click', e => { const el = e.target.closest('[data-i]'); if (el) pick(shown[Number(el.dataset.i)]); });
+            }
+            function pick(w) { inp.value = w; idx = -1; closePop(); inp.dispatchEvent(new Event('change', { bubbles: true })); }
+            inp.addEventListener('focus', () => { idx = -1; draw(); });
+            inp.addEventListener('input', () => { idx = -1; draw(); });
+            inp.addEventListener('blur', () => setTimeout(() => { if (pop && pop._owner === inp) closePop(); }, 0));
+            inp.addEventListener('keydown', e => {
+                if (!pop || pop._owner !== inp) { if (e.key === 'ArrowDown') { idx = 0; draw(); e.preventDefault(); } return; }
+                if (e.key === 'ArrowDown') { e.preventDefault(); idx = Math.min(shown.length - 1, idx + 1); draw(); }
+                else if (e.key === 'ArrowUp') { e.preventDefault(); idx = Math.max(0, idx - 1); draw(); }
+                else if (e.key === 'Enter' && idx >= 0 && !e.isComposing) { e.preventDefault(); pick(shown[idx]); }
+                else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closePop(); }
+            });
+        }
     }
 
     function addCard(uid, dir) {
