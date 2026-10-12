@@ -289,103 +289,284 @@
         const [bu, ...ka] = String(dept || '').trim().split(/\s+/);
         return { bu: bu || '', ka: ka.join(' ') };
     }
+    // 社内名簿の管理：左に部・課ごとの一覧、右に選んだ人の編集フォーム（新規追加も同じフォーム）。
+    // 変更は画面内にためておき、「名簿を保存」でまとめて DB に書き込む
     function staffDialog() {
-        const toRow = s => ({ id: s.id, name: s.name || '', ...splitDept(s.department), tel: s.tel || '', sort_order: s.sort_order ?? 0, active: s.active !== false });
-        let rows = staff.map(toRow);
-        const original = new Map(rows.map(r => [r.id, JSON.stringify(r)]));
-        const removed = [];
-        const buList = [...new Set(rows.map(r => r.bu).filter(Boolean))];
-        const kaList = [...new Set(rows.map(r => r.ka).filter(Boolean))];
+        let seq = 0;
+        const sig = r => JSON.stringify([r.name, r.bu, r.ka, r.tel, r.sort_order, r.active]);
+        const gkey = r => (r.bu || '') + '\u0001' + (r.ka || '');
+        const toRow = s => ({ _k: ++seq, id: s.id, name: s.name || '', ...splitDept(s.department), tel: s.tel || '', sort_order: s.sort_order ?? 0, active: s.active !== false });
+        let rows, original;
+        const removed = new Set();
+        function reset() { rows = staff.map(toRow); original = new Map(rows.map(r => [r.id, sig(r)])); removed.clear(); }
+        reset();
+        let sel = null, mode = null, draft = null, tried = false, q = '', fBu = 'all', fSt = 'all';
+
         const m = openModal('社内名簿の管理', `
-            <div class="oc-howto-box">
-                <b>追加</b>：一覧のいちばん下の「＋1行追加」を押して入力 ／ <b>変更</b>：一覧の欄を直接書き換え ／ <b>削除</b>：行の ✕<br>
-                最後に <b>「名簿を保存」</b> を押すと反映されます（「使用」のチェックを外すと、プルダウンに出なくなります）。
+            <div class="oc-sd">
+                <div class="oc-sd-list">
+                    <div class="oc-sd-tools">
+                        <div class="oc-sd-tools-row">
+                            <input type="search" class="oc-sd-q" placeholder="氏名・電話・部署で検索">
+                            <div class="oc-sd-seg"></div>
+                            <button type="button" class="oc-btn oc-btn--primary oc-sd-addbtn" data-s="new">＋ 社員を追加</button>
+                        </div>
+                        <div class="oc-sd-chips"></div>
+                    </div>
+                    <div class="oc-sd-cols"><div>氏名</div><div>課</div><div>電話</div><div></div></div>
+                    <div class="oc-sd-rows"></div>
+                </div>
+                <div class="oc-sd-side"></div>
             </div>
-            <datalist id="ocBuList">${buList.map(v => `<option value="${esc(v)}">`).join('')}</datalist>
-            <datalist id="ocKaList">${kaList.map(v => `<option value="${esc(v)}">`).join('')}</datalist>
-            <div class="oc-staff-wrap"><table class="oc-staff">
-                <thead><tr><th>氏名</th><th>部</th><th>課</th><th>電話</th><th title="プルダウンでの並び順（小さい順）">順</th><th title="外すとプルダウンに出なくなります">使用</th><th></th></tr></thead>
-                <tbody></tbody></table></div>
-            <button type="button" class="oc-btn" data-s="add">＋1行追加</button>
-            <div class="oc-err"></div>`, [
+            <datalist id="ocBuList"></datalist>
+            <datalist id="ocKaList"></datalist>`, [
             { label: '閉じる', ghost: true, onClick: () => {
-                collect();
                 if (isDirty() && !confirm('保存していない変更があります。破棄して閉じますか？')) return;
                 m.close();
             } },
-            { label: '名簿を保存', primary: true, onClick: async () => {
-                collect();
-                const bad = rows.find(r => !r.name.trim());
-                if (bad) { m.el.querySelector('.oc-err').textContent = '氏名が空欄の行があります。'; return; }
-                try {
-                    // 変更のあった行・新しい行だけを書き込む
-                    for (const r of rows.filter(r => !r.id || original.get(r.id) !== JSON.stringify(r))) {
-                        const rec = { name: r.name.trim(), department: [r.bu, r.ka].map(s => s.trim()).filter(Boolean).join(' ') || null,
-                            tel: r.tel.trim() || null, sort_order: Number(r.sort_order) || 0, active: !!r.active, updated_at: new Date().toISOString() };
-                        if (r.id) {
-                            const { data, error } = await client.from('staff_directory').update(rec).eq('id', r.id).select('id');
-                            if (error) throw error;
-                            if (!data.length) throw new Error('更新できませんでした（権限がないか、ログインが切れています）');
-                        } else {
-                            const { data, error } = await client.from('staff_directory').insert(rec).select('id').single();
-                            if (error) throw error;
-                            r.id = data.id;
-                        }
-                    }
-                    if (removed.length) {
-                        const { error } = await client.from('staff_directory').delete().in('id', removed);
-                        if (error) throw error;
-                    }
-                } catch (e) {
-                    m.el.querySelector('.oc-err').textContent = '保存に失敗しました：' + (e.message || e);
-                    return;
-                }
-                await loadStaff();
-                m.close();
-            } },
-        ], 'oc-modal--wide');
-        const tbody = m.el.querySelector('tbody');
-        const wrap = m.el.querySelector('.oc-staff-wrap');
-        function draw() {
-            tbody.innerHTML = rows.map((r, i) => `<tr data-i="${i}"${r.id ? '' : ' class="oc-new"'}>
-                <td><input data-f="name" value="${esc(r.name)}"></td>
-                <td><input data-f="bu" list="ocBuList" value="${esc(r.bu)}"></td>
-                <td><input data-f="ka" list="ocKaList" value="${esc(r.ka)}"></td>
-                <td><input data-f="tel" value="${esc(r.tel)}" placeholder="090-1234-5678"></td>
-                <td><input data-f="sort_order" type="number" value="${esc(r.sort_order)}" class="oc-num"></td>
-                <td><input data-f="active" type="checkbox"${r.active ? ' checked' : ''}></td>
-                <td><button type="button" data-del="${i}" title="削除">✕</button></td></tr>`).join('');
-        }
-        function collect() {
-            tbody.querySelectorAll('tr').forEach(tr => {
-                const r = rows[tr.dataset.i];
-                tr.querySelectorAll('[data-f]').forEach(inp => {
-                    const f = inp.dataset.f;
-                    r[f] = inp.type === 'checkbox' ? inp.checked : f === 'sort_order' ? (Number(inp.value) || 0) : inp.value;
-                });
-            });
-        }
-        function isDirty() {
-            return removed.length > 0 || rows.some(r => !r.id || original.get(r.id) !== JSON.stringify(r));
-        }
-        // 新しい行は一覧の最後に並ぶよう、今の最大の並び順より後ろの値にする
+            { label: '名簿を保存', primary: true, onClick: save },
+        ], 'oc-modal--staff');
+
+        const $ = s => m.el.querySelector(s);
+        const head = $('.oc-modal-head');
+        head.insertAdjacentHTML('beforeend', '<span class="oc-sd-count"></span>');
+        const foot = $('.oc-modal-foot');
+        foot.insertAdjacentHTML('afterbegin', '<div class="oc-sd-status"></div>');
+        const saveBtn = foot.querySelector('.oc-btn--primary');
+        const listEl = $('.oc-sd-rows'), sideEl = $('.oc-sd-side');
+
+        const statusOf = r => removed.has(r) ? 'del' : !r.id ? 'new' : original.get(r.id) !== sig(r) ? 'chg' : '';
+        const live = () => rows.filter(r => !removed.has(r));
+        const sorted = () => [...rows].sort((a, b) => a.sort_order - b.sort_order || a._k - b._k);
+        const norm = s => String(s || '').replace(/[-\s　]/g, '').toLowerCase();
+        function isDirty() { return removed.size > 0 || rows.some(r => statusOf(r)); }
         function nextOrder() { return rows.reduce((mx, r) => Math.max(mx, Number(r.sort_order) || 0), 0) + 10; }
-        function blank() { return { id: null, name: '', bu: '', ka: '', tel: '', sort_order: nextOrder(), active: true }; }
-        function scrollToEnd() { wrap.scrollTop = wrap.scrollHeight; }
-        m.el.addEventListener('click', e => {
-            const t = e.target;
-            if (t.dataset.s === 'add') {
-                collect(); rows.push(blank()); draw(); scrollToEnd();
-                tbody.lastElementChild.querySelector('[data-f="name"]').focus();
+
+        function drawDatalists() {
+            const form = mode === 'new' ? draft : sel;
+            const bus = [...new Set(rows.map(r => r.bu).filter(Boolean))];
+            const kas = [...new Set(rows.filter(r => !form || !form.bu || r.bu === form.bu).map(r => r.ka).filter(Boolean))];
+            $('#ocBuList').innerHTML = bus.map(v => `<option value="${esc(v)}">`).join('');
+            $('#ocKaList').innerHTML = kas.map(v => `<option value="${esc(v)}">`).join('');
+        }
+
+        function drawList() {
+            const qn = norm(q);
+            const base = sorted().filter(r => (!qn || norm([r.name, r.bu, r.ka, r.tel].join('')).includes(qn))
+                && (fSt === 'all' || (fSt === 'on' ? r.active : !r.active)));
+            const shown = base.filter(r => fBu === 'all' || r.bu === fBu);
+
+            const seg = [['all', 'すべて'], ['on', '表示中'], ['off', '非表示']];
+            $('.oc-sd-seg').innerHTML = seg.map(([k, l]) => `<button type="button" data-st="${k}" class="${fSt === k ? 'is-on' : ''}">${l}</button>`).join('');
+            const bus = [...new Set(sorted().map(r => r.bu).filter(Boolean))];
+            if (fBu !== 'all' && !bus.includes(fBu)) fBu = 'all';
+            const chip = (k, l, n) => `<button type="button" data-bu="${esc(k)}" class="oc-sd-chip${fBu === k ? ' is-on' : ''}">${esc(l)}<span>${n}</span></button>`;
+            $('.oc-sd-chips').innerHTML = chip('all', 'すべての部署', base.length)
+                + bus.map(b => chip(b, b, base.filter(r => r.bu === b).length)).join('');
+
+            const groups = [], gm = new Map();
+            shown.forEach(r => {
+                const k = gkey(r);
+                if (!gm.has(k)) { const g = { bu: r.bu || '（部署未設定）', ka: r.ka, items: [] }; gm.set(k, g); groups.push(g); }
+                gm.get(k).items.push(r);
+            });
+            const badgeOf = r => ({ new: ['新規', 'new'], del: ['削除予定', 'del'], chg: ['変更', 'chg'] })[statusOf(r)] || (!r.active ? ['非表示', 'off'] : null);
+            listEl.innerHTML = groups.length ? groups.map(g => `
+                <div class="oc-sd-group">
+                    <div class="oc-sd-ghead"><i></i>${esc(g.bu)}<span>${esc(g.ka || '')}</span><small>${g.items.length}名</small></div>
+                    ${g.items.map(r => {
+                        const st = statusOf(r), b = badgeOf(r);
+                        return `<div class="oc-sd-row${r === sel ? ' is-sel' : ''}${st ? ' is-' + st : ''}${!r.active ? ' is-off' : ''}" data-k="${r._k}">
+                            <div class="oc-sd-name">${esc(r.name || '（氏名未入力）')}</div>
+                            <div class="oc-sd-dept">${esc(r.ka || '—')}</div>
+                            <div class="oc-sd-tel">${esc(r.tel || '—')}</div>
+                            <div class="oc-sd-badge">${b ? `<span class="oc-sd-b--${b[1]}">${b[0]}</span>` : ''}</div>
+                        </div>`;
+                    }).join('')}
+                </div>`).join('') : '<div class="oc-sd-empty">該当する社員がいません</div>';
+            drawMeta();
+        }
+
+        function drawMeta() {
+            const l = live();
+            head.querySelector('.oc-sd-count').textContent = `登録 ${l.length}名 ・ プルダウンに表示 ${l.filter(r => r.active).length}名`;
+            const nNew = rows.filter(r => statusOf(r) === 'new').length, nChg = rows.filter(r => statusOf(r) === 'chg').length;
+            const st = foot.querySelector('.oc-sd-status');
+            if (isDirty()) st.innerHTML = `<i></i><b>未保存の変更</b><span>追加 ${nNew}・変更 ${nChg}・削除 ${removed.size}</span><button type="button" class="oc-sd-link" data-s="discard">変更を破棄</button>`;
+            else st.innerHTML = '<span class="oc-sd-muted">変更はまとめて「名簿を保存」で反映されます</span>';
+            saveBtn.disabled = !isDirty();
+        }
+
+        function drawSide() {
+            drawDatalists();
+            if (!mode) {
+                sideEl.innerHTML = `<div class="oc-sd-idle"><div>左の一覧から社員を選ぶと<br>ここで内容を修正できます。</div>
+                    <button type="button" class="oc-first" data-s="new">＋ 新しい社員を追加</button></div>`;
+                return;
             }
-            if (t.dataset.del != null) {
-                collect();
-                const r = rows.splice(Number(t.dataset.del), 1)[0];
-                if (r.id) removed.push(r.id);
-                draw();
+            const f = mode === 'new' ? draft : sel;
+            sideEl.innerHTML = `
+                <div class="oc-sd-form">
+                    <div class="oc-sd-tagrow"><span class="oc-sd-tag${mode === 'new' ? ' is-new' : ''}">${mode === 'new' ? '新しい社員を追加' : '社員情報の編集'}</span><span class="oc-sd-formst"></span></div>
+                    <div class="oc-sd-delbox"></div>
+                    <label class="oc-field"><span>氏名 <em>*</em></span><input data-f="name" class="oc-sd-nameinp" value="${esc(f.name)}" placeholder="例：山田 太郎"><small class="oc-sd-msg"></small></label>
+                    <div class="oc-grid2">
+                        <label class="oc-field"><span>部</span><input data-f="bu" list="ocBuList" value="${esc(f.bu)}" placeholder="例：組立部"></label>
+                        <label class="oc-field"><span>課</span><input data-f="ka" list="ocKaList" value="${esc(f.ka)}" placeholder="例：電装課"></label>
+                    </div>
+                    <label class="oc-field"><span>電話</span><input data-f="tel" inputmode="tel" value="${esc(f.tel)}" placeholder="090-1234-5678"></label>
+                    <div class="oc-sd-card oc-sd-toggle" data-s="active">
+                        <div><b>体制表のプルダウンに表示</b><small>オフにすると選択肢に出なくなります（名簿には残ります）</small></div>
+                        <span class="oc-sd-switch${f.active ? ' is-on' : ''}"></span>
+                    </div>
+                    ${mode === 'edit' ? `<div class="oc-sd-card">
+                        <div><b>プルダウンでの並び順</b><small class="oc-sd-pos"></small></div>
+                        <button type="button" class="oc-btn oc-btn--ghost" data-s="up">↑ 上へ</button>
+                        <button type="button" class="oc-btn oc-btn--ghost" data-s="down">↓ 下へ</button>
+                    </div>` : ''}
+                </div>
+                <div class="oc-sd-sidefoot">${mode === 'edit'
+                    ? `<button type="button" class="oc-btn oc-btn--danger" data-s="del">この人を削除</button><span></span><button type="button" class="oc-btn oc-btn--ghost" data-s="unsel">選択を解除</button>`
+                    : `<button type="button" class="oc-btn oc-btn--ghost" data-s="unsel">やめる</button><span class="oc-sd-acts"><button type="button" class="oc-btn" data-s="addnext" title="Enter でも追加できます">追加して続けて入力</button><button type="button" class="oc-btn oc-btn--primary" data-s="add">追加</button></span>`}
+                </div>`;
+            drawFormMeta();
+        }
+
+        function drawFormMeta() {
+            if (!mode) return;
+            const f = mode === 'new' ? draft : sel;
+            const st = sel ? statusOf(sel) : '';
+            sideEl.querySelector('.oc-sd-formst').textContent = mode === 'new' ? '部・課は前回の入力を引き継ぎます'
+                : st === 'new' ? '保存前の新規登録' : st === 'chg' ? '変更あり（未保存）' : '';
+            sideEl.querySelector('.oc-sd-delbox').innerHTML = st === 'del'
+                ? '<div class="oc-sd-delnote"><span>この人は「名簿を保存」で削除されます。</span><button type="button" class="oc-btn oc-btn--danger" data-s="undel">削除を取り消す</button></div>' : '';
+            const empty = !f.name.trim() && (mode === 'edit' || tried);
+            const dup = f.name.trim() && rows.some(r => r !== f && !removed.has(r) && norm(r.name) === norm(f.name));
+            const msg = sideEl.querySelector('.oc-sd-msg');
+            msg.textContent = empty ? '氏名を入力してください' : dup ? '同じ氏名の人がすでに登録されています' : '';
+            msg.className = 'oc-sd-msg' + (empty ? ' is-err' : dup ? ' is-warn' : '');
+            sideEl.querySelector('.oc-sd-nameinp').classList.toggle('is-err', empty);
+            const pos = sideEl.querySelector('.oc-sd-pos');
+            if (pos) { const same = sorted().filter(r => gkey(r) === gkey(sel)); pos.textContent = `同じ課の中で ${same.indexOf(sel) + 1} / ${same.length} 番目`; }
+        }
+
+        function scrollToRow(r) {
+            const el = listEl.querySelector(`[data-k="${r._k}"]`); if (!el) return;
+            const lr = listEl.getBoundingClientRect(), er = el.getBoundingClientRect();
+            if (er.top < lr.top + 34 || er.bottom > lr.bottom) listEl.scrollTop += er.top - lr.top - lr.height / 2;
+        }
+        const focusName = () => setTimeout(() => { const i = sideEl.querySelector('.oc-sd-nameinp'); if (i) i.focus(); }, 0);
+
+        function startNew() {
+            const base = mode === 'edit' && sel ? sel : null;
+            draft = { name: '', bu: base ? base.bu : (fBu !== 'all' ? fBu : ''), ka: base ? base.ka : '', tel: '', active: true };
+            mode = 'new'; sel = null; tried = false;
+            drawList(); drawSide(); focusName();
+        }
+        function add(keep) {
+            if (!draft.name.trim()) { tried = true; drawFormMeta(); focusName(); return; }
+            const r = { _k: ++seq, id: null, name: draft.name.trim(), bu: draft.bu.trim(), ka: draft.ka.trim(), tel: draft.tel.trim(), sort_order: nextOrder(), active: draft.active };
+            rows.push(r);
+            q = ''; $('.oc-sd-q').value = '';
+            if (fBu !== 'all' && fBu !== r.bu) fBu = 'all';
+            tried = false;
+            if (keep) { draft = { name: '', bu: r.bu, ka: r.ka, tel: '', active: true }; }
+            else { mode = 'edit'; sel = r; draft = null; }
+            drawList(); drawSide(); scrollToRow(r);
+            if (keep) focusName();
+        }
+        function move(delta) {
+            const same = sorted().filter(r => gkey(r) === gkey(sel));
+            const i = same.indexOf(sel), other = same[i + delta];
+            if (!other) return;
+            const a = sel.sort_order, b = other.sort_order;
+            if (a === b) sel.sort_order += delta; else { sel.sort_order = b; other.sort_order = a; }
+            drawList(); drawFormMeta(); scrollToRow(sel);
+        }
+        async function save() {
+            if (!isDirty()) return;
+            const bad = live().find(r => !r.name.trim());
+            if (bad) { alert('氏名が空欄の人がいます。'); sel = bad; mode = 'edit'; drawList(); drawSide(); scrollToRow(bad); return; }
+            saveBtn.disabled = true;
+            try {
+                // 変更のあった行・新しい行だけを書き込む
+                for (const r of live().filter(r => statusOf(r))) {
+                    const rec = { name: r.name.trim(), department: [r.bu, r.ka].map(s => s.trim()).filter(Boolean).join(' ') || null,
+                        tel: r.tel.trim() || null, sort_order: Number(r.sort_order) || 0, active: !!r.active, updated_at: new Date().toISOString() };
+                    if (r.id) {
+                        const { data, error } = await client.from('staff_directory').update(rec).eq('id', r.id).select('id');
+                        if (error) throw error;
+                        if (!data.length) throw new Error('更新できませんでした（権限がないか、ログインが切れています）');
+                    } else {
+                        const { data, error } = await client.from('staff_directory').insert(rec).select('id').single();
+                        if (error) throw error;
+                        r.id = data.id;
+                    }
+                }
+                const ids = [...removed].map(r => r.id).filter(Boolean);
+                if (ids.length) {
+                    const { error } = await client.from('staff_directory').delete().in('id', ids);
+                    if (error) throw error;
+                }
+            } catch (e) {
+                alert('保存に失敗しました：' + (e.message || e));
+                drawMeta();
+                return;
+            }
+            await loadStaff();
+            const keepId = sel && !removed.has(sel) ? sel.id : null;
+            reset();
+            sel = keepId ? rows.find(r => r.id === keepId) || null : null;
+            mode = sel ? 'edit' : null; draft = null;
+            drawList(); drawSide();
+            foot.querySelector('.oc-sd-status').innerHTML = '<span class="oc-sd-ok">✓ 名簿を保存しました</span>';
+        }
+
+        $('.oc-sd-q').addEventListener('input', e => { q = e.target.value; drawList(); });
+        sideEl.addEventListener('input', e => {
+            const f = e.target.dataset.f; if (!f) return;
+            (mode === 'new' ? draft : sel)[f] = e.target.value;
+            if (f === 'bu') drawDatalists();
+            if (mode === 'edit') drawList();
+            drawFormMeta(); drawMeta();
+        });
+        sideEl.addEventListener('keydown', e => {
+            if (e.key === 'Enter' && mode === 'new' && e.target.dataset.f && !e.isComposing) { e.preventDefault(); add(true); }
+        });
+        m.el.addEventListener('click', e => {
+            const row = e.target.closest('.oc-sd-row');
+            if (row) { sel = rows.find(r => r._k === Number(row.dataset.k)); mode = 'edit'; draft = null; drawList(); drawSide(); return; }
+            const st = e.target.closest('[data-st]');
+            if (st) { fSt = st.dataset.st; drawList(); return; }
+            const bu = e.target.closest('[data-bu]');
+            if (bu) { fBu = bu.dataset.bu; drawList(); listEl.scrollTop = 0; return; }
+            const s = e.target.closest('[data-s]'); if (!s) return;
+            switch (s.dataset.s) {
+                case 'new': startNew(); break;
+                case 'add': add(false); break;
+                case 'addnext': add(true); break;
+                case 'unsel': sel = null; mode = null; draft = null; tried = false; drawList(); drawSide(); break;
+                case 'active': {
+                    const f = mode === 'new' ? draft : sel;
+                    f.active = !f.active;
+                    sideEl.querySelector('.oc-sd-switch').classList.toggle('is-on', f.active);
+                    if (mode === 'edit') drawList();
+                    drawFormMeta(); break;
+                }
+                case 'up': move(-1); break;
+                case 'down': move(1); break;
+                case 'del':
+                    if (!sel.id) { rows = rows.filter(r => r !== sel); sel = null; mode = null; drawSide(); }
+                    else { removed.add(sel); drawFormMeta(); }
+                    drawList(); break;
+                case 'undel': removed.delete(sel); drawList(); drawFormMeta(); break;
+                case 'discard':
+                    if (!confirm('保存していない変更をすべて破棄しますか？')) return;
+                    reset(); sel = null; mode = null; draft = null; drawList(); drawSide(); break;
             }
         });
-        draw();
+        drawList(); drawSide();
+        $('.oc-sd-q').focus();
     }
 
     // ===== カードの入力画面（追加・修正共通） =====
