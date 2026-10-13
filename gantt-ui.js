@@ -929,21 +929,6 @@
 
         function openKanryoModal(tab) {
             currentKanryoTab = tab || 'kanri';
-            const btn = document.getElementById('kanryo-btn');
-            const rect = btn.getBoundingClientRect();
-            const modal = document.getElementById('kanryo-modal');
-            const modalWidth = 620;
-            let left = rect.left;
-            if (left + modalWidth > window.innerWidth - 8) {
-                left = window.innerWidth - modalWidth - 8;
-            }
-            const modalHeightApprox = window.innerHeight * 0.6;
-            let top = rect.bottom + 4;
-            if (top + modalHeightApprox > window.innerHeight - 8) {
-                top = rect.top - modalHeightApprox - 4;
-            }
-            modal.style.top = top + 'px';
-            modal.style.left = left + 'px';
             document.getElementById('kanryo-modal-overlay').classList.add('visible');
             renderKanryoTab(currentKanryoTab);
         }
