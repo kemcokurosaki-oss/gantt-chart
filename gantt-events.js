@@ -999,8 +999,8 @@
                 updateData.task_type = 'business_trip';
             }
 
-            // 出荷確定日ロック中（常務承認済み）は、全体工程表からの出荷日変更を拒否する
-            // （変更は承認フロー[出荷確定日変更]経由のみ許可。ロック自体はapp.js側のlockShippingDateOnApprovalが設定）
+            // 出荷日ロック中（承認フローで確定出荷日を入力済み）は、全体工程表からの出荷日変更を拒否する
+            // （変更は承認フロー[出荷確定日変更]経由のみ許可。ロック自体は確定出荷日の保存時にRPC sync_factory_shipping_date が設定）
             const isLockedShippingTask = !!(oldTask && oldTask.shipping_date_locked &&
                 (oldTask.text === '工場出荷' || oldTask.text === '梱包出荷'));
             // 検査・会議（簡易検査/外観検査/出荷品確認検査/出荷確認会議）は開催案内送付済みなら日程変更を拒否する
@@ -1043,7 +1043,7 @@
                 }, 0);
                 _showSaveStatus('error', null, isLockedInviteTask
                     ? INVITE_LOCK_MESSAGE
-                    : '出荷確定日は常務承認済みのため、工程表からは変更できません。承認フロー画面から変更してください。');
+                    : '確定出荷日が入力済みのため、工程表からは出荷日を変更できません。承認フロー画面から変更してください。');
                 return;
             }
 
