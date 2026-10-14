@@ -34,3 +34,8 @@ scripts/notification_recipientsテーブル.csv
 *.key
 node_modules/
 .claude/
+
+# 古い控え・作業用の一時ファイル
+backup/
+backup1/
+tmp_*.json
