@@ -414,7 +414,7 @@
                         <label class="oc-field"><span>部</span><input data-f="bu" list="ocBuList" value="${esc(f.bu)}" placeholder="例：組立部"></label>
                         <label class="oc-field"><span>課</span><input data-f="ka" list="ocKaList" value="${esc(f.ka)}" placeholder="例：電装課"></label>
                     </div>
-                    <label class="oc-field"><span>電話</span><input data-f="tel" inputmode="tel" value="${esc(f.tel)}" placeholder="090-1234-5678"></label>
+                    <label class="oc-field"><span>電話</span><input data-f="tel" inputmode="tel" value="${esc(f.tel)}" placeholder="090-xxxx-xxxx"></label>
                     <div class="oc-sd-card oc-sd-toggle" data-s="active">
                         <div><b>体制表のプルダウンに表示</b><small>オフにすると選択肢に出なくなります（名簿には残ります）</small></div>
                         <span class="oc-sd-switch${f.active ? ' is-on' : ''}"></span>
@@ -633,7 +633,7 @@
                             <input name="org" class="org-org" value="${esc(d.org)}" placeholder="所属（例：シマブンエンジニアリング株式会社）" aria-label="所属">
                             <input name="name" class="org-name oc-cd-name" value="${esc(d.name)}" placeholder="氏名" aria-label="氏名">
                             <small class="oc-cd-subprev oc-cd-subprev--name"></small>
-                            <input name="tel" class="org-tel" value="${esc(d.tel)}" placeholder="電話（090-1234-5678）" inputmode="tel" aria-label="電話">
+                            <input name="tel" class="org-tel" value="${esc(d.tel)}" placeholder="電話（090-xxxx-xxxx）" inputmode="tel" aria-label="電話">
                             <small class="oc-cd-subprev oc-cd-subprev--tel"></small>
                         </div>
                     </div>
