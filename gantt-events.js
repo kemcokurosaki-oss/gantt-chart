@@ -112,7 +112,7 @@
                 return "";
             }},
             { name: "project_number", label: "工番", width: COLUMN_WIDTHS[1], align: "left", template: function(obj) {
-                return obj.project_number || "";
+                return escapeHtml(obj.project_number);
             }},
             { name: "checkbox", label: "", width: COLUMN_WIDTHS[2], align: "left", template: function(obj) {
                 if (obj.$virtual) return "";
@@ -121,15 +121,15 @@
                 return `<input type='checkbox' ${isChecked} ${_isEditor ? '' : 'disabled'} onchange='toggleTaskCheckbox("${obj.id}", this.checked)'>`;
             }},
             { name: "text", label: "タスク名", width: COLUMN_WIDTHS[3], tree: true, template: function(obj) {
-                return obj.text;
+                return escapeHtml(obj.text);
             }},
             { name: "machine", label: "機械", width: COLUMN_WIDTHS[4], align: "left", template: function(obj) {
                 if (obj.$virtual) return "";
-                return obj.machine || "";
+                return escapeHtml(obj.machine);
             }},
             { name: "unit", label: "ユニ", width: COLUMN_WIDTHS[5], align: "left", template: function(obj) {
                 if (obj.$virtual) return "";
-                return obj.unit || "";
+                return escapeHtml(obj.unit);
             }},
             { name: "owner", label: "担当", width: COLUMN_WIDTHS[6], align: "left", template: function(obj) {
                 if (obj.$virtual) return "";
@@ -143,13 +143,13 @@
                     var ordered = mainIdx >= 0
                         ? [owners[mainIdx]].concat(owners.filter(function(_, i) { return i !== mainIdx; }))
                         : owners.slice();
-                    return ordered.map(function(o) { return o === main ? "<span style='color: blue;'>" + o + "</span>" : o; }).join(', ');
+                    return ordered.map(function(o) { return o === main ? "<span style='color: blue;'>" + escapeHtml(o) + "</span>" : escapeHtml(o); }).join(', ');
                 }
-                return obj.owner;
+                return escapeHtml(obj.owner);
             }},
             { name: "area_number", label: "場所", width: COLUMN_WIDTHS[7], align: "center", template: function(obj) {
                 if (obj.$virtual) return "";
-                return formatLocationText(obj.area_group, obj.area_number);
+                return escapeHtml(formatLocationText(obj.area_group, obj.area_number));
             }},
             { name: "start_date", label: "開始日", width: COLUMN_WIDTHS[8], align: "center", template: function(t) {
                 if (t.unscheduled) return "<span class='unassigned-warning'>⚠️</span>";
@@ -1470,7 +1470,7 @@
                 taskName = task.text;
             }
 
-            return taskName || "";
+            return escapeHtml(taskName);
         };
 
         gantt.templates.task_class = function(start, end, task) {

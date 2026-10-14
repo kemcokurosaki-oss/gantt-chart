@@ -1314,23 +1314,23 @@
                 const scrollState = gantt.getScrollState();
                 gantt.config.columns = [
                     { name: "project_number", label: "工番", width: 55, align: "center", template: function(obj) {
-                        return "<div style='text-align:center;width:100%;'>" + (obj.project_number || "") + "</div>";
+                        return "<div style='text-align:center;width:100%;'>" + escapeHtml(obj.project_number) + "</div>";
                     }},
                     { name: "customer_name", label: "客先名", width: 125, align: "center", template: function(obj) {
-                        return obj.customer_name || "";
+                        return escapeHtml(obj.customer_name);
                     }},
                     { name: "project_details", label: "工事名", width: 150, align: "left", template: function(obj) {
-                        return obj.project_details || "";
+                        return escapeHtml(obj.project_details);
                     }},
                     { name: "text", label: "タスク名", width: 150, tree: false, template: function(obj) {
-                        return obj.text;
+                        return escapeHtml(obj.text);
                     }},
                     { name: "owner", label: "担当", width: 55, align: "center", template: function(obj) {
                         if (obj.$virtual) return "";
                         if (!obj.owner || obj.owner.trim() === "" || obj.owner.trim() === "未定") {
                             return "<span class='unassigned-warning'>⚠️</span>";
                         }
-                        return obj.owner;
+                        return escapeHtml(obj.owner);
                     }},
                     { name: "start_date", label: "開始日", width: 130, align: "center", template: function(t) {
                         return dateToDisplay(t.start_date);
@@ -2996,12 +2996,12 @@
                 const bg = i % 2 === 0 ? '#fff' : '#fafafa';
                 tableHtml += `<tr style="background:${bg};">
                     <td style="padding:6px 10px;border-bottom:1px solid #eee;white-space:nowrap;color:#666;">${fmtDt(row.changed_at)}</td>
-                    <td style="padding:6px 10px;border-bottom:1px solid #eee;font-weight:bold;white-space:nowrap;">${row.project_number || ''}</td>
-                    <td style="padding:6px 10px;border-bottom:1px solid #eee;white-space:nowrap;">${row.machine || ''}</td>
-                    <td style="padding:6px 10px;border-bottom:1px solid #eee;white-space:nowrap;">${row.unit || ''}</td>
-                    <td style="padding:6px 10px;border-bottom:1px solid #eee;${cellWrap}">${row.task_text || ''}</td>
-                    <td style="padding:6px 10px;border-bottom:1px solid #eee;color:#000;${cellWrap}">${row.description || ''}</td>
-                    <td style="padding:6px 8px;border-bottom:1px solid #eee;white-space:nowrap;color:#555;">${row.changed_by || ''}</td>
+                    <td style="padding:6px 10px;border-bottom:1px solid #eee;font-weight:bold;white-space:nowrap;">${escapeHtml(row.project_number)}</td>
+                    <td style="padding:6px 10px;border-bottom:1px solid #eee;white-space:nowrap;">${escapeHtml(row.machine)}</td>
+                    <td style="padding:6px 10px;border-bottom:1px solid #eee;white-space:nowrap;">${escapeHtml(row.unit)}</td>
+                    <td style="padding:6px 10px;border-bottom:1px solid #eee;${cellWrap}">${escapeHtml(row.task_text)}</td>
+                    <td style="padding:6px 10px;border-bottom:1px solid #eee;color:#000;${cellWrap}">${escapeHtml(row.description)}</td>
+                    <td style="padding:6px 8px;border-bottom:1px solid #eee;white-space:nowrap;color:#555;">${escapeHtml(row.changed_by)}</td>
                 </tr>`;
             });
 

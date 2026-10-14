@@ -6,6 +6,11 @@
          * @property {string} area_number - 0〜7などのテキスト
          */
 
+        // DB の値を HTML に埋め込むときは必ずこれを通す（書き込まれた文字列がタグやスクリプトとして動かないようにする）
+        function escapeHtml(v) {
+            return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        }
+
         const S_URL = "https://dgekjzkrybrswsxlcbvh.supabase.co";
         const S_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRnZWtqemtyeWJyc3dzeGxjYnZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg4ODQ3MjIsImV4cCI6MjA4NDQ2MDcyMn0.BsEj53lV3p76yE9fMPTaLn7ocKTNzYPTqIAnBafYItU";
         // createClient呼び出し前にURLのtype情報を保存（Supabaseがhashを処理・クリアする前に取得）
