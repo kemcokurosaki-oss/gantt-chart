@@ -113,6 +113,44 @@
             window.open(cfg.url, '_blank', 'noopener,noreferrer');
         }
 
+        // ===== Microsoft 365 ログイン =====
+        // 完全移行スイッチ。true にすると、ログインしないと閲覧できず、ログイン画面は「Microsoftでサインイン」だけになる
+        // （パスワード欄は非常用に URL へ ?pw=1 を付けたときだけ表示）。false の間は ?ms=1 のときだけボタンを出す（動作確認用）
+        const M365_ONLY = false;
+        const _authQs = new URLSearchParams(window.location.search);
+        const SHOW_MS_LOGIN       = M365_ONLY || _authQs.has('ms');
+        const SHOW_PASSWORD_LOGIN = !M365_ONLY || _authQs.has('pw');
+        let _loginRequired = false; // ログインしないと閲覧できない状態でログイン画面を出しているか
+
+        async function doMicrosoftLogin() {
+            const { error } = await supabaseClient.auth.signInWithOAuth({
+                provider: 'azure',
+                options: { scopes: 'email', redirectTo: window.location.origin + window.location.pathname }
+            });
+            if (error) _showLoginError('Microsoftでのログインを開始できませんでした');
+        }
+
+        function _showLoginError(msg) {
+            const errEl = document.getElementById('login_error');
+            errEl.textContent = msg;
+            errEl.style.display = 'block';
+        }
+
+        function _applyLoginOptions() {
+            document.getElementById('login_ms_btn').style.display        = SHOW_MS_LOGIN ? 'flex' : 'none';
+            document.getElementById('login_ms_divider').style.display    = SHOW_MS_LOGIN && SHOW_PASSWORD_LOGIN ? 'flex' : 'none';
+            document.getElementById('login_password_area').style.display = SHOW_PASSWORD_LOGIN ? '' : 'none';
+            document.getElementById('login_btn_cancel').style.display    = _loginRequired ? 'none' : '';
+        }
+
+        // Microsoft でのログインに失敗して戻ってきたとき（?error=... / #error=...）の理由
+        const _oauthError = (() => {
+            const p = new URLSearchParams(window.location.hash.replace('#', '?'));
+            const err = p.get('error') || _authQs.get('error');
+            if (!err) return null;
+            return 'Microsoftでのログインに失敗しました（' + (p.get('error_description') || _authQs.get('error_description') || err) + '）';
+        })();
+
         let _isEditor = false;
         /** Supabase セッションあり（編集者以外の閲覧専用ログインも含む） */
         let _hasAuthSession = false;
@@ -157,15 +195,18 @@
             }
         }
 
-        function openLoginDialog() {
+        function openLoginDialog(required = false) {
+            _loginRequired = required;
+            _applyLoginOptions();
             document.getElementById('login_email').value = '';
             document.getElementById('login_password').value = '';
             document.getElementById('login_error').style.display = 'none';
             document.getElementById('login_overlay').classList.add('open');
-            setTimeout(() => document.getElementById('login_email').focus(), 100);
+            if (SHOW_PASSWORD_LOGIN) setTimeout(() => document.getElementById('login_email').focus(), 100);
         }
 
         function closeLoginDialog() {
+            if (_loginRequired) return; // ログインしないと閲覧できない状態では閉じられない
             document.getElementById('login_overlay').classList.remove('open');
         }
 
@@ -180,12 +221,16 @@
             if (error) {
                 errEl.textContent = 'メールアドレスまたはパスワードが正しくありません';
                 errEl.style.display = 'block';
-            } else if (!EDITORS.some(e => e.toLowerCase() === email.toLowerCase())) {
+            } else if (!M365_ONLY && !EDITORS.some(e => e.toLowerCase() === email.toLowerCase())) {
                 await supabaseClient.auth.signOut();
                 errEl.textContent = 'この工程表へのアクセス権限がありません';
                 errEl.style.display = 'block';
             } else {
+                const wasRequired = _loginRequired;
+                _loginRequired = false;
                 closeLoginDialog();
+                // 未ログインでは読めなかったデータを読み込み直す
+                if (wasRequired) location.reload();
             }
         }
 
@@ -241,6 +286,13 @@
                 _hasAuthSession = !!session;
                 _updateUIForAuth(!!session && EDITORS.includes(email));
                 updateDeptScheduleLinkButtons();
+                // 完全移行後は、ログインしないと閲覧できない（ログイン画面を閉じられない状態で出す）
+                if (M365_ONLY && !session && (_event === 'INITIAL_SESSION' || _event === 'SIGNED_OUT')) openLoginDialog(true);
+                if (_oauthError && _event === 'INITIAL_SESSION') {
+                    if (!document.getElementById('login_overlay').classList.contains('open')) openLoginDialog(M365_ONLY);
+                    _showLoginError(_oauthError);
+                    history.replaceState(null, '', window.location.pathname);
+                }
             }
         });
 
