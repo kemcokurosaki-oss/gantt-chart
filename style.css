@@ -131,6 +131,9 @@
             box-shadow: 1px 0 4px rgba(38,50,56,0.10);
             transition: width 0.15s ease;
         }
+        /* ログイン中のユーザー表示（m365-login.js）: ツールバーの「その他」の下。ツールバーを開いたときだけ見せる */
+        #side-icon-bar #m365_user_chip { margin: 10px 0 0 8px; }
+        #side-icon-bar:not(.open) #m365_user_chip { display: none !important; }
         #side-icon-bar.open {
             width: 190px;
             overflow-y: auto;

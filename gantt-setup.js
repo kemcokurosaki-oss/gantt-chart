@@ -307,8 +307,9 @@
             }
         });
 
-        // ログイン中は「その他」のログイン／ログアウトを隠し、画面左下にユーザー表示（アイコン＋フルネーム、押すとアドレス・権限・ログアウト）を出す
-        M365Login.mountUserChip(supabaseClient, { floating: 'bottom-left', hideWhenLoggedIn: '#auth_btn', canEdit: () => _isEditor });
+        // ログイン中は「その他」のログイン／ログアウトを隠し、ツールバーの「その他」の下にユーザー表示
+        // （アイコン＋フルネーム、押すとアドレス・権限・ログアウト）を出す。ツールバーを開いたときだけ見える（style.css）
+        M365Login.mountUserChip(supabaseClient, { mountAfter: '#side-nav-more', hideWhenLoggedIn: '#auth_btn', canEdit: () => _isEditor });
 
         let currentFilter = null;
         let currentMajorFilters = new Set();
