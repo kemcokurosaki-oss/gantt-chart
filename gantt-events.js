@@ -70,6 +70,7 @@
         gantt.locale.labels.section_unit = "ユニット";
         gantt.locale.labels.section_description = "タスク名";
         gantt.locale.labels.section_owner = "担当";
+        gantt.locale.labels.section_outsource = "外注先";
         gantt.locale.labels.section_time = "期間";
 
         // 見出し行（プロジェクト型）も同じ項目を表示
@@ -994,7 +995,7 @@
                 area_number: item.area_number || "",
                 is_business_trip: currentDisplayMode === 'business_trip' ? true : (item.is_business_trip || false),
                 main_owner: item.main_owner || ""
-            }, (window._editorLastTouchPatch && window._editorLastTouchPatch()) || {});
+            }, outsourceFieldsForDb(item), (window._editorLastTouchPatch && window._editorLastTouchPatch()) || {});
             if (currentDisplayMode === 'business_trip') {
                 updateData.task_type = 'business_trip';
             }
@@ -1192,7 +1193,7 @@
                             area_group: item.area_group || "",
                             area_number: item.area_number || "",
                             is_business_trip: currentDisplayMode === 'business_trip' ? true : (item.is_business_trip || false)
-                        }, (window._editorLastTouchPatch && window._editorLastTouchPatch()) || {});
+                        }, outsourceFieldsForDb(item), (window._editorLastTouchPatch && window._editorLastTouchPatch()) || {});
                         if (currentDisplayMode === 'business_trip') {
                             newTaskData.task_type = 'business_trip';
                         }

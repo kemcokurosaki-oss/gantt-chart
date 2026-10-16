@@ -39,3 +39,6 @@ node_modules/
 backup/
 backup1/
 tmp_*.json
+
+# 外注先用シートの保存先SQL（初期データに取引先名を含むため公開リポジトリに上げない）
+scripts/gaichu_sheets_setup.sql

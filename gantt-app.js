@@ -300,6 +300,8 @@
                     area_group: areaGroup,
                     area_number: areaNumber,
                     main_owner: t.main_owner || "",
+                    vendor_id: t.vendor_id != null ? t.vendor_id : null,
+                    test_run_location: t.test_run_location || "",
                     is_completed: t.is_completed || false,
                     shipping_date_locked: t.shipping_date_locked || false,
                     invite_date_locked: t.invite_date_locked || false,
