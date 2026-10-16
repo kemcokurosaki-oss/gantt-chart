@@ -307,7 +307,7 @@
             }
         });
 
-        // ログイン中は「その他」のログイン／ログアウトを隠し、ツールバーの「その他」の下にユーザー表示
+        // ログイン中は「その他」のログイン／ログアウトを隠し、ツールバーの一番下（左下）にユーザー表示
         // （アイコン＋フルネーム、押すとアドレス・権限・ログアウト）を出す。ツールバーを開いたときだけ見える（style.css）
         M365Login.mountUserChip(supabaseClient, { mountAfter: '#side-nav-more', hideWhenLoggedIn: '#auth_btn', canEdit: () => _isEditor });
 
