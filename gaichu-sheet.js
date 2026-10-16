@@ -156,6 +156,63 @@
         select(qs.get('v') || 'all');
     }
 
+    // ===== 工程表のタスク（外注先の判定・試運転期間・試運転場所に使う） =====
+    let tasksPromise = null;
+    function loadTasks() {
+        if (!tasksPromise) {
+            tasksPromise = client.from('tasks')
+                .select('id, text, owner, major_item, machine, unit, vendor_id, test_run_location, start_date, end_date')
+                .eq('project_number', state.pn)
+                .then(r => { if (r.error) { console.error('工程表のタスクの取得に失敗しました', r.error); return []; } return r.data || []; });
+        }
+        return tasksPromise;
+    }
+    const isOutsource = owner => String(owner || '').split(/[,，]/).some(s => s.trim() === '外注');
+    // ユニット名を1台ずつに分ける：「CV1&2&3 PV1」「CV4＆5,RV4＆6」→ CV1, CV2, CV3, PV1 / CV4, CV5, RV4, RV6
+    // 全角・半角（＆/&、全角英数字）の違いは NFKC でそろえる。「ALL」や空欄は空の配列を返す
+    function unitTokens(s) {
+        const out = [];
+        String(s || '').normalize('NFKC').toUpperCase().split(/[\s,、]+/).filter(Boolean).forEach(g => {
+            let prefix = '';
+            g.split('&').forEach(p => {
+                const m = p.match(/^([A-Z]+)(\d*)$/);
+                if (m && m[1] !== 'ALL') { prefix = m[1]; out.push(m[1] + m[2]); }
+                else if (/^\d+$/.test(p) && prefix) out.push(prefix + p);
+            });
+        });
+        return out;
+    }
+    const machineKey = m => String(m || '').normalize('NFKC').trim().toUpperCase();
+    // その外注先の「外注」タスクがある機械ごとのユニット { TR: Set(CV1, CV2, ...) }。ユニットが ALL・空欄のタスクがあれば '*'（その機械すべて）
+    function vendorUnits(tasks, vendorId) {
+        const map = new Map();
+        tasks.filter(t => isOutsource(t.owner) && t.vendor_id === vendorId).forEach(t => {
+            const mk = machineKey(t.machine);
+            if (!map.has(mk)) map.set(mk, new Set());
+            const tk = unitTokens(t.unit);
+            (tk.length ? tk : ['*']).forEach(u => map.get(mk).add(u));
+        });
+        return map;
+    }
+    // そのタスクが外注先のユニットにかかるか（タスク側のユニットが ALL・空欄なら、同じ機械に外注先のタスクがあれば該当）
+    function coversVendor(task, units) {
+        const set = units.get(machineKey(task.machine));
+        if (!set) return false;
+        const tk = unitTokens(task.unit);
+        return set.has('*') || tk.length === 0 || tk.some(u => set.has(u));
+    }
+    // 試運転期間：機械・ユニットが外注先の「外注」タスクと一致する「試運転」タスク（現地試運転は除く）の最初の開始日〜最後の終了日
+    async function trialPeriod(sheet) {
+        if (!sheet) return null;
+        const tasks = await loadTasks();
+        const units = vendorUnits(tasks, sheet.vendor_id);
+        const hits = tasks.filter(t => String(t.text || '').trim() === '試運転' && t.start_date && t.end_date && coversVendor(t, units));
+        if (!hits.length) return { start: null, end: null, count: 0, hasVendorTasks: units.size > 0 };
+        const start = hits.map(t => t.start_date).sort()[0];
+        const end = hits.map(t => t.end_date).sort().slice(-1)[0];
+        return { start, end, count: hits.length, hasVendorTasks: true };
+    }
+
     // 外注先シートの一部（spec / trial）を保存する。権限がない・ログイン切れで0件更新のときは失敗として扱う
     async function saveSheet(id, patch) {
         const { data: { session } } = await client.auth.getSession();
@@ -171,6 +228,7 @@
 
     window.GaichuSheet = {
         state, client, select, saveSheet,
+        loadTasks, unitTokens, isOutsource, vendorUnits, coversVendor, trialPeriod, fmtDate,
         sheetById: id => state.sheets.find(s => String(s.id) === String(id)) || null,
         KUSAKABE,
     };

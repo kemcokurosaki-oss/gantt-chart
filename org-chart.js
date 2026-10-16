@@ -10,6 +10,16 @@
     const tools = document.getElementById('orgChartTools');
     if (!row || !tools) return;
 
+    // 外注先用シート（gaichu-sheet.js）があるときは、選んだ外注先のシートごと（org_charts.sheet_id）に体制表を持つ。
+    // 上部の情報欄（試運転対象・試運転時間）は外注先シートの trial に保存し、試運転期間は工程表から自動表示する
+    const GS = window.GaichuSheet || null;
+    const tabsEl = document.getElementById('trialTabs');
+    const infoEl = document.getElementById('trialInfo');
+    let sheetId = null;          // 表示中の外注先シート
+    let trialDraft = null;       // 編集中の上部の情報欄
+    let trialPeriodText = '';    // 試運転期間（自動）
+    let emptyMessage = '';       // 体制表がないときの案内
+
     const client = supabase.createClient(S_URL, S_KEY);
     const ROLE_SUGGEST = ['試運転責任者', '全般', '組立業者 責任者', '組立業者 助勢', '電気業者', '組立発注担当者', '機械', '電気'];
     const DIR_LABEL = { up: '上', down: '下', left: '左', right: '右' };
@@ -71,7 +81,49 @@
             return `<li>${cellHtml(n)}${treeHtml(n.children || [], depth + 1)}</li>`;
         }).join('') + '</ul>';
     }
+    // ===== 外注先の選択・上部の情報欄（外注先用シートのみ） =====
+    function trialInput(key, value, ph) {
+        return `<input type="text" class="spec-input" data-trial="${key}" value="${esc(value)}" placeholder="${esc(ph)}">`;
+    }
+    function renderTrial() {
+        if (!GS) return;
+        const st = GS.state;
+        if (tabsEl) tabsEl.innerHTML = st.loggedIn && st.sheets.length
+            ? `<div class="spec-tabs">${st.sheets.map(s => `<button type="button" class="vendor-switch-btn${s.id === sheetId ? ' active' : ''}" data-v="${s.id}"><span class="dot" style="background:${esc(s.color)}"></span>${esc(s.display)}</button>`).join('')}</div>`
+            : '';
+        if (!infoEl) return;
+        const sheet = sheetId && GS.sheetById(sheetId);
+        if (!sheet) { infoEl.innerHTML = ''; infoEl.style.display = 'none'; return; }
+        infoEl.style.display = '';
+        const t = editing && trialDraft ? trialDraft : (sheet.trial || {});
+        infoEl.innerHTML = `
+            <div class="info-item"><div class="k">工事番号</div><div class="v">${esc(st.pn)}</div></div>
+            <div class="info-item"><div class="k">工事名称</div><div class="v">${esc(st.project.name) || '―'}</div></div>
+            <div class="info-item"><div class="k">試運転対象</div><div class="v">${editing ? trialInput('target', t.target || '', '例：エントリー全般') : (esc(t.target) || '―')}</div></div>
+            <div class="info-item"><div class="k">試運転期間<span class="oc-auto">工程表から自動</span></div><div class="v">${trialPeriodText || '―'}</div></div>
+            <div class="info-item"><div class="k">試運転時間</div><div class="v">${editing
+                ? trialInput('time', t.time || '', '例：8:30～17:30') + trialInput('time_note', t.time_note || '', '例：残業は最大19:00／休日対応は相談')
+                : `${esc(t.time) || '―'}${t.time_note ? `<small>${esc(t.time_note)}</small>` : ''}`}</div></div>
+            <div class="info-item"></div>`;
+    }
+    async function refreshTrialPeriod() {
+        const sheet = sheetId && GS.sheetById(sheetId);
+        if (!sheet) return;
+        trialPeriodText = '計算中…';
+        renderTrial();
+        const r = await GS.trialPeriod(sheet);
+        if (sheetId !== sheet.id) return;   // 計算中に外注先が切り替わった
+        trialPeriodText = r && r.start ? `${GS.fmtDate(r.start)} ～ ${GS.fmtDate(r.end)}`
+            : `<span class="oc-muted">${r && r.hasVendorTasks ? '該当する試運転タスクがありません' : '工程表の外注タスクにこの外注先が入っていません'}</span>`;
+        renderTrial();
+    }
+    if (infoEl) infoEl.addEventListener('input', e => {
+        const k = e.target.dataset.trial;
+        if (k && trialDraft) trialDraft[k] = e.target.value;
+    });
+
     function render() {
+        renderTrial();
         nodeIndex = new Map();
         row.classList.toggle('oc-editing', editing);
         // 編集中は右パネルを全画面に広げる（終了すると元の幅に戻る）
@@ -90,6 +142,7 @@
                 : (editing ? `<button type="button" class="oc-first" data-first="${i}">＋ カードを追加</button>` : '');
             return `<div class="org-chart-col">${title}${body}</div>`;
         }).join('');
+        if (!charts.length && !editing && emptyMessage) row.innerHTML = `<p class="oc-empty">${esc(emptyMessage)}</p>`;
         renderTools();
         fitCharts();
     }
@@ -115,7 +168,7 @@
     function renderTools() {
         if (!editing) {
             // 編集ボタンは管理者としてログイン中のときだけ表示（外注先には見せない）
-            tools.innerHTML = loadFailed ? ''
+            tools.innerHTML = loadFailed || (GS && !sheetId) ? ''
                 : canEdit ? `<button type="button" class="oc-btn oc-btn--ghost" data-t="start">体制表を編集</button>`
                 : SHOW_ADMIN_LOGIN ? `<button type="button" class="oc-btn oc-btn--ghost" data-t="login">管理者ログイン</button>`
                 : '';
@@ -167,19 +220,34 @@
 
     // ===== 読込・保存 =====
     async function load() {
-        const { data, error } = await client.from('org_charts')
-            .select('id, title, sort_order, tree')
-            .eq('project_number', PROJECT_NUMBER)
-            .order('sort_order');
+        let query = client.from('org_charts').select('id, title, sort_order, tree').order('sort_order');
+        if (GS) {
+            const st = GS.state;
+            if (!st.ready) return;   // 外注先シートを読み込み終えたら gaichusheetchange から呼ばれる
+            sheetId = st.currentSheet ? st.currentSheet.id : null;
+            charts = [];
+            snapshot = '';
+            emptyMessage = !st.loggedIn ? '体制表は、社内のアカウントでログインすると表示されます。'
+                : !st.sheets.length ? 'この工事には外注先が登録されていません。'
+                : !sheetId ? '体制表は外注先ごとに作成します。上のボタンから外注先を選んでください。'
+                : 'この外注先の体制表はまだ作成されていません。';
+            if (!sheetId) { render(); return; }
+            refreshTrialPeriod();
+            query = query.eq('sheet_id', sheetId);
+        } else {
+            query = query.eq('project_number', PROJECT_NUMBER);
+        }
+        const loadingSheet = sheetId;
+        const { data, error } = await query;
+        if (GS && loadingSheet !== sheetId) return;   // 読み込み中に外注先が切り替わった
         if (error) {
-            // テーブル未作成などのときは HTML に書かれた体制表をそのまま表示する
             console.error('体制表の取得に失敗しました', error);
             loadFailed = true;
-            tools.innerHTML = '';
-            fitCharts();
+            emptyMessage = '体制表を読み込めませんでした。';
+            render();
             return;
         }
-        if (!data.length) { renderTools(); fitCharts(); return; }   // 未登録の工番は HTML の記載を表示
+        loadFailed = false;
         charts = data.map(r => ({ id: r.id, title: r.title, tree: Array.isArray(r.tree) ? r.tree : [] }));
         snapshot = JSON.stringify(charts);
         render();
@@ -192,6 +260,7 @@
             for (let i = 0; i < charts.length; i++) {
                 const c = charts[i];
                 const rec = {
+                    ...(GS ? { sheet_id: sheetId } : {}),
                     project_number: PROJECT_NUMBER, title: c.title.trim() || '（無題の系統）',
                     sort_order: i, tree: stripRuntime(c.tree),
                     updated_at: new Date().toISOString(), updated_by: email,
@@ -210,6 +279,7 @@
                 const { error } = await client.from('org_charts').delete().in('id', deletedIds);
                 if (error) throw error;
             }
+            if (GS && trialDraft) await GS.saveSheet(sheetId, { trial: trialDraft });
         } catch (e) {
             console.error('体制表の保存に失敗しました', e);
             alert('保存に失敗しました：' + (e.message || e));
@@ -221,6 +291,7 @@
     function endEdit() {
         closeHelp();
         editing = false;
+        trialDraft = null;
         deletedIds = [];
         undoStack = [];
     }
@@ -238,9 +309,14 @@
             if (!ok) return;
             if (!(await checkAdmin())) { alert('このアカウントには体制表の編集権限がありません。'); return; }
         }
+        if (GS && !sheetId) { alert('体制表は外注先ごとに作成します。先に外注先を選んでください。'); return; }
         await loadStaff();
         if (!charts.length) charts = [{ id: null, title: '試運転指揮系統', tree: [] }];
         snapshot = snapshot || JSON.stringify(charts);
+        if (GS) {
+            const sheet = GS.sheetById(sheetId);
+            trialDraft = { target: '', time: '', time_note: '', ...((sheet && sheet.trial) || {}) };
+        }
         editing = true;
         render();
     }
@@ -967,9 +1043,7 @@
                 if (!confirm('編集内容を破棄して元に戻しますか？')) return;
                 charts = snapshot ? JSON.parse(snapshot) : [];
                 endEdit();
-                if (charts.length) break;
-                location.reload();
-                return;
+                break;
         }
         render();
     });
@@ -1090,6 +1164,18 @@
             if (!editing) renderTools();
         }, 0);
     });
+
+    // 外注先の切り替え：編集中なら破棄の確認をしてから切り替え、選んだ外注先の体制表を読み込み直す
+    if (GS) {
+        document.addEventListener('click', e => {
+            const b = e.target.closest('.vendor-switch-btn');
+            if (!b || !editing) return;
+            if (String(b.dataset.v) === String(sheetId)) { e.stopImmediatePropagation(); return; }
+            if (!confirm('体制表の編集内容を保存していません。破棄して外注先を切り替えますか？')) { e.stopImmediatePropagation(); return; }
+            endEdit();
+        }, true);
+        document.addEventListener('gaichusheetchange', () => { if (editing) endEdit(); load(); });
+    }
 
     checkAdmin().then(ok => { canEdit = ok; }).finally(load);
 })();
