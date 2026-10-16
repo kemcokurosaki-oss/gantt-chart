@@ -13,10 +13,11 @@
     const state = {
         pn: PROJECT_NUMBER,
         project: { name: '', customer: '', shipDate: null },
-        sheets: [],          // [{ id, vendor_id, name, display, color }]
+        sheets: [],          // [{ id, vendor_id, name, display, color, spec, trial }]
         current: 'all',      // 'all' または シートID
         currentSheet: null,  // 選択中のシート（全体のときは null）
         loggedIn: false,
+        isAdmin: false,      // 体制表の管理者（org_chart_admins）なら編集できる
         ready: false,
     };
 
@@ -49,7 +50,7 @@
     }
     async function loadSheets() {
         const { data, error } = await client.from('gaichu_sheets')
-            .select('id, vendor_id, color, sort_order, gaichu_vendors(name, display_name)')
+            .select('id, vendor_id, color, sort_order, spec, trial, gaichu_vendors(name, display_name)')
             .eq('project_number', state.pn).order('sort_order').order('id');
         if (error) { console.error('外注先シートの取得に失敗しました', error); return; }
         state.sheets = (data || []).map(r => ({
@@ -58,6 +59,8 @@
             name: (r.gaichu_vendors && r.gaichu_vendors.name) || '',
             display: (r.gaichu_vendors && (r.gaichu_vendors.display_name || r.gaichu_vendors.name)) || '',
             color: r.color || '#7f8c8d',
+            spec: r.spec || {},
+            trial: r.trial || {},
         }));
     }
 
@@ -142,15 +145,32 @@
         const { data: { session } } = await client.auth.getSession();
         if (session && restoreQueryAfterLogin()) return;
         state.loggedIn = !!session;
-        await Promise.all([loadProject(), state.loggedIn ? loadSheets() : Promise.resolve()]);
+        await Promise.all([
+            loadProject(),
+            state.loggedIn ? loadSheets() : Promise.resolve(),
+            state.loggedIn ? client.rpc('is_org_chart_admin').then(r => { state.isAdmin = !r.error && r.data === true; }) : Promise.resolve(),
+        ]);
         renderHeader();
         renderLoginNote();
         state.ready = true;
         select(qs.get('v') || 'all');
     }
 
+    // 外注先シートの一部（spec / trial）を保存する。権限がない・ログイン切れで0件更新のときは失敗として扱う
+    async function saveSheet(id, patch) {
+        const { data: { session } } = await client.auth.getSession();
+        if (!session) throw new Error('ログインが切れています。再度ログインしてください。');
+        const rec = { ...patch, updated_at: new Date().toISOString(), updated_by: session.user.email };
+        const { data, error } = await client.from('gaichu_sheets').update(rec).eq('id', id).select('id, spec, trial');
+        if (error) throw error;
+        if (!data || !data.length) throw new Error('保存できませんでした（編集の権限がないか、ログインが切れています）');
+        const sheet = state.sheets.find(s => s.id === id);
+        if (sheet) { sheet.spec = data[0].spec || {}; sheet.trial = data[0].trial || {}; }
+        return sheet;
+    }
+
     window.GaichuSheet = {
-        state, client, select,
+        state, client, select, saveSheet,
         sheetById: id => state.sheets.find(s => String(s.id) === String(id)) || null,
         KUSAKABE,
     };
