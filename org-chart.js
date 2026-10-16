@@ -271,9 +271,11 @@
                     return;
                 }
                 localStorage.setItem('m365_return_to', location.origin + location.pathname);
+                // 外注先用シートでは ?pn=（工番）&v=（外注先）をログイン後も保てるよう、クエリも戻り先に含めて控える
+                if (window.GaichuSheetReturnKey) localStorage.setItem(window.GaichuSheetReturnKey, location.search);
                 const { error } = await client.auth.signInWithOAuth({
                     provider: 'azure',
-                    options: { scopes: 'openid profile email', redirectTo: location.origin + location.pathname }
+                    options: { scopes: 'openid profile email', redirectTo: location.origin + location.pathname + location.search }
                 });
                 if (error) m.el.querySelector('.oc-err').textContent = 'Microsoftでのログインを開始できませんでした：' + error.message;
             });

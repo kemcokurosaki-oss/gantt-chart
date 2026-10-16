@@ -1,0 +1,158 @@
+// 外注先用シートの共通部分
+//   ・工番は URL の ?pn= で指定（ページ側で PROJECT_NUMBER に入れておく）。表示する外注先は &v=（シートID または all）
+//   ・工事名称・客先・出荷納期は工程表（tasks）から自動表示
+//   ・この工事の外注先は外注先シート（gaichu_sheets＋gaichu_vendors）から読み、「全体／各外注先」の切り替えボタンを作る
+//   ・外注先シートは社内ログイン者しか読めないため、未ログインのときはサインインの案内を出す
+// 読み込み前に PROJECT_NUMBER / S_URL / S_KEY を定義しておくこと。
+// 外注先を切り替えると document に 'gaichusheetchange' イベント（detail = GaichuSheet.state）を送る。
+(function () {
+    const client = supabase.createClient(S_URL, S_KEY);
+    const qs = new URLSearchParams(location.search);
+    const KUSAKABE = { name: '日下部電機㈱', color: '#3498db' };
+
+    const state = {
+        pn: PROJECT_NUMBER,
+        project: { name: '', customer: '', shipDate: null },
+        sheets: [],          // [{ id, vendor_id, name, display, color }]
+        current: 'all',      // 'all' または シートID
+        currentSheet: null,  // 選択中のシート（全体のときは null）
+        loggedIn: false,
+        ready: false,
+    };
+
+    function esc(s) {
+        return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+    function $(id) { return document.getElementById(id); }
+    function fmtDate(s) {
+        if (!s) return '―';
+        const [y, m, d] = String(s).slice(0, 10).split('-').map(Number);
+        return `${y}/${m}/${d}`;
+    }
+
+    // ===== 読み込み =====
+    async function loadProject() {
+        // 工事名称・客先は、その工番のタスクのうち値が入っている最初のものから取る
+        const firstValue = col => client.from('tasks').select(col).eq('project_number', state.pn)
+            .not(col, 'is', null).neq(col, '').limit(1);
+        const [name, customer, ship] = await Promise.all([
+            firstValue('project_details'),
+            firstValue('customer_name'),
+            client.from('tasks').select('end_date').eq('project_number', state.pn).eq('text', '工場出荷')
+                .not('end_date', 'is', null).order('end_date', { ascending: false }).limit(1),
+        ]);
+        [name, customer, ship].forEach(r => { if (r.error) console.error('工事情報の取得に失敗しました', r.error); });
+        const first = (r, col) => (r.data && r.data[0] && r.data[0][col]) || '';
+        state.project.name = first(name, 'project_details');
+        state.project.customer = first(customer, 'customer_name');
+        state.project.shipDate = first(ship, 'end_date') || null;
+    }
+    async function loadSheets() {
+        const { data, error } = await client.from('gaichu_sheets')
+            .select('id, vendor_id, color, sort_order, gaichu_vendors(name, display_name)')
+            .eq('project_number', state.pn).order('sort_order').order('id');
+        if (error) { console.error('外注先シートの取得に失敗しました', error); return; }
+        state.sheets = (data || []).map(r => ({
+            id: r.id,
+            vendor_id: r.vendor_id,
+            name: (r.gaichu_vendors && r.gaichu_vendors.name) || '',
+            display: (r.gaichu_vendors && (r.gaichu_vendors.display_name || r.gaichu_vendors.name)) || '',
+            color: r.color || '#7f8c8d',
+        }));
+    }
+
+    // ===== 表示 =====
+    function renderHeader() {
+        $('sheetJobNo').textContent = state.pn;
+        $('sheetTitle').textContent = state.project.name || '（工事名称未登録）';
+        $('customerName').textContent = state.project.customer || '―';
+        $('shipDate').textContent = fmtDate(state.project.shipDate);
+        $('sheetVendors').textContent = state.sheets.length ? state.sheets.map(s => s.display).join(' ／ ')
+            : (state.loggedIn ? '（未登録）' : '（ログインすると表示されます）');
+        document.title = `外注先用 工事詳細シート｜${state.pn} ${state.project.name || ''}`.trim();
+        window.dispatchEvent(new Event('resize'));   // ヘッダーの高さが変わるとサイドメニュー・右パネルの位置を合わせ直す
+    }
+    function renderSwitch() {
+        const box = $('vendorSwitch');
+        if (!state.sheets.length) { box.innerHTML = ''; return; }
+        const btn = (key, label, color) => `<button type="button" class="vendor-switch-btn${String(state.current) === String(key) ? ' active' : ''}" data-v="${key}">`
+            + (color ? `<span class="dot" style="background:${esc(color)}"></span>` : '') + `${esc(label)}</button>`;
+        box.innerHTML = `<span class="vendor-switch-label">外注先</span>` + btn('all', '全体')
+            + state.sheets.map(s => btn(s.id, s.display, s.color)).join('');
+    }
+    function renderLegend() {
+        const chip = (label, color) => `<span class="party-chip"><span class="dot" style="background:${esc(color)}"></span>${esc(label)}</span>`;
+        const list = state.currentSheet ? [state.currentSheet] : state.sheets;
+        $('partyLegendItems').innerHTML = list.map(s => chip(s.display, s.color)).join('') + chip(KUSAKABE.name, KUSAKABE.color);
+    }
+    function renderLoginNote() {
+        const note = $('sheetLoginNote');
+        if (state.loggedIn) { note.hidden = true; note.innerHTML = ''; return; }
+        note.hidden = false;
+        note.innerHTML = `<span>外注先ごとの内容は、社内のアカウントでログインすると表示されます。</span>`
+            + `<button type="button" class="sheet-login-btn" data-sheet-login>Microsoftでサインイン</button><span class="sheet-login-err"></span>`;
+    }
+
+    // ===== 切り替え =====
+    function select(key, { silent } = {}) {
+        const sheet = state.sheets.find(s => String(s.id) === String(key)) || null;
+        state.current = sheet ? sheet.id : 'all';
+        state.currentSheet = sheet;
+        const url = new URL(location.href);
+        if (sheet) url.searchParams.set('v', sheet.id); else url.searchParams.delete('v');
+        history.replaceState(null, '', url);
+        renderSwitch();
+        renderLegend();
+        if (!silent) document.dispatchEvent(new CustomEvent('gaichusheetchange', { detail: state }));
+    }
+
+    document.addEventListener('click', async e => {
+        const b = e.target.closest('.vendor-switch-btn');
+        if (b) { select(b.dataset.v); return; }
+        if (e.target.closest('[data-sheet-login]')) {
+            const err = document.querySelector('.sheet-login-err');
+            if (location.protocol === 'file:') {
+                err.textContent = '「体制表を開く.bat」から開いてください（ファイルを直接開いた状態ではログインできません）。';
+                return;
+            }
+            // ログイン後に同じ工番・外注先の表示へ戻れるよう、クエリ（?pn=&v=）も戻り先に含める
+            const back = location.origin + location.pathname + location.search;
+            localStorage.setItem('m365_return_to', location.origin + location.pathname);
+            localStorage.setItem(RETURN_QS_KEY, location.search);
+            const { error } = await client.auth.signInWithOAuth({
+                provider: 'azure', options: { scopes: 'openid profile email', redirectTo: back },
+            });
+            if (error) err.textContent = 'Microsoftでのログインを開始できませんでした：' + error.message;
+        }
+    });
+
+    // Supabase の戻り先の登録によっては ?pn=&v= が外れたURLに戻ってくるため、ログイン前に控えた指定に戻す
+    const RETURN_QS_KEY = 'gaichu_sheet_return_qs';
+    function restoreQueryAfterLogin() {
+        const saved = localStorage.getItem(RETURN_QS_KEY);
+        if (saved == null) return false;
+        localStorage.removeItem(RETURN_QS_KEY);
+        if (saved && !qs.has('pn') && /[?&]pn=/.test(saved)) { location.replace(location.pathname + saved); return true; }
+        return false;
+    }
+    window.GaichuSheetReturnKey = RETURN_QS_KEY;
+
+    async function init() {
+        // getSession はログインから戻った直後のトークン取り込みが終わってから返る
+        const { data: { session } } = await client.auth.getSession();
+        if (session && restoreQueryAfterLogin()) return;
+        state.loggedIn = !!session;
+        await Promise.all([loadProject(), state.loggedIn ? loadSheets() : Promise.resolve()]);
+        renderHeader();
+        renderLoginNote();
+        state.ready = true;
+        select(qs.get('v') || 'all');
+    }
+
+    window.GaichuSheet = {
+        state, client, select,
+        sheetById: id => state.sheets.find(s => String(s.id) === String(id)) || null,
+        KUSAKABE,
+    };
+    init();
+})();
