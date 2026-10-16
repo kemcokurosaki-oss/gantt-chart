@@ -24,6 +24,9 @@
     let loadFailed = false; // 体制表の取得失敗時は HTML 記載の表を出すだけで編集させない
     let nodeIndex = new Map();   // uid -> { node, siblings, depth }
     let uidSeq = 0;
+    // 管理者がログインする入口は、手元の簡易サーバー（体制表を開く.bat → http://localhost:8000/…）で開いたときと、
+    // URL に ?admin=1 を付けたときだけ出す（将来、外注先に見せるときにログインボタンを見せないため）
+    const SHOW_ADMIN_LOGIN = ['localhost', '127.0.0.1'].includes(location.hostname) || new URLSearchParams(location.search).has('admin');
 
     function esc(s) {
         return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -112,7 +115,10 @@
     function renderTools() {
         if (!editing) {
             // 編集ボタンは管理者としてログイン中のときだけ表示（外注先には見せない）
-            tools.innerHTML = canEdit && !loadFailed ? `<button type="button" class="oc-btn oc-btn--ghost" data-t="start">体制表を編集</button>` : '';
+            tools.innerHTML = loadFailed ? ''
+                : canEdit ? `<button type="button" class="oc-btn oc-btn--ghost" data-t="start">体制表を編集</button>`
+                : SHOW_ADMIN_LOGIN ? `<button type="button" class="oc-btn oc-btn--ghost" data-t="login">管理者ログイン</button>`
+                : '';
             return;
         }
         tools.innerHTML = `
@@ -241,7 +247,11 @@
     function loginDialog() {
         return new Promise(resolve => {
             const m = openModal('管理者ログイン', `
-                <p class="oc-note">工程表と同じアカウントでログインしてください。</p>
+                <button type="button" class="oc-btn" data-ms-login style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:12px">
+                    <svg width="16" height="16" viewBox="0 0 21 21" aria-hidden="true"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg>
+                    Microsoftでサインイン
+                </button>
+                <p class="oc-note">または、工程表と同じアカウントのメールアドレスとパスワードでログインしてください。</p>
                 <label class="oc-field"><span>メールアドレス</span><input type="email" name="email" autocomplete="username"></label>
                 <label class="oc-field"><span>パスワード</span><input type="password" name="pw" autocomplete="current-password"></label>
                 <div class="oc-err"></div>`, [
@@ -254,6 +264,19 @@
                     m.close(); resolve(true);
                 } },
             ]);
+            m.el.querySelector('[data-ms-login]').addEventListener('click', async () => {
+                // Microsoft のログイン画面から戻ってくる先が必要なため、ファイルを直接開いた状態では使えない
+                if (location.protocol === 'file:') {
+                    m.el.querySelector('.oc-err').textContent = '「体制表を開く.bat」から開いてください（ファイルを直接開いた状態ではMicrosoftでログインできません）。';
+                    return;
+                }
+                localStorage.setItem('m365_return_to', location.origin + location.pathname);
+                const { error } = await client.auth.signInWithOAuth({
+                    provider: 'azure',
+                    options: { scopes: 'openid profile email', redirectTo: location.origin + location.pathname }
+                });
+                if (error) m.el.querySelector('.oc-err').textContent = 'Microsoftでのログインを開始できませんでした：' + error.message;
+            });
             m.el.querySelector('[name=pw]').addEventListener('keydown', e => {
                 if (e.key === 'Enter') m.el.querySelector('.oc-btn--primary').click();
             });
@@ -930,6 +953,9 @@
         if (!t || !t.dataset.t) return;
         switch (t.dataset.t) {
             case 'start': await startEdit(); return;
+            case 'login':
+                if (await loginDialog()) { canEdit = await checkAdmin(); renderTools(); if (!canEdit) alert('このアカウントには体制表の編集権限がありません。'); }
+                return;
             case 'save': await save(); return;
             case 'staff': staffDialog(); return;
             case 'undo': undo(); return;
