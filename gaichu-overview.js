@@ -104,36 +104,80 @@
     }
 
     // ===== 1 組立範囲 =====
+    // 図面の色分け枠と表の担当バッジは担当先でつながっている。バッジ・行・枠にマウスを乗せると、同じ担当先の枠とバッジを強調する
+    function zonePoints(z) {
+        if (Array.isArray(z.points) && z.points.length >= 3) return z.points;
+        const x = +z.x || 0, y = +z.y || 0, w = +z.width || 0, h = +z.height || 0, rot = (+z.rotation || 0) * Math.PI / 180;
+        const cx = x + w / 2, cy = y + h / 2;
+        return [[x, y], [x + w, y], [x + w, y + h], [x, y + h]].map(([px, py]) => {
+            const dx = px - cx, dy = py - cy;
+            return [cx + dx * Math.cos(rot) - dy * Math.sin(rot), cy + dx * Math.sin(rot) + dy * Math.cos(rot)];
+        });
+    }
     function renderScope() {
         const sh = GS.state.currentSheet;
         const vid = sh ? sh.vendor_id : null;
         const cols = scope.columns, pcols = cols.filter(c => c.type === 'party');
         const rows = scope.rows.filter(r => vid == null || pcols.some(c => (r[c.key] || []).some(k => String(k) === String(vid))));
-        const fig = figUrl ? `<div class="ov-fig"><img src="${esc(figUrl)}" alt="図面"><span>${esc((scope.figures.find(f => f.path) || {}).caption || '')}${scope.figures.length > 1 ? `　ほか${scope.figures.length - 1}枚` : ''}</span></div>`
+        const f0 = scope.figures.find(f => f.path) || {};
+        const zones = (f0.zones || []).filter(z => vid == null || String(z.party) === String(vid) || z.party === KUSAKABE);
+        const svg = zones.map(z => {
+            const p = party(z.party);
+            return `<polygon data-party="${esc(z.party)}" points="${zonePoints(z).map(q => q.join(',')).join(' ')}" fill="${esc(p.color)}" stroke="${esc(p.color)}" vector-effect="non-scaling-stroke"></polygon>`;
+        }).join('');
+        const fig = figUrl ? `<div class="ov-fig"><div class="ov-fig-img"><img src="${esc(figUrl)}" alt="図面"><svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">${svg}</svg></div><span>${esc(f0.caption || '')}${scope.figures.length > 1 ? `　ほか${scope.figures.length - 1}枚` : ''}</span></div>`
             : `<div class="ov-fig ov-fig--empty">図面はまだ登録されていません</div>`;
-        const list = rows.length ? rows.map(r => `<div class="ov-unit"><span class="ov-unit-name"><b>${esc(r.unit || r.machine || '')}</b>${esc(r.machine_name || '')}</span><span class="ov-chips">${pcols.map(c => (r[c.key] || []).map(k => {
+        const list = rows.length ? rows.map(r => {
+            const keys = [...new Set(pcols.flatMap(c => (r[c.key] || []).map(String)))];
+            const out = keys.filter(k => k !== KUSAKABE);
+            return `<div class="ov-unit" data-parties="${esc((out.length ? out : keys).join(' '))}"><span class="ov-unit-name"><b>${esc(r.unit || r.machine || '')}</b>${esc(r.machine_name || '')}</span><span class="ov-chips">${pcols.map(c => (r[c.key] || []).map(k => {
                 const p = party(k);
-                return `<span class="ov-chip" style="${GS.chipStyle(p.color)}">${esc(c.label)}　${esc(p.label)}</span>`;
-            }).join('')).join('')}</span></div>`).join('')
+                return `<span class="ov-chip" data-party="${esc(k)}" style="${GS.chipStyle(p.color)}">${esc(c.label)}　${esc(p.label)}</span>`;
+            }).join('')).join('')}</span></div>`;
+        }).join('')
             : muted(scope.rows.length ? 'この外注先が担当に入っている行はありません。' : '担当範囲一覧はまだ入力されていません。');
-        el.scope.innerHTML = `<div class="ov-scope">${fig}<div class="ov-units"><span class="ov-k">${sh ? esc(sh.display) + 'の担当' : '担当範囲（全体）'}</span>${list}</div></div>`;
+        el.scope.innerHTML = `<div class="ov-scope">${fig}<div class="ov-units"><span class="ov-k">${sh ? esc(sh.display) + 'の担当' : '担当範囲（全体）'}　<span class="ov-hint">バッジや図面の枠にマウスを乗せると、同じ担当先を強調します</span></span>${list}</div></div>`;
     }
+    function highlight(keys) {
+        const on = keys && keys.length ? new Set(keys.map(String)) : null;
+        el.scope.classList.toggle('is-hl', !!on);
+        el.scope.querySelectorAll('[data-party]').forEach(n => n.classList.toggle('hl', !!on && on.has(n.dataset.party)));
+        el.scope.querySelectorAll('.ov-unit').forEach(n => n.classList.toggle('hl', !!on && n.dataset.parties.split(' ').some(k => on.has(k))));
+    }
+    el.scope.addEventListener('mouseover', e => {
+        const chip = e.target.closest('.ov-chip, polygon');
+        if (chip) { highlight([chip.dataset.party]); return; }
+        const row = e.target.closest('.ov-unit');
+        highlight(row ? row.dataset.parties.split(' ') : null);
+    });
+    el.scope.addEventListener('mouseleave', () => highlight(null));
 
     // ===== 2 工程表 =====
+    // 月の目盛り（縦の線）と今日の線を入れた短い工程表。期間は最初の工程の月の初めから最後の工程の翌月末まで
     function renderSchedule() {
         const sh = GS.state.currentSheet;
         const list = (sh ? tasks.filter(t => t.vendor_id === sh.vendor_id) : tasks).slice(0, 8);
         if (!list.length) { el.schedule.innerHTML = muted('担当が「外注」のタスクが見つかりませんでした。'); return; }
         const t0 = today();
-        const min = new Date(Math.min(t0, ...list.map(t => t.start))), max = new Date(Math.max(...list.map(t => t.end)));
-        const span = Math.max(1, max - min + DAY);
+        const lo = new Date(Math.min(t0, ...list.map(t => t.start))), hi = new Date(Math.max(...list.map(t => t.end)));
+        const min = new Date(lo.getFullYear(), lo.getMonth(), 1), max = new Date(hi.getFullYear(), hi.getMonth() + 2, 0);
+        const span = max - min + DAY;
         const pos = d => ((d - min) / span * 100).toFixed(2) + '%';
-        const now = t0 >= min && t0 <= max ? `<i class="ov-now" style="left:${pos(t0)}"></i>` : '';
-        el.schedule.innerHTML = `<div class="ov-gantt">${list.map(t => {
+        const months = [];
+        for (let d = new Date(min); d <= max; d = new Date(d.getFullYear(), d.getMonth() + 1, 1)) {
+            months.push({ d, label: (months.length === 0 || d.getMonth() === 0 ? `${d.getFullYear()}年` : '') + `${d.getMonth() + 1}月` });
+        }
+        const grid = months.map(m => `<i class="ov-mline" style="left:${pos(m.d)}"></i>`).join('');
+        const showNow = t0 >= min && t0 <= max;
+        const now = showNow ? `<i class="ov-now" style="left:${pos(t0)}"></i>` : '';
+        const head = `<div class="ov-grow ov-ghead"><span></span><span class="ov-gmonths">${months.map(m => `<span style="left:${pos(m.d)}">${m.label}</span>`).join('')}${showNow ? `<b class="ov-today" style="left:${pos(t0)}">今日</b>` : ''}</span></div>`;
+        el.schedule.innerHTML = `<div class="ov-gantt">${head}${list.map(t => {
             const v = vendorOf(t), color = v ? v.color : '#7b8088';
             const who = v ? v.display.replace(/殿$/, '') : '外注先未定';
-            return `<div class="ov-grow"><span class="ov-glabel"><b>${esc(t.text)}</b><span>${esc(who)}　${md(t.start)}〜${md(t.end)}（${days(t.start, t.end)}日）</span></span>`
-                + `<span class="ov-gtrack">${now}<i class="ov-gbar" style="left:${pos(t.start)};width:${Math.max(0.8, days(t.start, t.end) * DAY / span * 100).toFixed(2)}%;background:${esc(color)}"></i></span></div>`;
+            const n = days(t.start, t.end);
+            return `<div class="ov-grow"><span class="ov-glabel"><b>${esc(t.text)}</b><span>${esc([t.machine, t.unit].filter(Boolean).join(' '))}</span></span>`
+                + `<span class="ov-gtrack">${grid}${now}<i class="ov-gbar" style="left:${pos(t.start)};width:${Math.max(0.8, n * DAY / span * 100).toFixed(2)}%;background:${esc(color)}"></i>`
+                + `<span class="ov-gtext" style="left:calc(${pos(t.start)} + ${Math.max(0.8, n * DAY / span * 100).toFixed(2)}%)">${esc(who)}　${md(t.start)}〜${md(t.end)}（${n}日）</span></span></div>`;
         }).join('')}</div>`;
     }
 

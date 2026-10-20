@@ -21,6 +21,20 @@
     let isAdmin = false;
     let doneOpen = localStorage.getItem(DONE_KEY) === '1';
 
+    // 社内公開の切り替え（管理者のみ。DBの閲覧の制限が切り替わる。元は一覧ページにあったもの）
+    async function togglePublic() {
+        const next = !GS.state.isPublic;
+        if (!confirm(next
+            ? '外注先用シートを社内に公開します。\n社内でログインしている人全員が、各シートを見られるようになります。よろしいですか？'
+            : '社内公開をオフにします。\n管理者以外の人は、各シートを見られなくなります。よろしいですか？')) return;
+        const { data: { session } } = await client.auth.getSession();
+        const { data, error } = await client.from('gaichu_settings')
+            .update({ value: { public: next }, updated_at: new Date().toISOString(), updated_by: session && session.user.email })
+            .eq('key', 'visibility').select('key');
+        if (error || !data || !data.length) { alert('切り替えられませんでした：' + ((error && error.message) || '権限がないか、公開スイッチの設定がまだありません')); return; }
+        location.reload();
+    }
+
     function esc(s) {
         return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     }
@@ -86,8 +100,12 @@
             const target = projects.find(p => p.pn === last) || projects.find(p => !isDone(p)) || projects[0];
             if (target) { location.replace(hrefFor(target.pn)); return; }
         }
+        loaded = true;
         render();
     }
+    let loaded = false;
+    // 社内公開の状態は gaichu-sheet.js が読み込むので、読み込み後に管理者メニューを描き直す
+    document.addEventListener('gaichusheetchange', () => { if (loaded) render(); });
 
     // ===== 表示 =====
     function itemHtml(p) {
@@ -99,8 +117,10 @@
         </a>`;
     }
     function render() {
+        const pub = GS.state.isPublic;
         admin.innerHTML = isAdmin && window.GaichuAdmin
             ? `<span class="jn-foot-label">管理者メニュー</span><button type="button" class="jn-btn" data-jn="add">＋ 外注先シートを追加</button><button type="button" class="jn-btn" data-jn="vendors">外注先マスタの管理</button>`
+              + `<button type="button" class="jn-btn jn-public${pub ? ' on' : ''}" data-jn="public" title="押すと社内公開のオン／オフを切り替えます"><i></i>社内公開：${pub ? 'オン' : 'オフ（管理者のみ）'}</button>`
             : '';
         if (!projects.length) {
             list.innerHTML = `<p class="jn-msg">外注先シートはまだ登録されていません。${isAdmin ? '「＋ 外注先シートを追加」から登録してください。' : ''}</p>`;
@@ -131,6 +151,7 @@
         if (act === 'done') { doneOpen = !(b.getAttribute('aria-expanded') === 'true'); localStorage.setItem(DONE_KEY, doneOpen ? '1' : ''); render(); }
         else if (act === 'add') GaichuAdmin.openAdd({ onDone: () => location.reload() });
         else if (act === 'vendors') GaichuAdmin.openVendors({ onDone: () => location.reload() });
+        else if (act === 'public') togglePublic();
     });
 
     load();

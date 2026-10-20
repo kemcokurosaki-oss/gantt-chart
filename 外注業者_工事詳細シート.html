@@ -1229,6 +1229,10 @@
     .jn-btn:hover { background: #eceef1; }
     .jn-btn--primary { background: #2b2f36; color: #fff; }
     .jn-btn--primary:hover { background: #16191d; }
+    .jn-public { display: flex; align-items: center; gap: 6px; border-color: #cfd0cc; color: #5b6068; }
+    .jn-public i { width: 8px; height: 8px; border-radius: 50%; background: #a2a7ae; }
+    .jn-public.on { color: #1b7641; border-color: #9fd3b4; background: #f2faf5; }
+    .jn-public.on i { background: #27ae60; }
     .job-nav-list { flex: 1 1 auto; overflow-y: auto; padding: 8px 8px 16px; display: flex; flex-direction: column; gap: 2px; }
     .jn-item { display: flex; flex-direction: column; gap: 2px; padding: 9px 10px 10px 9px; border-radius: 6px; border-left: 3px solid transparent; text-decoration: none; color: inherit; }
     .jn-item[hidden] { display: none; }
@@ -1361,8 +1365,19 @@
     .ov-body { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); padding: 12px 14px; }
     .ov-muted { font-size: 13px; color: #6b7079; padding: 4px 0; }
     .ov-scope { display: flex; gap: 16px; }
-    .ov-fig { flex: 0 0 320px; display: flex; flex-direction: column; gap: 4px; }
-    .ov-fig img { width: 100%; height: 200px; object-fit: contain; background: #f3f3f1; border-radius: 6px; }
+    .ov-fig { flex: 0 0 360px; display: flex; flex-direction: column; gap: 4px; }
+    .ov-fig-img { position: relative; background: #f3f3f1; border-radius: 6px; overflow: hidden; line-height: 0; }
+    .ov-fig-img img { display: block; width: 100%; height: auto; }
+    .ov-fig-img svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+    .ov-fig-img polygon { fill-opacity: 0.38; stroke-width: 1.2; stroke-linejoin: round; cursor: pointer; transition: fill-opacity .15s, stroke-width .15s, opacity .15s; }
+    .is-hl .ov-fig-img polygon { opacity: 0.25; }
+    .is-hl .ov-fig-img polygon.hl { opacity: 1; fill-opacity: 0.62; stroke-width: 3; }
+    .ov-unit { transition: background .15s, opacity .15s; }
+    .is-hl .ov-unit { opacity: 0.45; }
+    .is-hl .ov-unit.hl { opacity: 1; background: #f7f7f5; }
+    .ov-chip { cursor: default; transition: box-shadow .15s; }
+    .is-hl .ov-chip.hl { box-shadow: 0 0 0 2px currentColor; }
+    .ov-hint { font-weight: 500; color: #8b9097; font-size: 11.5px; }
     .ov-fig span { font-size: 12px; color: #5b6068; }
     .ov-fig--empty { height: 200px; align-items: center; justify-content: center; background: #f3f3f1; border-radius: 6px; font-size: 12.5px; color: #6b7079; }
     .ov-units { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
@@ -1370,13 +1385,19 @@
     .ov-unit-name b { margin-right: 8px; }
     .ov-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-left: auto; }
     .ov-chip { font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 999px; white-space: nowrap; }
-    .ov-gantt { display: flex; flex-direction: column; gap: 7px; }
-    .ov-grow { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 12px; align-items: center; }
-    .ov-glabel { font-size: 13px; }
+    .ov-gantt { display: flex; flex-direction: column; gap: 6px; }
+    .ov-grow { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 12px; align-items: center; }
+    .ov-ghead { margin-bottom: 2px; }
+    .ov-gmonths { position: relative; height: 30px; font-size: 11.5px; color: #6b7079; }
+    .ov-gmonths > span { position: absolute; top: 12px; height: 18px; padding-left: 4px; border-left: 1px solid #e4e3df; white-space: nowrap; }
+    .ov-today { position: absolute; top: 0; transform: translateX(-50%); font-size: 11px; font-weight: 700; color: #c0392b; background: #fff; padding: 0 3px; }
+    .ov-glabel { font-size: 13px; min-width: 0; }
     .ov-glabel b { margin-right: 8px; }
     .ov-glabel span { font-size: 12px; color: #5b6068; }
-    .ov-gtrack { position: relative; height: 14px; background: #f7f7f5; border-radius: 4px; }
-    .ov-gbar { position: absolute; top: 2px; bottom: 2px; border-radius: 3px; }
+    .ov-gtrack { position: relative; height: 22px; background: #f7f7f5; border-radius: 4px; }
+    .ov-mline { position: absolute; top: 0; bottom: 0; width: 1px; background: #e4e3df; }
+    .ov-gbar { position: absolute; top: 4px; bottom: 4px; border-radius: 3px; }
+    .ov-gtext { position: absolute; top: 0; padding-left: 8px; font-size: 11.5px; line-height: 22px; color: #2b2f36; white-space: nowrap; }
     .ov-now { position: absolute; top: -3px; bottom: -3px; width: 2px; background: #c0392b; z-index: 1; }
     .ov-facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 20px; font-size: 13px; }
     .ov-facts .ov-k { display: block; }
@@ -1770,9 +1791,9 @@ window.addEventListener('afterprint', () => document.body.classList.remove('prin
 </script>
 <!-- gaichu-*.js / org-chart.js を変更したら ?v= の番号を上げる（ブラウザに古いファイルが残って動かなくなるのを防ぐ） -->
 <script src="gaichu-admin.js?v=20261020p"></script>
-<script src="gaichu-sheet.js?v=20261020p"></script>
-<script src="gaichu-jobnav.js?v=20261020c"></script>
-<script src="gaichu-overview.js?v=20261020a"></script>
+<script src="gaichu-sheet.js?v=20261021a"></script>
+<script src="gaichu-jobnav.js?v=20261021a"></script>
+<script src="gaichu-overview.js?v=20261020b"></script>
 <script src="gaichu-spec.js?v=20261020n"></script>
 <script src="gaichu-scope.js?v=20261020n"></script>
 <script src="gaichu-gantt.js?v=20261020p"></script>

@@ -113,7 +113,7 @@
         if (blocked) { note.hidden = false; note.innerHTML = '<span>外注先用シートは準備中です。公開されるまでお待ちください。</span>'; return; }
         if (state.loggedIn) {
             note.hidden = !state.isAdmin || state.isPublic;
-            note.innerHTML = note.hidden ? '' : '<span>社内公開はオフです（管理者だけが見られます）。公開の切り替えは工事一覧ページで行います。</span>';
+            note.innerHTML = note.hidden ? '' : '<span>社内公開はオフです（管理者だけが見られます）。公開の切り替えは左下の管理者メニューで行います。</span>';
             return;
         }
         note.hidden = false;
