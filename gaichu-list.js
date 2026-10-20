@@ -14,6 +14,7 @@
     const countLabel = document.getElementById('countLabel');
 
     let loggedIn = false, isAdmin = false;
+    let isPublic = true;  // 社内公開スイッチ（オフの間は管理者しか中身を読めない）。確認できないときは公開中として扱う
     let projects = [];    // [{ pn, name, customer, shipDate, sheets: [{ id, vendor_id, display, color }] }]
 
     function esc(s) {
@@ -34,10 +35,12 @@
         loggedIn = !!session;
         renderNote();
         if (!loggedIn) { projects = []; render(); return; }
-        const [sheetsRes, adminRes] = await Promise.all([
+        const [sheetsRes, adminRes, publicRes] = await Promise.all([
             client.from('gaichu_sheets').select('id, project_number, vendor_id, color, sort_order, gaichu_vendors(name, display_name)').order('sort_order').order('id'),
             client.rpc('is_org_chart_admin'),
+            client.rpc('gaichu_is_public'),
         ]);
+        isPublic = publicRes.error ? true : publicRes.data === true;
         if (sheetsRes.error) console.error('外注先シートの取得に失敗しました', sheetsRes.error);
         isAdmin = !adminRes.error && adminRes.data === true;
         const byPn = new Map();
@@ -80,9 +83,15 @@
     }
     function render() {
         tools.innerHTML = isAdmin
-            ? `<button type="button" class="list-btn list-btn--primary" data-act="add">＋ 外注先シートを追加</button><button type="button" class="list-btn" data-act="vendors">外注先マスタの管理</button>`
+            ? `<button type="button" class="list-btn list-public${isPublic ? ' is-on' : ''}" data-act="public" title="社内でログインしている人に見せるかどうかを切り替えます">${isPublic ? '社内公開：オン（社内の人が閲覧できる）' : '社内公開：オフ（管理者のみ閲覧）'}</button>`
+              + `<span class="list-spacer"></span><button type="button" class="list-btn list-btn--primary" data-act="add">＋ 外注先シートを追加</button><button type="button" class="list-btn" data-act="vendors">外注先マスタの管理</button>`
             : '';
         if (!loggedIn) { grid.innerHTML = ''; countLabel.textContent = ''; return; }
+        if (!isAdmin && !isPublic) {
+            grid.innerHTML = '<p class="list-empty">外注先用シートは準備中です。公開されるまでお待ちください。</p>';
+            countLabel.textContent = '';
+            return;
+        }
         if (!projects.length) {
             grid.innerHTML = `<p class="list-empty">外注先シートはまだ登録されていません。${isAdmin ? '「＋ 外注先シートを追加」から登録してください。' : ''}</p>`;
             countLabel.textContent = '全 0 件';
@@ -123,7 +132,11 @@
         const mg = e.target.closest('[data-manage]');
         if (mg) { e.preventDefault(); e.stopPropagation(); GaichuAdmin.openManage({ pn: mg.dataset.manage, onDone: load }); return; }
         const a = e.target.closest('[data-act]');
-        if (a) { if (a.dataset.act === 'add') GaichuAdmin.openAdd({ onDone: load }); else GaichuAdmin.openVendors({ onDone: load }); return; }
+        if (a) {
+            if (a.dataset.act === 'public') { togglePublic(); return; }
+            if (a.dataset.act === 'add') GaichuAdmin.openAdd({ onDone: load }); else GaichuAdmin.openVendors({ onDone: load });
+            return;
+        }
         if (e.target.closest('[data-login]')) {
             const err = document.querySelector('.sheet-login-err');
             if (location.protocol === 'file:') { err.textContent = '「体制表を開く.bat」から開いてください（ファイルを直接開いた状態ではログインできません）。'; return; }
@@ -132,6 +145,20 @@
             if (error) err.textContent = 'Microsoftでのログインを開始できませんでした：' + error.message;
         }
     });
+
+    // 社内公開の切り替え（管理者のみ。DBの閲覧の制限が切り替わる）
+    async function togglePublic() {
+        const next = !isPublic;
+        if (!confirm(next
+            ? '外注先用シートを社内に公開します。\n社内でログインしている人全員が、工事一覧と各シートを見られるようになります。よろしいですか？'
+            : '社内公開をオフにします。\n管理者以外の人は、工事一覧と各シートを見られなくなります。よろしいですか？')) return;
+        const { data: { session } } = await client.auth.getSession();
+        const { data, error } = await client.from('gaichu_settings')
+            .update({ value: { public: next }, updated_at: new Date().toISOString(), updated_by: session && session.user.email })
+            .eq('key', 'visibility').select('key');
+        if (error || !data || !data.length) { alert('切り替えられませんでした：' + ((error && error.message) || '権限がないか、公開スイッチの設定がまだありません')); return; }
+        load();
+    }
 
     load();
 })();

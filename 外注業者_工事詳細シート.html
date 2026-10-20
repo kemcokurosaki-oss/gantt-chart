@@ -1060,6 +1060,9 @@
         background: #eaf2fb; border: 1px solid #b8d8f0; border-radius: 6px; font-size: 13px; color: #1a5a94;
     }
     .sheet-login-note[hidden] { display: none; }
+    /* 社内公開オフで管理者以外のとき（gaichu-sheet.js）：案内以外を隠す */
+    body.gaichu-blocked .toolbar-row, body.gaichu-blocked .view-panel, body.gaichu-blocked .side-nav-btn,
+    body.gaichu-blocked .side-nav-label--docs, body.gaichu-blocked .fullscreen-overlay { display: none !important; }
     .sheet-login-btn {
         padding: 5px 14px; border-radius: 5px; border: 1px solid #3498db; background: #fff; color: #2166a3;
         font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer;
@@ -1469,12 +1472,12 @@ document.querySelectorAll('.view-toggle-btn').forEach(btn => {
 
 </script>
 <!-- gaichu-*.js / org-chart.js を変更したら ?v= の番号を上げる（ブラウザに古いファイルが残って動かなくなるのを防ぐ） -->
-<script src="gaichu-admin.js?v=20261020m"></script>
-<script src="gaichu-sheet.js?v=20261020m"></script>
-<script src="gaichu-spec.js?v=20261020m"></script>
-<script src="gaichu-scope.js?v=20261020m"></script>
-<script src="gaichu-gantt.js?v=20261020m"></script>
-<script src="org-chart.js?v=20261020m"></script>
+<script src="gaichu-admin.js?v=20261020n"></script>
+<script src="gaichu-sheet.js?v=20261020n"></script>
+<script src="gaichu-spec.js?v=20261020n"></script>
+<script src="gaichu-scope.js?v=20261020n"></script>
+<script src="gaichu-gantt.js?v=20261020n"></script>
+<script src="org-chart.js?v=20261020n"></script>
 
 </body>
 </html>
