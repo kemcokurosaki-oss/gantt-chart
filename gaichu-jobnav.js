@@ -19,7 +19,7 @@
 
     let projects = [];
     let isAdmin = false;
-    let publicPns = new Set();   // 社内公開がオンの工番（管理者の一覧に「公開中」の目印を出す）
+    let publicPns = new Set();   // 社内公開がオンの工番（管理者の一覧では、オフの工番を薄いグレーで表示する）
     let doneOpen = localStorage.getItem(DONE_KEY) === '1';
 
     // 表示中の工番の社内公開の切り替え（管理者のみ。工番ごとにDBの閲覧の制限が切り替わる）
@@ -114,8 +114,8 @@
     // ===== 表示 =====
     function itemHtml(p) {
         const search = [p.pn, p.name, ...p.sheets.map(s => s.display)].join(' ');
-        return `<a class="jn-item${p.pn === cur ? ' active' : ''}" href="${esc(hrefFor(p.pn))}" data-search="${esc(search)}" title="${esc(p.pn + ' ' + (p.name || ''))}">
-            <span class="jn-pn">${esc(p.pn)}${isAdmin && publicPns.has(p.pn) ? '<span class="jn-pub" title="社内に公開中">公開中</span>' : ''}</span>
+        return `<a class="jn-item${p.pn === cur ? ' active' : ''}${isAdmin && !publicPns.has(p.pn) ? ' jn-off' : ''}" href="${esc(hrefFor(p.pn))}" data-search="${esc(search)}" title="${esc(p.pn + ' ' + (p.name || '') + (isAdmin && !publicPns.has(p.pn) ? '（社内公開オフ）' : ''))}">
+            <span class="jn-pn">${esc(p.pn)}</span>
             <span class="jn-name">${esc(p.name) || '（工事名称未登録）'}</span>
             <span class="jn-vendors">${p.sheets.map(s => `<span class="jn-vendor"><i style="background:${esc(s.color)}"></i>${esc(s.display)}</span>`).join('')}</span>
         </a>`;
