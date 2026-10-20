@@ -83,8 +83,19 @@
         box.innerHTML = `<span class="vendor-switch-label">外注先</span>` + btn('all', '全体')
             + state.sheets.map(s => btn(s.id, s.display, s.color)).join('');
     }
+    // 担当の印（会社の色の薄い背景＋濃い色の文字）。色は外注先シートの色から作るので、外注先が増えても同じ見た目になる
+    function chipStyle(color) {
+        const m = /^#?([0-9a-f]{6})$/i.exec(color || '');
+        if (!m) return 'background:#f4f6f9;color:#2c3e50';
+        const n = parseInt(m[1], 16), ch = [n >> 16, (n >> 8) & 255, n & 255];
+        const hex = arr => '#' + arr.map(c => Math.round(c).toString(16).padStart(2, '0')).join('');
+        return `background:${hex(ch.map(c => c + (255 - c) * 0.88))};color:${hex(ch.map(c => c * 0.68))}`;
+    }
+    function chipHtml(label, color) {
+        return `<span class="party-chip" style="${chipStyle(color)}"><span class="dot" style="background:${esc(color)}"></span>${esc(label)}</span>`;
+    }
     function renderLegend() {
-        const chip = (label, color) => `<span class="party-chip"><span class="dot" style="background:${esc(color)}"></span>${esc(label)}</span>`;
+        const chip = chipHtml;
         const list = state.currentSheet ? [state.currentSheet] : state.sheets;
         $('partyLegendItems').innerHTML = list.map(s => chip(s.display, s.color)).join('') + chip(KUSAKABE.name, KUSAKABE.color);
     }
@@ -230,7 +241,7 @@
         state, client, select, saveSheet,
         loadTasks, unitTokens, isOutsource, vendorUnits, coversVendor, trialPeriod, fmtDate,
         sheetById: id => state.sheets.find(s => String(s.id) === String(id)) || null,
-        KUSAKABE,
+        KUSAKABE, chipStyle, chipHtml,
     };
     init();
 })();

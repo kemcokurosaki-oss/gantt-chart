@@ -42,3 +42,11 @@ tmp_*.json
 
 # 外注先用シートの保存先SQL（初期データに取引先名を含むため公開リポジトリに上げない）
 scripts/gaichu_sheets_setup.sql
+
+# 画像（3D画面のスクリーンショットなど設計情報を含みやすい。図面は外注先用シートから Storage に登録する）
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+*.webp
