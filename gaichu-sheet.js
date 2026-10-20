@@ -77,11 +77,13 @@
     }
     function renderSwitch() {
         const box = $('vendorSwitch');
-        if (!state.sheets.length) { box.innerHTML = ''; return; }
+        // 管理者には、この工番の外注先を追加・削除するボタンも出す（画面は gaichu-admin.js）
+        const manage = state.isAdmin && window.GaichuAdmin ? `<button type="button" class="vendor-switch-manage" data-gs-manage>外注先の追加・削除</button>` : '';
+        if (!state.sheets.length) { box.innerHTML = manage ? `<span class="vendor-switch-label">外注先</span>${manage}` : ''; return; }
         const btn = (key, label, color) => `<button type="button" class="vendor-switch-btn${String(state.current) === String(key) ? ' active' : ''}" data-v="${key}">`
             + (color ? `<span class="dot" style="background:${esc(color)}"></span>` : '') + `${esc(label)}</button>`;
         box.innerHTML = `<span class="vendor-switch-label">外注先</span>` + btn('all', '全体')
-            + state.sheets.map(s => btn(s.id, s.display, s.color)).join('');
+            + state.sheets.map(s => btn(s.id, s.display, s.color)).join('') + manage;
     }
     // 担当の印（会社の色の薄い背景＋濃い色の文字）。色は外注先シートの色から作るので、外注先が増えても同じ見た目になる
     function chipStyle(color) {
@@ -121,6 +123,11 @@
     }
 
     document.addEventListener('click', async e => {
+        if (e.target.closest('[data-gs-manage]')) {
+            // 追加・削除のあとは、外注先の一覧が変わるのでページを読み込み直す
+            GaichuAdmin.openManage({ pn: state.pn, onDone: () => location.reload() });
+            return;
+        }
         const b = e.target.closest('.vendor-switch-btn');
         if (b) { select(b.dataset.v); return; }
         if (e.target.closest('[data-sheet-login]')) {
