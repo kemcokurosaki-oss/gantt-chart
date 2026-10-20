@@ -8,7 +8,7 @@
 (function () {
     const client = supabase.createClient(S_URL, S_KEY);
     const qs = new URLSearchParams(location.search);
-    const KUSAKABE = { name: '日下部電機㈱', color: '#3498db' };
+    const KUSAKABE = { name: '日下部電機㈱', color: '#7b8088' };   // 外注先の色が目立つように、日下部電機は落ち着いた灰色
 
     const state = {
         pn: PROJECT_NUMBER,
@@ -92,7 +92,7 @@
     // 担当の印（会社の色の薄い背景＋濃い色の文字）。色は外注先シートの色から作るので、外注先が増えても同じ見た目になる
     function chipStyle(color) {
         const m = /^#?([0-9a-f]{6})$/i.exec(color || '');
-        if (!m) return 'background:#f4f6f9;color:#2c3e50';
+        if (!m) return 'background:#f3f3f1;color:#2b2f36';
         const n = parseInt(m[1], 16), ch = [n >> 16, (n >> 8) & 255, n & 255];
         const hex = arr => '#' + arr.map(c => Math.round(c).toString(16).padStart(2, '0')).join('');
         return `background:${hex(ch.map(c => c + (255 - c) * 0.88))};color:${hex(ch.map(c => c * 0.68))}`;

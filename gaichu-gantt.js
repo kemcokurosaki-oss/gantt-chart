@@ -9,8 +9,8 @@
     if (!container || !GS) return;
 
     const SHOW_OTHER_VENDORS = true;     // 外注先を選んだとき、ほかの外注先の工程を参考表示するか
-    const UNSET = { color: '#5d7389', tint: '#e9eef3', ink: '#34495e' };
-    const GREY = { color: '#b3bdca', tint: '#f1f3f6', ink: '#8a97a8' };
+    const UNSET = { color: '#7b8088', tint: '#ebebe8', ink: '#3a3f47' };
+    const GREY = { color: '#b4b7bb', tint: '#f1f1ee', ink: '#6b7079' };
     const WEEKDAY_JA = ['日', '月', '火', '水', '木', '金', '土'];
     const DAY_MS = 86400000;
     const LABEL_W = 250;
@@ -135,7 +135,9 @@
 
         const byKey = k => rows.filter(r => r.key === k);
         const unset = byKey(null);
-        const unsetGroup = unset.length ? [{ name: '外注先未設定', note: `${unset.length}工程（工程表の編集画面で「外注先企業」を入れると振り分けられます）`, ...UNSET, tint: '#eef2f7', ink: '#2c3e50', rows: unset, open: true }] : [];
+        // 振り分けの方法（工程表の編集画面の案内）は管理者だけに出す。外注先には「調整中」とだけ見せる
+        const unsetNote = GS.state.isAdmin ? `${unset.length}工程（工程表の編集画面で「外注先企業」を入れると振り分けられます）` : `${unset.length}工程（担当は調整中です）`;
+        const unsetGroup = unset.length ? [{ name: GS.state.isAdmin ? '外注先未設定' : '担当未定', note: unsetNote, ...UNSET, tint: '#eeeeeb', ink: '#2b2f36', rows: unset, open: true }] : [];
         const vid = GS.state.currentSheet ? GS.state.currentSheet.vendor_id : null;
         const groups = [];
         if (vid != null && looks.has(vid)) {
@@ -144,7 +146,7 @@
             groups.push(...unsetGroup);
             if (SHOW_OTHER_VENDORS) [...looks.keys()].filter(k => k !== vid && byKey(k).length).forEach(k => groups.push({
                 name: looks.get(k).name, note: `参考・${byKey(k).length}工程（クリックで${otherOpen ? '閉じる' : '開く'}）`,
-                color: GREY.color, tint: '#f6f7f9', ink: '#5a6a7e', rows: byKey(k), open: otherOpen, toggle: true, grey: true,
+                color: GREY.color, tint: '#f5f5f3', ink: '#5b6068', rows: byKey(k), open: otherOpen, toggle: true, grey: true,
             }));
         } else {
             [...looks.keys()].filter(k => byKey(k).length).forEach(k => groups.push({ name: looks.get(k).name, note: `${byKey(k).length}工程`, ...looks.get(k), rows: byKey(k), open: true }));
