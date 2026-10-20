@@ -19,19 +19,21 @@
 
     let projects = [];
     let isAdmin = false;
+    let publicPns = new Set();   // 社内公開がオンの工番（管理者の一覧に「公開中」の目印を出す）
     let doneOpen = localStorage.getItem(DONE_KEY) === '1';
 
-    // 社内公開の切り替え（管理者のみ。DBの閲覧の制限が切り替わる。元は一覧ページにあったもの）
+    // 表示中の工番の社内公開の切り替え（管理者のみ。工番ごとにDBの閲覧の制限が切り替わる）
     async function togglePublic() {
-        const next = !GS.state.isPublic;
+        if (!cur) return;
+        const next = !publicPns.has(cur);
         if (!confirm(next
-            ? '外注先用シートを社内に公開します。\n社内でログインしている人全員が、各シートを見られるようになります。よろしいですか？'
-            : '社内公開をオフにします。\n管理者以外の人は、各シートを見られなくなります。よろしいですか？')) return;
+            ? `工番 ${cur} の外注先用シートを社内に公開します。\n社内でログインしている人全員が、この工番のシートを見られるようになります。よろしいですか？`
+            : `工番 ${cur} の社内公開をオフにします。\n管理者以外の人は、この工番のシートを見られなくなります。よろしいですか？`)) return;
         const { data: { session } } = await client.auth.getSession();
-        const { data, error } = await client.from('gaichu_settings')
-            .update({ value: { public: next }, updated_at: new Date().toISOString(), updated_by: session && session.user.email })
-            .eq('key', 'visibility').select('key');
-        if (error || !data || !data.length) { alert('切り替えられませんでした：' + ((error && error.message) || '権限がないか、公開スイッチの設定がまだありません')); return; }
+        const { data, error } = await client.from('gaichu_projects')
+            .upsert({ project_number: cur, is_public: next, updated_at: new Date().toISOString(), updated_by: session && session.user.email }, { onConflict: 'project_number' })
+            .select('project_number');
+        if (error || !data || !data.length) { alert('切り替えられませんでした：' + ((error && error.message) || '編集の権限がないか、ログインが切れています')); return; }
         location.reload();
     }
 
@@ -68,12 +70,14 @@
     async function load() {
         const { data: { session } } = await client.auth.getSession();
         if (!session) { list.innerHTML = '<p class="jn-msg">社内のアカウントでログインすると、工事の一覧が表示されます。</p>'; return; }
-        const [sheetsRes, adminRes] = await Promise.all([
+        const [sheetsRes, adminRes, pubRes] = await Promise.all([
             client.from('gaichu_sheets').select('id, project_number, vendor_id, color, sort_order, gaichu_vendors(name, display_name)').order('sort_order').order('id'),
             client.rpc('is_org_chart_admin'),
+            client.from('gaichu_projects').select('project_number, is_public'),
         ]);
         if (sheetsRes.error) console.error('外注先シートの取得に失敗しました', sheetsRes.error);
         isAdmin = !adminRes.error && adminRes.data === true;
+        publicPns = new Set((pubRes.data || []).filter(r => r.is_public).map(r => String(r.project_number)));
         const byPn = new Map();
         (sheetsRes.data || []).forEach(r => {
             const pn = String(r.project_number);
@@ -111,16 +115,16 @@
     function itemHtml(p) {
         const search = [p.pn, p.name, ...p.sheets.map(s => s.display)].join(' ');
         return `<a class="jn-item${p.pn === cur ? ' active' : ''}" href="${esc(hrefFor(p.pn))}" data-search="${esc(search)}" title="${esc(p.pn + ' ' + (p.name || ''))}">
-            <span class="jn-pn">${esc(p.pn)}</span>
+            <span class="jn-pn">${esc(p.pn)}${isAdmin && publicPns.has(p.pn) ? '<span class="jn-pub" title="社内に公開中">公開中</span>' : ''}</span>
             <span class="jn-name">${esc(p.name) || '（工事名称未登録）'}</span>
             <span class="jn-vendors">${p.sheets.map(s => `<span class="jn-vendor"><i style="background:${esc(s.color)}"></i>${esc(s.display)}</span>`).join('')}</span>
         </a>`;
     }
     function render() {
-        const pub = GS.state.isPublic;
+        const pub = cur && publicPns.has(cur);
         admin.innerHTML = isAdmin && window.GaichuAdmin
             ? `<span class="jn-foot-label">管理者メニュー</span><button type="button" class="jn-btn" data-jn="add">＋ 外注先シートを追加</button><button type="button" class="jn-btn" data-jn="vendors">外注先マスタの管理</button>`
-              + `<button type="button" class="jn-btn jn-public${pub ? ' on' : ''}" data-jn="public" title="押すと社内公開のオン／オフを切り替えます"><i></i>社内公開：${pub ? 'オン' : 'オフ（管理者のみ）'}</button>`
+              + (cur ? `<button type="button" class="jn-btn jn-public${pub ? ' on' : ''}" data-jn="public" title="表示中の工番（${esc(cur)}）の社内公開のオン／オフを切り替えます"><i></i>${esc(cur)} の社内公開：${pub ? 'オン' : 'オフ（管理者のみ）'}</button>` : '')
             : '';
         if (!projects.length) {
             list.innerHTML = `<p class="jn-msg">外注先シートはまだ登録されていません。${isAdmin ? '「＋ 外注先シートを追加」から登録してください。' : ''}</p>`;

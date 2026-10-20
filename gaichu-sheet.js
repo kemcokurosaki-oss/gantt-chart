@@ -19,7 +19,7 @@
         loggedIn: false,
         isAdmin: false,      // 体制表の管理者（org_chart_admins）なら編集できる
         contacts: [],        // 弊社担当 [{ dept, title, name, tel, email }]（外注先用シートの設定。全工番共通）
-        isPublic: true,      // 社内公開スイッチ。オフの間は管理者しか中身を読めない（DBの制限）。確認できないときは公開中として扱う
+        isPublic: true,      // この工番の社内公開（工番ごと）。オフの間は管理者しか中身を読めない（DBの制限）。確認できないときは公開中として扱う
         ready: false,
     };
 
@@ -113,7 +113,7 @@
         if (blocked) { note.hidden = false; note.innerHTML = '<span>外注先用シートは準備中です。公開されるまでお待ちください。</span>'; return; }
         if (state.loggedIn) {
             note.hidden = !state.isAdmin || state.isPublic;
-            note.innerHTML = note.hidden ? '' : '<span>社内公開はオフです（管理者だけが見られます）。公開の切り替えは左下の管理者メニューで行います。</span>';
+            note.innerHTML = note.hidden ? '' : '<span>この工番は社内公開がオフです（管理者だけが見られます）。公開の切り替えは左下の管理者メニューで行います。</span>';
             return;
         }
         note.hidden = false;
@@ -179,7 +179,7 @@
             loadProject(),
             state.loggedIn ? loadSheets() : Promise.resolve(),
             state.loggedIn ? client.rpc('is_org_chart_admin').then(r => { state.isAdmin = !r.error && r.data === true; }) : Promise.resolve(),
-            state.loggedIn ? client.rpc('gaichu_is_public').then(r => { state.isPublic = r.error ? true : r.data === true; }) : Promise.resolve(),
+            state.loggedIn ? client.rpc('gaichu_pn_public', { pn: state.pn }).then(r => { state.isPublic = r.error ? true : r.data === true; }) : Promise.resolve(),
             state.loggedIn ? client.from('gaichu_settings').select('value').eq('key', 'company_contacts').maybeSingle()
                 .then(r => { if (r.error) console.error('弊社担当の取得に失敗しました', r.error); state.contacts = (r.data && Array.isArray(r.data.value)) ? r.data.value : []; }) : Promise.resolve(),
         ]);
