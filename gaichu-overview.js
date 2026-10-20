@@ -127,14 +127,16 @@
         }).join('');
         const fig = figUrl ? `<div class="ov-fig"><div class="ov-fig-img"><img src="${esc(figUrl)}" alt="図面"><svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">${svg}</svg></div><span>${esc(f0.caption || '')}${scope.figures.length > 1 ? `　ほか${scope.figures.length - 1}枚` : ''}</span></div>`
             : `<div class="ov-fig ov-fig--empty">図面はまだ登録されていません</div>`;
-        const list = rows.length ? rows.map(r => {
+        // 列に分けた表：ユニット｜機械名｜担当の列（機械組立・電気艤装・試運転など）
+        const tpl = `style="grid-template-columns:80px minmax(110px,1.4fr) repeat(${pcols.length}, minmax(84px, 1fr))"`;
+        const list = rows.length ? `<div class="ov-table"><div class="ov-trow ov-thead" ${tpl}><span>ユニット</span><span>機械名</span>${pcols.map(c => `<span>${esc(c.label)}</span>`).join('')}</div>` + rows.map(r => {
             const keys = [...new Set(pcols.flatMap(c => (r[c.key] || []).map(String)))];
             const out = keys.filter(k => k !== KUSAKABE);
-            return `<div class="ov-unit" data-parties="${esc((out.length ? out : keys).join(' '))}"><span class="ov-unit-name"><b>${esc(r.unit || r.machine || '')}</b>${esc(r.machine_name || '')}</span><span class="ov-chips">${pcols.map(c => (r[c.key] || []).map(k => {
+            return `<div class="ov-unit ov-trow" ${tpl} data-parties="${esc((out.length ? out : keys).join(' '))}"><span><b>${esc(r.unit || r.machine || '')}</b></span><span>${esc(r.machine_name || '')}</span>${pcols.map(c => `<span class="ov-tcell">${(r[c.key] || []).map(k => {
                 const p = party(k);
-                return `<span class="ov-chip" data-party="${esc(k)}" style="${GS.chipStyle(p.color)}">${esc(c.label)}　${esc(p.label)}</span>`;
-            }).join('')).join('')}</span></div>`;
-        }).join('')
+                return `<span class="ov-chip" data-party="${esc(k)}" style="${GS.chipStyle(p.color)}">${esc(p.label.replace(/殿$/, ''))}</span>`;
+            }).join('') || '<span class="ov-none">―</span>'}</span>`).join('')}</div>`;
+        }).join('') + `</div>`
             : muted(scope.rows.length ? 'この外注先が担当に入っている行はありません。' : '担当範囲一覧はまだ入力されていません。');
         el.scope.innerHTML = `<div class="ov-scope">${fig}<div class="ov-units"><span class="ov-k">${sh ? esc(sh.display) + 'の担当' : '担当範囲（全体）'}　<span class="ov-hint">バッジや図面の枠にマウスを乗せると、同じ担当先を強調します</span></span>${list}</div></div>`;
     }
