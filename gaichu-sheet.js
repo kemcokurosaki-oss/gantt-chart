@@ -18,6 +18,7 @@
         currentSheet: null,  // 選択中のシート（全体のときは null）
         loggedIn: false,
         isAdmin: false,      // 体制表の管理者（org_chart_admins）なら編集できる
+        contacts: [],        // 弊社担当 [{ dept, title, name, tel, email }]（外注先用シートの設定。全工番共通）
         ready: false,
     };
 
@@ -70,6 +71,8 @@
         $('sheetTitle').textContent = state.project.name || '（工事名称未登録）';
         $('customerName').textContent = state.project.customer || '―';
         $('shipDate').textContent = fmtDate(state.project.shipDate);
+        const c0 = state.contacts[0];
+        if ($('companyContact')) $('companyContact').textContent = c0 ? [c0.dept, c0.name].filter(Boolean).join(' ') : '―';
         $('sheetVendors').textContent = state.sheets.length ? state.sheets.map(s => s.display).join(' ／ ')
             : (state.loggedIn ? '（未登録）' : '（ログインすると表示されます）');
         document.title = `外注先用 工事詳細シート｜${state.pn} ${state.project.name || ''}`.trim();
@@ -167,6 +170,8 @@
             loadProject(),
             state.loggedIn ? loadSheets() : Promise.resolve(),
             state.loggedIn ? client.rpc('is_org_chart_admin').then(r => { state.isAdmin = !r.error && r.data === true; }) : Promise.resolve(),
+            state.loggedIn ? client.from('gaichu_settings').select('value').eq('key', 'company_contacts').maybeSingle()
+                .then(r => { if (r.error) console.error('弊社担当の取得に失敗しました', r.error); state.contacts = (r.data && Array.isArray(r.data.value)) ? r.data.value : []; }) : Promise.resolve(),
         ]);
         renderHeader();
         renderLoginNote();

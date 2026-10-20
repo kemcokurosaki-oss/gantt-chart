@@ -6,6 +6,7 @@
 // 読み込み前に gaichu-sheet.js を読み込み、ページに #specRoot を置いておくこと。
 (function () {
     const root = document.getElementById('specRoot');
+    const contactsEl = document.getElementById('specContacts');
     const GS = window.GaichuSheet;
     if (!root || !GS) return;
 
@@ -59,7 +60,20 @@
     const input = (path, value, extra) => `<input type="text" class="spec-input" data-path="${path}" value="${esc(value)}"${extra || ''}>`;
 
     // ===== 描画 =====
+    // 2-4) 弊社担当（全工番共通・外注先用シートの設定から）。1人目は青、2人目以降は灰色の帯
+    function renderContacts() {
+        if (!contactsEl) return;
+        const list = GS.state.loggedIn ? GS.state.contacts : [];
+        contactsEl.innerHTML = list.length ? `<div class="subhead">2-4) 弊社担当（問い合わせ窓口）</div><div class="contact-grid">${list.map((c, i) => `<div class="contact-card">
+                <span class="role"${i ? ' style="background:#95a5a6;"' : ''}>${esc([c.dept, c.title].filter(Boolean).join(' '))}</span>
+                <div class="name">${esc(c.name)}</div>
+                ${c.tel ? `<span class="tel">TEL ${esc(c.tel)}</span>` : ''}
+                ${c.email ? `<span class="tel">Email ${esc(c.email)}</span>` : ''}
+            </div>`).join('')}</div>` : '';
+    }
+
     function render() {
+        renderContacts();
         const st = GS.state;
         if (!st.ready) { root.innerHTML = '<p class="spec-msg">読込中…</p>'; return; }
         if (!st.loggedIn) { root.innerHTML = '<p class="spec-msg">組立発注仕様書は、社内のアカウントでログインすると表示されます。</p>'; return; }
