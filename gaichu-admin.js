@@ -62,7 +62,7 @@
 .ga-combo-empty { padding: 8px 10px; color: #6b7079; font-size: 12.5px; }
 .ga-table tr.ga-vrow td { border-bottom: 0; padding-bottom: 2px; }
 .ga-table tr.ga-reprow td { padding-top: 0; padding-bottom: 8px; }
-.ga-rep { display: grid; grid-template-columns: 52px 1fr 1fr 1fr 1.4fr; gap: 6px; align-items: center; }
+.ga-rep { display: grid; grid-template-columns: 52px 1fr 1fr 1fr; gap: 6px; align-items: center; }
 .ga-rep > span { font-size: 11.5px; color: #6b7079; font-weight: 700; }`;
         document.head.appendChild(st);
     }
@@ -245,12 +245,12 @@
 
     // ===== 外注先マスタの管理（社名・表示名・並び順・使用・代表者の変更と追加。使っている外注先があるため削除はしない） =====
     //   代表者は個人情報なので別テーブル gaichu_vendor_contacts に持つ。仕様書のご担当者（工事ごとの入力が空欄のとき）と体制表のカードの選択肢に使う
-    const REP_FIELDS = ['title', 'name', 'tel', 'email'];
+    const REP_FIELDS = ['title', 'name', 'tel'];
     async function openVendors({ onDone } = {}) {
         let ctx, reps;
         try {
             ctx = await context();
-            const r = await db().from('gaichu_vendor_contacts').select('vendor_id, title, name, tel, email');
+            const r = await db().from('gaichu_vendor_contacts').select('vendor_id, title, name, tel');
             if (r.error) console.warn('外注先の代表者の取得に失敗しました', r.error);
             reps = new Map((r.data || []).map(x => [x.vendor_id, x]));
         } catch (e) { alert('読み込めませんでした：' + (e.message || e)); return; }
@@ -301,14 +301,13 @@
                 <tr data-i="${i}" class="ga-reprow"><td colspan="4"><div class="ga-rep"><span>代表者</span>
                     <input type="text" data-f="rep_title" autocomplete="off" value="${esc(r.rep_title)}" placeholder="役職（例：代表取締役）">
                     <input type="text" data-f="rep_name" autocomplete="off" value="${esc(r.rep_name)}" placeholder="氏名">
-                    <input type="text" data-f="rep_tel" autocomplete="off" value="${esc(r.rep_tel)}" placeholder="電話" inputmode="tel">
-                    <input type="text" data-f="rep_email" autocomplete="off" value="${esc(r.rep_email)}" placeholder="メール" inputmode="email"></div></td></tr>`).join('');
+                    <input type="text" data-f="rep_tel" autocomplete="off" value="${esc(r.rep_tel)}" placeholder="電話" inputmode="tel"></div></td></tr>`).join('');
         };
         const collect = () => tbody.querySelectorAll('tr').forEach(tr => {
             const r = rows[tr.dataset.i];
             tr.querySelectorAll('[data-f]').forEach(inp => { r[inp.dataset.f] = inp.type === 'checkbox' ? inp.checked : inp.value; });
         });
-        m.el.querySelector('[data-addv]').addEventListener('click', () => { collect(); rows.push({ id: null, name: '', display_name: '', sort_order: (rows.length + 1) * 10, active: true, hadRep: false, rep_title: '', rep_name: '', rep_tel: '', rep_email: '' }); draw(); });
+        m.el.querySelector('[data-addv]').addEventListener('click', () => { collect(); rows.push({ id: null, name: '', display_name: '', sort_order: (rows.length + 1) * 10, active: true, hadRep: false, rep_title: '', rep_name: '', rep_tel: '' }); draw(); });
         m.el.querySelector('.ga-modal').style.width = 'min(780px, 94vw)';
         draw();
     }

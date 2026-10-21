@@ -13,7 +13,7 @@
     const state = {
         pn: PROJECT_NUMBER,
         project: { name: '', customer: '', shipDate: null },
-        sheets: [],          // [{ id, vendor_id, name, display, color, spec, trial, rep }]（rep は外注先マスタの代表者 { title, name, tel, email } か null）
+        sheets: [],          // [{ id, vendor_id, name, display, color, spec, trial, rep }]（rep は外注先マスタの代表者 { title, name, tel } か null）
         current: 'all',      // 'all' または シートID
         currentSheet: null,  // 選択中のシート（全体のときは null）
         loggedIn: false,
@@ -67,7 +67,7 @@
         }));
         const ids = [...new Set(state.sheets.map(s => s.vendor_id))];
         if (!ids.length) return;
-        const { data: reps, error: repErr } = await client.from('gaichu_vendor_contacts').select('vendor_id, title, name, tel, email').in('vendor_id', ids);
+        const { data: reps, error: repErr } = await client.from('gaichu_vendor_contacts').select('vendor_id, title, name, tel').in('vendor_id', ids);
         if (repErr) { console.warn('外注先の代表者の取得に失敗しました', repErr); return; }
         (reps || []).forEach(r => state.sheets.forEach(s => { if (s.vendor_id === r.vendor_id) s.rep = r; }));
     }
