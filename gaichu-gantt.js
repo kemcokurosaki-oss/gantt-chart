@@ -111,7 +111,7 @@
             return { t, key: looks.has(t.vendor_id) ? t.vendor_id : null, days, left: pct(t.start), width: days / T * 100, mile: days === 1 && /出荷/.test(t.text) };
         });
         function rowHtml(r, grey) {
-            const look = r.key != null ? looks.get(r.key) : { ...UNSET, name: '外注先未設定', short: '外注（外注先未設定）' };
+            const look = r.key != null ? looks.get(r.key) : { ...UNSET, name: '外注先未設定', short: '未定' };
             const v = grey ? { ...GREY, short: look.short } : look;
             const name = look.short;
             const period = `${mdStr(r.t.start)}〜${mdStr(r.t.end)}（${r.days}日）`;
@@ -152,7 +152,7 @@
             groups.push({ name: me.name, note: `${byKey(vid).length}工程`, ...me, rows: byKey(vid), open: true });
             groups.push(...unsetGroup);
             if (SHOW_OTHER_VENDORS) [...looks.keys()].filter(k => k !== vid && byKey(k).length).forEach(k => groups.push({
-                name: looks.get(k).name, note: `参考・${byKey(k).length}工程（クリックで${otherOpen ? '閉じる' : '開く'}）`,
+                name: looks.get(k).name, note: `参考・${byKey(k).length}工程<span class="gt-toggle-hint">（クリックで${otherOpen ? '閉じる' : '開く'}）</span>`,
                 color: GREY.color, tint: '#f5f5f3', ink: '#5b6068', rows: byKey(k), open: otherOpen, toggle: true, grey: true,
             }));
         } else {

@@ -175,7 +175,7 @@
         const head = `<div class="ov-grow ov-ghead"><span></span><span class="ov-gmonths">${months.map(m => `<span style="left:${pos(m.d)}">${m.label}</span>`).join('')}${showNow ? `<b class="ov-today" style="left:${pos(t0)}">今日</b>` : ''}</span></div>`;
         el.schedule.innerHTML = `<div class="ov-gantt">${head}${list.map(t => {
             const v = vendorOf(t), color = v ? v.color : '#7b8088';
-            const who = v ? v.display.replace(/殿$/, '') : '外注先未定';
+            const who = v ? v.display.replace(/殿$/, '') : '未定';
             const n = days(t.start, t.end);
             return `<div class="ov-grow"><span class="ov-glabel"><b>${esc(t.text)}</b><span>${esc([t.machine, t.unit].filter(Boolean).join(' '))}</span></span>`
                 + `<span class="ov-gtrack">${grid}${now}<i class="ov-gbar" style="left:${pos(t.start)};width:${Math.max(0.8, n * DAY / span * 100).toFixed(2)}%;background:${esc(color)}"></i>`
