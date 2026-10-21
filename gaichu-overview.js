@@ -210,9 +210,10 @@
         const facts = [
             ['改訂', s.revision], ['ご担当者', s.contact || GS.repLabel(sh)],   // 仕様書で入力していなければ、外注先マスタの代表者（仕様書の詳細と同じ） ['発注機械', machines.join(' / ')],
             ['機械色', p['機械色']], ['動力電源', [u.power_v, u.power_kva].filter(Boolean).join('　')], ['圧縮空気', u.air],
-        ].filter(f => f[1] && String(f[1]).trim());
-        el.spec.innerHTML = facts.length ? `<div class="ov-facts">${facts.map(([k, v]) => `<div><span class="ov-k">${k}</span>${esc(v)}</div>`).join('')}</div>`
-            : muted('この外注先の仕様書はまだ入力されていません。');
+        ];
+        // 項目名は常に出し、未入力の項目は「―」にする（入力漏れに気づけるように）
+        const val = v => (v && String(v).trim()) ? esc(v) : '<span class="ov-none">―</span>';
+        el.spec.innerHTML = `<div class="ov-facts">${facts.map(([k, v]) => `<div><span class="ov-k">${k}</span>${val(v)}</div>`).join('')}</div>`;
     }
 
     // ===== 4 体制表 =====
