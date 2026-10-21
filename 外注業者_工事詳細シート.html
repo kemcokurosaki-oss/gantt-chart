@@ -1537,7 +1537,7 @@
         <input type="text" id="jobNavSearch" placeholder="工番・工事名・業者名">
     </div>
     <div class="job-nav-list" id="jobNavList"><p class="jn-msg">読込中…</p></div>
-    <!-- この工事の資料：押すとその資料の詳細を開く（概要の「詳しく見る →」と同じ）。開いている資料を強調する -->
+    <!-- この工事の資料：押すとその資料の詳細を開き、もう一度押すと閉じる（開くのは概要の「詳しく見る →」と同じ）。開いている資料を強調する -->
     <div class="job-nav-toc" id="jobNavToc">
         <span class="jn-foot-label">この工事の資料</span>
         <button type="button" class="toc-btn" data-doc="scope"><span>1</span>組立範囲</button>
@@ -1743,7 +1743,11 @@ function readUrl() {
     const tab = p.get('tab');   // 以前の &tab=schedule などのリンクも開けるように
     openDoc(DOCS.includes(p.get('doc')) ? p.get('doc') : (DOCS.includes(tab) ? tab : ''));
 }
-document.querySelectorAll('[data-doc]').forEach(btn => btn.addEventListener('click', () => openDoc(btn.dataset.doc, true)));
+// 左の「この工事の資料」は、開いている資料をもう一度押すと閉じて概要に戻る
+document.querySelectorAll('[data-doc]').forEach(btn => btn.addEventListener('click', () => {
+    const isOpen = btn.classList.contains('toc-btn') && btn.classList.contains('active');
+    openDoc(isOpen ? '' : btn.dataset.doc, true);
+}));
 document.querySelectorAll('[data-close-doc]').forEach(btn => btn.addEventListener('click', () => openDoc('', true)));
 // 別タブで開く：今の工番・外注先のまま、その資料だけのページを開く
 document.querySelectorAll('[data-newtab]').forEach(btn => btn.addEventListener('click', () => {
