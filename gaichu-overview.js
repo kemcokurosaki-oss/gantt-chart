@@ -20,7 +20,7 @@
     ];
 
     let scope = null;          // { figures, rows, columns }
-    let figUrl = '';
+    let figUrls = {};         // 図面の path → 表示用の署名付きURL
     let orgBySheet = null;     // sheet_id → 最初の系統のツリー
     let tasks = null;
 
@@ -50,11 +50,13 @@
         (oc.data || []).forEach(c => { if (!orgBySheet.has(c.sheet_id)) orgBySheet.set(c.sheet_id, Array.isArray(c.tree) ? c.tree : []); });
         tasks = (tk || []).filter(t => GS.isOutsource(t.owner) && t.start_date && t.end_date)
             .map(t => ({ ...t, start: toDate(t.start_date), end: toDate(t.end_date) })).sort((a, b) => a.start - b.start);
-        const first = scope.figures.find(f => f.path);
-        if (first) {
-            const { data, error } = await client.storage.from('gaichu-figures').createSignedUrls([first.path], 60 * 60 * 12);
+        // 外注先によって概要に出す図面が変わるので、図面の表示用URLはまとめて作っておく
+        const paths = scope.figures.map(f => f.path).filter(Boolean);
+        if (paths.length) {
+            const { data, error } = await client.storage.from('gaichu-figures').createSignedUrls(paths, 60 * 60 * 12);
             if (error) console.error('図面の表示用URLを作れませんでした', error);
-            figUrl = (data && data[0] && data[0].signedUrl) || '';
+            figUrls = {};
+            (data || []).forEach(d => { if (d.signedUrl) figUrls[d.path] = d.signedUrl; });
         }
     }
 
@@ -119,13 +121,16 @@
         const vid = sh ? sh.vendor_id : null;
         const cols = scope.columns, pcols = cols.filter(c => c.type === 'party');
         const rows = scope.rows.filter(r => vid == null || pcols.some(c => (r[c.key] || []).some(k => String(k) === String(vid))));
-        const f0 = scope.figures.find(f => f.path) || {};
+        // 概要に出す図面：全体のときは先頭の図面。外注先を選んでいるときは、その外注先の色分け枠が入っている最初の図面（なければ先頭）
+        const figs = scope.figures.filter(f => f.path);
+        const f0 = (vid != null && figs.find(f => (f.zones || []).some(z => String(z.party) === String(vid)))) || figs[0] || {};
+        const figUrl = figUrls[f0.path] || '';
         const zones = (f0.zones || []).filter(z => vid == null || String(z.party) === String(vid) || z.party === KUSAKABE);
         const svg = zones.map(z => {
             const p = party(z.party);
             return `<polygon data-party="${esc(z.party)}" points="${zonePoints(z).map(q => q.join(',')).join(' ')}" fill="${esc(p.color)}" stroke="${esc(p.color)}" vector-effect="non-scaling-stroke"></polygon>`;
         }).join('');
-        const fig = figUrl ? `<div class="ov-fig"><div class="ov-fig-img"><img src="${esc(figUrl)}" alt="図面"><svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">${svg}</svg></div><span>${esc(f0.caption || '')}${scope.figures.length > 1 ? `　ほか${scope.figures.length - 1}枚` : ''}</span></div>`
+        const fig = figUrl ? `<div class="ov-fig"><div class="ov-fig-img"><img src="${esc(figUrl)}" alt="図面"><svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">${svg}</svg></div><span>${esc(f0.caption || '')}${figs.length > 1 ? `　ほか${figs.length - 1}枚` : ''}</span></div>`
             : `<div class="ov-fig ov-fig--empty">図面はまだ登録されていません</div>`;
         // 列に分けた表：ユニット｜機械名｜担当の列（機械組立・電気艤装・試運転など）
         const tpl = `style="grid-template-columns:112px minmax(110px,1.4fr) repeat(${pcols.length}, minmax(84px, 1fr))"`;
