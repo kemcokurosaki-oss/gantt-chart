@@ -1494,6 +1494,29 @@
         body.print-ov:not(.solo):not(.gaichu-blocked):not(.no-job) .overview { display: flex !important; visibility: visible !important; }
         body.print-pick .sub-panel:not(.print-target) { display: none !important; }
         .print-first { break-before: auto !important; }
+        .overview { gap: 14px; }
+        .ov-band { grid-template-columns: 140px repeat(3, minmax(0, 1fr)) 180px !important; gap: 8px; }
+        .ov-band--all { grid-template-columns: 140px minmax(0, 1fr) !important; }
+        .ov-allrow { grid-template-columns: 190px minmax(0, 1fr) minmax(0, 1fr) !important; gap: 10px !important; padding: 5px 0; }
+        .ov-ship b { font-size: 28px; }
+        .ov-scope { flex-direction: row !important; }
+        .ov-fig { flex: 0 0 34% !important; }
+        .ov-grow { grid-template-columns: 200px minmax(0, 1fr) !important; }
+        .ov-facts { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+        .ov-body, .ov-card { box-shadow: none; border: 1px solid #e4e3df; }
+        .ov-table { overflow: visible; }
+        .ov-trow { min-width: 0; }
+        .ov-trow > span { overflow-wrap: anywhere; padding: 4px 8px; }
+        .ov-tcell { padding: 3px 6px !important; }
+        .ov-gtrack { overflow: hidden; }
+        .gantt-unit-toggle { display: none !important; }
+        /* 組立範囲の図面：2枚ずつ並べ、図面の途中で改ページしない。色分け枠は画像に合わせて重ねる（画面用の位置の計算は使わない） */
+        .figure-row.scope-figs .figure-card { flex: 0 1 calc(50% - 8px) !important; break-inside: avoid; }
+        .figure-row.scope-figs .figure-card:only-child { flex-basis: 70% !important; }
+        .fig-img-wrap { position: relative; }
+        .scope-figs .fig-zones { left: 0 !important; top: 0 !important; width: 100% !important; height: 100% !important; }
+        .ov-head { break-after: avoid; }
+        .ov-band, .ov-scope, .ov-trow, .ov-grow, .ov-allrow { break-inside: avoid; }
         .ov-open, .page-header .vendor-switch, .print-menu { display: none !important; }
         .overlay-inner { max-width: none; padding: 0; }
         .fullscreen-overlay .panel-head { padding-left: 0; }
@@ -1519,7 +1542,7 @@
         body.drawer-open .content { margin-right: 0; }
         html, body.drawer-open { overflow: visible !important; height: auto !important; }
         /* 詳細資料の「この資料を印刷」：開いている資料だけを印刷する */
-        .sub-panel { display: block !important; position: static !important; transform: none !important; visibility: visible !important; width: auto !important; box-shadow: none; border: 0; overflow: visible; background: none; break-before: page; }
+        .sub-panel { display: block !important; position: static !important; transform: none !important; visibility: visible !important; opacity: 1 !important; transition: none !important; width: auto !important; box-shadow: none; border: 0; overflow: visible; background: none; break-before: page; }
         .sub-body { padding: 0; }
         .doc-print-btn { display: none !important; }
     }
@@ -1786,6 +1809,8 @@ function printDocs(list) {
     document.querySelectorAll('.sub-panel').forEach(p => p.classList.toggle('print-target', picked.includes(p.id.replace(/^panel-/, ''))));
     const first = picked[0] === 'overview' ? document.getElementById('overview') : document.getElementById('panel-' + picked[0]);
     if (first) first.classList.add('print-first');
+    const PAGE_W = 1000;   // A4横・余白10mmの印刷幅（約1047px）から枠の余白を引いた幅
+    document.querySelectorAll('#panel-schedule .gt-inner').forEach(g => { const w = g.scrollWidth; if (w > PAGE_W) g.style.zoom = (PAGE_W / w).toFixed(3); });
     window.print();
 }
 // 各資料のページの「この資料を印刷／PDF保存」：その資料だけ
@@ -1824,6 +1849,7 @@ document.querySelectorAll('[data-print]').forEach(btn => btn.addEventListener('c
 window.addEventListener('afterprint', () => {
     document.body.classList.remove('print-pick', 'print-ov');
     document.querySelectorAll('.print-target, .print-first').forEach(p => p.classList.remove('print-target', 'print-first'));
+    document.querySelectorAll('#panel-schedule .gt-inner').forEach(g => { g.style.zoom = ''; });
 });
 
 
@@ -1832,7 +1858,7 @@ window.addEventListener('afterprint', () => {
 <script src="gaichu-admin.js?v=20261021c"></script>
 <script src="gaichu-sheet.js?v=20261021f"></script>
 <script src="gaichu-jobnav.js?v=20261021d"></script>
-<script src="gaichu-overview.js?v=20261021b"></script>
+<script src="gaichu-overview.js?v=20261021c"></script>
 <script src="gaichu-spec.js?v=20261021a"></script>
 <script src="gaichu-scope.js?v=20261020n"></script>
 <script src="gaichu-gantt.js?v=20261020p"></script>

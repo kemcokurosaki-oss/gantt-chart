@@ -128,7 +128,7 @@
         const fig = figUrl ? `<div class="ov-fig"><div class="ov-fig-img"><img src="${esc(figUrl)}" alt="図面"><svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">${svg}</svg></div><span>${esc(f0.caption || '')}${scope.figures.length > 1 ? `　ほか${scope.figures.length - 1}枚` : ''}</span></div>`
             : `<div class="ov-fig ov-fig--empty">図面はまだ登録されていません</div>`;
         // 列に分けた表：ユニット｜機械名｜担当の列（機械組立・電気艤装・試運転など）
-        const tpl = `style="grid-template-columns:80px minmax(110px,1.4fr) repeat(${pcols.length}, minmax(84px, 1fr))"`;
+        const tpl = `style="grid-template-columns:112px minmax(110px,1.4fr) repeat(${pcols.length}, minmax(84px, 1fr))"`;
         const list = rows.length ? `<div class="ov-table"><div class="ov-trow ov-thead" ${tpl}><span>ユニット</span><span>機械名</span>${pcols.map(c => `<span>${esc(c.label)}</span>`).join('')}</div>` + rows.map(r => {
             const keys = [...new Set(pcols.flatMap(c => (r[c.key] || []).map(String)))];
             const out = keys.filter(k => k !== KUSAKABE);
