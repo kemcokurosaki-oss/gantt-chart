@@ -173,7 +173,15 @@
         const showNow = t0 >= min && t0 <= max;
         const now = showNow ? `<i class="ov-now" style="left:${pos(t0)}"></i>` : '';
         const head = `<div class="ov-grow ov-ghead"><span></span><span class="ov-gmonths">${months.map(m => `<span style="left:${pos(m.d)}">${m.label}</span>`).join('')}${showNow ? `<b class="ov-today" style="left:${pos(t0)}">今日</b>` : ''}</span></div>`;
-        el.schedule.innerHTML = `<div class="ov-gantt">${head}${list.map(t => {
+        // 「全体」のときは外注先が混ざるので、バーの色の見本（凡例）を右上に出す
+        let legend = '';
+        if (!sh) {
+            const items = GS.state.sheets.filter(s => list.some(t => t.vendor_id === s.vendor_id))
+                .map(s => `<span><i style="background:${esc(s.color)}"></i>${esc(s.display.replace(/殿$/, ''))}</span>`);
+            if (list.some(t => !vendorOf(t))) items.push('<span><i style="background:#7b8088"></i>未定</span>');
+            legend = `<div class="ov-legend">${items.join('')}</div>`;
+        }
+        el.schedule.innerHTML = `${legend}<div class="ov-gantt">${head}${list.map(t => {
             const v = vendorOf(t), color = v ? v.color : '#7b8088';
             const n = days(t.start, t.end);
             const label = `<span class="ov-glabel"><b>${esc(t.text)}</b><span>${esc([t.machine, t.unit].filter(Boolean).join(' '))}</span></span>`;
