@@ -142,21 +142,21 @@
 
         const byKey = k => rows.filter(r => r.key === k);
         const unset = byKey(null);
-        // 振り分けの方法（工程表の編集画面の案内）は管理者だけに出す。外注先には「調整中」とだけ見せる
-        const unsetNote = GS.state.isAdmin ? `${unset.length}工程（工程表の編集画面で「外注先企業」を入れると振り分けられます）` : `${unset.length}工程（担当は調整中です）`;
+        // 振り分けの方法（工程表の編集画面の案内）は管理者だけに出す
+        const unsetNote = GS.state.isAdmin ? `${unset.length}工程（工程表の編集画面で「外注先企業」を入れると振り分けられます）` : `${unset.length}工程`;
         const unsetGroup = unset.length ? [{ name: GS.state.isAdmin ? '外注先未設定' : '担当未定', note: unsetNote, ...UNSET, tint: '#eeeeeb', ink: '#2b2f36', rows: unset, open: true }] : [];
         const vid = GS.state.currentSheet ? GS.state.currentSheet.vendor_id : null;
         const groups = [];
         if (vid != null && looks.has(vid)) {
             const me = looks.get(vid);
-            groups.push({ name: me.name, note: `${byKey(vid).length}工程`, ...me, rows: byKey(vid), open: true });
+            groups.push({ name: me.name, note: '', ...me, rows: byKey(vid), open: true });
             groups.push(...unsetGroup);
             if (SHOW_OTHER_VENDORS) [...looks.keys()].filter(k => k !== vid && byKey(k).length).forEach(k => groups.push({
-                name: looks.get(k).name, note: `参考・${byKey(k).length}工程<span class="gt-toggle-hint">（クリックで${otherOpen ? '閉じる' : '開く'}）</span>`,
+                name: looks.get(k).name, note: `参考<span class="gt-toggle-hint">（クリックで${otherOpen ? '閉じる' : '開く'}）</span>`,
                 color: GREY.color, tint: '#f5f5f3', ink: '#5b6068', rows: byKey(k), open: otherOpen, toggle: true, grey: true,
             }));
         } else {
-            [...looks.keys()].filter(k => byKey(k).length).forEach(k => groups.push({ name: looks.get(k).name, note: `${byKey(k).length}工程`, ...looks.get(k), rows: byKey(k), open: true }));
+            [...looks.keys()].filter(k => byKey(k).length).forEach(k => groups.push({ name: looks.get(k).name, note: '', ...looks.get(k), rows: byKey(k), open: true }));
             groups.push(...unsetGroup);
         }
 

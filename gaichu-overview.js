@@ -175,11 +175,16 @@
         const head = `<div class="ov-grow ov-ghead"><span></span><span class="ov-gmonths">${months.map(m => `<span style="left:${pos(m.d)}">${m.label}</span>`).join('')}${showNow ? `<b class="ov-today" style="left:${pos(t0)}">今日</b>` : ''}</span></div>`;
         el.schedule.innerHTML = `<div class="ov-gantt">${head}${list.map(t => {
             const v = vendorOf(t), color = v ? v.color : '#7b8088';
-            const who = v ? v.display.replace(/殿$/, '') : '未定';
             const n = days(t.start, t.end);
-            return `<div class="ov-grow"><span class="ov-glabel"><b>${esc(t.text)}</b><span>${esc([t.machine, t.unit].filter(Boolean).join(' '))}</span></span>`
-                + `<span class="ov-gtrack">${grid}${now}<i class="ov-gbar" style="left:${pos(t.start)};width:${Math.max(0.8, n * DAY / span * 100).toFixed(2)}%;background:${esc(color)}"></i>`
-                + `<span class="ov-gtext" style="left:calc(${pos(t.start)} + ${Math.max(0.8, n * DAY / span * 100).toFixed(2)}%)">${esc(who)}　${md(t.start)}〜${md(t.end)}（${n}日）</span></span></div>`;
+            const label = `<span class="ov-glabel"><b>${esc(t.text)}</b><span>${esc([t.machine, t.unit].filter(Boolean).join(' '))}</span></span>`;
+            // 工場出荷など1日だけの出荷の予定は、詳細の工程表と同じひし形の印にする
+            if (n === 1 && /出荷/.test(t.text)) {
+                return `<div class="ov-grow">${label}<span class="ov-gtrack">${grid}${now}<span class="ov-gmile" style="left:${pos(t.start)}"><i></i><b>${esc(t.text)} ${md(t.start)}</b></span></span></div>`;
+            }
+            const w = Math.max(0.8, n * DAY / span * 100).toFixed(2);
+            return `<div class="ov-grow">${label}`
+                + `<span class="ov-gtrack">${grid}${now}<i class="ov-gbar" style="left:${pos(t.start)};width:${w}%;background:${esc(color)}"></i>`
+                + `<span class="ov-gtext" style="left:calc(${pos(t.start)} + ${w}%)">${esc(t.text)}　${md(t.start)}〜${md(t.end)}（${n}日）</span></span></div>`;
         }).join('')}</div>`;
     }
 
