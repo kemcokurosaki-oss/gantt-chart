@@ -133,12 +133,14 @@
         }).join('');
         const fig = figUrl ? `<div class="ov-fig"><div class="ov-fig-img"><img src="${esc(figUrl)}" alt="図面"><svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">${svg}</svg></div><span>${esc(f0.caption || '')}${figs.length > 1 ? `　ほか${figs.length - 1}枚` : ''}</span></div>`
             : `<div class="ov-fig ov-fig--empty">図面はまだ登録されていません</div>`;
-        // 列に分けた表：ユニット｜機械名｜担当の列（機械組立・電気艤装・試運転など）
-        const tpl = `style="grid-template-columns:112px minmax(110px,1.4fr) repeat(${pcols.length}, minmax(84px, 1fr))"`;
-        const list = rows.length ? `<div class="ov-table"><div class="ov-trow ov-thead" ${tpl}><span>ユニット</span><span>機械名</span>${pcols.map(c => `<span>${esc(c.label)}</span>`).join('')}</div>` + rows.map(r => {
+        // 列に分けた表：（機械）｜ユニット｜機械名｜担当の列（機械組立・電気艤装・据付）。機械の列は、どこかの行に機械が入っているときだけ出す
+        const filled = v => !!String(v || '').trim() && String(v).trim() !== '―';
+        const hasMachine = rows.some(r => filled(r.machine));
+        const tpl = `style="grid-template-columns:${hasMachine ? '56px ' : ''}112px minmax(110px,1.4fr) repeat(${pcols.length}, minmax(84px, 1fr))"`;
+        const list = rows.length ? `<div class="ov-table"><div class="ov-trow ov-thead" ${tpl}>${hasMachine ? '<span>機械</span>' : ''}<span>ユニット</span><span>機械名</span>${pcols.map(c => `<span>${esc(c.label)}</span>`).join('')}</div>` + rows.map(r => {
             const keys = [...new Set(pcols.flatMap(c => (r[c.key] || []).map(String)))];
             const out = keys.filter(k => k !== KUSAKABE);
-            return `<div class="ov-unit ov-trow" ${tpl} data-parties="${esc((out.length ? out : keys).join(' '))}"><span><b>${esc(r.unit || r.machine || '')}</b></span><span>${esc(r.machine_name || '')}</span>${pcols.map(c => `<span class="ov-tcell">${(r[c.key] || []).map(k => {
+            return `<div class="ov-unit ov-trow" ${tpl} data-parties="${esc((out.length ? out : keys).join(' '))}">${hasMachine ? `<span>${filled(r.machine) ? esc(r.machine) : '<span class="ov-none">―</span>'}</span>` : ''}<span><b>${esc(hasMachine ? (r.unit || '') : (r.unit || r.machine || ''))}</b></span><span>${esc(r.machine_name || '')}</span>${pcols.map(c => `<span class="ov-tcell">${(r[c.key] || []).map(k => {
                 const p = party(k);
                 return `<span class="ov-chip" data-party="${esc(k)}" style="${GS.chipStyle(p.color)}">${esc(p.label.replace(/殿$/, ''))}</span>`;
             }).join('') || '<span class="ov-none">―</span>'}</span>`).join('')}</div>`;
