@@ -96,11 +96,13 @@
         if (!sheet) { infoEl.innerHTML = ''; infoEl.style.display = 'none'; return; }
         infoEl.style.display = '';
         const t = editing && trialDraft ? trialDraft : (sheet.trial || {});
+        // 編集中は、工程表などから自動で表示している項目に目印を付ける（仕様書の編集画面と同じ）
+        const auto = text => editing ? `<span class="spec-auto">${text}</span>` : '';
         infoEl.innerHTML = `
-            <div class="info-item"><div class="k">工事番号</div><div class="v">${esc(st.pn)}</div></div>
-            <div class="info-item"><div class="k">工事名称</div><div class="v">${esc(st.project.name) || '―'}</div></div>
+            <div class="info-item"><div class="k">工事番号</div><div class="v">${esc(st.pn)}${auto('自動')}</div></div>
+            <div class="info-item"><div class="k">工事名称</div><div class="v">${esc(st.project.name) || '―'}${auto('工程表から自動表示')}</div></div>
             <div class="info-item"><div class="k">試運転対象</div><div class="v">${editing ? trialInput('target', t.target || '', '例：エントリー全般') : (esc(t.target) || '―')}</div></div>
-            <div class="info-item"><div class="k">試運転期間<span class="oc-auto">工程表から自動</span></div><div class="v">${trialPeriodText || '―'}</div></div>
+            <div class="info-item"><div class="k">試運転期間</div><div class="v">${trialPeriodText || '―'}${auto('工程表から自動表示')}</div></div>
             <div class="info-item"><div class="k">試運転時間</div><div class="v">${editing
                 ? trialInput('time', t.time || '', '例：8:30～17:30') + trialInput('time_note', t.time_note || '', '例：残業は最大19:00／休日対応は相談')
                 : `${esc(t.time) || '―'}${t.time_note ? `<small>${esc(t.time_note)}</small>` : ''}`}</div></div>
