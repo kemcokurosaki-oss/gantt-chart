@@ -84,8 +84,6 @@
         $('sheetTitle').textContent = state.project.name || '（工事名称未登録）';
         $('customerName').textContent = state.project.customer || '―';
         $('shipDate').textContent = fmtDate(state.project.shipDate);
-        const c0 = state.contacts[0];
-        if ($('companyContact')) $('companyContact').textContent = c0 ? [c0.dept, c0.name].filter(Boolean).join(' ') : '―';
         $('sheetVendors').textContent = state.sheets.length ? state.sheets.map(s => s.display).join(' ／ ')
             : (state.loggedIn ? '（未登録）' : '（ログインすると表示されます）');
         document.title = `外注先用 工事詳細シート｜${state.pn} ${state.project.name || ''}`.trim();
