@@ -1478,6 +1478,13 @@
     /* ===== 印刷／PDF ===== */
     @media print {
         @page { size: A4 landscape; margin: 10mm; }
+        @page tate { size: A4 portrait; margin: 10mm; }
+        #panel-order-spec { page: tate; }
+        /* 縦の用紙は幅が狭い（約718px）ので、仕様書の表は文字と余白を小さくして幅に収める */
+        #panel-order-spec table { width: 100% !important; min-width: 0 !important; }
+        #panel-order-spec th, #panel-order-spec td { padding: 4px 5px !important; font-size: 11px !important; white-space: normal !important; }
+        .contact-card, .contact-grid { break-inside: avoid; }
+        body.print-head-tate .sticky-wrapper { page: tate; }   /* 仕様書から印刷するときは、上の工事名の帯も縦の用紙に載せる */
         * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         body { background: #fff; font-size: 12px; padding-left: 0 !important; }
         .doc-nav, .job-nav, .sub-bar, .side-nav, .toolbar-row .view-toggle, .overlay-close-btn, .lightbox, .fig-zoom-hint { display: none !important; }
@@ -1510,6 +1517,8 @@
         .ov-tcell { padding: 3px 6px !important; }
         .ov-gtrack { overflow: hidden; }
         .gantt-unit-toggle { display: none !important; }
+        .gt .gt-label { width: 180px; }
+        .gt .gt-row .gt-label { padding: 6px 10px; }
         /* 組立範囲の図面：2枚ずつ並べ、図面の途中で改ページしない。色分け枠は画像に合わせて重ねる（画面用の位置の計算は使わない） */
         .figure-row.scope-figs .figure-card { flex: 0 1 calc(50% - 8px) !important; break-inside: avoid; }
         .figure-row.scope-figs .figure-card:only-child { flex-basis: 70% !important; }
@@ -1809,8 +1818,7 @@ function printDocs(list) {
     document.querySelectorAll('.sub-panel').forEach(p => p.classList.toggle('print-target', picked.includes(p.id.replace(/^panel-/, ''))));
     const first = picked[0] === 'overview' ? document.getElementById('overview') : document.getElementById('panel-' + picked[0]);
     if (first) first.classList.add('print-first');
-    const PAGE_W = 1000;   // A4横・余白10mmの印刷幅（約1047px）から枠の余白を引いた幅
-    document.querySelectorAll('#panel-schedule .gt-inner').forEach(g => { const w = g.scrollWidth; if (w > PAGE_W) g.style.zoom = (PAGE_W / w).toFixed(3); });
+    document.body.classList.toggle('print-head-tate', picked[0] === 'order-spec');
     window.print();
 }
 // 各資料のページの「この資料を印刷／PDF保存」：その資料だけ
@@ -1847,9 +1855,8 @@ document.querySelectorAll('[data-print]').forEach(btn => btn.addEventListener('c
     document.addEventListener('keydown', e => { if (e.key === 'Escape') setOpen(false); });
 })();
 window.addEventListener('afterprint', () => {
-    document.body.classList.remove('print-pick', 'print-ov');
+    document.body.classList.remove('print-pick', 'print-ov', 'print-head-tate');
     document.querySelectorAll('.print-target, .print-first').forEach(p => p.classList.remove('print-target', 'print-first'));
-    document.querySelectorAll('#panel-schedule .gt-inner').forEach(g => { g.style.zoom = ''; });
 });
 
 
@@ -1861,7 +1868,7 @@ window.addEventListener('afterprint', () => {
 <script src="gaichu-overview.js?v=20261021c"></script>
 <script src="gaichu-spec.js?v=20261021a"></script>
 <script src="gaichu-scope.js?v=20261020n"></script>
-<script src="gaichu-gantt.js?v=20261020p"></script>
+<script src="gaichu-gantt.js?v=20261021c"></script>
 <script src="org-chart.js?v=20261021a"></script>
 
 </body>

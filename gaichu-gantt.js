@@ -14,6 +14,9 @@
     const WEEKDAY_JA = ['日', '月', '火', '水', '木', '金', '土'];
     const DAY_MS = 86400000;
     const LABEL_W = 250;
+    // 印刷のとき：A4横の印刷幅（約1047px）から枠の余白を引いた幅に収める。左の工程名の列も細くする（ページ側の印刷用CSSと合わせる）
+    const PRINT_W = 930, PRINT_LABEL_W = 180;
+    let printing = false;
 
     let tasks = [];          // [{ ...task, start: Date, end: Date }]
     let loaded = false;
@@ -65,16 +68,19 @@
         const looks = vendorLooks();
         const minStart = new Date(Math.min(...tasks.map(t => t.start)));
         const maxEnd = new Date(Math.max(...tasks.map(t => t.end)));
-        // 右端の文字（期間・工場出荷など）が目盛りの外に出ないよう、終わりに余白を足す
+        // 右端の文字（期間・工場出荷など）が目盛りの外に出ないよう、終わりに余白を足す（印刷は列が細いので多めに）
         let start, end, colW;
         const cols = [];
         if (unit === 'day') {
-            start = new Date(minStart); end = new Date(maxEnd); end.setDate(end.getDate() + 7); colW = 26;
+            start = new Date(minStart); end = new Date(maxEnd); end.setDate(end.getDate() + (printing ? 14 : 7)); colW = 26;
             for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) cols.push(new Date(d));
         } else {
-            start = startOfWeekMon(minStart); end = startOfWeekMon(maxEnd); end.setDate(end.getDate() + 20); colW = 58;
+            start = startOfWeekMon(minStart); end = startOfWeekMon(maxEnd); end.setDate(end.getDate() + (printing ? 41 : 20)); colW = 58;
             for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 7)) cols.push(new Date(d));
         }
+        if (printing) colW = (PRINT_W - PRINT_LABEL_W) / cols.length;
+        // 列が細くて目盛りの日付が重なるときは、何列かおきに表示する
+        const step = Math.max(1, Math.ceil((unit === 'day' ? 20 : 40) / colW));
         const T = Math.round((end - start) / DAY_MS) + 1;
         const pct = d => Math.round((d - start) / DAY_MS) / T * 100;
 
@@ -89,7 +95,8 @@
             <div class="gt-label"></div>
             <div class="gt-scale">
                 <div class="gt-months">${months.map(m => `<div style="flex:${m.span} 0 0">${m.label}</div>`).join('')}</div>
-                <div class="gt-cols">${cols.map(d => {
+                <div class="gt-cols">${cols.map((d, i) => {
+                    if (i % step) return '<div></div>';
                     if (unit === 'week') return `<div>${mdStr(d)}</div>`;
                     const we = d.getDay() === 0 || d.getDay() === 6;
                     return `<div class="${we ? 'is-we' : ''}">${d.getDate()}<small>${WEEKDAY_JA[d.getDay()]}</small></div>`;
@@ -153,7 +160,7 @@
             groups.push(...unsetGroup);
         }
 
-        container.innerHTML = `<div class="gt-inner" style="min-width:${LABEL_W + cols.length * colW}px">${head}
+        container.innerHTML = `<div class="gt-inner" style="min-width:${printing ? 0 : LABEL_W + cols.length * colW}px">${head}
             <div class="gt-body"><div class="gt-bg">${weekends}${lines}</div>${groups.map(groupHtml).join('')}</div></div>`;
     }
 
@@ -171,6 +178,8 @@
         });
     });
     document.addEventListener('gaichusheetchange', () => { if (!loaded) load(); else render(); });
+    window.addEventListener('beforeprint', () => { printing = true; render(); });
+    window.addEventListener('afterprint', () => { printing = false; render(); });
 
     render();
 })();
