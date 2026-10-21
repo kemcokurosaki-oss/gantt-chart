@@ -59,7 +59,11 @@
 .ga-combo-item b { color: #2b2f36; }
 .ga-combo-item small { color: #5b6068; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ga-combo-item:hover, .ga-combo-item.is-active { background: #eceef1; }
-.ga-combo-empty { padding: 8px 10px; color: #6b7079; font-size: 12.5px; }`;
+.ga-combo-empty { padding: 8px 10px; color: #6b7079; font-size: 12.5px; }
+.ga-table tr.ga-vrow td { border-bottom: 0; padding-bottom: 2px; }
+.ga-table tr.ga-reprow td { padding-top: 0; padding-bottom: 8px; }
+.ga-rep { display: grid; grid-template-columns: 52px 1fr 1fr 1fr 1.4fr; gap: 6px; align-items: center; }
+.ga-rep > span { font-size: 11.5px; color: #6b7079; font-weight: 700; }`;
         document.head.appendChild(st);
     }
 
@@ -239,13 +243,23 @@
         }));
     }
 
-    // ===== 外注先マスタの管理（社名・表示名・並び順・使用の変更と追加。使っている外注先があるため削除はしない） =====
+    // ===== 外注先マスタの管理（社名・表示名・並び順・使用・代表者の変更と追加。使っている外注先があるため削除はしない） =====
+    //   代表者は個人情報なので別テーブル gaichu_vendor_contacts に持つ。仕様書のご担当者（工事ごとの入力が空欄のとき）と体制表のカードの選択肢に使う
+    const REP_FIELDS = ['title', 'name', 'tel', 'email'];
     async function openVendors({ onDone } = {}) {
-        let ctx;
-        try { ctx = await context(); } catch (e) { alert('読み込めませんでした：' + (e.message || e)); return; }
-        const rows = ctx.vendors.map(v => ({ ...v }));
+        let ctx, reps;
+        try {
+            ctx = await context();
+            const r = await db().from('gaichu_vendor_contacts').select('vendor_id, title, name, tel, email');
+            if (r.error) console.warn('外注先の代表者の取得に失敗しました', r.error);
+            reps = new Map((r.data || []).map(x => [x.vendor_id, x]));
+        } catch (e) { alert('読み込めませんでした：' + (e.message || e)); return; }
+        const rows = ctx.vendors.map(v => {
+            const rep = reps.get(v.id) || {};
+            return { ...v, hadRep: reps.has(v.id), ...Object.fromEntries(REP_FIELDS.map(k => ['rep_' + k, rep[k] || ''])) };
+        });
         const m = modal('外注先マスタの管理', `
-            <p class="ga-note">「使用」を外すと、外注先シートを追加するときの選択肢に出なくなります（登録済みのシートはそのまま）。</p>
+            <p class="ga-note">「使用」を外すと、外注先シートを追加するときの選択肢に出なくなります（登録済みのシートはそのまま）。<br>代表者は、仕様書の「ご担当者」（工事ごとに入力していないとき）に役職と氏名を表示し、体制表のカードを追加するときの選択肢にも出ます。</p>
             <table class="ga-table"><thead><tr><th>正式社名</th><th>表示名</th><th>順</th><th>使用</th></tr></thead><tbody></tbody></table>
             <button type="button" class="ga-btn" data-addv>＋ 行を追加</button>`, [
             { label: '閉じる', onClick: () => m.close() },
@@ -259,6 +273,18 @@
                         const { data, error } = await q.select('id');
                         if (error) throw error;
                         if (!data || !data.length) throw new Error('保存できませんでした（編集の権限がないか、ログインが切れています）');
+                        // 代表者：どれか入っていれば登録・更新、全部空欄なら登録を消す
+                        const rep = Object.fromEntries(REP_FIELDS.map(k => [k, String(r['rep_' + k] || '').trim() || null]));
+                        const vendorId = data[0].id;
+                        if (REP_FIELDS.some(k => rep[k])) {
+                            const { data: rd, error: re } = await db().from('gaichu_vendor_contacts')
+                                .upsert({ vendor_id: vendorId, ...rep, updated_at: new Date().toISOString() }, { onConflict: 'vendor_id' }).select('vendor_id');
+                            if (re) throw re;
+                            if (!rd || !rd.length) throw new Error('代表者を保存できませんでした（編集の権限がないか、ログインが切れています）');
+                        } else if (r.hadRep) {
+                            const { error: re } = await db().from('gaichu_vendor_contacts').delete().eq('vendor_id', vendorId);
+                            if (re) throw re;
+                        }
                     }
                 } catch (e) { return m.err('保存できませんでした：' + (e.message || e)); }
                 m.close();
@@ -267,17 +293,23 @@
         ]);
         const tbody = m.el.querySelector('tbody');
         const draw = () => {
-            tbody.innerHTML = rows.map((r, i) => `<tr data-i="${i}">
+            tbody.innerHTML = rows.map((r, i) => `<tr data-i="${i}" class="ga-vrow">
                 <td><input type="text" data-f="name" autocomplete="off" value="${esc(r.name)}"></td>
                 <td><input type="text" data-f="display_name" autocomplete="off" value="${esc(r.display_name)}"></td>
                 <td><input type="number" data-f="sort_order" value="${esc(r.sort_order)}" class="ga-num"></td>
-                <td style="text-align:center"><input type="checkbox" data-f="active"${r.active !== false ? ' checked' : ''}></td></tr>`).join('');
+                <td style="text-align:center"><input type="checkbox" data-f="active"${r.active !== false ? ' checked' : ''}></td></tr>
+                <tr data-i="${i}" class="ga-reprow"><td colspan="4"><div class="ga-rep"><span>代表者</span>
+                    <input type="text" data-f="rep_title" autocomplete="off" value="${esc(r.rep_title)}" placeholder="役職（例：代表取締役）">
+                    <input type="text" data-f="rep_name" autocomplete="off" value="${esc(r.rep_name)}" placeholder="氏名">
+                    <input type="text" data-f="rep_tel" autocomplete="off" value="${esc(r.rep_tel)}" placeholder="電話" inputmode="tel">
+                    <input type="text" data-f="rep_email" autocomplete="off" value="${esc(r.rep_email)}" placeholder="メール" inputmode="email"></div></td></tr>`).join('');
         };
         const collect = () => tbody.querySelectorAll('tr').forEach(tr => {
             const r = rows[tr.dataset.i];
             tr.querySelectorAll('[data-f]').forEach(inp => { r[inp.dataset.f] = inp.type === 'checkbox' ? inp.checked : inp.value; });
         });
-        m.el.querySelector('[data-addv]').addEventListener('click', () => { collect(); rows.push({ id: null, name: '', display_name: '', sort_order: (rows.length + 1) * 10, active: true }); draw(); });
+        m.el.querySelector('[data-addv]').addEventListener('click', () => { collect(); rows.push({ id: null, name: '', display_name: '', sort_order: (rows.length + 1) * 10, active: true, hadRep: false, rep_title: '', rep_name: '', rep_tel: '', rep_email: '' }); draw(); });
+        m.el.querySelector('.ga-modal').style.width = 'min(780px, 94vw)';
         draw();
     }
 

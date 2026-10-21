@@ -97,7 +97,9 @@
             <div class="info-item"><div class="k">1-1) 工事番号</div><div class="v">${esc(st.pn)}</div></div>
             <div class="info-item"><div class="k">1-2) 工事名称</div><div class="v">${dash(p.name)}</div></div>
             <div class="info-item"><div class="k">1-3) 貴社名</div><div class="v">${dash(sheet.name)}</div></div>
-            <div class="info-item"><div class="k">1-4) ご担当者</div><div class="v">${e ? input('contact', s.contact, ' placeholder="例：取締役工場長　山田 太郎 様"') : dash(s.contact)}</div></div>
+            <div class="info-item"><div class="k">1-4) ご担当者</div><div class="v">${e
+                ? input('contact', s.contact, ` placeholder="${esc(GS.repLabel(sheet) ? `空欄のときは代表者（${GS.repLabel(sheet)}）を表示` : '例：取締役工場長　山田 太郎 様')}"`)
+                : dash(s.contact || GS.repLabel(sheet))}</div></div>
             <div class="info-item"><div class="k">1-5) 出荷納期</div><div class="v">${fmtDate(p.shipDate)}</div></div>
             <div class="info-item"><div class="k">改訂</div><div class="v">${e
                 ? input('revision', s.revision, ' placeholder="例：R2（2026/9/2）"') + input('revision_note', s.revision_note, ' placeholder="例：初版：2026/6/18／改訂内容"')

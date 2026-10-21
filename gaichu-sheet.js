@@ -13,7 +13,7 @@
     const state = {
         pn: PROJECT_NUMBER,
         project: { name: '', customer: '', shipDate: null },
-        sheets: [],          // [{ id, vendor_id, name, display, color, spec, trial }]
+        sheets: [],          // [{ id, vendor_id, name, display, color, spec, trial, rep }]（rep は外注先マスタの代表者 { title, name, tel, email } か null）
         current: 'all',      // 'all' または シートID
         currentSheet: null,  // 選択中のシート（全体のときは null）
         loggedIn: false,
@@ -63,7 +63,19 @@
             color: r.color || '#7f8c8d',
             spec: r.spec || {},
             trial: r.trial || {},
+            rep: null,
         }));
+        const ids = [...new Set(state.sheets.map(s => s.vendor_id))];
+        if (!ids.length) return;
+        const { data: reps, error: repErr } = await client.from('gaichu_vendor_contacts').select('vendor_id, title, name, tel, email').in('vendor_id', ids);
+        if (repErr) { console.warn('外注先の代表者の取得に失敗しました', repErr); return; }
+        (reps || []).forEach(r => state.sheets.forEach(s => { if (s.vendor_id === r.vendor_id) s.rep = r; }));
+    }
+    // 外注先の代表者を「役職　氏名 様」の形にする（仕様書のご担当者に使う）
+    function repLabel(sheet) {
+        const r = sheet && sheet.rep;
+        if (!r || !(r.title || r.name)) return '';
+        return [r.title, r.name ? r.name + ' 様' : ''].filter(Boolean).join('　');
     }
 
     // ===== 表示 =====
@@ -260,6 +272,7 @@
     }
 
     window.GaichuSheet = {
+        repLabel,
         state, client, select, saveSheet,
         loadTasks, unitTokens, isOutsource, vendorUnits, coversVendor, trialPeriod, fmtDate,
         sheetById: id => state.sheets.find(s => String(s.id) === String(id)) || null,

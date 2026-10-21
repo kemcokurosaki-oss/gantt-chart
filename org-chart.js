@@ -371,13 +371,23 @@
         staff = data;
     }
     function staffOrg(s) { return [s.company, s.department].filter(Boolean).join(' '); }
+    // 表示中の外注先シートの代表者（外注先マスタ）。値は社内名簿の番号と区別して 'v外注先ID' にする
+    function vendorRep() {
+        const sheet = GS && sheetId && GS.sheetById(sheetId);
+        const r = sheet && sheet.rep;
+        return r && r.name ? { id: 'v' + sheet.vendor_id, name: r.name, org: sheet.name, tel: r.tel || '' } : null;
+    }
+    const staffIdOf = v => /^\d+$/.test(v) ? Number(v) : null;
     function staffOptions(selectedId) {
+        const rep = vendorRep();
         const groups = {};
         staff.filter(s => s.active || s.id === selectedId).forEach(s => {
             const k = s.department || '（部署未設定）';
             (groups[k] = groups[k] || []).push(s);
         });
-        return `<option value="">― 自由入力（社外の人など）―</option>` + Object.keys(groups).map(k =>
+        return `<option value="">― 自由入力（社外の人など）―</option>`
+            + (rep ? `<optgroup label="外注先の代表者"><option value="${rep.id}">${esc(rep.name)}${rep.tel ? '（' + esc(rep.tel) + '）' : ''}</option></optgroup>` : '')
+            + Object.keys(groups).map(k =>
             `<optgroup label="${esc(k)}">` + groups[k].map(s =>
                 `<option value="${s.id}"${s.id === selectedId ? ' selected' : ''}>${esc(s.name)}${s.tel ? '（' + esc(s.tel) + '）' : ''}</option>`
             ).join('') + '</optgroup>'
@@ -692,13 +702,13 @@
                 out = {
                     type: 'person', role: f('role').value.trim(), roleAlt: !f('roleBlue').checked,
                     org: f('org').value.trim(), name: f('name').value.trim(), tel: f('tel').value.trim(),
-                    staffId: f('staff').value ? Number(f('staff').value) : null,
+                    staffId: staffIdOf(f('staff').value),
                 };
                 if (!out.name && !out.role) { m.el.querySelector('.oc-err').textContent = '担当者を選ぶか、氏名を入力してください。'; return; }
                 if (f('subName').value.trim() || f('subTel').value.trim()) {
                     out.subName = f('subName').value.trim();
                     out.subTel = f('subTel').value.trim();
-                    out.subStaffId = f('subStaff').value ? Number(f('subStaff').value) : null;
+                    out.subStaffId = staffIdOf(f('subStaff').value);
                 }
             }
             m.close();
@@ -817,19 +827,26 @@
             window.addEventListener('resize', onResize);
             syncScroll();
         }
+        const rep = vendorRep();
+        // 選んだ人（社内名簿か外注先の代表者）を { name, org, tel } で返す
+        const pickedPerson = v => {
+            if (rep && v === rep.id) return { name: rep.name, org: rep.org, tel: rep.tel };
+            const s = staff.find(x => String(x.id) === String(v));
+            return s ? { name: s.name, org: staffOrg(s), tel: s.tel || '' } : null;
+        };
         f('staff').addEventListener('change', e => {
             syncFree(true);
-            const s = staff.find(x => x.id === Number(e.target.value));
+            const s = pickedPerson(e.target.value);
             if (!s) { setTimeout(() => f('org').focus(), 0); return; }
-            f('org').value = staffOrg(s);
+            f('org').value = s.org;
             f('name').value = s.name;
-            f('tel').value = s.tel || '';
+            f('tel').value = s.tel;
         });
         f('subStaff').addEventListener('change', e => {
-            const s = staff.find(x => x.id === Number(e.target.value));
+            const s = pickedPerson(e.target.value);
             if (!s) return;
             f('subName').value = s.name;
-            f('subTel').value = s.tel || '';
+            f('subTel').value = s.tel;
         });
         const staffPick = pickerFor(f('staff'));
         pickerFor(f('subStaff'));
@@ -873,7 +890,7 @@
                 if (c.tagName === 'OPTGROUP') [...c.children].forEach(o => items.push({ v: o.value, g: c.label, o }));
                 else items.push({ v: c.value, g: '', o: c });
             });
-            const info = v => { const s = staff.find(x => String(x.id) === String(v)); return s ? { name: s.name, sub: staffOrg(s), tel: s.tel || '' } : null; };
+            const info = v => { const s = pickedPerson(v); return s ? { name: s.name, sub: s.org, tel: s.tel } : null; };
             function paint() {
                 const s = info(sel.value);
                 btn.innerHTML = s
