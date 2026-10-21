@@ -1197,8 +1197,14 @@
     .print-menu-list[hidden] { display: none; }
     .print-menu-list button { appearance: none; border: none; background: none; text-align: left; font-family: inherit; font-size: 13px; font-weight: 700; color: #2b2f36; padding: 8px 12px; border-radius: 5px; cursor: pointer; white-space: nowrap; }
     .print-menu-list button:hover { background: #eceef1; color: #2b2f36; }
-    .print-menu-list button span { display: inline-block; width: 16px; color: #8b9097; }
+    .print-menu-list label { display: flex; align-items: center; gap: 8px; padding: 7px 12px; border-radius: 5px; font-size: 13px; font-weight: 700; color: #2b2f36; cursor: pointer; white-space: nowrap; }
+    .print-menu-list label:hover { background: #eceef1; }
+    .print-menu-list label input { width: 15px; height: 15px; margin: 0; accent-color: #2b2f36; cursor: pointer; }
+    .print-menu-list label span { display: inline-block; width: 12px; color: #8b9097; }
     .print-menu-list hr { border: 0; border-top: 1px solid #e4e3df; margin: 4px 6px; }
+    .print-menu-list .print-go { margin: 4px 4px 2px; text-align: center; background: #2b2f36; color: #fff; }
+    .print-menu-list .print-go:hover { background: #16191d; color: #fff; }
+    .print-menu-list .print-go:disabled { background: #b4b7bb; cursor: not-allowed; }
     /* 7. 担当の色分けの凡例は表示しない（外注先の色は切り替えボタンの〇で分かる） */
     .party-legend { display: none !important; }
     .content { margin-left: 0; padding: 16px 32px 30px; }
@@ -1483,8 +1489,11 @@
             display: block !important; position: static !important; overflow: visible;
             padding: 0; animation: none; break-before: page;
         }
-        #panel-scope { break-before: auto; }
         .overview { display: none !important; }
+        /* 印刷メニューで選んだ資料だけを印刷する（gaichu の印刷メニュー）。先頭の1つは改ページしない */
+        body.print-ov:not(.solo):not(.gaichu-blocked):not(.no-job) .overview { display: flex !important; visibility: visible !important; }
+        body.print-pick .sub-panel:not(.print-target) { display: none !important; }
+        .print-first { break-before: auto !important; }
         .ov-open, .page-header .vendor-switch, .print-menu { display: none !important; }
         .overlay-inner { max-width: none; padding: 0; }
         .fullscreen-overlay .panel-head { padding-left: 0; }
@@ -1512,9 +1521,6 @@
         /* 詳細資料の「この資料を印刷」：開いている資料だけを印刷する */
         .sub-panel { display: block !important; position: static !important; transform: none !important; visibility: visible !important; width: auto !important; box-shadow: none; border: 0; overflow: visible; background: none; break-before: page; }
         .sub-body { padding: 0; }
-        /* 印刷メニューで1つの資料を選んだとき：その資料だけを印刷する */
-        body.print-pick .sub-panel:not(.print-target) { display: none !important; }
-        body.print-pick .sub-panel.print-target { break-before: auto; }
         .doc-print-btn { display: none !important; }
     }
 </style>
@@ -1560,12 +1566,15 @@
         <div class="print-menu">
             <button type="button" class="doc-print-btn" id="printMenuBtn" aria-haspopup="true" aria-expanded="false">印刷／PDF保存 ▾</button>
             <div class="print-menu-list" id="printMenuList" hidden>
-                <button type="button" data-print="scope"><span>1</span>組立範囲</button>
-                <button type="button" data-print="schedule"><span>2</span>工程表</button>
-                <button type="button" data-print="order-spec"><span>3</span>組立発注仕様書</button>
-                <button type="button" data-print="trial"><span>4</span>体制表</button>
+                <label><input type="checkbox" id="printAll" checked>すべて選択</label>
                 <hr>
-                <button type="button" data-print="all">4つの資料すべて</button>
+                <label><input type="checkbox" data-print-pick="overview" checked><span></span>概要</label>
+                <label><input type="checkbox" data-print-pick="scope" checked><span>1</span>組立範囲</label>
+                <label><input type="checkbox" data-print-pick="schedule" checked><span>2</span>工程表</label>
+                <label><input type="checkbox" data-print-pick="order-spec" checked><span>3</span>組立発注仕様書</label>
+                <label><input type="checkbox" data-print-pick="trial" checked><span>4</span>体制表</label>
+                <hr>
+                <button type="button" class="print-go" id="printGo">印刷／PDF保存</button>
             </div>
         </div>
     </div>
@@ -1767,26 +1776,54 @@ document.addEventListener('keydown', e => {
 window.addEventListener('popstate', readUrl);
 readUrl();
 
-// 印刷：メニューで選んだ資料1つ、または4つの資料すべて（詳細）をまとめて印刷する
-document.querySelectorAll('[data-print]').forEach(btn => btn.addEventListener('click', () => {
-    const doc = btn.dataset.print;
-    const one = doc !== 'all';
-    document.body.classList.toggle('print-pick', one);
-    document.querySelectorAll('.sub-panel').forEach(p => p.classList.toggle('print-target', one && p.id === 'panel-' + doc));
+// 印刷：選んだもの（概要と4つの資料の詳細）を、この順番で資料ごとにページを分けて印刷する
+const PRINT_ORDER = ['overview', ...DOCS];
+function printDocs(list) {
+    const picked = PRINT_ORDER.filter(k => list.includes(k));
+    if (!picked.length) return;
+    document.body.classList.add('print-pick');
+    document.body.classList.toggle('print-ov', picked.includes('overview'));
+    document.querySelectorAll('.sub-panel').forEach(p => p.classList.toggle('print-target', picked.includes(p.id.replace(/^panel-/, ''))));
+    const first = picked[0] === 'overview' ? document.getElementById('overview') : document.getElementById('panel-' + picked[0]);
+    if (first) first.classList.add('print-first');
     window.print();
-}));
+}
+// 各資料のページの「この資料を印刷／PDF保存」：その資料だけ
+document.querySelectorAll('[data-print]').forEach(btn => btn.addEventListener('click', () => printDocs([btn.dataset.print])));
+// 右上のメニュー：チェックを入れたものをまとめて印刷。選んだ組み合わせはブラウザに覚えておく
+(function () {
+    const KEY = 'gaichu_print_pick';
+    const boxes = [...document.querySelectorAll('[data-print-pick]')];
+    const all = document.getElementById('printAll'), go = document.getElementById('printGo');
+    try {
+        const saved = JSON.parse(localStorage.getItem(KEY) || 'null');
+        if (Array.isArray(saved)) boxes.forEach(b => { b.checked = saved.includes(b.dataset.printPick); });
+    } catch (e) { /* 読めなければ全部選択のまま */ }
+    const picked = () => boxes.filter(b => b.checked).map(b => b.dataset.printPick);
+    function sync() {
+        const n = picked().length;
+        all.checked = n === boxes.length;
+        all.indeterminate = n > 0 && n < boxes.length;
+        go.disabled = !n;
+        localStorage.setItem(KEY, JSON.stringify(picked()));
+    }
+    boxes.forEach(b => b.addEventListener('change', sync));
+    all.addEventListener('change', () => { boxes.forEach(b => { b.checked = all.checked; }); sync(); });
+    go.addEventListener('click', () => printDocs(picked()));
+    sync();
+})();
 // 印刷メニューの開閉（項目を選ぶか、外をクリックすると閉じる）
 (function () {
     const btn = document.getElementById('printMenuBtn'), menu = document.getElementById('printMenuList');
     const setOpen = on => { menu.hidden = !on; btn.setAttribute('aria-expanded', on); };
     btn.addEventListener('click', e => { e.stopPropagation(); setOpen(menu.hidden); });
-    menu.addEventListener('click', () => setOpen(false), true);
+    menu.addEventListener('click', e => { if (e.target.closest('#printGo')) setOpen(false); }, true);
     document.addEventListener('click', e => { if (!e.target.closest('.print-menu')) setOpen(false); });
     document.addEventListener('keydown', e => { if (e.key === 'Escape') setOpen(false); });
 })();
 window.addEventListener('afterprint', () => {
-    document.body.classList.remove('print-pick');
-    document.querySelectorAll('.sub-panel.print-target').forEach(p => p.classList.remove('print-target'));
+    document.body.classList.remove('print-pick', 'print-ov');
+    document.querySelectorAll('.print-target, .print-first').forEach(p => p.classList.remove('print-target', 'print-first'));
 });
 
 
