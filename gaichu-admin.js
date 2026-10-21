@@ -55,9 +55,9 @@
 .ga-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 .ga-combo { position: relative; }
 .ga-combo-list { position: absolute; left: 0; right: 0; top: calc(100% + 2px); z-index: 2; max-height: 260px; overflow-y: auto; background: #fff; border: 1px solid #cfd0cc; border-radius: 6px; box-shadow: 0 6px 20px rgba(0,0,0,0.15); }
-.ga-combo-item { display: flex; gap: 10px; align-items: baseline; width: 100%; padding: 7px 10px; border: 0; background: none; text-align: left; font: inherit; font-size: 13px; cursor: pointer; color: #2b2f36; }
-.ga-combo-item b { min-width: 44px; color: #2b2f36; }
-.ga-combo-item small { color: #5b6068; font-size: 12px; }
+.ga-combo-item { display: grid; grid-template-columns: 44px minmax(0, 11em) minmax(0, 1fr); gap: 10px; align-items: baseline; width: 100%; padding: 7px 10px; border: 0; background: none; text-align: left; font: inherit; font-size: 13px; cursor: pointer; color: #2b2f36; }
+.ga-combo-item b { color: #2b2f36; }
+.ga-combo-item small { color: #5b6068; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ga-combo-item:hover, .ga-combo-item.is-active { background: #eceef1; }
 .ga-combo-empty { padding: 8px 10px; color: #6b7079; font-size: 12.5px; }`;
         document.head.appendChild(st);
@@ -105,10 +105,10 @@
         let active = -1, shown = [];
         const draw = () => {
             const q = input.value.trim().toLowerCase();
-            shown = items.filter(it => !q || it.pn.toLowerCase().includes(q) || (it.name || '').toLowerCase().includes(q)).slice(0, 100);
+            shown = items.filter(it => !q || [it.pn, it.customer, it.name].some(s => (s || '').toLowerCase().includes(q))).slice(0, 100);
             active = Math.min(active, shown.length - 1);
             list.innerHTML = shown.length
-                ? shown.map((it, i) => `<button type="button" class="ga-combo-item${i === active ? ' is-active' : ''}" data-i="${i}"><b>${esc(it.pn)}</b><small>${esc(it.name || '')}</small></button>`).join('')
+                ? shown.map((it, i) => `<button type="button" class="ga-combo-item${i === active ? ' is-active' : ''}" data-i="${i}"><b>${esc(it.pn)}</b><small title="${esc(it.customer || '')}">${esc(it.customer || '')}</small><small title="${esc(it.name || '')}">${esc(it.name || '')}</small></button>`).join('')
                 : '<div class="ga-combo-empty">該当する工番がありません（直接入力もできます）</div>';
             list.hidden = false;
         };
@@ -132,14 +132,16 @@
         let ctx;
         try { ctx = await context(); } catch (e) { alert('読み込めませんでした：' + (e.message || e)); return; }
         // 候補：工程表で担当に「外注」が入っているタスクがあり、まだ外注先シートがない工番（並びは工程表の工事一覧と同じ）
-        const { data: jobs } = await db().from('tasks').select('project_number, project_details').ilike('owner', '%外注%').limit(5000);
+        const { data: jobs } = await db().from('tasks').select('project_number, project_details, customer_name').ilike('owner', '%外注%').limit(5000);
         const jobMap = new Map();
         (jobs || []).forEach(j => {
             const pn = String(j.project_number || '').trim();
-            if (pn && (!jobMap.has(pn) || (!jobMap.get(pn) && j.project_details))) jobMap.set(pn, j.project_details || '');
+            if (!pn) return;
+            const cur = jobMap.get(pn) || { name: '', customer: '' };
+            jobMap.set(pn, { name: cur.name || j.project_details || '', customer: cur.customer || j.customer_name || '' });
         });
         const usedPns = new Set(ctx.sheets.map(s => s.pn));
-        const candidates = [...jobMap.keys()].filter(pn => !usedPns.has(pn)).sort().map(pn => ({ pn, name: jobMap.get(pn) }));
+        const candidates = [...jobMap.keys()].filter(pn => !usedPns.has(pn)).sort().map(pn => ({ pn, ...jobMap.get(pn) }));
         const usedColors = new Set(ctx.sheets.map(s => s.color));
         const freeColor = PALETTE.find(c => !usedColors.has(c)) || PALETTE[0];
         const here = fixedPn ? ctx.sheets.filter(s => s.pn === fixedPn).map(s => s.vendor_id) : [];
