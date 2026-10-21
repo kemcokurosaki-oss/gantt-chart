@@ -1478,12 +1478,6 @@
     /* ===== 印刷／PDF ===== */
     @media print {
         @page { size: A4 landscape; margin: 10mm; }
-        /* 仕様書だけを印刷するときは縦の用紙にする（ほかの資料と一緒のときは、プリンターで向きが混ざらないよう全部横） */
-        @page tate { size: A4 portrait; margin: 10mm; }
-        body.print-tate .sticky-wrapper, body.print-tate #panel-order-spec { page: tate; }
-        /* 縦の用紙は幅が狭い（約718px）ので、仕様書の表は文字と余白を小さくして幅に収める */
-        body.print-tate #panel-order-spec table { width: 100% !important; min-width: 0 !important; }
-        body.print-tate #panel-order-spec th, body.print-tate #panel-order-spec td { padding: 4px 5px !important; font-size: 11px !important; white-space: normal !important; }
         .contact-card, .contact-grid { break-inside: avoid; }
         * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         body { background: #fff; font-size: 12px; padding-left: 0 !important; }
@@ -1818,7 +1812,6 @@ function printDocs(list) {
     document.querySelectorAll('.sub-panel').forEach(p => p.classList.toggle('print-target', picked.includes(p.id.replace(/^panel-/, ''))));
     const first = picked[0] === 'overview' ? document.getElementById('overview') : document.getElementById('panel-' + picked[0]);
     if (first) first.classList.add('print-first');
-    document.body.classList.toggle('print-tate', picked.length === 1 && picked[0] === 'order-spec');
     window.print();
 }
 // 各資料のページの「この資料を印刷／PDF保存」：その資料だけ
@@ -1855,7 +1848,7 @@ document.querySelectorAll('[data-print]').forEach(btn => btn.addEventListener('c
     document.addEventListener('keydown', e => { if (e.key === 'Escape') setOpen(false); });
 })();
 window.addEventListener('afterprint', () => {
-    document.body.classList.remove('print-pick', 'print-ov', 'print-tate');
+    document.body.classList.remove('print-pick', 'print-ov');
     document.querySelectorAll('.print-target, .print-first').forEach(p => p.classList.remove('print-target', 'print-first'));
 });
 
