@@ -207,8 +207,9 @@
         const s = sh.spec || {};
         const machines = (Array.isArray(s.machines) ? s.machines : []).map(m => [m.machine, m.unit].filter(Boolean).join(' ')).filter(Boolean);
         const u = s.utility || {}, p = s.paint || {};
+        // ご担当者は、仕様書で入力していなければ外注先マスタの代表者（仕様書の詳細と同じ）
         const facts = [
-            ['改訂', s.revision], ['ご担当者', s.contact || GS.repLabel(sh)],   // 仕様書で入力していなければ、外注先マスタの代表者（仕様書の詳細と同じ） ['発注機械', machines.join(' / ')],
+            ['改訂', s.revision], ['ご担当者', s.contact || GS.repLabel(sh)], ['発注機械', machines.join(' / ')],
             ['機械色', p['機械色']], ['動力電源', [u.power_v, u.power_kva].filter(Boolean).join('　')], ['圧縮空気', u.air],
         ];
         // 項目名は常に出し、未入力の項目は「―」にする（入力漏れに気づけるように）
