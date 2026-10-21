@@ -1537,13 +1537,13 @@
         <input type="text" id="jobNavSearch" placeholder="工番・工事名・業者名">
     </div>
     <div class="job-nav-list" id="jobNavList"><p class="jn-msg">読込中…</p></div>
-    <!-- この工事の資料（目次）：押すとその章へ移動。スクロールに合わせて今いる章を強調する -->
+    <!-- この工事の資料：押すとその資料の詳細を開く（概要の「詳しく見る →」と同じ）。開いている資料を強調する -->
     <div class="job-nav-toc" id="jobNavToc">
         <span class="jn-foot-label">この工事の資料</span>
-        <button type="button" class="toc-btn active" data-goto="1"><span>1</span>組立範囲</button>
-        <button type="button" class="toc-btn" data-goto="2"><span>2</span>工程表</button>
-        <button type="button" class="toc-btn" data-goto="3"><span>3</span>組立発注仕様書</button>
-        <button type="button" class="toc-btn" data-goto="4"><span>4</span>体制表</button>
+        <button type="button" class="toc-btn" data-doc="scope"><span>1</span>組立範囲</button>
+        <button type="button" class="toc-btn" data-doc="schedule"><span>2</span>工程表</button>
+        <button type="button" class="toc-btn" data-doc="order-spec"><span>3</span>組立発注仕様書</button>
+        <button type="button" class="toc-btn" data-doc="trial"><span>4</span>体制表</button>
     </div>
     <div class="job-nav-foot" id="jobNavAdmin"></div>
 </nav>
@@ -1733,6 +1733,7 @@ function openDoc(doc, push) {
         p.classList.toggle('open', on);
     });
     document.body.classList.toggle('sub-open', !!doc);
+    document.querySelectorAll('.toc-btn').forEach(b => b.classList.toggle('active', b.dataset.doc === doc));
     setParam('doc', doc, push);
     updateStickyHeight();
     window.dispatchEvent(new Event('resize'));   // 非表示中は大きさが0なので、図面の枠・体制表の縮小を合わせ直す
@@ -1758,28 +1759,6 @@ document.addEventListener('keydown', e => {
 });
 window.addEventListener('popstate', readUrl);
 readUrl();
-
-// 目次：押すとその章へ移動（詳細が開いていれば閉じる）。スクロールに合わせて今いる章を強調する
-(function () {
-    const btns = [...document.querySelectorAll('.toc-btn')];
-    const chapter = n => document.querySelector(`.ov-chapter[data-ch="${n}"]`);
-    const mark = n => btns.forEach(b => b.classList.toggle('active', b.dataset.goto === String(n)));
-    btns.forEach(b => b.addEventListener('click', () => {
-        if (document.body.classList.contains('sub-open')) openDoc('', true);
-        const el = chapter(b.dataset.goto);
-        if (!el) return;
-        const top = el.getBoundingClientRect().top + window.scrollY - document.querySelector('.sticky-wrapper').offsetHeight - 12;
-        window.scrollTo({ top, behavior: 'smooth' });
-    }));
-    function spy() {
-        const off = document.querySelector('.sticky-wrapper').offsetHeight + 60;
-        let cur = 1;
-        [1, 2, 3, 4].forEach(n => { const el = chapter(n); if (el && el.getBoundingClientRect().top <= off) cur = n; });
-        if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4) cur = 4;
-        mark(cur);
-    }
-    window.addEventListener('scroll', spy, { passive: true });
-})();
 
 // 印刷：「表示中のページだけ」は概要（詳細が開いていればその資料）、「4つの資料すべて」は詳細を4つまとめて
 document.querySelectorAll('#printOneBtn, [data-print-one]').forEach(btn => btn.addEventListener('click', () => {
