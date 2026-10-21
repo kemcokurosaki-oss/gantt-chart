@@ -31,6 +31,7 @@
 
     let editing = false;
     let draft = null;     // 編集中の入力値（保存するまでDBには書かない）
+    let revNote = '', revSkip = false;   // 今回の改訂内容・「改訂として記録しない」（仕様書の中身ではないので draft とは分けて持つ）
     let draftSheetId = null;
 
     function esc(s) {
@@ -47,6 +48,7 @@
         s.contact = s.contact || '';
         s.revision = s.revision || '';
         s.revision_note = s.revision_note || '';
+        s.revisions = Array.isArray(s.revisions) ? s.revisions : [];   // 改訂の履歴 [{ rev, date, note }]
         s.machines = Array.isArray(s.machines) ? s.machines : [];
         s.paint = s.paint || {};
         s.utility = s.utility || {};
@@ -58,6 +60,19 @@
         return s;
     }
     const input = (path, value, extra) => `<input type="text" class="spec-input" data-path="${path}" value="${esc(value)}"${extra || ''}>`;
+    // 編集中に、工程表・外注先マスタから自動で表示している項目に付ける目印
+    const autoTag = (e, text) => e ? `<span class="spec-auto">${text}</span>` : '';
+
+    // ===== 改訂 =====
+    // 次の改訂番号：未発行なら「初版」、初版の次は R1、R2 の次は R3
+    function nextRev(rev) {
+        const m = /R\s*(\d+)/i.exec(rev || '');
+        if (m) return 'R' + (Number(m[1]) + 1);
+        return String(rev || '').trim() ? 'R1' : '初版';
+    }
+    const today = () => { const d = new Date(); return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`; };
+    // 改訂の番号・日付・内容を除いた仕様書の中身（変更があったかどうかの判定に使う）
+    const body = s => JSON.stringify(Object.assign({}, s, { revision: '', revision_note: '', revisions: [] }));
 
     // ===== 描画 =====
     // 2-4) 弊社担当（全工番共通・外注先用シートの設定から）。1人目は青、2人目以降は灰色の帯
@@ -94,15 +109,19 @@
         const p = st.project;
 
         const info = `<div class="info-grid">
-            <div class="info-item"><div class="k">1-1) 工事番号</div><div class="v">${esc(st.pn)}</div></div>
-            <div class="info-item"><div class="k">1-2) 工事名称</div><div class="v">${dash(p.name)}</div></div>
-            <div class="info-item"><div class="k">1-3) 貴社名</div><div class="v">${dash(sheet.name)}</div></div>
+            <div class="info-item"><div class="k">1-1) 工事番号</div><div class="v">${esc(st.pn)}${autoTag(e, '自動')}</div></div>
+            <div class="info-item"><div class="k">1-2) 工事名称</div><div class="v">${dash(p.name)}${autoTag(e, '工程表から自動表示')}</div></div>
+            <div class="info-item"><div class="k">1-3) 貴社名</div><div class="v">${dash(sheet.name)}${autoTag(e, '外注先マスタから自動表示')}</div></div>
             <div class="info-item"><div class="k">1-4) ご担当者</div><div class="v">${e
-                ? input('contact', s.contact, ` placeholder="${esc(GS.repLabel(sheet) ? `空欄のときは代表者（${GS.repLabel(sheet)}）を表示` : '例：取締役工場長　山田 太郎 様')}"`)
+                ? input('contact', s.contact, ` placeholder="${esc(GS.repLabel(sheet) ? `空欄なら代表者（${GS.repLabel(sheet)}）` : '例：取締役工場長　山田 太郎 様')}"`)
+                  + `<small>空欄のときは、外注先マスタの代表者を自動表示します</small>`
                 : dash(s.contact || GS.repLabel(sheet))}</div></div>
-            <div class="info-item"><div class="k">1-5) 出荷納期</div><div class="v">${fmtDate(p.shipDate)}</div></div>
+            <div class="info-item"><div class="k">1-5) 出荷納期</div><div class="v">${fmtDate(p.shipDate)}${autoTag(e, '工程表から自動表示')}</div></div>
             <div class="info-item"><div class="k">改訂</div><div class="v">${e
-                ? input('revision', s.revision, ' placeholder="例：R2（2026/9/2）"') + input('revision_note', s.revision_note, ' placeholder="例：初版：2026/6/18／改訂内容"')
+                ? `${dash(s.revision)}${s.revision_note ? `<small>${esc(s.revision_note)}</small>` : ''}`
+                  + `<div class="spec-rev"><small>内容を変更して保存すると「<b>${esc(nextRev(s.revision))}（${today()}）</b>」になります</small>`
+                  + `<input type="text" class="spec-rev-note" value="${esc(revNote)}" placeholder="今回の改訂内容（例：塗装色を変更）"${revSkip ? ' disabled' : ''}>`
+                  + `<label class="spec-rev-skip"><input type="checkbox" class="spec-rev-skip-cb"${revSkip ? ' checked' : ''}>改訂として記録しない（誤字の修正など）</label></div>`
                 : `${dash(s.revision)}${s.revision_note ? `<small>${esc(s.revision_note)}</small>` : ''}`}</div></div>
         </div>`;
 
@@ -161,20 +180,38 @@
         if (!sheet) return;
         draft = normalize(sheet.spec);
         draftSheetId = sheet.id;
+        revNote = ''; revSkip = false;
         editing = true;
         render();
     }
-    function endEdit() { editing = false; draft = null; draftSheetId = null; render(); }
+    function endEdit() { editing = false; draft = null; draftSheetId = null; revNote = ''; revSkip = false; render(); }
+    root.addEventListener('input', e => { if (e.target.classList.contains('spec-rev-note')) revNote = e.target.value; });
+    root.addEventListener('change', e => {
+        if (!e.target.classList.contains('spec-rev-skip-cb')) return;
+        revSkip = e.target.checked;
+        const note = root.querySelector('.spec-rev-note');
+        if (note) note.disabled = revSkip;
+    });
     function isDirty() {
         if (!editing) return false;
         collect();
         const sheet = GS.sheetById(draftSheetId);
-        return JSON.stringify(draft) !== JSON.stringify(normalize(sheet && sheet.spec));
+        return !!revNote.trim() || JSON.stringify(draft) !== JSON.stringify(normalize(sheet && sheet.spec));
     }
     async function save() {
         collect();
         // 空の行（すべて空欄）は保存しない
         draft.machines = draft.machines.filter(m => MACHINE_COLS.some(c => String(m[c[0]] || '').trim()));
+        // 中身を変更したときは、改訂番号と日付を自動で進め、改訂内容を履歴に残す（「改訂として記録しない」のときはそのまま）
+        const orig = normalize((GS.sheetById(draftSheetId) || {}).spec);
+        if (!revSkip && body(draft) !== body(orig)) {
+            if (!revNote.trim() && !confirm('「今回の改訂内容」が空欄です。このまま保存しますか？')) return;
+            const rev = nextRev(orig.revision), date = today();
+            if (!draft.revisions.length && orig.revision) draft.revisions.push({ rev: orig.revision, date: '', note: orig.revision_note });
+            draft.revisions.push({ rev, date, note: revNote.trim() });
+            draft.revision = `${rev}（${date}）`;
+            draft.revision_note = revNote.trim();
+        }
         const btn = root.querySelector('[data-spec="save"]');
         if (btn) { btn.disabled = true; btn.textContent = '保存中…'; }
         try {
