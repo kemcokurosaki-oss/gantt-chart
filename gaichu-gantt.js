@@ -143,7 +143,7 @@
         const byKey = k => rows.filter(r => r.key === k);
         const unset = byKey(null);
         // 振り分けの方法（工程表の編集画面の案内）は管理者だけに出す
-        const unsetNote = GS.state.isAdmin ? `${unset.length}工程（工程表の編集画面で「外注先企業」を入れると振り分けられます）` : `${unset.length}工程`;
+        const unsetNote = GS.state.isAdmin ? '（工程表の編集画面で「外注先企業」を入れると振り分けられます）' : '';
         const unsetGroup = unset.length ? [{ name: GS.state.isAdmin ? '外注先未設定' : '担当未定', note: unsetNote, ...UNSET, tint: '#eeeeeb', ink: '#2b2f36', rows: unset, open: true }] : [];
         const vid = GS.state.currentSheet ? GS.state.currentSheet.vendor_id : null;
         const groups = [];
