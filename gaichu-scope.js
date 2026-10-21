@@ -46,7 +46,21 @@
     function partyInfo(key) {
         return parties().find(p => String(p.key) === String(key)) || { key, label: '（不明な担当）', color: '#95a5a6' };
     }
-    const partyChip = key => { const p = partyInfo(key); return GS.chipHtml(p.label, p.color); };
+    const partyChip = key => { const p = partyInfo(key); return GS.chipHtml(p.label, p.color).replace('<span class="party-chip"', `<span class="party-chip" data-party="${esc(key)}"`); };
+    // 試運転場所などの文字を担当先に当てはめる（「大洋金属㈱殿」「株式会社ニッシン」「日下部電機」などの書き方の違いはそろえて比べる）
+    const nameKey = s => String(s || '').normalize('NFKC').replace(/殿|様|株式会社|\(株\)|㈱|有限会社|\(有\)|\s/g, '');
+    function partyByName(text) {
+        const k = nameKey(text);
+        if (!k) return null;
+        return parties().find(p => { const pk = nameKey(p.label); return pk && (pk === k || pk.includes(k) || k.includes(pk)); })
+            || (k.includes(nameKey(GS.KUSAKABE.name)) || k.includes('日下部') ? partyInfo(KUSAKABE) : null);
+    }
+    // 試運転場所の表示：担当先に当てはまればその色のバッジ、当てはまらなければ灰色のバッジ
+    function placeChip(text) {
+        if (!String(text || '').trim()) return '―';
+        const p = partyByName(text);
+        return p ? GS.chipHtml(text, p.color).replace('<span class="party-chip"', `<span class="party-chip" data-party="${esc(p.key)}"`) : GS.chipHtml(text, '#95a5a6');
+    }
     const vendorFilter = () => (GS.state.currentSheet ? GS.state.currentSheet.vendor_id : null);
     function rowVisible(row, cols) {
         const vid = vendorFilter();
@@ -110,7 +124,7 @@
         // サムネイルは行ごとに高さをそろえ、横幅を縦横比で配分して余白なく並べる（flex-grow＝縦横比、flex-basis＝縦横比×行の高さ）
         const flexOf = f => { const r = ratioOf[figSrc(f)] || 1.6; return `flex:${r} 1 ${Math.round(r * THUMB_H)}px`; };
         const figs = d.figures.map((f, i) => `<div class="figure-card" data-fi="${i}" style="${flexOf(f)}">
-                ${figSrc(f) ? `<div class="fig-img-wrap"><img src="${esc(figSrc(f))}" alt="${esc(f.caption || '図面')}" data-open-fig="${i}"><svg class="fig-zones" data-fz="${i}" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg></div>` : '<div class="fig-missing">画像を読み込めませんでした</div>'}
+                ${figSrc(f) ? `<div class="fig-img-wrap"><img src="${esc(figSrc(f))}" alt="${esc(f.caption || '図面')}" data-open-fig="${i}"><svg class="fig-zones" data-fz="${i}" data-open-fig="${i}" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg></div>` : '<div class="fig-missing">画像を読み込めませんでした</div>'}
                 ${eF ? `<input type="text" class="spec-input fig-cap-input" data-cap="${i}" value="${esc(f.caption)}" placeholder="図面の見出し（例：【全体図】ライン全体の俯瞰図）">
                        <div class="fig-edit"><button type="button" data-sc="figleft" data-i="${i}" title="左へ">◀</button><button type="button" data-sc="figright" data-i="${i}" title="右へ">▶</button><button type="button" class="spec-del" data-sc="figdel" data-i="${i}" title="この図面を削除">✕ 削除</button></div>`
                     : `<div class="figure-caption">${esc(f.caption)}</div>`}
@@ -126,12 +140,14 @@
                  <small>${c.type === 'party' ? '担当の列' : '文字の列'}</small></th>`
             : `<th>${esc(c.label)}</th>`).join('') + (eT ? '<th style="width:74px;"></th>' : '');
         const rowsShown = d.rows.map((r, ri) => ({ r, ri })).filter(x => eT || rowVisible(x.r, cols));
-        const body = rowsShown.length ? rowsShown.map(({ r, ri }) => `<tr>${cols.map(c => {
+        const rowParties = r => { const ks = [...new Set(cols.filter(c => c.type === 'party').flatMap(c => (r[c.key] || []).map(String)))]; const out = ks.filter(k => k !== KUSAKABE); return (out.length ? out : ks).join(' '); };
+        const body = rowsShown.length ? rowsShown.map(({ r, ri }) => `<tr${eT ? '' : ` data-parties="${esc(rowParties(r))}"`}>${cols.map(c => {
                 if (c.type === 'party') {
                     const ks = r[c.key] || [];
                     const chips = ks.length ? ks.map(partyChip).join('') : (eT ? '' : '―');
                     return eT ? `<td class="party-cell" data-party-cell="${ri}" data-key="${esc(c.key)}" title="クリックで担当を選ぶ">${chips}<span class="party-pick">＋選ぶ</span></td>` : `<td>${chips}</td>`;
                 }
+                if (!eT && c.key === 'trial_place') return `<td>${placeChip(r[c.key])}</td>`;
                 return `<td>${eT ? `<input type="text" class="spec-input" data-cell="${ri}" data-key="${esc(c.key)}" value="${esc(r[c.key])}">` : (esc(r[c.key]) || '―')}</td>`;
             }).join('')}${eT ? `<td class="scope-row-btns"><button type="button" data-sc="rowup" data-i="${ri}" title="上へ">↑</button><button type="button" data-sc="rowdown" data-i="${ri}" title="下へ">↓</button><button type="button" class="spec-del" data-sc="rowdel" data-i="${ri}" title="この行を削除">✕</button></td>` : ''}</tr>`).join('')
             : `<tr><td colspan="${cols.length + (eT ? 1 : 0)}" class="spec-empty">${d.rows.length ? 'この外注先が担当に入っている行はありません' : '（未入力）'}</td></tr>`;
@@ -170,7 +186,7 @@
         const vid = vendorFilter();
         return (zones || []).filter(z => vid == null || String(z.party) === String(vid) || z.party === KUSAKABE).map(z => {
             const color = partyInfo(z.party).color;
-            return `<polygon points="${ptsAttr(cornersU(z, a))}" fill="${esc(color)}" fill-opacity="0.42" stroke="${darken(color)}" stroke-width="1.2" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>`;
+            return `<polygon data-party="${esc(z.party)}" points="${ptsAttr(cornersU(z, a))}" fill="${esc(color)}" fill-opacity="0.42" stroke="${darken(color)}" stroke-width="1.2" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>`;
         }).join('');
     }
     function layoutThumbZones() {
@@ -200,6 +216,7 @@
                 const a = img.naturalHeight / img.naturalWidth;
                 svg.setAttribute('viewBox', `0 0 100 ${100 * a}`);
                 svg.innerHTML = zoneShapes(f && f.zones, a);
+                if (hlKeys) highlight(hlKeys);   // 枠を描き直しても、マウスを乗せている担当先の強調を保つ
             };
             if (img.complete) place(); else img.addEventListener('load', place, { once: true });
         });
@@ -340,6 +357,23 @@
         bg.querySelector('[data-ok]').addEventListener('click', ok);
         label.addEventListener('keydown', e => { if (e.key === 'Enter') ok(); });
     }
+
+    let hlKeys = null;   // 強調している担当先（色分け枠を描き直したときに付け直す）
+    function highlight(keys) {
+        const on = keys && keys.length ? new Set(keys.map(String)) : null;
+        hlKeys = on ? [...on] : null;
+        root.classList.toggle('scope-hl', !!on);
+        root.querySelectorAll('[data-party]').forEach(n => n.classList.toggle('hl', !!on && on.has(n.dataset.party)));
+        root.querySelectorAll('tr[data-parties]').forEach(n => n.classList.toggle('hl', !!on && n.dataset.parties.split(' ').some(k => on.has(k))));
+    }
+    root.addEventListener('mouseover', e => {
+        if (editing) return;
+        const chip = e.target.closest('.party-chip[data-party], polygon[data-party]');
+        if (chip) { highlight([chip.dataset.party]); return; }
+        const row = e.target.closest('tr[data-parties]');
+        highlight(row && row.dataset.parties ? row.dataset.parties.split(' ') : null);
+    });
+    root.addEventListener('mouseleave', () => highlight(null));
 
     root.addEventListener('click', e => {
         const img = e.target.closest('[data-open-fig]');

@@ -337,6 +337,15 @@
     .scope-figs .figure-add { flex: 1 1 260px; min-height: 200px; }
     .fig-img-wrap { position: relative; }
     .fig-zones { position: absolute; pointer-events: none; overflow: visible; }
+    /* 担当範囲（詳細）：バッジ・行・色分け枠にマウスを乗せると、同じ担当先を強調する（概要ページと同じ） */
+    .scope-figs .fig-zones polygon { pointer-events: visiblePainted; cursor: zoom-in; transition: fill-opacity .15s, opacity .15s, stroke-width .15s; }
+    .scope-hl .fig-zones polygon { opacity: 0.25; }
+    .scope-hl .fig-zones polygon.hl { opacity: 1; fill-opacity: 0.62; stroke-width: 3; }
+    .scope-table .party-chip { transition: box-shadow .15s; }
+    .scope-hl .scope-table .party-chip.hl { box-shadow: 0 0 0 2px currentColor; }
+    .scope-table tr[data-parties] { transition: opacity .15s, background .15s; }
+    .scope-hl .scope-table tr[data-parties] { opacity: 0.45; }
+    .scope-hl .scope-table tr[data-parties].hl { opacity: 1; background: #f7f7f5; }
     .fig-missing { height: 230px; display: flex; align-items: center; justify-content: center; background: #f3f3f1; color: #6b7079; font-size: 13px; }
     .scope-table td { white-space: nowrap; }
     .scope-table .party-chip { margin: 1px 2px; }
@@ -1872,7 +1881,7 @@ window.addEventListener('afterprint', () => {
 <script src="gaichu-jobnav.js?v=20261021d"></script>
 <script src="gaichu-overview.js?v=20261021l"></script>
 <script src="gaichu-spec.js?v=20261021b"></script>
-<script src="gaichu-scope.js?v=20261020n"></script>
+<script src="gaichu-scope.js?v=20261021b"></script>
 <script src="gaichu-gantt.js?v=20261021f"></script>
 <script src="org-chart.js?v=20261021b"></script>
 
