@@ -124,7 +124,7 @@
         const pub = cur && publicPns.has(cur);
         admin.innerHTML = isAdmin && window.GaichuAdmin
             ? `<span class="jn-foot-label">管理者メニュー</span><button type="button" class="jn-btn" data-jn="add">＋ 外注先シートを追加</button><button type="button" class="jn-btn" data-jn="vendors">外注先マスタの管理</button>`
-              + (cur ? `<button type="button" class="jn-btn jn-public${pub ? ' on' : ''}" data-jn="public" title="表示中の工番（${esc(cur)}）の社内公開のオン／オフを切り替えます"><i></i>${esc(cur)} の社内公開：${pub ? 'オン' : 'オフ（管理者のみ）'}</button>` : '')
+              + (cur ? `<button type="button" class="jn-btn jn-public${pub ? ' on' : ''}" data-jn="public" title="表示中の工番（${esc(cur)}）の社内公開のオン／オフを切り替えます"><i></i>${esc(cur)} の社内公開：${pub ? 'オン' : 'オフ'}</button>` : '')
             : '';
         if (!projects.length) {
             list.innerHTML = `<p class="jn-msg">外注先シートはまだ登録されていません。${isAdmin ? '「＋ 外注先シートを追加」から登録してください。' : ''}</p>`;
