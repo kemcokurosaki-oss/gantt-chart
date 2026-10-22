@@ -388,10 +388,11 @@
     }
 
     // 担当の選択（マスをクリックすると出る小さな選択欄）
-    let picker = null;
-    function closePicker() { if (picker) { picker.remove(); picker = null; } }
+    let picker = null, pickerCell = null;   // 開いている担当の選択肢と、そのマス
+    function closePicker() { if (picker) { picker.remove(); picker = null; } pickerCell = null; }
     function openPicker(cell) {
         closePicker();
+        pickerCell = cell;
         const ri = Number(cell.dataset.partyCell), key = cell.dataset.key;
         const cur = keysOf(draft.rows[ri][key]).map(String);
         picker = document.createElement('div');
@@ -484,7 +485,8 @@
         const img = e.target.closest('[data-open-fig]');
         if (img) { openLightbox(Number(img.dataset.openFig)); return; }
         const cell = editing && e.target.closest('.party-cell');
-        if (cell) openPicker(cell);
+        // 同じマスをもう一度クリックしたら閉じる
+        if (cell) { if (picker && pickerCell === cell) closePicker(); else openPicker(cell); }
     });
     root.addEventListener('input', e => {
         if (!editing) return;
