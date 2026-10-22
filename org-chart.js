@@ -186,17 +186,19 @@
                 : '';
             return;
         }
+        // 編集中の道具は外注先の切り替えと同じ行に並べる（左：編集の道具、右：キャンセル・保存）
         tools.innerHTML = `
             <div class="oc-toolrow">
-                <button type="button" class="oc-btn" data-t="undo"${undoStack.length ? '' : ' disabled'}>↶ 元に戻す</button>
-                <button type="button" class="oc-btn" data-t="addchart">＋系統を追加</button>
-                <button type="button" class="oc-btn" data-t="staff">社内名簿の管理</button>
-                <button type="button" class="oc-btn oc-btn--ghost" data-t="help">💡 ヒント表示</button>
+                <span class="scope-editing-tag">編集中</span>
+                <div class="oc-toolgroup">
+                    <button type="button" class="oc-tg-btn" data-t="undo" title="直前の操作を取り消す（Ctrl+Z）"${undoStack.length ? '' : ' disabled'}><span class="oc-tg-ic">↶</span>元に戻す</button>
+                    <button type="button" class="oc-tg-btn" data-t="addchart" title="空の系統（表）を右端に追加"><span class="oc-tg-ic">＋</span>系統を追加</button>
+                    <button type="button" class="oc-tg-btn" data-t="staff" title="カードのプルダウンに出る社内の人を登録・変更"><span class="oc-tg-ic">☰</span>社内名簿</button>
+                </div>
                 <span class="oc-spacer"></span>
-                <button type="button" class="oc-btn oc-btn--ghost" data-t="cancel">キャンセル</button>
-                <button type="button" class="oc-btn oc-btn--primary" data-t="save">保存</button>
-            </div>
-            <div class="oc-selbar oc-selbar--idle">カードにマウスを乗せると、そのカードの上下左右に「＋」が出ます。押すとその位置にカードを追加できます。カードをクリックすると修正・削除。できあがったら「保存」を押してください。</div>`;
+                <button type="button" class="spec-btn" data-t="cancel">キャンセル</button>
+                <button type="button" class="spec-btn spec-btn--primary" data-t="save">保存</button>
+            </div>`;
     }
 
     // ===== 操作（すべて undo 可能） =====
@@ -301,7 +303,6 @@
         await load();
     }
     function endEdit() {
-        closeHelp();
         editing = false;
         trialDraft = null;
         deletedIds = [];
@@ -1066,7 +1067,6 @@
             case 'save': await save(); return;
             case 'staff': staffDialog(); return;
             case 'undo': undo(); return;
-            case 'help': openHelp(); return;
             case 'addchart': pushUndo(); charts.push({ id: null, title: '新しい系統', tree: [] }); break;
             case 'cancel':
                 if (!confirm('編集内容を破棄して元に戻しますか？')) return;
@@ -1082,84 +1082,6 @@
         if (e.target.matches('input, textarea, select')) return;
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); undo(); }
     });
-
-    // ===== ヒント表示（工程表のヒント表示と同じ方式：対象を枠でハイライトし、ホバーで吹き出し） =====
-    // sel は編集ツールバー → 体制表の順に最初に見つかった要素を対象にする。pad は枠を外側に広げる量（＋ボタンを含めるため）
-    const HELP_TIPS = [
-        { sel: '[data-t="help"]', title: 'ヒント表示', text: '各所の説明吹き出しを表示します\n暗い部分をクリック（または Esc）で閉じます', noBullets: true, closeOnClick: true },
-        { sel: '[data-t="undo"]', title: '元に戻す', text: '直前の操作を取り消します（Ctrl+Z でも可）\n50回前までさかのぼれます', noBullets: true },
-        { sel: '[data-t="addchart"]', title: '系統を追加', text: '空の系統（表）を右端に追加します\n「＋ カードを追加」から作り始めます', noBullets: true },
-        { sel: '[data-t="staff"]', title: '社内名簿の管理', text: 'カードのプルダウンに出る社内の人の\n追加・変更・削除を行います', noBullets: true },
-        { sel: '[data-t="cancel"]', title: 'キャンセル', text: '保存せずに編集を終え、編集前の状態に戻します', noBullets: true },
-        { sel: '[data-t="save"]', title: '保存', text: '変更を保存して編集を終えます\n整った体制表の表示に戻り、外注先の画面にも反映されます', noBullets: true },
-        { sel: '.oc-chart-head', title: '系統名', text: '欄に直接入力して名前を変更\n◀ ▶ で系統の並び順を入れ替え\n✕ で系統ごと削除' },
-        { sel: '.oc-cell', pad: 28, wide: true, title: 'カード（＋で追加）', text: 'マウスを乗せると上下左右に「＋」が出ます\n下の＋ → 下につながるカードを追加\n左右の＋ → 同じ段の隣に追加（一番上の段はカード同士が横線で結ばれます）\n上の＋ → そのカードの上に差し込み\nカードをクリック → 内容の修正・削除・左右の入れ替え\n社内の人はプルダウンで選択、社外の人は自由入力' },
-        { sel: '.oc-first', title: 'カードを追加', text: '空の系統に最初のカードを追加します', noBullets: true },
-    ];
-
-    function openHelp() {
-        if (document.getElementById('ocHelp')) return;
-        const box = document.createElement('div');
-        box.id = 'ocHelp';
-        box.innerHTML = '<div class="oc-help-bg"></div><button type="button" class="oc-help-guide" title="操作マニュアルを開く">📖 操作マニュアルを開く</button>';
-        document.body.appendChild(box);
-        box.querySelector('.oc-help-bg').addEventListener('click', closeHelp);
-        box.querySelector('.oc-help-guide').addEventListener('click', () => window.open('体制表_編集ガイド.html', '_blank'));
-        const helpBtn = tools.querySelector('[data-t="help"]');
-        if (helpBtn) helpBtn.classList.add('oc-help-active');
-        HELP_TIPS.forEach(t => {
-            const el = tools.querySelector(t.sel) || row.querySelector(t.sel);
-            if (!el) return;
-            const r = el.getBoundingClientRect();
-            if (!r.width || !r.height) return;
-            const p = t.pad || 0;
-            addHelpItem(box, t, { top: r.top - p, left: r.left - p, right: r.right + p, bottom: r.bottom + p });
-        });
-    }
-    // 吹き出し本文：複数行は各行先頭に「・」（noBullets のときは付けない）
-    function formatHelpText(raw, noBullets) {
-        const lines = String(raw).split('\n').map(l => l.trim()).filter(Boolean).map(esc);
-        return noBullets || lines.length <= 1 ? lines.join('<br>') : lines.map(l => '・' + l).join('<br>');
-    }
-    function addHelpItem(box, tip, rect) {
-        const hl = document.createElement('div');
-        hl.className = 'oc-help-hl';
-        Object.assign(hl.style, { top: rect.top + 'px', left: rect.left + 'px', width: (rect.right - rect.left) + 'px', height: (rect.bottom - rect.top) + 'px' });
-        if (tip.closeOnClick) { hl.style.cursor = 'pointer'; hl.addEventListener('click', closeHelp); }
-        box.appendChild(hl);
-
-        const tipDiv = document.createElement('div');
-        tipDiv.className = 'oc-help-tip' + (tip.wide ? ' oc-help-tip--wide' : '');
-        tipDiv.innerHTML = `<div class="oc-help-tip-title">${esc(tip.title)}</div>${formatHelpText(tip.text, tip.noBullets)}`;
-        box.appendChild(tipDiv);
-        requestAnimationFrame(() => {
-            const vw = window.innerWidth, vh = window.innerHeight;
-            const tw = tipDiv.offsetWidth, th = tipDiv.offsetHeight;
-            let top = rect.bottom + 8, left = rect.left;
-            if (left + tw > vw - 8) left = vw - tw - 8;
-            if (left < 4) left = 4;
-            if (top + th > vh - 8) {
-                top = Math.max(4, rect.top - th - 8);
-                tipDiv.classList.add('oc-help-tip--above');
-            }
-            tipDiv.style.top = top + 'px';
-            tipDiv.style.left = left + 'px';
-        });
-        hl.addEventListener('mouseenter', () => tipDiv.classList.add('oc-help-tip--show'));
-        hl.addEventListener('mouseleave', () => tipDiv.classList.remove('oc-help-tip--show'));
-    }
-    function closeHelp() {
-        const box = document.getElementById('ocHelp');
-        if (!box) return;
-        box.remove();
-        const helpBtn = tools.querySelector('[data-t="help"]');
-        if (helpBtn) helpBtn.classList.remove('oc-help-active');
-    }
-    // 枠の位置は開いた時点の画面座標で決めているため、スクロール・サイズ変更したら閉じる
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeHelp(); });
-    window.addEventListener('resize', closeHelp);
-    const helpPanel = row.closest('.fullscreen-overlay');
-    if (helpPanel) helpPanel.addEventListener('scroll', closeHelp);
 
     // ===== モーダル =====
     function openModal(title, bodyHtml, buttons, extraClass) {

@@ -1068,33 +1068,6 @@
         .oc-sd-cols, .oc-sd-row { grid-template-columns: minmax(0, 1fr) 120px 64px; }
         .oc-sd-cols > :nth-child(2), .oc-sd-dept { display: none; }
     }
-    /* ヒント表示（工程表 style.css のヘルプモードと同じ見た目） */
-    .oc-help-active { background: #1565c0 !important; color: #fff !important; border-color: #1565c0 !important; }
-    #ocHelp { position: fixed; inset: 0; z-index: 200000; }
-    .oc-help-bg { position: absolute; inset: 0; background: rgba(0,0,0,0.52); }
-    .oc-help-hl {
-        position: fixed; z-index: 200001; cursor: help; border-radius: 4px;
-        box-shadow: 0 0 0 2px rgba(255,255,255,0.55), 0 0 8px 2px rgba(100,170,255,0.45); transition: box-shadow 0.18s;
-    }
-    .oc-help-hl:hover { box-shadow: 0 0 0 3px #fff, 0 0 18px 6px rgba(80,160,255,0.9); }
-    .oc-help-tip {
-        position: fixed; z-index: 200002; pointer-events: none; background: #fff; border: 2px solid #1565c0; border-radius: 6px;
-        padding: 7px 10px; min-width: 150px; max-width: 260px; box-shadow: 0 3px 14px rgba(0,0,0,0.35);
-        font-size: 12px; line-height: 1.55; color: #333; opacity: 0; visibility: hidden; transition: opacity 0.15s;
-    }
-    .oc-help-tip--wide { max-width: min(440px, calc(100vw - 24px)); }
-    .oc-help-tip--show { opacity: 1; visibility: visible; }
-    .oc-help-tip-title { font-weight: bold; font-size: 12.5px; color: #1565c0; margin-bottom: 3px; }
-    .oc-help-tip::before { content: ''; position: absolute; top: -8px; left: 12px; border-left: 7px solid transparent; border-right: 7px solid transparent; border-bottom: 8px solid #1565c0; }
-    .oc-help-tip::after { content: ''; position: absolute; top: -5px; left: 13px; border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 6px solid #fff; }
-    .oc-help-tip--above::before { top: auto; bottom: -8px; border-bottom: none; border-top: 8px solid #1565c0; }
-    .oc-help-tip--above::after { top: auto; bottom: -5px; border-bottom: none; border-top: 6px solid #fff; }
-    .oc-help-guide {
-        position: fixed; top: 12px; right: 16px; z-index: 200003; padding: 5px 14px; font: inherit; font-size: 13px; font-weight: bold;
-        background: #fff; color: #1565c0; border: 2px solid #1565c0; border-radius: 6px; cursor: pointer;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.35); transition: background 0.15s, color 0.15s; white-space: nowrap;
-    }
-    .oc-help-guide:hover { background: #1565c0; color: #fff; }
 
     /* 注記 */
     .note-box {
@@ -1441,7 +1414,20 @@
     .trial-bar #trialTabs { flex: 1 1 auto; min-width: 0; }
     .trial-bar #trialTabs .spec-tabs { margin-bottom: 0; }
     .trial-bar .oc-tools { margin: 0 0 0 auto; }
-    .trial-bar .oc-tools:has(.oc-toolrow) { position: static; flex: 1 1 100%; margin: 0; padding: 0; background: none; border: 0; }
+    /* 編集中：外注先の切り替えの右に「編集中」・道具・キャンセル／保存を1行で並べる */
+    .trial-bar:has(.oc-toolrow) #trialTabs { flex: 0 0 auto; }
+    .trial-bar .oc-tools:has(.oc-toolrow) { position: static; flex: 1 1 0; min-width: 0; margin: 0; padding: 0; background: none; border: 0; }
+    .trial-bar .oc-toolrow { flex-wrap: wrap; gap: 8px; }
+    .trial-bar .oc-toolrow .scope-editing-tag { position: relative; margin-left: 9px; }
+    .trial-bar .oc-toolrow .scope-editing-tag::before { content: ''; position: absolute; left: -11px; top: 1px; bottom: 1px; width: 1px; background: #d6d6d2; }
+    /* 編集の道具：区切り線でつないだボタン群 */
+    .oc-toolgroup { display: inline-flex; align-items: stretch; border: 1px solid #d6d6d2; border-radius: 6px; background: #fff; overflow: hidden; }
+    .oc-tg-btn { display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border: 0; background: none; color: #2b2f36; font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+    .oc-tg-btn + .oc-tg-btn { border-left: 1px solid #e4e3df; }
+    .oc-tg-btn:hover { background: #eceef1; }
+    .oc-tg-btn:disabled { color: #a2a7ae; background: none; cursor: default; }
+    .oc-tg-ic { font-size: 13px; line-height: 1; color: #6b7079; }
+    .oc-tg-btn:disabled .oc-tg-ic { color: #c9ccd1; }
     .trial-bar:has(#trialTabs:empty):has(.oc-tools:empty) { display: none; }
     .spec-bar .spec-tabs { margin-bottom: 0; }
     @media (max-width: 900px) { .spec-bar { margin-left: -16px; margin-right: -16px; padding-left: 16px; padding-right: 16px; } }
@@ -2011,7 +1997,7 @@ window.addEventListener('afterprint', () => {
 <script src="gaichu-spec.js?v=20261022d"></script>
 <script src="gaichu-scope.js?v=20261022m"></script>
 <script src="gaichu-gantt.js?v=20261022a"></script>
-<script src="org-chart.js?v=20261022b"></script>
+<script src="org-chart.js?v=20261022c"></script>
 
 </body>
 </html>
