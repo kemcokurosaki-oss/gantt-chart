@@ -87,8 +87,17 @@
             </div>`).join('')}</div>` : '';
     }
 
+    // 上の行（外注先の切り替え・編集ボタン）を止める位置：資料の見出しの帯（別タブで開いたときは、さらに上の工事名の帯）のすぐ下
+    function placeTabsTop() {
+        const panel = root.closest('.sub-panel'), bar = panel && panel.querySelector('.sub-bar');
+        const solo = document.body.classList.contains('solo');
+        const head = solo ? (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sticky-h')) || 0) : 0;
+        root.style.setProperty('--spec-top', (head + (bar ? bar.offsetHeight : 0)) + 'px');
+    }
+    window.addEventListener('resize', placeTabsTop);
     function render() {
         renderContacts();
+        placeTabsTop();
         const st = GS.state;
         if (!st.ready) { root.innerHTML = '<p class="spec-msg">読込中…</p>'; return; }
         if (!st.loggedIn) { root.innerHTML = '<p class="spec-msg">組立発注仕様書は、社内のアカウントでログインすると表示されます。</p>'; return; }

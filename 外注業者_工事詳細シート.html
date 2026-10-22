@@ -1356,7 +1356,10 @@
     .oc-tools .oc-btn--ghost:only-child { font-size: 12.5px; font-weight: 700; padding: 5px 14px; border-color: #2b2f36; color: #2b2f36; }
     .oc-tools:has(.oc-toolrow) { top: var(--sticky-h, 0px); }
     .oc-auto { display: inline-block; margin: 2px 0 0; white-space: nowrap; }
-    #panel-order-spec .card, #panel-trial .card { overflow-x: auto; }
+    #panel-trial .card { overflow-x: auto; }
+    /* 仕様書：外注先の切り替え・編集ボタンの行は、スクロールしても見出しの帯の下に止めて押せるようにする（枠の横スクロールは止めないとこの固定が効かない） */
+    #panel-order-spec .card { overflow: visible; }
+    #specRoot > .spec-tabs { position: sticky; top: var(--spec-top, 52px); z-index: 5; margin: -18px -20px 12px; padding: 10px 20px; background: #fff; border-bottom: 1px solid #efefec; border-radius: 8px 8px 0 0; }
     #trialTabs .spec-tabs { margin-bottom: 12px; }
     @media (max-width: 900px) { .page-header, .doc-nav, .content { padding-left: 16px; padding-right: 16px; } .doc-nav { flex-wrap: wrap; gap: 0; } }
 
@@ -1910,7 +1913,7 @@ window.addEventListener('afterprint', () => {
 <script src="gaichu-sheet.js?v=20261022b"></script>
 <script src="gaichu-jobnav.js?v=20261022a"></script>
 <script src="gaichu-overview.js?v=20261022b"></script>
-<script src="gaichu-spec.js?v=20261022b"></script>
+<script src="gaichu-spec.js?v=20261022c"></script>
 <script src="gaichu-scope.js?v=20261022j"></script>
 <script src="gaichu-gantt.js?v=20261022a"></script>
 <script src="org-chart.js?v=20261022a"></script>
