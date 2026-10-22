@@ -338,9 +338,8 @@
     .fig-img-wrap { position: relative; }
     /* 組立範囲（詳細）の図面ビューア：1枚を大きく表示し、下のサムネイルで切り替える。印刷は今までどおり全部並べる */
     /* 左に図面、右の列に「画像を編集」とサムネイルの縦並び。図面の高さを抑えて、すぐ下の担当範囲一覧も同じ画面に入るようにする */
-    .scope-viewer { display: grid; grid-template-columns: minmax(0, 1fr) 160px; gap: 12px; align-items: stretch; margin: -12px -16px 0; padding: 12px 16px 12px;
-        position: sticky; top: var(--sv-top, 52px); z-index: 4; background: #fff; border-bottom: 1px solid #efefec; }
-    .scope-viewer .sv-main img { display: block; width: 100%; height: auto; max-height: 46vh; object-fit: contain; background: #e0e0dc; cursor: zoom-in; }
+    .scope-viewer { display: grid; grid-template-columns: minmax(0, 1fr) 160px; gap: 12px; align-items: stretch; margin-bottom: 12px; }
+    .scope-viewer .sv-main img { display: block; width: 100%; height: auto; max-height: 40vh; object-fit: contain; background: #e0e0dc; cursor: zoom-in; }
     .scope-viewer .figure-caption { padding: 4px 12px; }
     .scope-viewer .figure-caption small { margin-left: 10px; font-weight: 500; color: #8b9097; }
     .scope-table-foot { display: flex; justify-content: flex-end; margin-top: 8px; }
@@ -1055,7 +1054,9 @@
     #panel-scope .note-box { margin-top: 8px; padding: 6px 12px; font-size: 11px; }
     /* 右パネル（仕様書・体制表）を開いて幅が狭くなっても崩さず、工程表と同じく横スクロールで見せる */
     #panel-scope .card { overflow: visible; }
-    .scope-table-wrap { overflow-x: auto; }
+    .scope-table-wrap { overflow: auto; border: 1px solid #e4e3df; border-radius: 6px; }
+    .scope-table-wrap .scope-table { margin: 0; border: 0; }
+    .scope-table-wrap thead th { position: sticky; top: 0; z-index: 2; box-shadow: inset 0 -1px 0 #e4e3df; }
     #panel-scope .figure-row, #panel-scope .data-table { min-width: 960px; }
     #panel-scope .data-table td, #panel-scope .data-table th { white-space: nowrap; }
 
@@ -1573,6 +1574,7 @@
         .gt { overflow: visible; }
         .gt-inner { min-width: 0 !important; }
         #panel-scope .card { overflow: visible; }
+        .scope-table-wrap { max-height: none !important; overflow: visible !important; border: 0; }
         #panel-scope .figure-row, #panel-scope .data-table { min-width: 0; }
         .figure-card img { height: 62mm; }
         .org-chart-row { overflow: visible; }
@@ -1902,7 +1904,7 @@ window.addEventListener('afterprint', () => {
 <script src="gaichu-jobnav.js?v=20261022a"></script>
 <script src="gaichu-overview.js?v=20261022b"></script>
 <script src="gaichu-spec.js?v=20261022a"></script>
-<script src="gaichu-scope.js?v=20261022e"></script>
+<script src="gaichu-scope.js?v=20261022h"></script>
 <script src="gaichu-gantt.js?v=20261022a"></script>
 <script src="org-chart.js?v=20261022a"></script>
 

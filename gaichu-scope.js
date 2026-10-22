@@ -186,15 +186,24 @@
             + `<div class="scope-table-wrap"><table class="data-table scope-table${eT ? ' is-editing' : ''}"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>` + tableBtns
             + (!eT && st.isAdmin ? `<div class="scope-table-foot"><button type="button" class="spec-btn" data-sc="edit" data-mode="table"${editing ? ' disabled title="もう一方の編集を保存かキャンセルしてから編集してください"' : ''}>担当範囲一覧を編集</button></div>` : '');
         layoutThumbZones();
-        placeViewerTop();
+        fitTable();
     }
-    function placeViewerTop() {
-        const panel = root.closest('.sub-panel'), bar = panel && panel.querySelector('.sub-bar');
-        const solo = document.body.classList.contains('solo');
-        const head = solo ? (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sticky-h')) || 0) : 0;
-        root.style.setProperty('--sv-top', (head + (bar ? bar.offsetHeight : 0)) + 'px');
+    function fitTable() {
+        const wrap = root.querySelector('.scope-table-wrap');
+        if (!wrap) return;
+        if (editing || !root.querySelector('.scope-viewer')) { wrap.style.maxHeight = ''; return; }
+        const panel = root.closest('.sub-panel');
+        const solo = document.body.classList.contains('solo') || !panel;
+        const r = wrap.getBoundingClientRect();
+        // 表の上端から、画面（資料の枠）の下端までの高さ。表の下の「担当範囲一覧を編集」と枠の余白の分を引く
+        const top = solo ? r.top + window.scrollY : r.top - panel.getBoundingClientRect().top + panel.scrollTop;
+        const room = (solo ? window.innerHeight : panel.clientHeight) - top - (root.querySelector('.scope-table-foot') ? 64 : 24);
+        wrap.style.maxHeight = Math.max(140, Math.floor(room)) + 'px';
+        // まだ画面全体にスクロールが出るときは、はみ出した分だけ表を低くする（枠の下の余白などの分）
+        const over = solo ? document.documentElement.scrollHeight - window.innerHeight : panel.scrollHeight - panel.clientHeight;
+        if (over > 0) wrap.style.maxHeight = Math.max(140, wrap.clientHeight - over - 2) + 'px';
     }
-    window.addEventListener('resize', placeViewerTop);
+    window.addEventListener('resize', fitTable);
 
     // 色分け枠の座標：保存は画像に対する %（x・幅は横幅の%、y・高さは高さの%）。
     // 描画と操作は「横100・縦100×縦横比」の座標（縦横の1目盛りが同じ長さ）に直して行う。
@@ -235,6 +244,7 @@
                 svg.setAttribute('viewBox', `0 0 100 ${100 * a}`);
                 svg.innerHTML = zoneShapes(f && f.zones, a);
                 if (hlKeys) highlight(hlKeys);   // 枠を描き直しても、マウスを乗せている担当先の強調を保つ
+                if (img.closest('.scope-viewer')) fitTable();
                 // カードの幅の配分を画像の実際の縦横比に合わせる（描き直した直後は初期値のことがあるため毎回確かめる）。
                 // 配分が変わったときは、大きさが決まってから枠を置き直す。図面ビューアのカードは配分しない
                 const r = img.naturalWidth / img.naturalHeight;
