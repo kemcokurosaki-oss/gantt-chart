@@ -83,7 +83,7 @@
             const pn = String(r.project_number);
             if (!byPn.has(pn)) byPn.set(pn, { pn, name: '', shipDate: null, sheets: [] });
             const v = r.gaichu_vendors || {};
-            byPn.get(pn).sheets.push({ display: v.display_name || v.name || '', color: r.color || '#7f8c8d' });
+            byPn.get(pn).sheets.push({ display: v.display_name || GS.shortName(v.name) || '', name: v.name || '', color: r.color || '#7f8c8d' });
         });
         projects = [...byPn.values()].sort((a, b) => a.pn.localeCompare(b.pn, 'ja', { numeric: true }));
         if (projects.length) {
@@ -113,7 +113,7 @@
 
     // ===== 表示 =====
     function itemHtml(p) {
-        const search = [p.pn, p.name, ...p.sheets.map(s => s.display)].join(' ');
+        const search = [p.pn, p.name, ...p.sheets.map(s => s.display + ' ' + s.name)].join(' ');
         return `<a class="jn-item${p.pn === cur ? ' active' : ''}${isAdmin && !publicPns.has(p.pn) ? ' jn-off' : ''}" href="${esc(hrefFor(p.pn))}" data-search="${esc(search)}" title="${esc(p.pn + ' ' + (p.name || '') + (isAdmin && !publicPns.has(p.pn) ? '（社内公開オフ）' : ''))}">
             <span class="jn-pn">${esc(p.pn)}</span>
             <span class="jn-name">${esc(p.name) || '（工事名称未登録）'}</span>

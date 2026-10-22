@@ -21,7 +21,7 @@
         return `background:${hex(ch.map(c => c + (255 - c) * 0.88))};color:${hex(ch.map(c => c * 0.68))}`;
     }
     const chip = (label, color) => `<span class="ga-chip" style="${chipStyle(color)}"><span class="ga-dot" style="background:${esc(color)}"></span>${esc(label)}</span>`;
-    const vendorName = v => v.display_name || v.name;
+    const vendorName = v => v.name || v.display_name;   // 正式社名（display_name は略称）
 
     // 画面の見た目（どのページでも同じになるよう、ここで用意する）
     function addStyle() {
@@ -159,7 +159,7 @@
                 <option value="__new">＋ 新しい外注先を登録する</option></select></label>
             <div class="ga-new-vendor" hidden>
                 <label class="ga-field"><span>正式社名</span><input type="text" data-f="vname" autocomplete="off" placeholder="例：株式会社〇〇工業"></label>
-                <label class="ga-field"><span>表示名（殿などを付けた呼び方）</span><input type="text" data-f="vdisp" autocomplete="off" placeholder="例：〇〇工業㈱殿"></label>
+                <label class="ga-field"><span>略称（表などの狭いところに表示）</span><input type="text" data-f="vdisp" autocomplete="off" placeholder="例：〇〇工業（空欄なら正式社名から自動）"></label>
             </div>
             <label class="ga-field"><span>色分けの色</span><input type="color" data-f="color" value="${freeColor}"></label>
             <p class="ga-note ga-color-note" hidden>この外注先は、ほかの工番と同じ色を使います（色は外注先ごとに固定）。</p>`, [
@@ -243,7 +243,8 @@
         }));
     }
 
-    // ===== 外注先マスタの管理（社名・表示名・並び順・使用・代表者の変更と追加。使っている外注先があるため削除はしない） =====
+    // ===== 外注先マスタの管理（正式社名・略称・並び順・使用・代表者の変更と追加。使っている外注先があるため削除はしない） =====
+    //   略称は DB の display_name 列に入れる（空欄なら正式社名から「株式会社」などを外して自動で作る）
     //   代表者は個人情報なので別テーブル gaichu_vendor_contacts に持つ。仕様書のご担当者（工事ごとの入力が空欄のとき）と体制表のカードの選択肢に使う
     const REP_FIELDS = ['title', 'name', 'tel'];
     async function openVendors({ onDone } = {}) {
@@ -260,7 +261,7 @@
         });
         const m = modal('外注先マスタの管理', `
             <p class="ga-note">「使用」を外すと、外注先シートを追加するときの選択肢に出なくなります（登録済みのシートはそのまま）。<br>代表者は、仕様書の「ご担当者」（工事ごとに入力していないとき）に役職と氏名を表示し、体制表のカードを追加するときの選択肢にも出ます。</p>
-            <table class="ga-table"><thead><tr><th>正式社名</th><th>表示名</th><th>順</th><th>使用</th></tr></thead><tbody></tbody></table>
+            <table class="ga-table"><thead><tr><th>正式社名</th><th>略称</th><th>順</th><th>使用</th></tr></thead><tbody></tbody></table>
             <button type="button" class="ga-btn" data-addv>＋ 行を追加</button>`, [
             { label: '閉じる', onClick: () => m.close() },
             { label: '保存', primary: true, onClick: async () => {
@@ -295,7 +296,7 @@
         const draw = () => {
             tbody.innerHTML = rows.map((r, i) => `<tr data-i="${i}" class="ga-vrow">
                 <td><input type="text" data-f="name" autocomplete="off" value="${esc(r.name)}"></td>
-                <td><input type="text" data-f="display_name" autocomplete="off" value="${esc(r.display_name)}"></td>
+                <td><input type="text" data-f="display_name" autocomplete="off" value="${esc(r.display_name)}" placeholder="空欄なら自動"></td>
                 <td><input type="number" data-f="sort_order" value="${esc(r.sort_order)}" class="ga-num"></td>
                 <td style="text-align:center"><input type="checkbox" data-f="active"${r.active !== false ? ' checked' : ''}></td></tr>
                 <tr data-i="${i}" class="ga-reprow"><td colspan="4"><div class="ga-rep"><span>代表者</span>

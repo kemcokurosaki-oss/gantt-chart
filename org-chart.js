@@ -89,7 +89,7 @@
         if (!GS) return;
         const st = GS.state;
         if (tabsEl) tabsEl.innerHTML = st.loggedIn && st.sheets.length
-            ? `<div class="spec-tabs">${st.sheets.map(s => `<button type="button" class="vendor-switch-btn${s.id === sheetId ? ' active' : ''}" data-v="${s.id}"><span class="dot" style="background:${esc(s.color)}"></span>${esc(s.display)}</button>`).join('')}</div>`
+            ? `<div class="spec-tabs">${st.sheets.map(s => `<button type="button" class="vendor-switch-btn${s.id === sheetId ? ' active' : ''}" data-v="${s.id}"><span class="dot" style="background:${esc(s.color)}"></span>${esc(s.short)}</button>`).join('')}</div>`
             : '';
         if (!infoEl) return;
         const sheet = sheetId && GS.sheetById(sheetId);

@@ -62,9 +62,9 @@
 
     // ===== 担当先 =====
     function party(key) {
-        if (key === KUSAKABE) return { label: GS.KUSAKABE.name, color: GS.KUSAKABE.color };
+        if (key === KUSAKABE) return { label: GS.KUSAKABE.name, short: GS.shortName(GS.KUSAKABE.name), color: GS.KUSAKABE.color };
         const s = GS.state.sheets.find(x => String(x.vendor_id) === String(key));
-        return s ? { label: s.display, color: s.color } : { label: '（不明）', color: '#95a5a6' };
+        return s ? { label: s.display, short: s.short, color: s.color } : { label: '（不明）', short: '（不明）', color: '#95a5a6' };
     }
     const vendorOf = t => GS.state.sheets.find(s => s.vendor_id === t.vendor_id) || null;
 
@@ -142,7 +142,7 @@
             const out = keys.filter(k => k !== KUSAKABE);
             return `<div class="ov-unit ov-trow" ${tpl} data-parties="${esc((out.length ? out : keys).join(' '))}">${hasMachine ? `<span>${filled(r.machine) ? esc(r.machine) : '<span class="ov-none">―</span>'}</span>` : ''}<span><b>${esc(hasMachine ? (r.unit || '') : (r.unit || r.machine || ''))}</b></span><span>${esc(r.machine_name || '')}</span>${pcols.map(c => `<span class="ov-tcell">${(r[c.key] || []).map(k => {
                 const p = party(k);
-                return `<span class="ov-chip" data-party="${esc(k)}" style="${GS.chipStyle(p.color)}">${esc(GS.shortName(p.label))}</span>`;
+                return `<span class="ov-chip" data-party="${esc(k)}" style="${GS.chipStyle(p.color)}">${esc(p.short || GS.shortName(p.label))}</span>`;
             }).join('') || '<span class="ov-none">―</span>'}</span>`).join('')}</div>`;
         }).join('') + `</div>`
             : muted(scope.rows.length ? 'この外注先が担当に入っている行はありません。' : '担当範囲一覧はまだ入力されていません。');
@@ -185,7 +185,7 @@
         let legend = '';
         if (!sh) {
             const items = GS.state.sheets.filter(s => list.some(t => t.vendor_id === s.vendor_id))
-                .map(s => `<span><i style="background:${esc(s.color)}"></i>${esc(s.display.replace(/殿$/, ''))}</span>`);
+                .map(s => `<span><i style="background:${esc(s.color)}"></i>${esc(s.short)}</span>`);
             if (list.some(t => !vendorOf(t))) items.push('<span><i style="background:#7b8088"></i>未定</span>');
             legend = `<div class="ov-legend">${items.join('')}</div>`;
         }

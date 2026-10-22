@@ -891,7 +891,7 @@
                 sel.innerHTML = "<option value=''>（未選択）</option>" + vendors
                     .filter(function(v) { return v.active !== false || String(v.id) === cur; })
                     .map(function(v) {
-                        const label = (v.display_name || v.name || '').replace(/[&<>"]/g, function(c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; });
+                        const label = (v.name || v.display_name || '').replace(/[&<>"]/g, function(c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; });
                         return `<option value='${v.id}'${String(v.id) === cur ? ' selected' : ''}>${label}</option>`;
                     }).join('');
                 loc.value = task.test_run_location || '';

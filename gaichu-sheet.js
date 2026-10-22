@@ -59,7 +59,8 @@
             id: r.id,
             vendor_id: r.vendor_id,
             name: (r.gaichu_vendors && r.gaichu_vendors.name) || '',
-            display: (r.gaichu_vendors && (r.gaichu_vendors.display_name || r.gaichu_vendors.name)) || '',
+            display: (r.gaichu_vendors && r.gaichu_vendors.name) || '',   // 正式社名（見出し・仕様書など）
+            short: (r.gaichu_vendors && (r.gaichu_vendors.display_name || shortName(r.gaichu_vendors.name))) || '',   // 略称（表・バッジ・切り替えボタンなど狭いところ）
             color: r.color || '#7f8c8d',
             spec: r.spec || {},
             trial: r.trial || {},
@@ -97,7 +98,7 @@
         const btn = (key, label, color) => `<button type="button" class="vendor-switch-btn${String(state.current) === String(key) ? ' active' : ''}" data-v="${key}">`
             + (color ? `<span class="dot" style="background:${esc(color)}"></span>` : '') + `${esc(label)}</button>`;
         box.innerHTML = `<span class="vendor-switch-label">外注先</span>` + btn('all', '全体')
-            + state.sheets.map(s => btn(s.id, s.display, s.color)).join('') + manage;
+            + state.sheets.map(s => btn(s.id, s.short, s.color)).join('') + manage;
     }
     // 担当の印（会社の色の薄い背景＋濃い色の文字）。色は外注先シートの色から作るので、外注先が増えても同じ見た目になる
     function chipStyle(color) {
@@ -113,7 +114,7 @@
     function renderLegend() {
         const chip = chipHtml;
         const list = state.currentSheet ? [state.currentSheet] : state.sheets;
-        $('partyLegendItems').innerHTML = list.map(s => chip(s.display, s.color)).join('') + chip(KUSAKABE.name, KUSAKABE.color);
+        $('partyLegendItems').innerHTML = list.map(s => chip(s.short, s.color)).join('') + chip(KUSAKABE.name, KUSAKABE.color);
     }
     function renderLoginNote() {
         const note = $('sheetLoginNote');
@@ -269,8 +270,9 @@
         return sheet;
     }
 
-    // 担当のバッジなどに使う略称（外注先マスタの表示名から「殿」「株式会社」「㈱」などを外す）
-    const shortName = s => String(s || '').normalize('NFKC').replace(/殿$/, '').replace(/株式会社|有限会社|\(株\)|\(有\)/g, '').trim() || String(s || '');
+    // 略称が未入力のときの代わり（正式社名から「殿」「株式会社」「㈱」などを外す）
+    function shortName(s) { return _short(s); }
+    const _short = s => String(s || '').normalize('NFKC').replace(/殿$/, '').replace(/株式会社|有限会社|\(株\)|\(有\)/g, '').trim() || String(s || '');
     window.GaichuSheet = {
         shortName,
         repLabel,

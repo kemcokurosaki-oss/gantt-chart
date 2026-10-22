@@ -95,7 +95,7 @@
         if (!st.sheets.length) { root.innerHTML = '<p class="spec-msg">この工事には外注先が登録されていません。</p>'; return; }
 
         const sheet = st.currentSheet;
-        const tabs = `<div class="spec-tabs">${st.sheets.map(s => `<button type="button" class="vendor-switch-btn${sheet && sheet.id === s.id ? ' active' : ''}" data-v="${s.id}"><span class="dot" style="background:${esc(s.color)}"></span>${esc(s.display)}</button>`).join('')}`
+        const tabs = `<div class="spec-tabs">${st.sheets.map(s => `<button type="button" class="vendor-switch-btn${sheet && sheet.id === s.id ? ' active' : ''}" data-v="${s.id}"><span class="dot" style="background:${esc(s.color)}"></span>${esc(s.short)}</button>`).join('')}`
             + (sheet && st.isAdmin ? (editing
                 ? `<span class="spec-spacer"></span><button type="button" class="spec-btn" data-spec="cancel">キャンセル</button><button type="button" class="spec-btn spec-btn--primary" data-spec="save">保存</button>`
                 : `<span class="spec-spacer"></span><button type="button" class="spec-btn" data-spec="edit">仕様書を編集</button>`) : '')

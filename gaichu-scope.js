@@ -41,13 +41,13 @@
 
     // ===== 担当先（外注先＋日下部電機） =====
     function parties() {
-        return GS.state.sheets.map(s => ({ key: s.vendor_id, label: s.display, color: s.color }))
-            .concat([{ key: KUSAKABE, label: GS.KUSAKABE.name, color: GS.KUSAKABE.color }]);
+        return GS.state.sheets.map(s => ({ key: s.vendor_id, label: s.display, short: s.short, color: s.color }))
+            .concat([{ key: KUSAKABE, label: GS.KUSAKABE.name, short: GS.shortName(GS.KUSAKABE.name), color: GS.KUSAKABE.color }]);
     }
     function partyInfo(key) {
         return parties().find(p => String(p.key) === String(key)) || { key, label: '（不明な担当）', color: '#95a5a6' };
     }
-    const partyChip = key => { const p = partyInfo(key); return GS.chipHtml(GS.shortName(p.label), p.color).replace('<span class="party-chip"', `<span class="party-chip" data-party="${esc(key)}"`); };
+    const partyChip = key => { const p = partyInfo(key); return GS.chipHtml(p.short || GS.shortName(p.label), p.color).replace('<span class="party-chip"', `<span class="party-chip" data-party="${esc(key)}"`); };
     // 試運転場所などの文字を担当先に当てはめる（「大洋金属㈱殿」「株式会社ニッシン」「日下部電機」などの書き方の違いはそろえて比べる）
     const nameKey = s => String(s || '').normalize('NFKC').replace(/殿|様|株式会社|\(株\)|㈱|有限会社|\(有\)|\s/g, '');
     function partyByName(text) {
@@ -60,7 +60,7 @@
     function placeChip(text) {
         if (!String(text || '').trim()) return '―';
         const p = partyByName(text);
-        return p ? GS.chipHtml(GS.shortName(p.label), p.color).replace('<span class="party-chip"', `<span class="party-chip" data-party="${esc(p.key)}"`) : GS.chipHtml(text, '#95a5a6');
+        return p ? GS.chipHtml(p.short || GS.shortName(p.label), p.color).replace('<span class="party-chip"', `<span class="party-chip" data-party="${esc(p.key)}"`) : GS.chipHtml(text, '#95a5a6');
     }
     const vendorFilter = () => (GS.state.currentSheet ? GS.state.currentSheet.vendor_id : null);
     function rowVisible(row, cols) {
@@ -114,7 +114,7 @@
         if (!show) return '';
         if (viewIdx == null || !d.figures[viewIdx] || !figSrc(d.figures[viewIdx])) viewIdx = defaultViewIdx(d, vid);
         const i = viewIdx, f = d.figures[i], n = d.figures.length;
-        const thumbs = n > 1 ? `<div class="sv-thumbs" style="max-height:${'calc(50vh - 40px)'}">${d.figures.map((t, ti) => figSrc(t)
+        const thumbs = n > 1 ? `<div class="sv-thumbs">${d.figures.map((t, ti) => figSrc(t)
             ? `<button type="button" class="sv-thumb${ti === i ? ' active' : ''}" data-sc="view" data-i="${ti}" title="${esc(t.caption || `図面${ti + 1}`)}"><img src="${esc(figSrc(t))}" alt=""><span>${esc(t.caption || `図面${ti + 1}`)}</span></button>` : '').join('')}</div>` : '';
         return `<div class="scope-viewer">
             <div class="figure-card sv-card">
@@ -122,7 +122,7 @@
                 <div class="figure-caption">${esc(f.caption)}${n > 1 ? `<small>${i + 1} / ${n}</small>` : ''}</div>
                 <span class="fig-zoom-hint">🔍 クリックで拡大</span>
             </div>
-            <div class="sv-side">${editBtn ? `<div class="sv-btns">${editBtn}</div>` : ''}${thumbs}</div></div>`;
+            <div class="sv-side"><div class="sv-side-in">${thumbs}${editBtn ? `<div class="sv-btns">${editBtn}</div>` : ''}</div></div></div>`;
     }
 
     // ===== 描画 =====
@@ -143,7 +143,6 @@
             return `<div class="scope-head"><div class="subhead">${title}</div><span class="spec-spacer"></span>${btns}</div>`
                 + (editing === mode ? `<p class="spec-editing-note">${note}</p>` : '');
         };
-        const filterNote = vid != null && !editing ? `<p class="scope-filter-note">「${esc(st.currentSheet.display)}」が担当に入っている行と、${esc(st.currentSheet.display)}・日下部電機㈱の色分け枠だけを表示しています（全体を見るときは「全体」を選んでください）。</p>` : '';
 
         // 図面
         // サムネイルは行ごとに高さをそろえ、横幅を縦横比で配分して余白なく並べる（flex-grow＝縦横比、flex-basis＝縦横比×行の高さ）
@@ -180,7 +179,7 @@
             : `<tr><td colspan="${cols.length + (eT ? 1 : 0)}" class="spec-empty">${d.rows.length ? 'この外注先が担当に入っている行はありません' : '（未入力）'}</td></tr>`;
         const tableBtns = eT ? `<div class="scope-table-btns"><button type="button" class="spec-btn" data-sc="addrow">＋ 行を追加</button><button type="button" class="spec-btn" data-sc="addcol">＋ 列を追加</button></div>` : '';
 
-        root.innerHTML = filterNote
+        root.innerHTML = ''
             + (showViewer ? '' : sectionHead('図面', 'fig', '画像を編集', '図面は「＋図面を追加」か、スクリーンショットを Ctrl+V で貼り付け。図面をクリックすると拡大表示で色分け枠を描けます。終わったら「保存」を押してください。'))
             + figures
             + (eT ? sectionHead('担当範囲一覧', 'table', '担当範囲一覧を編集', '担当のマスをクリックすると会社を選べます（もう一度クリックすると追加・選び直し）。「＋列を追加」で列を増やせます。終わったら「保存」を押してください。') : '')

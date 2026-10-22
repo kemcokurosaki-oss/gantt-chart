@@ -45,7 +45,7 @@
         const map = new Map();
         GS.state.sheets.forEach(s => map.set(s.vendor_id, {
             name: s.display,
-            short: s.display.replace(/殿$/, '').replace(/^株式会社|株式会社$|㈱/g, '').trim() || s.display,
+            short: s.short || s.display,
             color: s.color, tint: mix(s.color, 0.88), ink: mix(s.color, -0.32),
         }));
         return map;
