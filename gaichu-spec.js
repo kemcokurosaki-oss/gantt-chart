@@ -6,6 +6,7 @@
 // 読み込み前に gaichu-sheet.js を読み込み、ページに #specRoot を置いておくこと。
 (function () {
     const root = document.getElementById('specRoot');
+    const bar = document.getElementById('specBar');   // 外注先の切り替え・編集ボタンの行（仕様書の枠の外に置き、スクロールしても止めておく）
     const contactsEl = document.getElementById('specContacts');
     const GS = window.GaichuSheet;
     if (!root || !GS) return;
@@ -88,20 +89,21 @@
     }
 
     // 上の行（外注先の切り替え・編集ボタン）を止める位置：資料の見出しの帯（別タブで開いたときは、さらに上の工事名の帯）のすぐ下
+    function setBar(html) { if (bar) bar.innerHTML = html; }
     function placeTabsTop() {
-        const panel = root.closest('.sub-panel'), bar = panel && panel.querySelector('.sub-bar');
+        const panel = root.closest('.sub-panel'), subBar = panel && panel.querySelector('.sub-bar');
         const solo = document.body.classList.contains('solo');
         const head = solo ? (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sticky-h')) || 0) : 0;
-        root.style.setProperty('--spec-top', (head + (bar ? bar.offsetHeight : 0)) + 'px');
+        (bar || root).style.setProperty('--spec-top', (head + (subBar ? subBar.offsetHeight : 0)) + 'px');
     }
     window.addEventListener('resize', placeTabsTop);
     function render() {
         renderContacts();
         placeTabsTop();
         const st = GS.state;
-        if (!st.ready) { root.innerHTML = '<p class="spec-msg">読込中…</p>'; return; }
-        if (!st.loggedIn) { root.innerHTML = '<p class="spec-msg">組立発注仕様書は、社内のアカウントでログインすると表示されます。</p>'; return; }
-        if (!st.sheets.length) { root.innerHTML = '<p class="spec-msg">この工事には外注先が登録されていません。</p>'; return; }
+        if (!st.ready) { setBar(''); root.innerHTML = '<p class="spec-msg">読込中…</p>'; return; }
+        if (!st.loggedIn) { setBar(''); root.innerHTML = '<p class="spec-msg">組立発注仕様書は、社内のアカウントでログインすると表示されます。</p>'; return; }
+        if (!st.sheets.length) { setBar(''); root.innerHTML = '<p class="spec-msg">この工事には外注先が登録されていません。</p>'; return; }
 
         const sheet = st.currentSheet;
         const tabs = `<div class="spec-tabs">${st.sheets.map(s => `<button type="button" class="vendor-switch-btn${sheet && sheet.id === s.id ? ' active' : ''}" data-v="${s.id}"><span class="dot" style="background:${esc(s.color)}"></span>${esc(s.short)}</button>`).join('')}`
@@ -110,7 +112,8 @@
                 : `<span class="spec-spacer"></span><button type="button" class="spec-btn" data-spec="edit">仕様書を編集</button>`) : '')
             + `</div>`;
         if (!sheet) {
-            root.innerHTML = tabs + '<p class="spec-msg">組立発注仕様書は外注先ごとに作成します。上のボタンから外注先を選んでください。</p>';
+            setBar(tabs);
+            root.innerHTML = (bar ? '' : tabs) + '<p class="spec-msg">組立発注仕様書は外注先ごとに作成します。上のボタンから外注先を選んでください。</p>';
             return;
         }
         const s = editing ? draft : normalize(sheet.spec);
@@ -171,7 +174,8 @@
                 }).join('')}</tbody>
             </table>`;
 
-        root.innerHTML = tabs + (e ? '<p class="spec-editing-note">編集中です。入力が終わったら「保存」を押してください（甲・乙の欄はクリックで〇を付け外しします）。</p>' : '')
+        setBar(tabs);
+        root.innerHTML = (bar ? '' : tabs) + (e ? '<p class="spec-editing-note">編集中です。入力が終わったら「保存」を押してください（甲・乙の欄はクリックで〇を付け外しします）。</p>' : '')
             + info + machines + paint + utility + scope;
     }
 
@@ -263,7 +267,7 @@
             draft.revision = `${rev}（${date}）`;
             draft.revision_note = revNote.trim();
         }
-        const btn = root.querySelector('[data-spec="save"]');
+        const btn = (bar || root).querySelector('[data-spec="save"]');
         if (btn) { btn.disabled = true; btn.textContent = '保存中…'; }
         try {
             await GS.saveSheet(draftSheetId, { spec: draft });
@@ -275,6 +279,14 @@
         }
     }
 
+    if (bar) bar.addEventListener('click', e => {
+        const b = e.target.closest('[data-spec]');
+        if (!b) return;
+        const act = b.dataset.spec;
+        if (act === 'edit') startEdit();
+        else if (act === 'cancel') { if (!isDirty() || confirm('編集内容を破棄して元に戻しますか？')) endEdit(); }
+        else if (act === 'save') save();
+    });
     root.addEventListener('click', e => {
         const b = e.target.closest('[data-spec]');
         if (b) {

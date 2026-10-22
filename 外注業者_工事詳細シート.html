@@ -1359,7 +1359,11 @@
     #panel-trial .card { overflow-x: auto; }
     /* 仕様書：外注先の切り替え・編集ボタンの行は、スクロールしても見出しの帯の下に止めて押せるようにする（枠の横スクロールは止めないとこの固定が効かない） */
     #panel-order-spec .card { overflow: visible; }
-    #specRoot > .spec-tabs { position: sticky; top: var(--spec-top, 52px); z-index: 5; margin: -18px -20px 12px; padding: 10px 20px; background: #fff; border-bottom: 1px solid #efefec; border-radius: 8px 8px 0 0; }
+    .spec-bar { position: sticky; top: var(--spec-top, 52px); z-index: 5; margin: -16px -32px 12px; padding: 10px 32px; background: #f3f3f1; border-bottom: 1px solid #e4e3df; }
+    .spec-bar:empty { display: none; }
+    .spec-bar .spec-tabs { margin-bottom: 0; }
+    @media (max-width: 900px) { .spec-bar { margin-left: -16px; margin-right: -16px; padding-left: 16px; padding-right: 16px; } }
+    body.solo .spec-bar { margin-top: 0; }
     #trialTabs .spec-tabs { margin-bottom: 12px; }
     @media (max-width: 900px) { .page-header, .doc-nav, .content { padding-left: 16px; padding-right: 16px; } .doc-nav { flex-wrap: wrap; gap: 0; } }
 
@@ -1590,7 +1594,7 @@
         .org-chart-row { overflow: visible; }
         footer { padding: 8px; }
         .drawer-bar { display: none !important; }
-        .spec-tabs, .spec-editing-note, .spec-addrow, .spec-del { display: none !important; }
+        .spec-tabs, .spec-bar, .spec-editing-note, .spec-addrow, .spec-del { display: none !important; }
         .oc-auto { display: none !important; }
         .scope-head .spec-btn, .scope-table-btns, .fig-edit, .figure-add, .party-pick, .fig-zoom-hint, .scope-viewer { display: none !important; }
         .doc-backdrop { display: none !important; }
@@ -1731,6 +1735,8 @@
             <h2 class="print-only">組立発注仕様書　基本概要</h2>
         </div>
 
+        <!-- 外注先の切り替え・編集ボタンの行（gaichu-spec.js）。仕様書の枠の外に置き、スクロールしても見出しの帯の下に止める -->
+        <div class="spec-bar" id="specBar"></div>
         <div class="card">
             <!-- 1-1)～1-9) は gaichu-spec.js が外注先シート（gaichu_sheets.spec）と工程表から表示する -->
             <div id="specRoot"></div>
@@ -1913,7 +1919,7 @@ window.addEventListener('afterprint', () => {
 <script src="gaichu-sheet.js?v=20261022b"></script>
 <script src="gaichu-jobnav.js?v=20261022a"></script>
 <script src="gaichu-overview.js?v=20261022b"></script>
-<script src="gaichu-spec.js?v=20261022c"></script>
+<script src="gaichu-spec.js?v=20261022d"></script>
 <script src="gaichu-scope.js?v=20261022j"></script>
 <script src="gaichu-gantt.js?v=20261022a"></script>
 <script src="org-chart.js?v=20261022a"></script>
