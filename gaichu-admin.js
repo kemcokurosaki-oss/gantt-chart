@@ -251,8 +251,12 @@
     async function openAdd({ pn: fixedPn, onDone } = {}) {
         let ctx;
         try { ctx = await context(); } catch (e) { alert('読み込めませんでした：' + (e.message || e)); return; }
-        // 候補：工程表で担当に「外注」が入っているタスクがあり、まだ外注先シートがない工番（並びは工程表の工事一覧と同じ）
-        const { data: jobs } = await db().from('tasks').select('project_number, project_details, customer_name').ilike('owner', '%外注%').limit(5000);
+        // 候補：工程表で担当に「外注」が入っているタスクがあり、まだ外注先シートがない工番（並びは工程表の工事一覧と同じ）。完了済みの工番（completed_projects）は除く
+        const [{ data: jobs }, { data: done }] = await Promise.all([
+            db().from('tasks').select('project_number, project_details, customer_name').ilike('owner', '%外注%').limit(5000),
+            db().from('completed_projects').select('project_number'),
+        ]);
+        const donePns = new Set((done || []).map(d => String(d.project_number || '').trim()));
         const jobMap = new Map();
         (jobs || []).forEach(j => {
             const pn = String(j.project_number || '').trim();
@@ -261,7 +265,7 @@
             jobMap.set(pn, { name: cur.name || j.project_details || '', customer: cur.customer || j.customer_name || '' });
         });
         const usedPns = new Set(ctx.sheets.map(s => s.pn));
-        const candidates = [...jobMap.keys()].filter(pn => !usedPns.has(pn)).sort().map(pn => ({ pn, ...jobMap.get(pn) }));
+        const candidates = [...jobMap.keys()].filter(pn => !usedPns.has(pn) && !donePns.has(pn)).sort().map(pn => ({ pn, ...jobMap.get(pn) }));
         const here = fixedPn ? ctx.sheets.filter(s => s.pn === fixedPn).map(s => s.vendor_id) : [];
         const vendorOpts = ctx.vendors.filter(v => v.active !== false && !here.includes(v.id));
         const m = modal(fixedPn ? `${fixedPn} に外注先を追加` : '外注先シートを追加', `
