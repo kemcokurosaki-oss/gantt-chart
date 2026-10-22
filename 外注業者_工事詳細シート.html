@@ -369,7 +369,7 @@
     @media screen { .scope-figs--print { display: none !important; } }
     .fig-zones { position: absolute; pointer-events: none; overflow: visible; }
     /* 担当範囲（詳細）：バッジ・行・色分け枠にマウスを乗せると、同じ担当先を強調する（概要ページと同じ） */
-    .scope-figs .fig-zones polygon { pointer-events: visiblePainted; cursor: zoom-in; transition: fill-opacity .15s, opacity .15s, stroke-width .15s; }
+    .scope-figs .fig-zones polygon, .scope-viewer .fig-zones polygon { pointer-events: visiblePainted; cursor: zoom-in; transition: fill-opacity .15s, opacity .15s, stroke-width .15s; }
     .scope-hl .fig-zones polygon { opacity: 0.25; }
     .scope-hl .fig-zones polygon.hl { opacity: 1; fill-opacity: 0.62; stroke-width: 3; }
     .scope-table .party-chip { transition: box-shadow .15s; }
