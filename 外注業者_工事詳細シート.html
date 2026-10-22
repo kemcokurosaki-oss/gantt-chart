@@ -1344,7 +1344,13 @@
     .job-nav-foot { flex-shrink: 0; display: flex; flex-direction: column; gap: 6px; padding: 10px 12px 12px; border-top: 1px solid #e4e3df; background: #f7f7f5; }
     .job-nav-foot:empty { display: none; }
     .jn-foot-label { font-size: 11px; font-weight: 700; color: #6b7079; }
-    body.nav-collapsed .job-nav-foot { display: none; }
+    /* たたんだとき：管理者メニューは社内公開のオン／オフ（緑／グレー）だけを出す */
+    body.nav-collapsed .job-nav-foot { padding: 8px 4px 10px; align-items: center; }
+    body.nav-collapsed .job-nav-foot > :not(.jn-pub-mini) { display: none; }
+    body.nav-collapsed .job-nav-foot:not(:has(.jn-pub-mini)) { display: none; }
+    .jn-pub-mini { display: none; }
+    body.nav-collapsed .jn-pub-mini { display: block; appearance: none; width: 48px; padding: 4px 0; border: 1px solid #cfd0cc; border-radius: 999px; background: #eceef1; color: #6b7079; font: inherit; font-size: 11.5px; font-weight: 700; cursor: pointer; }
+    body.nav-collapsed .jn-pub-mini.on { background: #eafaf1; border-color: #9fd3b4; color: #1b7641; }
     .jn-btn { padding: 6px 10px; border-radius: 5px; border: 1px solid #2b2f36; background: #fff; color: #2b2f36; font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; }
     .jn-btn:hover { background: #eceef1; }
     .jn-btn--primary { background: #2b2f36; color: #fff; }
@@ -1595,7 +1601,11 @@
     .toc-btn span { width: 12px; font-weight: 700; }
     .toc-btn:hover { color: #2b2f36; background: #f5f5f3; }
     .toc-btn.active { color: #2b2f36; font-weight: 700; border-left-color: #2b2f36; background: #f3f3f1; }
-    body.nav-collapsed .job-nav-toc { display: none; }
+    /* たたんだとき：この工事の資料は番号だけを出す */
+    body.nav-collapsed .job-nav-toc { padding: 8px 4px; align-items: center; }
+    body.nav-collapsed .job-nav-toc .jn-foot-label { display: none; }
+    body.nav-collapsed .toc-btn { font-size: 0; width: 40px; justify-content: center; padding: 6px 0; border-left: 0; border-radius: 6px; gap: 0; }
+    body.nav-collapsed .toc-btn span { width: auto; font-size: 13px; }
 
     /* ===== 色味：グラファイト（墨色＋温かいグレー）。外注先の色だけが鮮やかに見えるようにする ===== */
     .job-nav-mark { background: #4b5563; }
@@ -1995,7 +2005,7 @@ window.addEventListener('afterprint', () => {
 <!-- gaichu-*.js / org-chart.js を変更したら ?v= の番号を上げる（ブラウザに古いファイルが残って動かなくなるのを防ぐ） -->
 <script src="gaichu-admin.js?v=20261022f"></script>
 <script src="gaichu-sheet.js?v=20261022b"></script>
-<script src="gaichu-jobnav.js?v=20261022a"></script>
+<script src="gaichu-jobnav.js?v=20261022b"></script>
 <script src="gaichu-overview.js?v=20261022b"></script>
 <script src="gaichu-spec.js?v=20261022d"></script>
 <script src="gaichu-scope.js?v=20261022m"></script>
