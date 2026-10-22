@@ -142,7 +142,7 @@
             const out = keys.filter(k => k !== KUSAKABE);
             return `<div class="ov-unit ov-trow" ${tpl} data-parties="${esc((out.length ? out : keys).join(' '))}">${hasMachine ? `<span>${filled(r.machine) ? esc(r.machine) : '<span class="ov-none">―</span>'}</span>` : ''}<span><b>${esc(hasMachine ? (r.unit || '') : (r.unit || r.machine || ''))}</b></span><span>${esc(r.machine_name || '')}</span>${pcols.map(c => `<span class="ov-tcell">${(r[c.key] || []).map(k => {
                 const p = party(k);
-                return `<span class="ov-chip" data-party="${esc(k)}" style="${GS.chipStyle(p.color)}">${esc(p.label.replace(/殿$/, ''))}</span>`;
+                return `<span class="ov-chip" data-party="${esc(k)}" style="${GS.chipStyle(p.color)}">${esc(GS.shortName(p.label))}</span>`;
             }).join('') || '<span class="ov-none">―</span>'}</span>`).join('')}</div>`;
         }).join('') + `</div>`
             : muted(scope.rows.length ? 'この外注先が担当に入っている行はありません。' : '担当範囲一覧はまだ入力されていません。');

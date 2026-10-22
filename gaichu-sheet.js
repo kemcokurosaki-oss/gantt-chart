@@ -269,7 +269,10 @@
         return sheet;
     }
 
+    // 担当のバッジなどに使う略称（外注先マスタの表示名から「殿」「株式会社」「㈱」などを外す）
+    const shortName = s => String(s || '').normalize('NFKC').replace(/殿$/, '').replace(/株式会社|有限会社|\(株\)|\(有\)/g, '').trim() || String(s || '');
     window.GaichuSheet = {
+        shortName,
         repLabel,
         state, client, select, saveSheet,
         loadTasks, unitTokens, isOutsource, vendorUnits, coversVendor, trialPeriod, fmtDate,

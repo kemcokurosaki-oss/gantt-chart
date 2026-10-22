@@ -47,7 +47,7 @@
     function partyInfo(key) {
         return parties().find(p => String(p.key) === String(key)) || { key, label: '（不明な担当）', color: '#95a5a6' };
     }
-    const partyChip = key => { const p = partyInfo(key); return GS.chipHtml(p.label, p.color).replace('<span class="party-chip"', `<span class="party-chip" data-party="${esc(key)}"`); };
+    const partyChip = key => { const p = partyInfo(key); return GS.chipHtml(GS.shortName(p.label), p.color).replace('<span class="party-chip"', `<span class="party-chip" data-party="${esc(key)}"`); };
     // 試運転場所などの文字を担当先に当てはめる（「大洋金属㈱殿」「株式会社ニッシン」「日下部電機」などの書き方の違いはそろえて比べる）
     const nameKey = s => String(s || '').normalize('NFKC').replace(/殿|様|株式会社|\(株\)|㈱|有限会社|\(有\)|\s/g, '');
     function partyByName(text) {
@@ -60,7 +60,7 @@
     function placeChip(text) {
         if (!String(text || '').trim()) return '―';
         const p = partyByName(text);
-        return p ? GS.chipHtml(text, p.color).replace('<span class="party-chip"', `<span class="party-chip" data-party="${esc(p.key)}"`) : GS.chipHtml(text, '#95a5a6');
+        return p ? GS.chipHtml(GS.shortName(p.label), p.color).replace('<span class="party-chip"', `<span class="party-chip" data-party="${esc(p.key)}"`) : GS.chipHtml(text, '#95a5a6');
     }
     const vendorFilter = () => (GS.state.currentSheet ? GS.state.currentSheet.vendor_id : null);
     function rowVisible(row, cols) {
@@ -183,8 +183,9 @@
         root.innerHTML = filterNote
             + (showViewer ? '' : sectionHead('図面', 'fig', '画像を編集', '図面は「＋図面を追加」か、スクリーンショットを Ctrl+V で貼り付け。図面をクリックすると拡大表示で色分け枠を描けます。終わったら「保存」を押してください。'))
             + figures
-            + sectionHead('担当範囲一覧', 'table', '担当範囲一覧を編集', '担当のマスをクリックすると会社を選べます（もう一度クリックすると追加・選び直し）。「＋列を追加」で列を増やせます。終わったら「保存」を押してください。')
-            + `<table class="data-table scope-table${eT ? ' is-editing' : ''}"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>` + tableBtns;
+            + (eT ? sectionHead('担当範囲一覧', 'table', '担当範囲一覧を編集', '担当のマスをクリックすると会社を選べます（もう一度クリックすると追加・選び直し）。「＋列を追加」で列を増やせます。終わったら「保存」を押してください。') : '')
+            + `<table class="data-table scope-table${eT ? ' is-editing' : ''}"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>` + tableBtns
+            + (!eT && st.isAdmin ? `<div class="scope-table-foot"><button type="button" class="spec-btn" data-sc="edit" data-mode="table"${editing ? ' disabled title="もう一方の編集を保存かキャンセルしてから編集してください"' : ''}>担当範囲一覧を編集</button></div>` : '');
         layoutThumbZones();
     }
 
