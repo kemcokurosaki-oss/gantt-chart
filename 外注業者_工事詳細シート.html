@@ -464,7 +464,7 @@
     .se-table-area:hover .se-edge { visibility: visible; opacity: 1; }
     .se-edge:hover { background: #2b2f36; color: #fff; border-style: solid; }
     .se-edge--col { right: 8px; top: 30px; width: 30px; padding: 6px 0; border-radius: 15px; display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 15px; line-height: 1.2; }
-    .se-edge--col small { font-size: 10px; line-height: 1.3; }
+    .se-edge--col small { font-size: 12px; line-height: 1; writing-mode: vertical-rl; letter-spacing: 2px; padding: 2px 0 4px; }   /* 「列を追加」を縦書きで */
     .se-edge--row { left: 50%; bottom: 8px; transform: translateX(-50%); height: 28px; padding: 0 16px; border-radius: 999px; display: flex; align-items: center; gap: 6px; font-size: 12px; }
 
     /* 体制表：外注先ごとの案内・自動表示の印（org-chart.js） */
@@ -1996,7 +1996,7 @@ window.addEventListener('afterprint', () => {
 <script src="gaichu-jobnav.js?v=20261022a"></script>
 <script src="gaichu-overview.js?v=20261022b"></script>
 <script src="gaichu-spec.js?v=20261022d"></script>
-<script src="gaichu-scope.js?v=20261022k"></script>
+<script src="gaichu-scope.js?v=20261022l"></script>
 <script src="gaichu-gantt.js?v=20261022a"></script>
 <script src="org-chart.js?v=20261022b"></script>
 

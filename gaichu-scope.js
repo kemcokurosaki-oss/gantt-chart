@@ -210,7 +210,7 @@
             <div class="se-head"><span class="se-title">② 担当範囲一覧</span><span class="se-hint">行や見出しにマウスを乗せると「＋」が出ます。担当のマスをクリックすると会社を選べます</span></div>
             <div class="se-table-area">
                 <table class="data-table scope-table is-editing"><thead><tr><th class="se-gutter"></th>${head}<th class="se-actions-h"></th></tr></thead><tbody>${body}</tbody></table>
-                <button type="button" class="se-edge se-edge--col" data-sc="addcol" data-i="${cols.length}" title="右端に列を追加"><span>＋</span><small>列を<br>追加</small></button>
+                <button type="button" class="se-edge se-edge--col" data-sc="addcol" data-i="${cols.length}" title="右端に列を追加"><span>＋</span><small>列を追加</small></button>
                 <button type="button" class="se-edge se-edge--row" data-sc="addrow" data-i="${d.rows.length}" title="最後に行を追加"><span>＋</span>行を追加</button>
             </div>`;
     }
