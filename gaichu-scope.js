@@ -183,10 +183,18 @@
             + (showViewer ? '' : sectionHead('図面', 'fig', '画像を編集', '図面は「＋図面を追加」か、スクリーンショットを Ctrl+V で貼り付け。図面をクリックすると拡大表示で色分け枠を描けます。終わったら「保存」を押してください。'))
             + figures
             + (eT ? sectionHead('担当範囲一覧', 'table', '担当範囲一覧を編集', '担当のマスをクリックすると会社を選べます（もう一度クリックすると追加・選び直し）。「＋列を追加」で列を増やせます。終わったら「保存」を押してください。') : '')
-            + `<table class="data-table scope-table${eT ? ' is-editing' : ''}"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>` + tableBtns
+            + `<div class="scope-table-wrap"><table class="data-table scope-table${eT ? ' is-editing' : ''}"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>` + tableBtns
             + (!eT && st.isAdmin ? `<div class="scope-table-foot"><button type="button" class="spec-btn" data-sc="edit" data-mode="table"${editing ? ' disabled title="もう一方の編集を保存かキャンセルしてから編集してください"' : ''}>担当範囲一覧を編集</button></div>` : '');
         layoutThumbZones();
+        placeViewerTop();
     }
+    function placeViewerTop() {
+        const panel = root.closest('.sub-panel'), bar = panel && panel.querySelector('.sub-bar');
+        const solo = document.body.classList.contains('solo');
+        const head = solo ? (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sticky-h')) || 0) : 0;
+        root.style.setProperty('--sv-top', (head + (bar ? bar.offsetHeight : 0)) + 'px');
+    }
+    window.addEventListener('resize', placeViewerTop);
 
     // 色分け枠の座標：保存は画像に対する %（x・幅は横幅の%、y・高さは高さの%）。
     // 描画と操作は「横100・縦100×縦横比」の座標（縦横の1目盛りが同じ長さ）に直して行う。
