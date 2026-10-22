@@ -110,18 +110,19 @@
         }
         return Math.max(0, d.figures.findIndex(figSrc));
     }
-    function viewerHtml(d, vid, show) {
+    function viewerHtml(d, vid, show, editBtn) {
         if (!show) return '';
         if (viewIdx == null || !d.figures[viewIdx] || !figSrc(d.figures[viewIdx])) viewIdx = defaultViewIdx(d, vid);
         const i = viewIdx, f = d.figures[i], n = d.figures.length;
-        const thumbs = n > 1 ? `<div class="sv-thumbs">${d.figures.map((t, ti) => figSrc(t)
+        const thumbs = n > 1 ? `<div class="sv-thumbs" style="max-height:${'calc(50vh - 40px)'}">${d.figures.map((t, ti) => figSrc(t)
             ? `<button type="button" class="sv-thumb${ti === i ? ' active' : ''}" data-sc="view" data-i="${ti}" title="${esc(t.caption || `図面${ti + 1}`)}"><img src="${esc(figSrc(t))}" alt=""><span>${esc(t.caption || `図面${ti + 1}`)}</span></button>` : '').join('')}</div>` : '';
         return `<div class="scope-viewer">
             <div class="figure-card sv-card">
                 <div class="fig-img-wrap sv-main"><img src="${esc(figSrc(f))}" alt="${esc(f.caption || '図面')}" data-open-fig="${i}"><svg class="fig-zones" data-fz="${i}" data-open-fig="${i}" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg></div>
                 <div class="figure-caption">${esc(f.caption)}${n > 1 ? `<small>${i + 1} / ${n}</small>` : ''}</div>
                 <span class="fig-zoom-hint">🔍 クリックで拡大</span>
-            </div>${thumbs}</div>`;
+            </div>
+            <div class="sv-side">${editBtn ? `<div class="sv-btns">${editBtn}</div>` : ''}${thumbs}</div></div>`;
     }
 
     // ===== 描画 =====
@@ -156,7 +157,8 @@
             </div>`).join('');
         const addFig = eF ? `<label class="figure-card figure-add"><input type="file" accept="image/*" multiple data-sc-file hidden><b>＋ 図面を追加</b><small>画像ファイルを選ぶか、Ctrl+V で貼り付け</small></label>` : '';
         const showViewer = !eF && d.figures.some(figSrc);
-        const figures = (figs || addFig) ? viewerHtml(d, vid, showViewer) + `<div class="figure-row scope-figs${showViewer ? ' scope-figs--print' : ''}">${figs}${addFig}</div>` : '<p class="spec-msg">図面はまだ登録されていません。</p>';
+        const figEditBtn = st.isAdmin ? `<button type="button" class="spec-btn" data-sc="edit" data-mode="fig"${editing ? ' disabled title="もう一方の編集を保存かキャンセルしてから編集してください"' : ''}>画像を編集</button>` : '';
+        const figures = (figs || addFig) ? viewerHtml(d, vid, showViewer, figEditBtn) + `<div class="figure-row scope-figs${showViewer ? ' scope-figs--print' : ''}">${figs}${addFig}</div>` : '<p class="spec-msg">図面はまだ登録されていません。</p>';
 
         // 担当範囲一覧
         const head = cols.map((c, ci) => (eT && !c.fixed)
@@ -179,7 +181,7 @@
         const tableBtns = eT ? `<div class="scope-table-btns"><button type="button" class="spec-btn" data-sc="addrow">＋ 行を追加</button><button type="button" class="spec-btn" data-sc="addcol">＋ 列を追加</button></div>` : '';
 
         root.innerHTML = filterNote
-            + sectionHead('図面', 'fig', '画像を編集', '図面は「＋図面を追加」か、スクリーンショットを Ctrl+V で貼り付け。図面をクリックすると拡大表示で色分け枠を描けます。終わったら「保存」を押してください。')
+            + (showViewer ? '' : sectionHead('図面', 'fig', '画像を編集', '図面は「＋図面を追加」か、スクリーンショットを Ctrl+V で貼り付け。図面をクリックすると拡大表示で色分け枠を描けます。終わったら「保存」を押してください。'))
             + figures
             + sectionHead('担当範囲一覧', 'table', '担当範囲一覧を編集', '担当のマスをクリックすると会社を選べます（もう一度クリックすると追加・選び直し）。「＋列を追加」で列を増やせます。終わったら「保存」を押してください。')
             + `<table class="data-table scope-table${eT ? ' is-editing' : ''}"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>` + tableBtns;
