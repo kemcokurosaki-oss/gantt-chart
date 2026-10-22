@@ -895,7 +895,7 @@
     .oc-sd-chip { display: flex; gap: 5px; align-items: center; font: inherit; font-size: 12.5px; padding: 2px 11px; border: 1px solid #cfd0cc; border-radius: 999px; background: #fff; color: #2b2f36; cursor: pointer; white-space: nowrap; }
     .oc-sd-chip span { font-size: 11px; opacity: .75; }
     .oc-sd-chip.is-on { background: #2b2f36; border-color: #2b2f36; color: #fff; }
-    .oc-sd-cols, .oc-sd-row { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) 150px 84px; gap: 12px; align-items: center; padding: 0 18px; }
+    .oc-sd-cols, .oc-sd-row { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 0.7fr) 150px 84px; gap: 12px; align-items: center; padding: 0 18px; }
     .oc-sd-cols { padding-top: 6px; padding-bottom: 6px; font-size: 11.5px; font-weight: 700; color: #6b7079; background: #f7f7f5; border-bottom: 1px solid #e4e3df; }
     .oc-sd-rows { flex: 1; overflow-y: auto; overflow-x: hidden; min-height: 0; }
     .oc-sd-ghead { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: 8px; padding: 6px 18px; background: #eeeeeb; border-bottom: 1px solid #e4e3df; font-size: 12.5px; font-weight: 700; color: #2b2f36; }
@@ -1068,7 +1068,7 @@
         .oc-sd-list { border-right: 0; border-bottom: 1px solid #e4e3df; }
         .oc-sd-side { max-height: 50vh; }
         .oc-sd-cols, .oc-sd-row { grid-template-columns: minmax(0, 1fr) 120px 64px; }
-        .oc-sd-cols > :nth-child(2), .oc-sd-dept { display: none; }
+        .oc-sd-cols > :nth-child(2), .oc-sd-cols > :nth-child(3), .oc-sd-dept { display: none; }
     }
 
     /* 注記 */
@@ -1999,7 +1999,7 @@ window.addEventListener('afterprint', () => {
 <script src="gaichu-spec.js?v=20261022d"></script>
 <script src="gaichu-scope.js?v=20261022m"></script>
 <script src="gaichu-gantt.js?v=20261022a"></script>
-<script src="org-chart.js?v=20261022c"></script>
+<script src="org-chart.js?v=20261022d"></script>
 
 </body>
 </html>

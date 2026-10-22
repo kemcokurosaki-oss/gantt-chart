@@ -378,12 +378,14 @@
     // ===== 社内名簿 =====
     async function loadStaff() {
         const { data, error } = await client.from('staff_directory')
-            .select('id, name, company, department, tel, sort_order, active')
+            .select('*')
             .order('sort_order').order('department').order('name');
         if (error) { console.error('社内名簿の取得に失敗しました', error); staff = []; return; }
         staff = data;
     }
-    function staffOrg(s) { return [s.company, s.department].filter(Boolean).join(' '); }
+    // 所属：会社・部署・役職（例：日下部電機㈱ 取締役 社長）
+    function staffOrg(s) { return [s.company, s.department, s.title].filter(Boolean).join(' '); }
+    const hasTitleColumn = () => !staff.length || 'title' in staff[0];   // SQL（役職の列の追加）を実行済みか
     // 表示中の外注先シートの代表者（外注先マスタ）。値は社内名簿の番号と区別して 'v外注先ID' にする
     function vendorRep() {
         const sheet = GS && sheetId && GS.sheetById(sheetId);
@@ -417,9 +419,9 @@
     // 変更は画面内にためておき、「名簿を保存」でまとめて DB に書き込む
     function staffDialog() {
         let seq = 0;
-        const sig = r => JSON.stringify([r.name, r.bu, r.ka, r.tel, r.sort_order, r.active]);
+        const sig = r => JSON.stringify([r.name, r.bu, r.ka, r.title, r.tel, r.sort_order, r.active]);
         const gkey = r => (r.bu || '') + '\u0001' + (r.ka || '');
-        const toRow = s => ({ _k: ++seq, id: s.id, name: s.name || '', ...splitDept(s.department), tel: s.tel || '', sort_order: s.sort_order ?? 0, active: s.active !== false });
+        const toRow = s => ({ _k: ++seq, id: s.id, name: s.name || '', ...splitDept(s.department), title: s.title || '', tel: s.tel || '', sort_order: s.sort_order ?? 0, active: s.active !== false });
         let rows, original;
         const removed = new Set();
         function reset() { rows = staff.map(toRow); original = new Map(rows.map(r => [r.id, sig(r)])); removed.clear(); }
@@ -437,7 +439,7 @@
                         </div>
                         <div class="oc-sd-chips"></div>
                     </div>
-                    <div class="oc-sd-cols"><div>氏名</div><div>課</div><div>電話</div><div></div></div>
+                    <div class="oc-sd-cols"><div>氏名</div><div>課</div><div>役職</div><div>電話</div><div></div></div>
                     <div class="oc-sd-rows"></div>
                 </div>
                 <div class="oc-sd-side"></div>
@@ -476,7 +478,7 @@
 
         function drawList() {
             const qn = norm(q);
-            const base = sorted().filter(r => (!qn || norm([r.name, r.bu, r.ka, r.tel].join('')).includes(qn))
+            const base = sorted().filter(r => (!qn || norm([r.name, r.bu, r.ka, r.title, r.tel].join('')).includes(qn))
                 && (fSt === 'all' || (fSt === 'on' ? r.active : !r.active)));
             const shown = base.filter(r => fBu === 'all' || r.bu === fBu);
 
@@ -503,6 +505,7 @@
                         return `<div class="oc-sd-row${r === sel ? ' is-sel' : ''}${st ? ' is-' + st : ''}${!r.active ? ' is-off' : ''}" data-k="${r._k}">
                             <div class="oc-sd-name">${esc(r.name || '（氏名未入力）')}</div>
                             <div class="oc-sd-dept">${esc(r.ka || '—')}</div>
+                            <div class="oc-sd-dept">${esc(r.title || '—')}</div>
                             <div class="oc-sd-tel">${esc(r.tel || '—')}</div>
                             <div class="oc-sd-badge">${b ? `<span class="oc-sd-b--${b[1]}">${b[0]}</span>` : ''}</div>
                         </div>`;
@@ -538,6 +541,7 @@
                         <label class="oc-field"><span>部</span><input data-f="bu" list="ocBuList" value="${esc(f.bu)}" placeholder="例：組立部"></label>
                         <label class="oc-field"><span>課</span><input data-f="ka" list="ocKaList" value="${esc(f.ka)}" placeholder="例：電装課"></label>
                     </div>
+                    ${hasTitleColumn() ? `<label class="oc-field"><span>役職</span><input data-f="title" value="${esc(f.title || '')}" placeholder="例：課長（なければ空欄）"></label>` : ''}
                     <label class="oc-field"><span>電話</span><input data-f="tel" inputmode="tel" value="${esc(f.tel)}" placeholder="090-xxxx-xxxx"></label>
                     <div class="oc-sd-card oc-sd-toggle" data-s="active">
                         <div><b>体制表のプルダウンに表示</b><small>オフにすると選択肢に出なくなります（名簿には残ります）</small></div>
@@ -583,18 +587,18 @@
 
         function startNew() {
             const base = mode === 'edit' && sel ? sel : null;
-            draft = { name: '', bu: base ? base.bu : (fBu !== 'all' ? fBu : ''), ka: base ? base.ka : '', tel: '', active: true };
+            draft = { name: '', bu: base ? base.bu : (fBu !== 'all' ? fBu : ''), ka: base ? base.ka : '', title: '', tel: '', active: true };
             mode = 'new'; sel = null; tried = false;
             drawList(); drawSide(); focusName();
         }
         function add(keep) {
             if (!draft.name.trim()) { tried = true; drawFormMeta(); focusName(); return; }
-            const r = { _k: ++seq, id: null, name: draft.name.trim(), bu: draft.bu.trim(), ka: draft.ka.trim(), tel: draft.tel.trim(), sort_order: nextOrder(), active: draft.active };
+            const r = { _k: ++seq, id: null, name: draft.name.trim(), bu: draft.bu.trim(), ka: draft.ka.trim(), title: (draft.title || '').trim(), tel: draft.tel.trim(), sort_order: nextOrder(), active: draft.active };
             rows.push(r);
             q = ''; $('.oc-sd-q').value = '';
             if (fBu !== 'all' && fBu !== r.bu) fBu = 'all';
             tried = false;
-            if (keep) { draft = { name: '', bu: r.bu, ka: r.ka, tel: '', active: true }; }
+            if (keep) { draft = { name: '', bu: r.bu, ka: r.ka, title: '', tel: '', active: true }; }
             else { mode = 'edit'; sel = r; draft = null; }
             drawList(); drawSide(); scrollToRow(r);
             if (keep) focusName();
@@ -617,6 +621,7 @@
                 for (const r of live().filter(r => statusOf(r))) {
                     const rec = { name: r.name.trim(), department: [r.bu, r.ka].map(s => s.trim()).filter(Boolean).join(' ') || null,
                         tel: r.tel.trim() || null, sort_order: Number(r.sort_order) || 0, active: !!r.active, updated_at: new Date().toISOString() };
+                    if (hasTitleColumn()) rec.title = String(r.title || '').trim() || null;
                     if (r.id) {
                         const { data, error } = await client.from('staff_directory').update(rec).eq('id', r.id).select('id');
                         if (error) throw error;
