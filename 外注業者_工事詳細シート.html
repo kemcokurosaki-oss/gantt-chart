@@ -839,6 +839,8 @@
     .oc-btn:hover { background: #eceef1; }
     .oc-btn--primary { background: #2b2f36; color: #fff; }
     .oc-btn--primary:hover { background: #16191d; }
+    /* 押せないときは灰色にする（白抜けで何のボタンかわからなくならないように） */
+    .oc-btn.oc-btn--primary:disabled, .oc-btn.oc-btn--primary:disabled:hover { opacity: 1; background: #c9ccd1; border-color: #c9ccd1; color: #fff; cursor: not-allowed; }
     .oc-btn--ghost { border-color: #cfd0cc; color: #5b6068; }
     .oc-tools .oc-btn--ghost:only-child { font-size: 11.5px; padding: 3px 10px; }
     .fullscreen-overlay.oc-full { width: 100vw; z-index: 300; }
