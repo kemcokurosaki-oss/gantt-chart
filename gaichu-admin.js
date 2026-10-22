@@ -23,8 +23,7 @@
     }
     const chip = (label, color) => `<span class="ga-chip" style="${chipStyle(color)}"><span class="ga-dot" style="background:${esc(color)}"></span>${esc(label)}</span>`;
     const vendorName = v => v.name || v.display_name;   // 正式社名（display_name は略称）
-    // 略称が空欄のときに自動で作る呼び方（シートの表示と同じ。㈱ なども外す）
-    const autoShort = name => String(name || '').normalize('NFKC').replace(/殿$/, '').replace(/株式会社|有限会社|合同会社|\(株\)|\(有\)/g, '').trim();
+    const autoShort = name => String(name || '').replace(/株式会社|有限会社|合同会社|（株）|\(株\)|（有）|\(有\)/g, '').trim();
 
     // 画面の見た目（どのページでも同じになるよう、ここで用意する）
     function addStyle() {
@@ -74,7 +73,7 @@
 .ga-hint { margin: 8px 0 0; font-size: 12px; line-height: 1.6; color: #5b6068; }
 .ga-grid2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
 .ga-new-vendor { margin-top: 12px; padding-top: 12px; border-top: 1px solid #efefec; }
-.ga-new-vendor[hidden], .ga-fixnote[hidden] { display: none; }   /* .ga-grid2 などの display より優先して隠す */
+.ga-new-vendor[hidden] { display: none; }   /* .ga-grid2 の display より優先して隠す */
 .ga-pn { font-weight: 700; }
 /* 工番の候補一覧 */
 .ga-combo { position: relative; }
@@ -85,6 +84,30 @@
 .ga-combo-item small { color: #5b6068; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ga-combo-item:hover, .ga-combo-item.is-active { background: #f5f5f3; }
 .ga-combo-empty { padding: 16px 12px; text-align: center; color: #6b7079; font-size: 12.5px; }
+/* 外注先のプルダウン（体制表の担当者のプルダウンと同じ見た目） */
+.ga-vpick { position: relative; }
+.ga-pick { display: flex; align-items: center; gap: 10px; width: 100%; min-width: 0; text-align: left; font: inherit; font-size: 14px; padding: 7px 10px; border: 1px solid #cfd0cc; border-radius: 6px; background: #fff; color: #2b2f36; cursor: pointer; }
+.ga-pick:hover { border-color: #2b2f36; }
+.ga-pick:focus, .ga-pick.is-open { outline: none; border-color: #2b2f36; box-shadow: 0 0 0 3px rgba(43,47,54,.18); }
+.ga-pick-main { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 8px; overflow: hidden; white-space: nowrap; }
+.ga-pick-main b { font-size: 14px; }
+.ga-pick-main small { font-size: 12px; color: #5b6068; overflow: hidden; text-overflow: ellipsis; }
+.ga-pick-empty { color: #6b7079; }
+.ga-pick > i { flex: none; width: 8px; height: 8px; border-right: 2px solid #5b6068; border-bottom: 2px solid #5b6068; transform: translateY(-2px) rotate(45deg); transition: transform .12s; }
+.ga-pick.is-open > i { transform: translateY(2px) rotate(-135deg); }
+.ga-pop { position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 3; display: flex; flex-direction: column; max-height: 300px; background: #fff; border: 1px solid #cfd0cc; border-radius: 8px; box-shadow: 0 8px 28px rgba(25,27,31,.22); overflow: hidden; }
+.ga-pop[hidden] { display: none; }
+.ga-pop-head { flex: none; padding: 6px 12px; font-size: 11.5px; font-weight: 700; color: #6b7079; background: #f7f7f5; border-bottom: 1px solid #e4e3df; }
+.ga-pop-list { position: relative; overflow-y: auto; min-height: 0; }
+.ga-pop-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 12px; border: 0; border-bottom: 1px solid #efefec; background: none; text-align: left; font: inherit; color: #2b2f36; cursor: pointer; }
+.ga-pop-item b { flex: 1; min-width: 0; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ga-pop-item small { flex: none; font-size: 12px; color: #5b6068; }
+.ga-pop-item .ga-dot { width: 10px; height: 10px; }
+.ga-pop-item .ga-dot.is-none { background: transparent; border: 1px dashed #aaadb1; box-sizing: border-box; }
+.ga-pop-item:hover, .ga-pop-item.is-hi { background: #f5f5f3; }
+.ga-pop-item.is-sel { background: #eceef1; box-shadow: inset 3px 0 0 #2b2f36; }
+.ga-pop-new { flex: none; border-top: 1px solid #e4e3df; border-bottom: 0; font-size: 13.5px; font-weight: 700; }
+.ga-pop-empty { padding: 16px 12px; text-align: center; font-size: 12.5px; color: #6b7079; }
 /* 色分けの色 */
 .ga-colors { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 .ga-swatches { display: flex; gap: 8px; align-items: center; }
@@ -109,6 +132,9 @@
 .ga-vcard-no { font-size: 12px; font-weight: 700; color: #6b7079; font-variant-numeric: tabular-nums; }
 .ga-vcard-title { font-size: 14px; color: #2b2f36; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .ga-vcard-tag { flex: none; font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 3px; background: #eceef1; color: #2b2f36; }
+.ga-vcard-color { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; color: #5b6068; }
+.ga-vcard-color i { width: 14px; height: 14px; border-radius: 50%; border: 1px solid rgba(0,0,0,0.12); }
+.ga-vcard-color i.is-none { border-style: dashed; }
 .ga-vcard-toggle { margin-left: auto; flex: none; display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px; color: #5b6068; }
 .ga-vcard-main { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) 76px; gap: 12px; padding: 12px 14px; }
 .ga-vcard-main .ga-field small { font-weight: 400; color: #6b7079; }
@@ -165,7 +191,7 @@
     async function context() {
         const [sheets, vendors] = await Promise.all([
             db().from('gaichu_sheets').select('id, project_number, vendor_id, color, sort_order, gaichu_vendors(name, display_name)').order('sort_order').order('id'),
-            db().from('gaichu_vendors').select('id, name, display_name, sort_order, active').order('sort_order').order('name'),
+            db().from('gaichu_vendors').select('*').order('sort_order').order('name'),
         ]);
         if (sheets.error) throw sheets.error;
         if (vendors.error) throw vendors.error;
@@ -174,7 +200,21 @@
             vendors: vendors.data || [],
         };
     }
-    const vendorColor = (ctx, vid) => (ctx.sheets.find(s => s.vendor_id === vid && s.color) || {}).color || null;
+    // 外注先の色：外注先マスタの色（なければ、その外注先の外注先シートの色）
+    const vendorColor = (ctx, vid) => {
+        const v = ctx.vendors.find(x => x.id === vid);
+        return (v && v.color) || (ctx.sheets.find(s => s.vendor_id === vid && s.color) || {}).color || null;
+    };
+    // 新しい外注先の色：ほかの外注先がまだ使っていないパレットの色。全部使っていたら、色相をずらして作る
+    function nextVendorColor(ctx) {
+        const used = new Set(ctx.vendors.map(v => vendorColor(ctx, v.id)).filter(Boolean).map(c => c.toLowerCase()));
+        const free = PALETTE.find(c => !used.has(c.toLowerCase()));
+        if (free) return free;
+        const h = (used.size * 137.508) % 360, s = 0.55, l = 0.45;
+        const f = n => { const k = (n + h / 30) % 12, a = s * Math.min(l, 1 - l); return Math.round(255 * (l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)))).toString(16).padStart(2, '0'); };
+        return '#' + f(0) + f(8) + f(4);
+    }
+    const hasColorColumn = ctx => !ctx.vendors.length || 'color' in ctx.vendors[0];   // SQL（color 列の追加）を実行済みか
 
     // 工番の候補一覧（ブラウザの入力候補ではなく、ページの中に出す）
     function combo(input, items) {
@@ -222,10 +262,8 @@
         });
         const usedPns = new Set(ctx.sheets.map(s => s.pn));
         const candidates = [...jobMap.keys()].filter(pn => !usedPns.has(pn)).sort().map(pn => ({ pn, ...jobMap.get(pn) }));
-        const usedColors = new Set(ctx.sheets.map(s => s.color));
-        const freeColor = PALETTE.find(c => !usedColors.has(c)) || PALETTE[0];
         const here = fixedPn ? ctx.sheets.filter(s => s.pn === fixedPn).map(s => s.vendor_id) : [];
-        let color = freeColor, fixedColor = null;
+        const vendorOpts = ctx.vendors.filter(v => v.active !== false && !here.includes(v.id));
         const m = modal(fixedPn ? `${fixedPn} に外注先を追加` : '外注先シートを追加', `
             <div class="ga-sec">
                 <div class="ga-sechead"><b>工番</b><small>${fixedPn ? 'この工番に追加します' : '入力するか、候補から選びます'}</small></div>
@@ -234,26 +272,23 @@
             </div>
             <div class="ga-sec">
                 <div class="ga-sechead"><b>外注先</b><small>外注先マスタで「使用」になっている会社が出ます</small></div>
-                <select data-f="vendor">
-                    <option value="">― 選んでください ―</option>
-                    ${ctx.vendors.filter(v => v.active !== false && !here.includes(v.id)).map(v => `<option value="${v.id}">${esc(vendorName(v))}</option>`).join('')}
-                    <option value="__new">＋ 新しい外注先を登録する</option></select>
+                <div class="ga-vpick">
+                    <input type="hidden" data-f="vendor" value="">
+                    <button type="button" class="ga-pick" aria-haspopup="listbox"><span class="ga-pick-main"></span><i></i></button>
+                    <div class="ga-pop" hidden>
+                        <div class="ga-pop-head">外注先（並びは外注先マスタの順）</div>
+                        <div class="ga-pop-list" role="listbox">${vendorOpts.length
+                            ? vendorOpts.map(v => { const c = vendorColor(ctx, v.id); return `<button type="button" class="ga-pop-item" data-v="${v.id}" role="option"><span class="ga-dot${c ? '' : ' is-none'}"${c ? ` style="background:${esc(c)}"` : ''}></span><b>${esc(vendorName(v))}</b><small>${c ? '色は登録済み' : ''}</small></button>`; }).join('')
+                            : '<div class="ga-pop-empty">選べる外注先がありません</div>'}</div>
+                        <button type="button" class="ga-pop-item ga-pop-new" data-v="__new" role="option">＋ 新しい外注先を登録する</button>
+                    </div>
+                </div>
                 <div class="ga-new-vendor ga-grid2" hidden>
                     <label class="ga-field"><span>正式社名 <em>*</em></span><input type="text" data-f="vname" autocomplete="off" placeholder="例：株式会社〇〇工業"></label>
                     <label class="ga-field"><span>略称</span><input type="text" data-f="vdisp" autocomplete="off" placeholder="空欄なら自動（〇〇工業）"></label>
                 </div>
             </div>
-            <div class="ga-sec">
-                <div class="ga-sechead"><b>色分けの色</b><small>工事一覧・工程表で外注先を見分ける色</small></div>
-                <div class="ga-colors">
-                    <div class="ga-swatches">
-                        ${PALETTE.map(c => `<button type="button" class="ga-sw" data-c="${c}" title="${c}" style="background:${c}"></button>`).join('')}
-                        <label class="ga-sw-custom" title="ほかの色を選ぶ">＋<input type="color" data-f="color" value="${freeColor}"></label>
-                    </div>
-                    <span class="ga-chip ga-preview"></span>
-                </div>
-                <div class="ga-fixnote" hidden>この外注先はほかの工番でも使っているため、同じ色に固定されます（色は外注先ごとに共通）。</div>
-            </div>`, [
+            <p class="ga-hint">色分けの色は外注先ごとに決まっています（新しい外注先は自動で決め、外注先マスタの管理で確認できます）。</p>`, [
             { label: 'キャンセル', ghost: true, onClick: () => m.close() },
             { label: '追加', primary: true, onClick: async () => {
                 const f = n => m.el.querySelector(`[data-f=${n}]`);
@@ -265,14 +300,22 @@
                     if (vid === '__new') {
                         const name = f('vname').value.trim(), disp = f('vdisp').value.trim();
                         if (!name) return m.err('新しい外注先の正式社名を入力してください。');
-                        const { data, error } = await db().from('gaichu_vendors')
-                            .insert({ name, display_name: disp || null, sort_order: (ctx.vendors.length + 1) * 10 }).select('id').single();
+                        const rec = { name, display_name: disp || null, sort_order: (ctx.vendors.length + 1) * 10 };
+                        if (hasColorColumn(ctx)) rec.color = nextVendorColor(ctx);   // 色は自動で決めて外注先マスタに入れる
+                        const { data, error } = await db().from('gaichu_vendors').insert(rec).select('*').single();
                         if (error) throw new Error(/duplicate|unique/i.test(error.message) ? 'この正式社名の外注先はすでに登録されています。一覧から選んでください。' : error.message);
                         vid = data.id;
+                        ctx.vendors.push(data);
+                    }
+                    // 外注先マスタに色がまだない外注先（色の列を足す前に登録した会社など）は、ここで決めてマスタに入れる
+                    let color = vendorColor(ctx, Number(vid));
+                    if (!color) {
+                        color = nextVendorColor(ctx);
+                        if (hasColorColumn(ctx)) await db().from('gaichu_vendors').update({ color }).eq('id', Number(vid));
                     }
                     const count = ctx.sheets.filter(s => s.pn === pn).length;
                     const { error } = await db().from('gaichu_sheets')
-                        .insert({ project_number: pn, vendor_id: Number(vid), color: fixedColor || color, sort_order: (count + 1) * 10 }).select('id').single();
+                        .insert({ project_number: pn, vendor_id: Number(vid), color, sort_order: (count + 1) * 10 }).select('id').single();
                     if (error) throw new Error(/duplicate|unique/i.test(error.message) ? 'この工番には、その外注先のシートがすでにあります。' : error.message);
                 } catch (e) { return m.err('追加できませんでした：' + (e.message || e)); }
                 m.close();
@@ -283,39 +326,50 @@
         if (!fixedPn) combo(pnInput, candidates);
         pnInput.addEventListener('input', () => m.err(''));
 
-        // 色：パレットから選ぶか、「＋」でほかの色。すでにほかの工番で使っている外注先は、その色に固定する（同じ会社はどの工番でも同じ色にそろえる）
+        // 外注先を選んだとき：新しい外注先の入力欄の開閉（色は外注先マスタの色を使うので、ここでは選ばない）
         const vendorSel = m.el.querySelector('[data-f=vendor]');
-        const swatches = m.el.querySelector('.ga-swatches');
-        const custom = m.el.querySelector('.ga-sw-custom');
-        const colorInput = m.el.querySelector('[data-f=color]');
-        const preview = m.el.querySelector('.ga-preview');
-        const fixNote = m.el.querySelector('.ga-fixnote');
-        const drawColor = () => {
-            const c = fixedColor || color;
-            const inPalette = PALETTE.includes(c);
-            swatches.querySelectorAll('.ga-sw').forEach(b => b.classList.toggle('is-on', b.dataset.c === c));
-            custom.classList.toggle('is-on', !inPalette);
-            custom.style.background = inPalette ? '' : c;
-            swatches.classList.toggle('is-fixed', !!fixedColor);
-            colorInput.disabled = !!fixedColor;
-            fixNote.hidden = !fixedColor;
-            const v = vendorSel.value, vendor = ctx.vendors.find(x => String(x.id) === v);
-            const label = vendor ? (vendor.display_name || autoShort(vendor.name) || vendor.name) : v === '__new' ? (m.el.querySelector('[data-f=vdisp]').value.trim() || autoShort(m.el.querySelector('[data-f=vname]').value) || '新しい外注先') : '外注先';
-            preview.setAttribute('style', chipStyle(c));
-            preview.innerHTML = `<span class="ga-dot" style="background:${esc(c)}"></span>${esc(label)}`;
-        };
-        swatches.querySelectorAll('.ga-sw').forEach(b => b.addEventListener('click', () => { if (fixedColor) return; color = b.dataset.c; drawColor(); }));
-        colorInput.addEventListener('input', () => { if (fixedColor) return; color = colorInput.value; drawColor(); });
         vendorSel.addEventListener('change', () => {
-            const v = vendorSel.value;
-            m.el.querySelector('.ga-new-vendor').hidden = v !== '__new';
-            fixedColor = v && v !== '__new' ? vendorColor(ctx, Number(v)) : null;
+            m.el.querySelector('.ga-new-vendor').hidden = vendorSel.value !== '__new';
             m.err('');
-            drawColor();
         });
-        m.el.querySelectorAll('[data-f=vname], [data-f=vdisp]').forEach(i => i.addEventListener('input', drawColor));
-        drawColor();
-        (fixedPn ? vendorSel : pnInput).focus();
+
+        // 外注先のプルダウン（ブラウザ標準の選択肢ではなく、ページの中に出す）。↑↓・Enter・Esc でも操作できる
+        const pickBtn = m.el.querySelector('.ga-pick');
+        const pickMain = m.el.querySelector('.ga-pick-main');
+        const pop = m.el.querySelector('.ga-pop');
+        const items = [...pop.querySelectorAll('.ga-pop-item')];
+        let hi = -1;
+        const drawPick = () => {
+            const v = vendorSel.value, vendor = ctx.vendors.find(x => String(x.id) === v);
+            pickMain.innerHTML = vendor
+                ? `<b>${esc(vendorName(vendor))}</b>${vendor.display_name ? `<small>${esc(vendor.display_name)}</small>` : ''}`
+                : v === '__new' ? '<b>＋ 新しい外注先を登録する</b>' : '<span class="ga-pick-empty">― 選んでください ―</span>';
+            items.forEach(b => b.classList.toggle('is-sel', b.dataset.v === v));
+        };
+        const setHi = i => { hi = i; items.forEach((b, j) => b.classList.toggle('is-hi', j === hi));
+            const el = items[hi], box = pop.querySelector('.ga-pop-list');
+            if (el && box.contains(el)) { if (el.offsetTop < box.scrollTop) box.scrollTop = el.offsetTop; else if (el.offsetTop + el.offsetHeight > box.scrollTop + box.clientHeight) box.scrollTop = el.offsetTop + el.offsetHeight - box.clientHeight; }
+        };
+        const openPop = () => { pop.hidden = false; pickBtn.classList.add('is-open'); setHi(Math.max(0, items.findIndex(b => b.dataset.v === vendorSel.value))); };
+        const closePop = () => { pop.hidden = true; pickBtn.classList.remove('is-open'); };
+        const choose = v => { vendorSel.value = v; closePop(); drawPick(); vendorSel.dispatchEvent(new Event('change')); pickBtn.focus(); };
+        pickBtn.addEventListener('click', () => (pop.hidden ? openPop() : closePop()));
+        pickBtn.addEventListener('keydown', e => {
+            if (pop.hidden) { if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPop(); } return; }
+            if (e.key === 'ArrowDown') { e.preventDefault(); setHi(Math.min(hi + 1, items.length - 1)); }
+            else if (e.key === 'ArrowUp') { e.preventDefault(); setHi(Math.max(hi - 1, 0)); }
+            else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (items[hi]) choose(items[hi].dataset.v); }
+            else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closePop(); }
+            else if (e.key === 'Tab') closePop();
+        });
+        items.forEach((b, i) => {
+            b.addEventListener('mousedown', e => e.preventDefault());
+            b.addEventListener('mouseenter', () => setHi(i));
+            b.addEventListener('click', () => choose(b.dataset.v));
+        });
+        m.el.addEventListener('mousedown', e => { if (!pop.hidden && !e.target.closest('.ga-vpick')) closePop(); });
+        drawPick();
+        (fixedPn ? pickBtn : pnInput).focus();
     }
 
     // ===== その工番の外注先シートの管理（一覧・削除・追加） =====
@@ -434,6 +488,7 @@
                 <div class="ga-vcard-head">
                     <span class="ga-vcard-no">${String(i + 1).padStart(2, '0')}</span>
                     <b class="ga-vcard-title">${esc(titleOf(r))}</b>
+                    ${(() => { const c = r.id ? vendorColor(ctx, r.id) : null; return `<span class="ga-vcard-color" title="${c ? '色分けの色 ' + esc(c) : '色は外注先シートを追加するときに自動で決まります'}"><i style="background:${esc(c || '#fff')}"${c ? '' : ' class="is-none"'}></i>${c ? '色' : '色 未設定'}</span>`; })()}
                     <span class="ga-vcard-tag">${on ? '使用中' : '使用しない'}</span>
                     <label class="ga-vcard-toggle"><span>選択肢に出す</span><input type="checkbox" class="ga-switch" data-f="active"${on ? ' checked' : ''}></label>
                 </div>
