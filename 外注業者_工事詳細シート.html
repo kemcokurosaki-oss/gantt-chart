@@ -354,6 +354,18 @@
     /* 編集中：工程表から自動で表示する列は灰色の地にして、入力できないことがわかるようにする */
     .scope-table.is-editing td.se-auto { background: #f5f5f3; color: #5b6068; }
     .scope-table.is-editing td.se-task-cell { cursor: pointer; }
+    /* 行の追加（工程表にタスクを作る） */
+    .se-addrow-wrap { margin-top: 10px; }
+    .se-addrow-btn { appearance: none; font: inherit; font-size: 12.5px; font-weight: 700; color: #2b2f36; background: #fff; border: 1px dashed #2b2f36; border-radius: 999px; padding: 6px 16px; cursor: pointer; }
+    .se-addrow-btn:hover { background: #2b2f36; color: #fff; border-style: solid; }
+    .se-addrow { padding: 10px 14px; border: 1px solid #e4e3df; border-radius: 8px; background: #fafaf8; }
+    .se-addrow > b { font-size: 13px; margin-right: 10px; }
+    .se-addrow > small { font-size: 12px; color: #6b7079; }
+    .se-addrow-fields { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 12px; margin-top: 8px; }
+    .se-addrow-fields label { display: flex; flex-direction: column; gap: 3px; font-size: 11.5px; font-weight: 700; color: #5b6068; }
+    .se-addrow-fields .spec-input { width: 180px; }
+    .se-addrow-err { color: #c0392b; font-size: 12px; margin-top: 4px; min-height: 1em; }
+    .scope-table tr.se-new-row td { box-shadow: inset 0 0 0 9999px rgba(39,174,96,0.06); }
     .scope-table.is-editing td.se-task-cell:hover { background: #eceef1; }
     /* 図面ビューアの表示中は、担当範囲一覧を画面の下ぎりぎりまで使うため、枠の下の余白を詰める */
     #panel-scope.sv-fit .sub-body { padding-bottom: 10px; }
@@ -2006,7 +2018,7 @@ window.addEventListener('afterprint', () => {
 <script src="gaichu-jobnav.js?v=20261022b"></script>
 <script src="gaichu-overview.js?v=20261023a"></script>
 <script src="gaichu-spec.js?v=20261022d"></script>
-<script src="gaichu-scope.js?v=20261023b"></script>
+<script src="gaichu-scope.js?v=20261023c"></script>
 <script src="gaichu-gantt.js?v=20261022a"></script>
 <script src="org-chart.js?v=20261022d"></script>
 
