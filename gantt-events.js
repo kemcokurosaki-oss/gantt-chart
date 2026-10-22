@@ -70,7 +70,7 @@
         gantt.locale.labels.section_unit = "ユニット";
         gantt.locale.labels.section_description = "タスク名";
         gantt.locale.labels.section_owner = "担当";
-        gantt.locale.labels.section_outsource = "外注先";
+        gantt.locale.labels.section_outsource = "外注先・試運転場所";
         gantt.locale.labels.section_time = "期間";
 
         // 見出し行（プロジェクト型）も同じ項目を表示

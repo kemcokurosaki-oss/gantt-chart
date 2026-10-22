@@ -23,6 +23,7 @@
     let figUrls = {};         // 図面の path → 表示用の署名付きURL
     let orgBySheet = null;     // sheet_id → 最初の系統のツリー
     let tasks = null;
+    let allTasks = [];         // 工程表のタスク（担当範囲一覧の行を作る）
 
     function esc(s) {
         return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -48,6 +49,7 @@
         scope = { figures: Array.isArray(r.figures) ? r.figures : [], rows: Array.isArray(r.rows) ? r.rows : [], columns: Array.isArray(r.columns) && r.columns.length ? r.columns : DEFAULT_COLUMNS };
         orgBySheet = new Map();
         (oc.data || []).forEach(c => { if (!orgBySheet.has(c.sheet_id)) orgBySheet.set(c.sheet_id, Array.isArray(c.tree) ? c.tree : []); });
+        allTasks = tk || [];
         tasks = (tk || []).filter(t => GS.isOutsource(t.owner) && t.start_date && t.end_date)
             .map(t => ({ ...t, start: toDate(t.start_date), end: toDate(t.end_date) })).sort((a, b) => a.start - b.start);
         // 外注先によって概要に出す図面が変わるので、図面の表示用URLはまとめて作っておく
@@ -62,6 +64,7 @@
 
     // ===== 担当先 =====
     function party(key) {
+        if (key === 'unset') return { label: '未定', short: '未定', color: '#7b8088' };
         if (key === KUSAKABE) return { label: GS.KUSAKABE.name, short: GS.shortName(GS.KUSAKABE.name), color: GS.KUSAKABE.color };
         const s = GS.state.sheets.find(x => String(x.vendor_id) === String(key));
         return s ? { label: s.display, short: s.short, color: s.color } : { label: '（不明）', short: '（不明）', color: '#95a5a6' };
@@ -121,7 +124,9 @@
         const vid = sh ? sh.vendor_id : null;
         // 概要の表は 機械組立・電気艤装・据付（列があれば）だけ。試運転・試運転場所などは詳細の担当範囲一覧で見る
         const cols = scope.columns, pcols = cols.filter(c => c.type === 'party' && (c.key === 'assembly' || c.key === 'electrical' || /据付/.test(c.label || '')));
-        const rows = scope.rows.filter(r => vid == null || pcols.some(c => (r[c.key] || []).some(k => String(k) === String(vid))));
+        // 行は工程表から作る（組立範囲の詳細と同じ）。機械名などの手入力の列を重ねる
+        const all = GS.scopeRows(allTasks, scope.rows).map(r => ({ ...r.manual, machine: r.machine, unit: r.unit, assembly: r.assembly, electrical: r.electrical, trial: r.trial, trial_place: r.trial_place }));
+        const rows = all.filter(r => vid == null || pcols.some(c => (r[c.key] || []).some(k => String(k) === String(vid))));
         // 概要に出す図面：全体のときは先頭の図面。外注先を選んでいるときは、その外注先の色分け枠が入っている最初の図面（なければ先頭）
         const figs = scope.figures.filter(f => f.path);
         const f0 = (vid != null && figs.find(f => (f.zones || []).some(z => String(z.party) === String(vid)))) || figs[0] || {};
@@ -145,7 +150,7 @@
                 return `<span class="ov-chip" data-party="${esc(k)}" style="${GS.chipStyle(p.color)}">${esc(p.short || GS.shortName(p.label))}</span>`;
             }).join('') || '<span class="ov-none">―</span>'}</span>`).join('')}</div>`;
         }).join('') + `</div>`
-            : muted(scope.rows.length ? 'この外注先が担当に入っている行はありません。' : '担当範囲一覧はまだ入力されていません。');
+            : muted(all.length ? 'この外注先が担当に入っている行はありません。' : '工程表に、担当が「外注」の「機械組立」「電気艤装」のタスクがありません。');
         el.scope.innerHTML = `<div class="ov-scope">${fig}<div class="ov-units"><span class="ov-k">${sh ? esc(sh.display) + 'の担当' : '担当範囲（全体）'}　<span class="ov-hint">バッジや図面の枠にマウスを乗せると、同じ担当先を強調します</span></span>${list}</div></div>`;
     }
     function highlight(keys) {
