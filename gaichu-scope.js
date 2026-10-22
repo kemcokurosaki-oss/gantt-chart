@@ -3,7 +3,8 @@
 //   ・色分け枠：図面ごとに担当先の枠（位置は画像に対する%）。拡大表示の画面で描く
 //   ・担当範囲一覧：列は既定の7列＋工事ごとに追加できる列。担当の列は外注先（外注先マスタのID）と日下部電機（'kusakabe'）を複数選べる
 //   ・外注先の切り替え（gaichu-sheet.js）で、その外注先が担当に入っている行と、その外注先・日下部電機の枠だけを表示する
-//   編集は体制表の管理者のみ。「画像を編集」（図面・色分け枠）と「担当範囲一覧を編集」は別々に行い、それぞれ「保存」で保存する。
+//   編集は体制表の管理者のみ。見出しの帯の「組立範囲を編集」で、図面・色分け枠と担当範囲一覧をまとめて編集し、「保存」1回で両方保存する。
+//   担当範囲一覧で文字を入力するのは 機械・ユニット・機械名 だけ。試運転場所と追加する列は会社を選ぶ列（以前に文字で入れた試運転場所は、編集を始めたときに当てはまる会社に置き換える）
 // 読み込み前に gaichu-sheet.js を読み込み、ページに #scopeRoot と拡大表示（#lightbox）を置いておくこと。
 (function () {
     const root = document.getElementById('scopeRoot');
@@ -20,13 +21,14 @@
         { key: 'assembly', label: '機械組立', type: 'party', fixed: true },
         { key: 'electrical', label: '電気艤装', type: 'party', fixed: true },
         { key: 'trial', label: '試運転', type: 'party', fixed: true },
-        { key: 'trial_place', label: '試運転場所', type: 'text', fixed: true },
+        { key: 'trial_place', label: '試運転場所', type: 'party', fixed: true },
     ];
 
     let data = { figures: [], rows: [], columns: [] };   // 保存済みの内容
     let urls = {};                                       // Storage のパス → 表示用URL
     let loaded = false;
-    let editing = null;                                  // 編集中の対象：null／'fig'（図面・色分け枠）／'table'（担当範囲一覧）
+    let editing = false;                                 // 編集中か（図面・色分け枠と担当範囲一覧をまとめて編集する）
+    let baseline = '';                                   // 編集を始めた時点の内容（変更があるかの判定に使う）
     let draft = null;                                    // 編集中の内容（保存するまでDBには書かない）
     let removedPaths = [];                               // 編集中に削除した図面（保存時に Storage からも消す）
     const ratioOf = {};                                  // 表示用URL → 画像の縦横比（横÷縦）。サムネイルの幅の配分に使う
@@ -64,9 +66,12 @@
         return p ? GS.chipHtml(p.short || GS.shortName(p.label), p.color).replace('<span class="party-chip"', `<span class="party-chip" data-party="${esc(p.key)}"`) : GS.chipHtml(text, '#95a5a6');
     }
     const vendorFilter = () => (GS.state.currentSheet ? GS.state.currentSheet.vendor_id : null);
+    const keysOf = v => (Array.isArray(v) ? v : []);
+    // 外注先の絞り込みに使う列（試運転場所は除く：以前と同じく、作業の担当で絞り込む）
+    const isFilterCol = c => c.type === 'party' && c.key !== 'trial_place';
     function rowVisible(row, cols) {
         const vid = vendorFilter();
-        return vid == null || cols.some(c => c.type === 'party' && (row[c.key] || []).some(k => String(k) === String(vid)));
+        return vid == null || cols.some(c => isFilterCol(c) && keysOf(row[c.key]).some(k => String(k) === String(vid)));
     }
     function darken(hex) {
         const m = /^#?([0-9a-f]{6})$/i.exec(hex || '');
@@ -127,71 +132,96 @@
     }
 
     // ===== 描画 =====
+    const PENCIL = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg>';
+    // 見出しの帯（資料の名前のすぐ右）：閲覧中は「組立範囲を編集」、編集中は「編集中」の印と「キャンセル」「保存」
+    // 編集中は 別タブで開く・印刷・閉じる を隠す（ページ側のCSS：#panel-scope.scope-editing）
+    function renderBar() {
+        const st = GS.state;
+        const panel = root.closest('.sub-panel');
+        if (panel) panel.classList.toggle('scope-editing', !!editing);
+        if (!barTools) return;
+        barTools.innerHTML = !(st.isAdmin && st.loggedIn && loaded) ? ''
+            : editing
+                ? '<span class="scope-editing-tag">編集中</span><span class="spec-spacer"></span><button type="button" class="spec-btn" data-sc="cancel">キャンセル</button><button type="button" class="spec-btn spec-btn--primary" data-sc="save">保存</button>'
+                : `<button type="button" class="spec-btn scope-edit-btn" data-sc="edit">${PENCIL}組立範囲を編集</button>`;
+    }
     function render() {
         const st = GS.state;
+        renderBar();
         if (!loaded) { root.innerHTML = '<p class="spec-msg">読込中…</p>'; return; }
         if (!st.loggedIn) { root.innerHTML = '<p class="spec-msg">組立範囲は、社内のアカウントでログインすると表示されます。</p>'; return; }
         const d = current();
         const cols = columnsOf(d);
-        const eF = editing === 'fig', eT = editing === 'table';
-        const vid = vendorFilter();
-
-        // 見出しと編集ボタン：図面・色分け枠と担当範囲一覧は別々に編集する（同時には編集しない）
-        const sectionHead = (title, mode, editLabel, note) => {
-            const btns = !st.isAdmin ? '' : editing === mode
-                ? `<button type="button" class="spec-btn" data-sc="cancel">キャンセル</button><button type="button" class="spec-btn spec-btn--primary" data-sc="save">保存</button>`
-                : `<button type="button" class="spec-btn" data-sc="edit" data-mode="${mode}"${editing ? ' disabled title="もう一方の編集を保存かキャンセルしてから編集してください"' : ''}>${editLabel}</button>`;
-            return `<div class="scope-head"><div class="subhead">${title}</div><span class="spec-spacer"></span>${btns}</div>`
-                + (editing === mode ? `<p class="spec-editing-note">${note}</p>` : '');
-        };
-
-        // 図面
-        // サムネイルは行ごとに高さをそろえ、横幅を縦横比で配分して余白なく並べる（flex-grow＝縦横比、flex-basis＝縦横比×行の高さ）
-        const flexOf = f => { const r = ratioOf[figSrc(f)] || 1.6; return `flex:${r} 1 ${Math.round(r * THUMB_H)}px`; };
-        const figs = d.figures.map((f, i) => `<div class="figure-card" data-fi="${i}" style="${flexOf(f)}">
-                ${figSrc(f) ? `<div class="fig-img-wrap"><img src="${esc(figSrc(f))}" alt="${esc(f.caption || '図面')}" data-open-fig="${i}"><svg class="fig-zones" data-fz="${i}" data-open-fig="${i}" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg></div>` : '<div class="fig-missing">画像を読み込めませんでした</div>'}
-                ${eF ? `<input type="text" class="spec-input fig-cap-input" data-cap="${i}" value="${esc(f.caption)}" placeholder="図面の見出し（例：【全体図】ライン全体の俯瞰図）">
-                       <div class="fig-edit"><button type="button" data-sc="figleft" data-i="${i}" title="左へ">◀</button><button type="button" data-sc="figright" data-i="${i}" title="右へ">▶</button><button type="button" class="spec-del" data-sc="figdel" data-i="${i}" title="この図面を削除">✕ 削除</button></div>`
-                    : `<div class="figure-caption">${esc(f.caption)}</div>`}
-                ${figSrc(f) ? `<span class="fig-zoom-hint">🔍 クリックで拡大${eF ? '・色分け枠を編集' : ''}</span>` : ''}
-            </div>`).join('');
-        const addFig = eF ? `<label class="figure-card figure-add"><input type="file" accept="image/*" multiple data-sc-file hidden><b>＋ 図面を追加</b><small>画像ファイルを選ぶか、Ctrl+V で貼り付け</small></label>` : '';
-        const showViewer = !eF && d.figures.some(figSrc);
-        const figures = (figs || addFig) ? viewerHtml(d, vid, showViewer, '') + `<div class="figure-row scope-figs${showViewer ? ' scope-figs--print' : ''}">${figs}${addFig}</div>` : '<p class="spec-msg">図面はまだ登録されていません。</p>';
-
-        // 担当範囲一覧
-        const head = cols.map((c, ci) => (eT && !c.fixed)
-            ? `<th class="scope-col-edit"><input type="text" class="spec-input" data-colname="${ci}" value="${esc(c.label)}" placeholder="列の名前">
-                 <span class="scope-col-btns"><button type="button" data-sc="colleft" data-i="${ci}" title="左へ">◀</button><button type="button" data-sc="colright" data-i="${ci}" title="右へ">▶</button><button type="button" class="spec-del" data-sc="coldel" data-i="${ci}" title="この列を削除">✕</button></span>
-                 <small>${c.type === 'party' ? '担当の列' : '文字の列'}</small></th>`
-            : `<th>${esc(c.label)}</th>`).join('') + (eT ? '<th style="width:74px;"></th>' : '');
-        const rowsShown = d.rows.map((r, ri) => ({ r, ri })).filter(x => eT || rowVisible(x.r, cols));
-        const rowParties = r => { const ks = [...new Set(cols.filter(c => c.type === 'party').flatMap(c => (r[c.key] || []).map(String)))]; const out = ks.filter(k => k !== KUSAKABE); return (out.length ? out : ks).join(' '); };
-        const body = rowsShown.length ? rowsShown.map(({ r, ri }) => `<tr${eT ? '' : ` data-parties="${esc(rowParties(r))}"`}>${cols.map(c => {
-                if (c.type === 'party') {
-                    const ks = r[c.key] || [];
-                    const chips = ks.length ? ks.map(partyChip).join('') : (eT ? '' : '―');
-                    return eT ? `<td class="party-cell" data-party-cell="${ri}" data-key="${esc(c.key)}" title="クリックで担当を選ぶ">${chips}<span class="party-pick">＋選ぶ</span></td>` : `<td>${chips}</td>`;
-                }
-                if (!eT && c.key === 'trial_place') return `<td>${placeChip(r[c.key])}</td>`;
-                return `<td>${eT ? `<input type="text" class="spec-input" data-cell="${ri}" data-key="${esc(c.key)}" value="${esc(r[c.key])}">` : (esc(r[c.key]) || '―')}</td>`;
-            }).join('')}${eT ? `<td class="scope-row-btns"><button type="button" data-sc="rowup" data-i="${ri}" title="上へ">↑</button><button type="button" data-sc="rowdown" data-i="${ri}" title="下へ">↓</button><button type="button" class="spec-del" data-sc="rowdel" data-i="${ri}" title="この行を削除">✕</button></td>` : ''}</tr>`).join('')
-            : `<tr><td colspan="${cols.length + (eT ? 1 : 0)}" class="spec-empty">${d.rows.length ? 'この外注先が担当に入っている行はありません' : '（未入力）'}</td></tr>`;
-        const tableBtns = eT ? `<div class="scope-table-btns"><button type="button" class="spec-btn" data-sc="addrow">＋ 行を追加</button><button type="button" class="spec-btn" data-sc="addcol">＋ 列を追加</button></div>` : '';
-
-        root.innerHTML = ''
-            + (showViewer ? '' : sectionHead('図面', 'fig', '画像を編集', '図面は「＋図面を追加」か、スクリーンショットを Ctrl+V で貼り付け。図面をクリックすると拡大表示で色分け枠を描けます。終わったら「保存」を押してください。'))
-            + figures
-            + (eT ? sectionHead('担当範囲一覧', 'table', '担当範囲一覧を編集', '担当のマスをクリックすると会社を選べます（もう一度クリックすると追加・選び直し）。「＋列を追加」で列を増やせます。終わったら「保存」を押してください。') : '')
-            + `<div class="scope-table-wrap"><table class="data-table scope-table${eT ? ' is-editing' : ''}"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>` + tableBtns
-;
-        // 編集ボタンは資料の見出しの帯に置く（管理者のみ。編集中は各部分の「保存」「キャンセル」を使う）
-        if (barTools) barTools.innerHTML = st.isAdmin && !editing
-            ? (showViewer ? `<button type="button" class="doc-print-btn" data-sc="edit" data-mode="fig">画像を編集</button>` : '')
-              + `<button type="button" class="doc-print-btn" data-sc="edit" data-mode="table">担当範囲一覧を編集</button>`
-            : '';
+        root.innerHTML = editing ? editHtml(d, cols) : viewHtml(d, cols, vendorFilter());
         layoutThumbZones();
         fitTable();
+    }
+    // サムネイルは行ごとに高さをそろえ、横幅を縦横比で配分して余白なく並べる（flex-grow＝縦横比、flex-basis＝縦横比×行の高さ）
+    const flexOf = f => { const r = ratioOf[figSrc(f)] || 1.6; return `flex:${r} 1 ${Math.round(r * THUMB_H)}px`; };
+    const imgWrap = (f, i) => (figSrc(f)
+        ? `<div class="fig-img-wrap"><img src="${esc(figSrc(f))}" alt="${esc(f.caption || '図面')}" data-open-fig="${i}"><svg class="fig-zones" data-fz="${i}" data-open-fig="${i}" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg></div>`
+        : '<div class="fig-missing">画像を読み込めませんでした</div>');
+    const rowParties = (r, cols) => { const ks = [...new Set(cols.filter(isFilterCol).flatMap(c => keysOf(r[c.key]).map(String)))]; const out = ks.filter(k => k !== KUSAKABE); return (out.length ? out : ks).join(' '); };
+    function cellView(r, c) {
+        const v = r[c.key];
+        if (c.key === 'trial_place' && !Array.isArray(v)) return placeChip(v);   // 以前の文字の試運転場所
+        if (c.type === 'party') { const ks = keysOf(v); return ks.length ? ks.map(partyChip).join('') : '―'; }
+        return esc(v) || '―';
+    }
+
+    // ===== 閲覧中 =====
+    function viewHtml(d, cols, vid) {
+        const showViewer = d.figures.some(figSrc);
+        const figs = d.figures.map((f, i) => `<div class="figure-card" data-fi="${i}" style="${flexOf(f)}">${imgWrap(f, i)}<div class="figure-caption">${esc(f.caption)}</div>${figSrc(f) ? '<span class="fig-zoom-hint">🔍 クリックで拡大</span>' : ''}</div>`).join('');
+        const figures = figs
+            ? viewerHtml(d, vid, showViewer, '') + `<div class="figure-row scope-figs${showViewer ? ' scope-figs--print' : ''}">${figs}</div>`
+            : '<p class="spec-msg">図面はまだ登録されていません。</p>';
+        const rowsShown = d.rows.filter(r => rowVisible(r, cols));
+        const body = rowsShown.length
+            ? rowsShown.map(r => `<tr data-parties="${esc(rowParties(r, cols))}">${cols.map(c => `<td>${cellView(r, c)}</td>`).join('')}</tr>`).join('')
+            : `<tr><td colspan="${cols.length}" class="spec-empty">${d.rows.length ? 'この外注先が担当に入っている行はありません' : '（未入力）'}</td></tr>`;
+        return figures + `<div class="scope-table-wrap"><table class="data-table scope-table"><thead><tr>${cols.map(c => `<th>${esc(c.label)}</th>`).join('')}</tr></thead><tbody>${body}</tbody></table></div>`;
+    }
+
+    // ===== 編集中：① 図面（番号付きのカード）と ② 担当範囲一覧（マウスを乗せると＋が出る）を上下に並べる =====
+    function editHtml(d, cols) {
+        const n = d.figures.length;
+        const figs = d.figures.map((f, i) => {
+            const ps = [...new Set((f.zones || []).map(z => String(z.party)))];
+            return `<div class="figure-card se-fig" data-fi="${i}">
+                <div class="se-fig-img">${imgWrap(f, i)}<span class="se-fig-no">${i + 1}</span></div>
+                <div class="se-fig-body">
+                    <input type="text" class="spec-input" data-cap="${i}" value="${esc(f.caption)}" placeholder="図面の見出し（例：【全体図】ライン全体の俯瞰図）">
+                    <div class="se-fig-zones"><b>枠</b>${ps.length ? ps.map(partyChip).join('') : '<span class="se-muted">まだ描いていません</span>'}</div>
+                    <div class="se-fig-btns">${figSrc(f) ? `<button type="button" class="spec-btn spec-btn--primary se-draw" data-sc="draw" data-i="${i}">${PENCIL}色分け枠を描く</button>` : ''}<span class="spec-spacer"></span><button type="button" class="se-mini" data-sc="figleft" data-i="${i}" title="左へ"${i === 0 ? ' disabled' : ''}>◀</button><button type="button" class="se-mini" data-sc="figright" data-i="${i}" title="右へ"${i === n - 1 ? ' disabled' : ''}>▶</button><button type="button" class="spec-del se-del" data-sc="figdel" data-i="${i}" title="この図面を削除">✕ 削除</button></div>
+                </div></div>`;
+        }).join('');
+        const addFig = '<label class="figure-card figure-add se-fig-add"><input type="file" accept="image/*" multiple data-sc-file hidden><span class="se-add-circle">＋</span><b>図面を追加</b><small>画像ファイルを選ぶか、Ctrl+V で貼り付け</small></label>';
+        const plusCol = ci => `<button type="button" class="se-plus se-plus--col" data-sc="addcol" data-i="${ci + 1}" title="この右に列を追加">＋</button><span class="se-tip se-tip--col">この右に列を追加</span>`;
+        const head = cols.map((c, ci) => c.fixed
+            ? `<th>${esc(c.label)}${plusCol(ci)}</th>`
+            : `<th class="scope-col-edit"><span class="se-col-name"><input type="text" class="spec-input" data-colname="${ci}" value="${esc(c.label)}" placeholder="列の名前"><span class="se-col-btns"><button type="button" class="se-mini" data-sc="colleft" data-i="${ci}" title="左へ">◀</button><button type="button" class="se-mini" data-sc="colright" data-i="${ci}" title="右へ">▶</button><button type="button" class="spec-del" data-sc="coldel" data-i="${ci}" title="この列を削除">✕</button></span></span>${plusCol(ci)}</th>`).join('');
+        const body = d.rows.length ? d.rows.map((r, ri) => `<tr><td class="se-gutter"><button type="button" class="se-plus se-plus--row" data-sc="addrow" data-i="${ri + 1}" title="この下に行を追加">＋</button><span class="se-tip se-tip--row">この下に行を追加</span></td>`
+                + cols.map(c => cellEdit(r, ri, c)).join('')
+                + `<td class="scope-row-btns"><button type="button" data-sc="rowup" data-i="${ri}" title="上へ">↑</button><button type="button" data-sc="rowdown" data-i="${ri}" title="下へ">↓</button><button type="button" class="spec-del" data-sc="rowdel" data-i="${ri}" title="この行を削除">✕</button></td></tr>`).join('')
+            : `<tr><td class="se-gutter"></td><td colspan="${cols.length + 1}" class="spec-empty">（未入力）表にマウスを乗せると出る「＋ 行を追加」から入力してください</td></tr>`;
+        return `<div class="se-head"><span class="se-title">① 図面</span><span class="se-hint">「色分け枠を描く」を押すと、その図面を拡大して担当先の枠を描けます</span></div>
+            <div class="se-figs">${figs}${addFig}</div>
+            <div class="se-head"><span class="se-title">② 担当範囲一覧</span><span class="se-hint">行や見出しにマウスを乗せると「＋」が出ます。担当のマスをクリックすると会社を選べます</span></div>
+            <div class="se-table-area">
+                <table class="data-table scope-table is-editing"><thead><tr><th class="se-gutter"></th>${head}<th class="se-actions-h"></th></tr></thead><tbody>${body}</tbody></table>
+                <button type="button" class="se-edge se-edge--col" data-sc="addcol" data-i="${cols.length}" title="右端に列を追加"><span>＋</span><small>列を<br>追加</small></button>
+                <button type="button" class="se-edge se-edge--row" data-sc="addrow" data-i="${d.rows.length}" title="最後に行を追加"><span>＋</span>行を追加</button>
+            </div>`;
+    }
+    function cellEdit(r, ri, c) {
+        const v = r[c.key];
+        if (c.type === 'party') {
+            const old = !Array.isArray(v) && String(v || '').trim() ? GS.chipHtml(v, '#95a5a6') : '';   // 会社に当てはまらなかった以前の文字
+            const chips = keysOf(v).map(partyChip).join('') + old;
+            return `<td class="party-cell" data-party-cell="${ri}" data-key="${esc(c.key)}" title="クリックで担当を選ぶ"><span class="se-party">${chips || '<span class="se-muted">クリックで選ぶ</span>'}<span class="se-caret">▾</span></span></td>`;
+        }
+        return `<td><input type="text" class="spec-input" data-cell="${ri}" data-key="${esc(c.key)}" value="${esc(v)}"></td>`;
     }
     function fitTable() {
         const wrap = root.querySelector('.scope-table-wrap');
@@ -256,7 +286,7 @@
                 // 配分が変わったときは、大きさが決まってから枠を置き直す。図面ビューアのカードは配分しない
                 const r = img.naturalWidth / img.naturalHeight;
                 ratioOf[figSrc(f || {})] = r;
-                const card = img.closest('.figure-card:not(.sv-card)');
+                const card = img.closest('.figure-card:not(.sv-card):not(.se-fig)');
                 const flex = `${r} 1 ${Math.round(r * THUMB_H)}px`;
                 if (card && card.dataset.flex !== flex) {
                     card.dataset.flex = flex;
@@ -278,18 +308,27 @@
     document.addEventListener('click', e => { if (e.target.closest('.view-toggle-btn')) setTimeout(layoutThumbZones, 0); });
 
     // ===== 編集 =====
-    function startEdit(mode) {
+    const strip = d => JSON.stringify({ figures: d.figures.map(f => ({ path: f.path, caption: f.caption || '', zones: f.zones || [] })), rows: d.rows, columns: columnsOf(d) });
+    function startEdit() {
         draft = clone(data);
         if (!draft.columns.length) draft.columns = clone(DEFAULT_COLUMNS);
+        // 試運転場所は会社を選ぶ列にする。文字で入っていたものは当てはまる会社に置き換える（当てはまらなければ文字のまま残し、選び直せる）
+        draft.columns.forEach(c => { if (c.key === 'trial_place') c.type = 'party'; });
+        draft.rows.forEach(r => {
+            const v = r.trial_place;
+            if (v == null || Array.isArray(v)) return;
+            const p = partyByName(v);
+            r.trial_place = p ? [p.key] : (String(v).trim() ? v : []);
+        });
+        baseline = strip(draft);
         removedPaths = [];
-        editing = mode;
+        editing = true;
         render();
     }
-    function endEdit() { editing = null; draft = null; removedPaths = []; closePicker(); render(); }
+    function endEdit() { editing = false; draft = null; removedPaths = []; baseline = ''; closePicker(); render(); }
     function isDirty() {
         if (!editing) return false;
-        const strip = d => JSON.stringify({ figures: d.figures.map(f => ({ path: f.path, caption: f.caption || '', zones: f.zones || [] })), rows: d.rows, columns: columnsOf(d) });
-        return strip(draft) !== strip(data) || draft.figures.some(f => f.file);
+        return strip(draft) !== baseline || draft.figures.some(f => f.file);
     }
     function move(list, i, delta) {
         const j = i + delta;
@@ -306,7 +345,7 @@
         return rows.filter(r => cols.some(c => c.type === 'party' ? (r[c.key] || []).length : String(r[c.key] || '').trim()));
     }
     async function save() {
-        const btn = root.querySelector('[data-sc="save"]');
+        const btn = (barTools || root).querySelector('[data-sc="save"]');
         if (btn) { btn.disabled = true; btn.textContent = '保存中…'; }
         try {
             const { data: { session } } = await client.auth.getSession();
@@ -354,7 +393,7 @@
     function openPicker(cell) {
         closePicker();
         const ri = Number(cell.dataset.partyCell), key = cell.dataset.key;
-        const cur = (draft.rows[ri][key] || []).map(String);
+        const cur = keysOf(draft.rows[ri][key]).map(String);
         picker = document.createElement('div');
         picker.className = 'party-picker';
         picker.innerHTML = parties().map(p => `<button type="button" class="party-opt${cur.includes(String(p.key)) ? ' is-on' : ''}" data-pk="${esc(p.key)}"><span class="party-opt-mark">${cur.includes(String(p.key)) ? '✓' : ''}</span><span class="dot" style="background:${esc(p.color)}"></span>${esc(p.label)}</button>`).join('')
@@ -368,7 +407,7 @@
             const opt = ev.target.closest('[data-pk]');
             if (!opt) return;
             const v = opt.dataset.pk;
-            const list = draft.rows[ri][key] || [];
+            const list = keysOf(draft.rows[ri][key]);
             if (v === '') draft.rows[ri][key] = [];
             else {
                 const k = v === KUSAKABE ? KUSAKABE : Number(v);
@@ -382,32 +421,12 @@
         if (picker && !picker.contains(e.target) && !e.target.closest('.party-cell')) closePicker();
     });
 
-    // 列の追加（名前と種類を選ぶ小さな画面）
-    function addColumnDialog() {
-        const bg = document.createElement('div');
-        bg.className = 'oc-modal-bg';
-        bg.innerHTML = `<div class="oc-modal"><div class="oc-modal-head">列を追加</div>
-            <div class="oc-modal-body">
-                <label class="oc-field"><span>列の名前</span><input type="text" name="label" placeholder="例：据付＆レベル出し"></label>
-                <div class="oc-type"><label><input type="radio" name="type" value="party" checked> 担当の列（外注先・日下部電機から選ぶ）</label></div>
-                <div class="oc-type"><label><input type="radio" name="type" value="text"> 文字の列（自由に入力）</label></div>
-                <div class="oc-err"></div></div>
-            <div class="oc-modal-foot"><button type="button" class="oc-btn oc-btn--ghost" data-x>キャンセル</button><button type="button" class="oc-btn oc-btn--primary" data-ok>追加</button></div></div>`;
-        document.body.appendChild(bg);
-        const label = bg.querySelector('[name=label]');
-        label.focus();
-        const close = () => bg.remove();
-        bg.querySelector('[data-x]').addEventListener('click', close);
-        const ok = () => {
-            const name = label.value.trim();
-            if (!name) { bg.querySelector('.oc-err').textContent = '列の名前を入力してください。'; return; }
-            const type = bg.querySelector('[name=type]:checked').value;
-            draft.columns.push({ key: 'c' + Date.now().toString(36), label: name, type, fixed: false });
-            close();
-            render();
-        };
-        bg.querySelector('[data-ok]').addEventListener('click', ok);
-        label.addEventListener('keydown', e => { if (e.key === 'Enter') ok(); });
+    // 列の追加：＋を押すとすぐに会社を選ぶ列を入れ、名前の欄を選んだ状態にする（そのまま打ち替えられる）
+    function addColumn(at) {
+        draft.columns.splice(at, 0, { key: 'c' + Date.now().toString(36), label: '新しい列', type: 'party', fixed: false });
+        render();
+        const inp = root.querySelector(`[data-colname="${at}"]`);
+        if (inp) { inp.focus(); inp.select(); }
     }
 
     let hlKeys = null;   // 強調している担当先（色分け枠を描き直したときに付け直す）
@@ -418,7 +437,6 @@
         root.querySelectorAll('[data-party]').forEach(n => n.classList.toggle('hl', !!on && on.has(n.dataset.party)));
         root.querySelectorAll('tr[data-parties]').forEach(n => n.classList.toggle('hl', !!on && n.dataset.parties.split(' ').some(k => on.has(k))));
     }
-    if (barTools) barTools.addEventListener('click', e => { const b = e.target.closest('[data-sc="edit"]'); if (b) startEdit(b.dataset.mode); });
     root.addEventListener('mouseover', e => {
         if (editing) return;
         const chip = e.target.closest('.party-chip[data-party], polygon[data-party]');
@@ -428,41 +446,44 @@
     });
     root.addEventListener('mouseleave', () => highlight(null));
 
+    // ボタンの操作（見出しの帯と本文の両方）
+    function act(b) {
+        const i = Number(b.dataset.i);
+        switch (b.dataset.sc) {
+            case 'edit': startEdit(); return;
+            case 'cancel': if (!isDirty() || confirm('編集内容を破棄して元に戻しますか？')) endEdit(); return;
+            case 'save': save(); return;
+            case 'view': viewIdx = i; render(); return;
+            case 'draw': openLightbox(i, true); return;
+            case 'figleft': move(draft.figures, i, -1); break;
+            case 'figright': move(draft.figures, i, 1); break;
+            case 'figdel':
+                if (!confirm('この図面を削除しますか？（「保存」を押すまでは元に戻せます）')) return;
+                if (draft.figures[i].path) removedPaths.push(draft.figures[i].path);
+                draft.figures.splice(i, 1);
+                break;
+            case 'addrow': draft.rows.splice(i, 0, {}); break;
+            case 'rowup': move(draft.rows, i, -1); break;
+            case 'rowdown': move(draft.rows, i, 1); break;
+            case 'rowdel': draft.rows.splice(i, 1); break;
+            case 'addcol': addColumn(i); return;
+            case 'colleft': move(draft.columns, i, -1); break;
+            case 'colright': move(draft.columns, i, 1); break;
+            case 'coldel':
+                if (!confirm(`「${draft.columns[i].label}」の列を削除しますか？（この列に入力した内容も消えます）`)) return;
+                draft.columns.splice(i, 1);
+                break;
+            default: return;
+        }
+        render();
+    }
+    if (barTools) barTools.addEventListener('click', e => { const b = e.target.closest('[data-sc]'); if (b) act(b); });
     root.addEventListener('click', e => {
+        const b = e.target.closest('[data-sc]');
+        if (b) { act(b); return; }
         const img = e.target.closest('[data-open-fig]');
         if (img) { openLightbox(Number(img.dataset.openFig)); return; }
-        const b = e.target.closest('[data-sc]');
-        if (b) {
-            const i = Number(b.dataset.i);
-            switch (b.dataset.sc) {
-                case 'edit': startEdit(b.dataset.mode); return;
-                case 'cancel': if (!isDirty() || confirm('編集内容を破棄して元に戻しますか？')) endEdit(); return;
-                case 'save': save(); return;
-                case 'view': viewIdx = i; render(); return;
-                case 'figleft': move(draft.figures, i, -1); break;
-                case 'figright': move(draft.figures, i, 1); break;
-                case 'figdel':
-                    if (!confirm('この図面を削除しますか？（「保存」を押すまでは元に戻せます）')) return;
-                    if (draft.figures[i].path) removedPaths.push(draft.figures[i].path);
-                    draft.figures.splice(i, 1);
-                    break;
-                case 'addrow': draft.rows.push({}); break;
-                case 'rowup': move(draft.rows, i, -1); break;
-                case 'rowdown': move(draft.rows, i, 1); break;
-                case 'rowdel': draft.rows.splice(i, 1); break;
-                case 'addcol': addColumnDialog(); return;
-                case 'colleft': move(draft.columns, i, -1); break;
-                case 'colright': move(draft.columns, i, 1); break;
-                case 'coldel':
-                    if (!confirm(`「${draft.columns[i].label}」の列を削除しますか？（この列に入力した内容も消えます）`)) return;
-                    draft.columns.splice(i, 1);
-                    break;
-                default: return;
-            }
-            render();
-            return;
-        }
-        const cell = editing === 'table' && e.target.closest('.party-cell');
+        const cell = editing && e.target.closest('.party-cell');
         if (cell) openPicker(cell);
     });
     root.addEventListener('input', e => {
@@ -477,7 +498,7 @@
     });
     // スクリーンショットの貼り付け（図面の編集中で、入力欄以外にカーソルがあるとき）
     document.addEventListener('paste', e => {
-        if (editing !== 'fig' || !root.offsetParent) return;
+        if (!editing || !root.offsetParent) return;
         const files = [...(e.clipboardData && e.clipboardData.items || [])].filter(it => it.kind === 'file' && /^image\//.test(it.type)).map(it => it.getAsFile());
         if (!files.length) return;
         e.preventDefault();
@@ -540,15 +561,16 @@
         x = cx - (cx - x) * k; y = cy - (cy - y) * k; scale = next; apply();
     };
     const center = () => { const r = stage.getBoundingClientRect(); return [r.width / 2, r.height / 2]; };
-    function openLightbox(fi) {
+    // draw：「色分け枠を描く」から開いたときは、最初から枠の編集をオンにする
+    function openLightbox(fi, draw) {
         const f = current().figures[fi];
         if (!f || !figSrc(f)) return;
         zs.fi = fi;
         setEditMode(false);
-        // 色分け枠の編集は「画像を編集」の最中だけ
-        const canZone = editing === 'fig';
+        // 色分け枠の編集は「組立範囲を編集」の最中だけ
+        const canZone = !!editing;
         [editBtn, undoBtn, clearBtn].forEach(b => { if (b) b.style.display = canZone ? '' : 'none'; });
-        if (editHint) editHint.textContent = canZone ? '描いた枠は、閉じたあと図面の「保存」で保存されます' : '';
+        if (editHint) editHint.textContent = canZone ? '描いた枠は、閉じたあと見出しの帯の「保存」で保存されます' : '';
         lb.classList.toggle('lb-readonly', !canZone);
         lbImg.onload = fit;
         lbImg.src = figSrc(f);
@@ -557,6 +579,7 @@
         document.body.style.overflow = 'hidden';
         if (lbImg.complete && lbImg.naturalWidth) fit();
         renderZones();
+        if (draw && canZone) setEditMode(true);
     }
     const closeLightbox = () => { lb.classList.remove('active'); document.body.style.overflow = ''; setEditMode(false); zs.fi = null; render(); };
     lb.querySelectorAll('[data-z]').forEach(b => b.addEventListener('click', () => {
@@ -676,8 +699,8 @@
     if (toolBox) toolBox.addEventListener('click', e => { const b = e.target.closest('[data-tool]'); if (b) setTool(b.dataset.tool); });
 
     function setEditMode(on) {
-        const entering = on && editing === 'fig' && !zs.editMode;
-        zs.editMode = on && editing === 'fig';
+        const entering = on && !!editing && !zs.editMode;
+        zs.editMode = on && !!editing;
         if (entering && lbImg.naturalWidth) fit();
         lb.classList.toggle('edit-mode', zs.editMode);
         if (editBtn) { editBtn.classList.toggle('active', zs.editMode); editBtn.textContent = zs.editMode ? '枠の編集を終了' : '✏️ 色分け枠を編集'; }
@@ -686,7 +709,7 @@
         zs.selected = null;
         if (toolBox) toolBox.style.display = zs.editMode ? '' : 'none';
         if (zs.editMode) setTool(zs.tool);
-        else { zs.polyPts = []; zs.polyHover = null; if (editHint && editing === 'fig') editHint.textContent = '描いた枠は、閉じたあと図面の「保存」で保存されます'; }
+        else { zs.polyPts = []; zs.polyHover = null; if (editHint && editing) editHint.textContent = '描いた枠は、閉じたあと見出しの帯の「保存」で保存されます'; }
         renderZones();
     }
     if (editBtn) editBtn.addEventListener('click', () => setEditMode(!zs.editMode));
