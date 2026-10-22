@@ -341,8 +341,8 @@
     .fig-img-wrap { position: relative; }
     /* 組立範囲（詳細）の図面ビューア：1枚を大きく表示し、下のサムネイルで切り替える。印刷は今までどおり全部並べる */
     /* 左に図面、右の列に「画像を編集」とサムネイルの縦並び。図面の高さを抑えて、すぐ下の担当範囲一覧も同じ画面に入るようにする */
-    .scope-viewer { display: grid; grid-template-columns: minmax(0, 1fr) 160px; gap: 12px; align-items: stretch; margin-bottom: 12px; }
-    .scope-viewer .sv-main img { display: block; width: 100%; height: auto; max-height: 40vh; object-fit: contain; background: #e0e0dc; cursor: zoom-in; }
+    .scope-viewer { display: grid; grid-template-columns: minmax(0, 1fr) 200px; gap: 12px; align-items: stretch; margin-bottom: 12px; }
+    .scope-viewer .sv-main img { display: block; width: 100%; height: auto; max-height: 50vh; object-fit: contain; background: #e0e0dc; cursor: zoom-in; }
     .scope-viewer .figure-caption { padding: 4px 12px; }
     .scope-viewer .figure-caption small { margin-left: 10px; font-weight: 500; color: #8b9097; }
     .sub-tools { display: inline-flex; gap: 8px; padding-right: 8px; margin-right: 4px; border-right: 1px solid #e4e3df; }
@@ -356,7 +356,7 @@
     .sv-btns { display: flex; justify-content: flex-end; margin-top: auto; }
     .sv-thumbs { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 8px; overflow-y: auto; padding: 0 2px 2px 0; }
     .sv-thumb { appearance: none; flex: 0 0 auto; width: 100%; padding: 0; border: 2px solid transparent; border-radius: 6px; background: #fff; cursor: pointer; overflow: hidden; text-align: left; font-family: inherit; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
-    .sv-thumb img { display: block; width: 100%; height: 78px; object-fit: cover; background: #e0e0dc; }
+    .sv-thumb img { display: block; width: 100%; height: 100px; object-fit: cover; background: #e0e0dc; }
     .sv-thumb span { display: block; padding: 3px 7px; font-size: 11.5px; font-weight: 700; color: #5b6068; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .sv-thumb:hover { border-color: #b4b7bb; }
     .sv-thumb.active { border-color: #2b2f36; }
