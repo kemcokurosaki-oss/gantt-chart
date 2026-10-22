@@ -1402,6 +1402,7 @@
     @media screen { .sub-panel .panel-head { display: none; } }
     .sub-bar { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 8px; padding: 10px 32px; background: #fff; border-bottom: 1px solid #e4e3df; }
     .sub-bar h2 { flex: 1 1 auto; font-size: 15px; font-weight: 700; color: #2b2f36; }
+    .sub-num { font-size: 18px; font-weight: 700; margin-right: 8px; }   /* 概要の章の番号と同じ */
     .sub-close { appearance: none; border: none; background: #2b2f36; color: #fff; font-family: inherit; font-size: 12.5px; font-weight: 700; padding: 7px 14px; border-radius: 6px; cursor: pointer; }
     .sub-close:hover { background: #3a3f47; }
     .sub-body { padding: 16px 32px 40px; }
@@ -1779,7 +1780,7 @@
 
     <!-- 1. 組立範囲（図面） -->
     <section class="sub-panel" id="panel-scope">
-        <div class="sub-bar"><h2>組立範囲（図面と担当範囲）</h2><span class="sub-tools" id="scopeBarTools"></span><button type="button" class="doc-print-btn" data-newtab title="この資料だけを新しいタブで開きます（画面を並べて見比べるときに）">別タブで開く ↗</button><button type="button" class="doc-print-btn" data-print="scope">この資料を印刷／PDF保存</button><button type="button" class="sub-close" data-close-doc>✕ 閉じる</button></div>
+        <div class="sub-bar"><h2><span class="sub-num">1</span>組立範囲（図面と担当範囲）</h2><span class="sub-tools" id="scopeBarTools"></span><button type="button" class="doc-print-btn" data-newtab title="この資料だけを新しいタブで開きます（画面を並べて見比べるときに）">別タブで開く ↗</button><button type="button" class="doc-print-btn" data-print="scope">この資料を印刷／PDF保存</button><button type="button" class="sub-close" data-close-doc>✕ 閉じる</button></div>
         <div class="sub-body">
         <div class="panel-head">
             <h2 class="print-only">組立範囲（図面）</h2>
@@ -1793,7 +1794,7 @@
 
     <!-- 2. 工程表 -->
     <section class="sub-panel" id="panel-schedule">
-        <div class="sub-bar"><h2>工程表</h2><button type="button" class="doc-print-btn" data-newtab title="この資料だけを新しいタブで開きます（画面を並べて見比べるときに）">別タブで開く ↗</button><button type="button" class="doc-print-btn" data-print="schedule">この資料を印刷／PDF保存</button><button type="button" class="sub-close" data-close-doc>✕ 閉じる</button></div>
+        <div class="sub-bar"><h2><span class="sub-num">2</span>工程表</h2><button type="button" class="doc-print-btn" data-newtab title="この資料だけを新しいタブで開きます（画面を並べて見比べるときに）">別タブで開く ↗</button><button type="button" class="doc-print-btn" data-print="schedule">この資料を印刷／PDF保存</button><button type="button" class="sub-close" data-close-doc>✕ 閉じる</button></div>
         <div class="sub-body">
         <div class="panel-head">
             <h2 class="print-only">工程表</h2>
@@ -1814,7 +1815,7 @@
 
     <!-- 3. 組立発注仕様書 基本概要 -->
     <section class="sub-panel" id="panel-order-spec">
-        <div class="sub-bar"><h2>組立発注仕様書　基本概要</h2><button type="button" class="doc-print-btn" data-newtab title="この資料だけを新しいタブで開きます（画面を並べて見比べるときに）">別タブで開く ↗</button><button type="button" class="doc-print-btn" data-print="order-spec">この資料を印刷／PDF保存</button><button type="button" class="sub-close" data-close-doc>✕ 閉じる</button></div>
+        <div class="sub-bar"><h2><span class="sub-num">3</span>組立発注仕様書　基本概要</h2><button type="button" class="doc-print-btn" data-newtab title="この資料だけを新しいタブで開きます（画面を並べて見比べるときに）">別タブで開く ↗</button><button type="button" class="doc-print-btn" data-print="order-spec">この資料を印刷／PDF保存</button><button type="button" class="sub-close" data-close-doc>✕ 閉じる</button></div>
         <div class="sub-body">
         <div class="panel-head">
             <h2 class="print-only">組立発注仕様書　基本概要</h2>
@@ -1835,7 +1836,7 @@
 
     <!-- 4. 体制表 -->
     <section class="sub-panel" id="panel-trial">
-        <div class="sub-bar"><h2>体制表</h2><button type="button" class="doc-print-btn" data-newtab title="この資料だけを新しいタブで開きます（画面を並べて見比べるときに）">別タブで開く ↗</button><button type="button" class="doc-print-btn" data-print="trial">この資料を印刷／PDF保存</button><button type="button" class="sub-close" data-close-doc>✕ 閉じる</button></div>
+        <div class="sub-bar"><h2><span class="sub-num">4</span>体制表</h2><button type="button" class="doc-print-btn" data-newtab title="この資料だけを新しいタブで開きます（画面を並べて見比べるときに）">別タブで開く ↗</button><button type="button" class="doc-print-btn" data-print="trial">この資料を印刷／PDF保存</button><button type="button" class="sub-close" data-close-doc>✕ 閉じる</button></div>
         <div class="sub-body">
         <div class="panel-head">
             <h2 class="print-only">体制表</h2>
