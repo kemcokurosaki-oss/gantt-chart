@@ -30,6 +30,7 @@
     let removedPaths = [];                               // 編集中に削除した図面（保存時に Storage からも消す）
     const ratioOf = {};                                  // 表示用URL → 画像の縦横比（横÷縦）。サムネイルの幅の配分に使う
     const THUMB_H = 400;                                 // サムネイルの行の高さの目安（px）。横長の3D図が広い画面で1行に2枚ほど並ぶ大きさ
+    let viewIdx = null;                                  // 図面ビューアで表示中の図面（null＝外注先に合わせて自動で選ぶ）
 
     function esc(s) {
         return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -100,6 +101,29 @@
     }
     const figSrc = f => f.dataUrl || urls[f.path] || '';
 
+    // ===== 図面ビューア（閲覧中のみ） =====
+    // 最初に出す図面：外注先を選んでいるときは、その外注先の色分け枠が入っている最初の図面（概要ページと同じ）。全体なら先頭
+    function defaultViewIdx(d, vid) {
+        if (vid != null) {
+            const i = d.figures.findIndex(f => figSrc(f) && (f.zones || []).some(z => String(z.party) === String(vid)));
+            if (i >= 0) return i;
+        }
+        return Math.max(0, d.figures.findIndex(figSrc));
+    }
+    function viewerHtml(d, vid, show) {
+        if (!show) return '';
+        if (viewIdx == null || !d.figures[viewIdx] || !figSrc(d.figures[viewIdx])) viewIdx = defaultViewIdx(d, vid);
+        const i = viewIdx, f = d.figures[i], n = d.figures.length;
+        const thumbs = n > 1 ? `<div class="sv-thumbs">${d.figures.map((t, ti) => figSrc(t)
+            ? `<button type="button" class="sv-thumb${ti === i ? ' active' : ''}" data-sc="view" data-i="${ti}" title="${esc(t.caption || `図面${ti + 1}`)}"><img src="${esc(figSrc(t))}" alt=""><span>${esc(t.caption || `図面${ti + 1}`)}</span></button>` : '').join('')}</div>` : '';
+        return `<div class="scope-viewer">
+            <div class="figure-card sv-card">
+                <div class="fig-img-wrap sv-main"><img src="${esc(figSrc(f))}" alt="${esc(f.caption || '図面')}" data-open-fig="${i}"><svg class="fig-zones" data-fz="${i}" data-open-fig="${i}" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg></div>
+                <div class="figure-caption">${esc(f.caption)}${n > 1 ? `<small>${i + 1} / ${n}</small>` : ''}</div>
+                <span class="fig-zoom-hint">🔍 クリックで拡大</span>
+            </div>${thumbs}</div>`;
+    }
+
     // ===== 描画 =====
     function render() {
         const st = GS.state;
@@ -131,7 +155,8 @@
                 ${figSrc(f) ? `<span class="fig-zoom-hint">🔍 クリックで拡大${eF ? '・色分け枠を編集' : ''}</span>` : ''}
             </div>`).join('');
         const addFig = eF ? `<label class="figure-card figure-add"><input type="file" accept="image/*" multiple data-sc-file hidden><b>＋ 図面を追加</b><small>画像ファイルを選ぶか、Ctrl+V で貼り付け</small></label>` : '';
-        const figures = (figs || addFig) ? `<div class="figure-row scope-figs">${figs}${addFig}</div>` : '<p class="spec-msg">図面はまだ登録されていません。</p>';
+        const showViewer = !eF && d.figures.some(figSrc);
+        const figures = (figs || addFig) ? viewerHtml(d, vid, showViewer) + `<div class="figure-row scope-figs${showViewer ? ' scope-figs--print' : ''}">${figs}${addFig}</div>` : '<p class="spec-msg">図面はまだ登録されていません。</p>';
 
         // 担当範囲一覧
         const head = cols.map((c, ci) => (eT && !c.fixed)
@@ -196,11 +221,15 @@
             const f = figs[Number(svg.dataset.fz)];
             const place = () => {
                 if (!img.naturalWidth) return;
+                const a = img.naturalHeight / img.naturalWidth;
+                svg.setAttribute('viewBox', `0 0 100 ${100 * a}`);
+                svg.innerHTML = zoneShapes(f && f.zones, a);
+                if (hlKeys) highlight(hlKeys);   // 枠を描き直しても、マウスを乗せている担当先の強調を保つ
                 // カードの幅の配分を画像の実際の縦横比に合わせる（描き直した直後は初期値のことがあるため毎回確かめる）。
-                // 配分が変わったときは、大きさが決まってから枠を置き直す
+                // 配分が変わったときは、大きさが決まってから枠を置き直す。図面ビューアのカードは配分しない
                 const r = img.naturalWidth / img.naturalHeight;
                 ratioOf[figSrc(f || {})] = r;
-                const card = img.closest('.figure-card');
+                const card = img.closest('.figure-card:not(.sv-card)');
                 const flex = `${r} 1 ${Math.round(r * THUMB_H)}px`;
                 if (card && card.dataset.flex !== flex) {
                     card.dataset.flex = flex;
@@ -213,10 +242,6 @@
                 const k = Math.min(bw / img.naturalWidth, bh / img.naturalHeight);
                 const dw = img.naturalWidth * k, dh = img.naturalHeight * k;
                 Object.assign(svg.style, { left: img.offsetLeft + (bw - dw) / 2 + 'px', top: img.offsetTop + (bh - dh) / 2 + 'px', width: dw + 'px', height: dh + 'px' });
-                const a = img.naturalHeight / img.naturalWidth;
-                svg.setAttribute('viewBox', `0 0 100 ${100 * a}`);
-                svg.innerHTML = zoneShapes(f && f.zones, a);
-                if (hlKeys) highlight(hlKeys);   // 枠を描き直しても、マウスを乗せている担当先の強調を保つ
             };
             if (img.complete) place(); else img.addEventListener('load', place, { once: true });
         });
@@ -385,6 +410,7 @@
                 case 'edit': startEdit(b.dataset.mode); return;
                 case 'cancel': if (!isDirty() || confirm('編集内容を破棄して元に戻しますか？')) endEdit(); return;
                 case 'save': save(); return;
+                case 'view': viewIdx = i; render(); return;
                 case 'figleft': move(draft.figures, i, -1); break;
                 case 'figright': move(draft.figures, i, 1); break;
                 case 'figdel':
@@ -430,7 +456,7 @@
         files.forEach(addImageFile);
     });
     // 外注先の切り替え：編集中は全行を表示しているので描き直すだけ（表示の絞り込みは閲覧時のみ）
-    document.addEventListener('gaichusheetchange', () => { if (!loaded) load(); else render(); });
+    document.addEventListener('gaichusheetchange', () => { viewIdx = null; if (!loaded) load(); else render(); });
     window.addEventListener('beforeunload', e => { if (isDirty()) { e.preventDefault(); e.returnValue = ''; } });
 
     // ===== 拡大表示＋色分け枠 =====
