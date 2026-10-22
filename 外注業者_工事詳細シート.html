@@ -342,7 +342,11 @@
     .scope-viewer .sv-main img { display: block; width: 100%; height: auto; max-height: 40vh; object-fit: contain; background: #e0e0dc; cursor: zoom-in; }
     .scope-viewer .figure-caption { padding: 4px 12px; }
     .scope-viewer .figure-caption small { margin-left: 10px; font-weight: 500; color: #8b9097; }
-    .scope-table-foot { display: flex; justify-content: flex-end; margin-top: 8px; }
+    .sub-tools { display: inline-flex; gap: 8px; padding-right: 8px; margin-right: 4px; border-right: 1px solid #e4e3df; }
+    .sub-tools:empty { display: none; }
+    /* 図面ビューアの表示中は、担当範囲一覧を画面の下ぎりぎりまで使うため、枠の下の余白を詰める */
+    #panel-scope.sv-fit .sub-body { padding-bottom: 10px; }
+    #panel-scope.sv-fit .card { margin-bottom: 0; }
     /* 右の列の高さは左の図面に合わせる（列の中身は高さに数えない）。サムネイルが多いときは列の中でスクロール */
     .sv-side { position: relative; min-width: 0; }
     .sv-side-in { position: absolute; inset: 0; display: flex; flex-direction: column; gap: 8px; }
@@ -1680,7 +1684,7 @@
 
     <!-- 1. 組立範囲（図面） -->
     <section class="sub-panel" id="panel-scope">
-        <div class="sub-bar"><h2>組立範囲（図面と担当範囲）</h2><button type="button" class="doc-print-btn" data-newtab title="この資料だけを新しいタブで開きます（画面を並べて見比べるときに）">別タブで開く ↗</button><button type="button" class="doc-print-btn" data-print="scope">この資料を印刷／PDF保存</button><button type="button" class="sub-close" data-close-doc>✕ 閉じる</button></div>
+        <div class="sub-bar"><h2>組立範囲（図面と担当範囲）</h2><span class="sub-tools" id="scopeBarTools"></span><button type="button" class="doc-print-btn" data-newtab title="この資料だけを新しいタブで開きます（画面を並べて見比べるときに）">別タブで開く ↗</button><button type="button" class="doc-print-btn" data-print="scope">この資料を印刷／PDF保存</button><button type="button" class="sub-close" data-close-doc>✕ 閉じる</button></div>
         <div class="sub-body">
         <div class="panel-head">
             <h2 class="print-only">組立範囲（図面）</h2>
@@ -1904,7 +1908,7 @@ window.addEventListener('afterprint', () => {
 <script src="gaichu-jobnav.js?v=20261022a"></script>
 <script src="gaichu-overview.js?v=20261022b"></script>
 <script src="gaichu-spec.js?v=20261022a"></script>
-<script src="gaichu-scope.js?v=20261022h"></script>
+<script src="gaichu-scope.js?v=20261022j"></script>
 <script src="gaichu-gantt.js?v=20261022a"></script>
 <script src="org-chart.js?v=20261022a"></script>
 

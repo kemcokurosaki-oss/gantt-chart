@@ -7,6 +7,7 @@
 // 読み込み前に gaichu-sheet.js を読み込み、ページに #scopeRoot と拡大表示（#lightbox）を置いておくこと。
 (function () {
     const root = document.getElementById('scopeRoot');
+    const barTools = document.getElementById('scopeBarTools');   // 資料の見出しの帯（別タブで開く などの行）に置く編集ボタン
     const GS = window.GaichuSheet;
     if (!root || !GS) return;
     const client = GS.client;
@@ -156,8 +157,7 @@
             </div>`).join('');
         const addFig = eF ? `<label class="figure-card figure-add"><input type="file" accept="image/*" multiple data-sc-file hidden><b>＋ 図面を追加</b><small>画像ファイルを選ぶか、Ctrl+V で貼り付け</small></label>` : '';
         const showViewer = !eF && d.figures.some(figSrc);
-        const figEditBtn = st.isAdmin ? `<button type="button" class="spec-btn" data-sc="edit" data-mode="fig"${editing ? ' disabled title="もう一方の編集を保存かキャンセルしてから編集してください"' : ''}>画像を編集</button>` : '';
-        const figures = (figs || addFig) ? viewerHtml(d, vid, showViewer, figEditBtn) + `<div class="figure-row scope-figs${showViewer ? ' scope-figs--print' : ''}">${figs}${addFig}</div>` : '<p class="spec-msg">図面はまだ登録されていません。</p>';
+        const figures = (figs || addFig) ? viewerHtml(d, vid, showViewer, '') + `<div class="figure-row scope-figs${showViewer ? ' scope-figs--print' : ''}">${figs}${addFig}</div>` : '<p class="spec-msg">図面はまだ登録されていません。</p>';
 
         // 担当範囲一覧
         const head = cols.map((c, ci) => (eT && !c.fixed)
@@ -184,24 +184,31 @@
             + figures
             + (eT ? sectionHead('担当範囲一覧', 'table', '担当範囲一覧を編集', '担当のマスをクリックすると会社を選べます（もう一度クリックすると追加・選び直し）。「＋列を追加」で列を増やせます。終わったら「保存」を押してください。') : '')
             + `<div class="scope-table-wrap"><table class="data-table scope-table${eT ? ' is-editing' : ''}"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>` + tableBtns
-            + (!eT && st.isAdmin ? `<div class="scope-table-foot"><button type="button" class="spec-btn" data-sc="edit" data-mode="table"${editing ? ' disabled title="もう一方の編集を保存かキャンセルしてから編集してください"' : ''}>担当範囲一覧を編集</button></div>` : '');
+;
+        // 編集ボタンは資料の見出しの帯に置く（管理者のみ。編集中は各部分の「保存」「キャンセル」を使う）
+        if (barTools) barTools.innerHTML = st.isAdmin && !editing
+            ? (showViewer ? `<button type="button" class="doc-print-btn" data-sc="edit" data-mode="fig">画像を編集</button>` : '')
+              + `<button type="button" class="doc-print-btn" data-sc="edit" data-mode="table">担当範囲一覧を編集</button>`
+            : '';
         layoutThumbZones();
         fitTable();
     }
     function fitTable() {
         const wrap = root.querySelector('.scope-table-wrap');
         if (!wrap) return;
-        if (editing || !root.querySelector('.scope-viewer')) { wrap.style.maxHeight = ''; return; }
         const panel = root.closest('.sub-panel');
+        const fit = !editing && !!root.querySelector('.scope-viewer');
+        if (panel) panel.classList.toggle('sv-fit', fit);   // 枠の下の余白を詰める（ページ側のCSS）
+        if (!fit) { wrap.style.maxHeight = ''; return; }
         const solo = document.body.classList.contains('solo') || !panel;
-        const r = wrap.getBoundingClientRect();
-        // 表の上端から、画面（資料の枠）の下端までの高さ。表の下の「担当範囲一覧を編集」と枠の余白の分を引く
-        const top = solo ? r.top + window.scrollY : r.top - panel.getBoundingClientRect().top + panel.scrollTop;
-        const room = (solo ? window.innerHeight : panel.clientHeight) - top - (root.querySelector('.scope-table-foot') ? 64 : 24);
-        wrap.style.maxHeight = Math.max(140, Math.floor(room)) + 'px';
-        // まだ画面全体にスクロールが出るときは、はみ出した分だけ表を低くする（枠の下の余白などの分）
-        const over = solo ? document.documentElement.scrollHeight - window.innerHeight : panel.scrollHeight - panel.clientHeight;
-        if (over > 0) wrap.style.maxHeight = Math.max(140, wrap.clientHeight - over - 2) + 'px';
+        // いったん低くしてから、画面（資料の枠）に余った高さの分だけ表を伸ばす
+        const MIN = 140;
+        wrap.style.maxHeight = MIN + 'px';
+        // 余った高さ＝画面（資料の枠）の下端 − 中身（資料の本文）の下端
+        const body = root.closest('.sub-body') || root;
+        const bottom = body.getBoundingClientRect().bottom;
+        const spare = solo ? window.innerHeight - bottom : panel.getBoundingClientRect().top + panel.clientHeight - bottom;
+        wrap.style.maxHeight = Math.max(MIN, MIN + spare - 1) + 'px';
     }
     window.addEventListener('resize', fitTable);
 
@@ -411,6 +418,7 @@
         root.querySelectorAll('[data-party]').forEach(n => n.classList.toggle('hl', !!on && on.has(n.dataset.party)));
         root.querySelectorAll('tr[data-parties]').forEach(n => n.classList.toggle('hl', !!on && n.dataset.parties.split(' ').some(k => on.has(k))));
     }
+    if (barTools) barTools.addEventListener('click', e => { const b = e.target.closest('[data-sc="edit"]'); if (b) startEdit(b.dataset.mode); });
     root.addEventListener('mouseover', e => {
         if (editing) return;
         const chip = e.target.closest('.party-chip[data-party], polygon[data-party]');
