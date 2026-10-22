@@ -3,6 +3,7 @@
 //   GaichuAdmin.openManage({ pn, onDone })  … その工番の外注先シートの一覧・削除・追加
 //   GaichuAdmin.openVendors({ onDone })     … 外注先マスタの管理
 //   同じ外注先はどの工番でも同じ色（ほかの工番で使っている色に固定）。削除すると仕様書・体制表も消える（体制表は FK の cascade）。
+//   見た目は体制表の「カードの入力画面」「社内名簿の管理」にそろえる（薄いグレーの地＋白い区画、角丸6pxの入力欄、スイッチ）
 // 読み込み前に supabase.min.js と S_URL / S_KEY を用意しておくこと。
 (function () {
     const PALETTE = ['#e67e22', '#27ae60', '#8e44ad', '#c0392b', '#16a085', '#d35400', '#2980b9', '#7f8c8d'];
@@ -22,6 +23,8 @@
     }
     const chip = (label, color) => `<span class="ga-chip" style="${chipStyle(color)}"><span class="ga-dot" style="background:${esc(color)}"></span>${esc(label)}</span>`;
     const vendorName = v => v.name || v.display_name;   // 正式社名（display_name は略称）
+    // 略称が空欄のときに自動で作る呼び方（シートの表示と同じ。㈱ なども外す）
+    const autoShort = name => String(name || '').normalize('NFKC').replace(/殿$/, '').replace(/株式会社|有限会社|合同会社|\(株\)|\(有\)/g, '').trim();
 
     // 画面の見た目（どのページでも同じになるよう、ここで用意する）
     function addStyle() {
@@ -30,53 +33,126 @@
         st.id = 'gaichuAdminStyle';
         st.textContent = `
 .ga-bg { position: fixed; inset: 0; z-index: 3000; background: rgba(25,27,31,0.45); display: flex; align-items: center; justify-content: center; font-family: 'Noto Sans JP', sans-serif; }
-.ga-modal { background: #fff; border-radius: 10px; width: min(560px, 94vw); max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 10px 40px rgba(0,0,0,0.25); color: #2b2f36; }
-.ga-head { padding: 14px 20px; font-weight: 700; border-bottom: 1px solid #e4e3df; font-size: 15px; }
+.ga-modal { background: #fff; border-radius: 10px; width: min(560px, 94vw); max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 10px 40px rgba(0,0,0,0.25); color: #2b2f36; overflow: hidden; }
+.ga-head { padding: 14px 20px; font-weight: 700; border-bottom: 1px solid #e4e3df; font-size: 15px; display: flex; align-items: baseline; gap: 14px; }
+.ga-head-count { font-size: 12.5px; font-weight: 400; color: #5b6068; }
 .ga-body { padding: 14px 20px; overflow-y: auto; font-size: 13px; }
-.ga-foot { padding: 12px 20px; display: flex; gap: 8px; justify-content: flex-end; border-top: 1px solid #e4e3df; }
+.ga-foot { padding: 12px 20px; display: flex; gap: 8px; justify-content: flex-end; align-items: center; border-top: 1px solid #e4e3df; }
 .ga-btn { padding: 6px 14px; border-radius: 6px; border: 1px solid #2b2f36; background: #fff; color: #2b2f36; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
 .ga-btn:hover { background: #eceef1; }
-.ga-btn--primary { background: #2b2f36; color: #fff; }
+.ga-btn--ghost { border-color: #cfd0cc; color: #5b6068; }
+.ga-btn--primary { background: #2b2f36; color: #fff; padding: 6px 18px; }
 .ga-btn--primary:hover { background: #16191d; }
 .ga-btn--danger { border-color: #e74c3c; color: #c0392b; }
 .ga-btn--danger:hover { background: #fdecea; }
 .ga-field { display: flex; flex-direction: column; gap: 3px; margin-bottom: 10px; }
 .ga-field > span { font-size: 12px; color: #5b6068; font-weight: 700; }
 .ga-field input, .ga-field select, .ga-table input[type=text], .ga-table input[type=number] { font: inherit; font-size: 13px; padding: 5px 8px; border: 1px solid #cfd0cc; border-radius: 4px; width: 100%; box-sizing: border-box; }
-.ga-field input[type=color] { width: 60px; height: 32px; padding: 2px; }
-.ga-field input[type=color]:disabled { opacity: .8; cursor: not-allowed; }
 .ga-note { font-size: 12px; color: #6b7079; margin: -4px 0 10px; }
 .ga-err { color: #c0392b; font-size: 12.5px; min-height: 1em; }
 .ga-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
 .ga-table th { font-size: 12px; color: #5b6068; text-align: left; padding: 4px; }
 .ga-table td { padding: 4px; border-bottom: 1px solid #efefec; }
-.ga-num { width: 64px !important; }
 .ga-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; font-weight: 700; padding: 3px 10px; border-radius: 999px; }
 .ga-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+/* 入力画面（外注先シートの追加・外注先マスタの管理） */
+.ga-modal--form .ga-body { background: #fafaf8; padding: 16px 20px; display: flex; flex-direction: column; gap: 12px; min-height: 0; }
+.ga-modal--form .ga-body > * { flex-shrink: 0; }
+.ga-modal--form .ga-err:empty { display: none; }
+.ga-modal--wide { width: min(780px, 94vw); }
+.ga-modal--form input[type=text], .ga-modal--form input[type=number], .ga-modal--form select { font: inherit; font-size: 14px; padding: 7px 10px; border: 1px solid #cfd0cc; border-radius: 6px; background: #fff; color: #2b2f36; width: 100%; min-width: 0; box-sizing: border-box; }
+.ga-modal--form input:focus, .ga-modal--form select:focus { outline: none; border-color: #2b2f36; box-shadow: 0 0 0 3px rgba(43,47,54,.18); }
+.ga-modal--form input[readonly] { background: #f3f3f1; }
+.ga-modal--form input::placeholder { color: #a3a6ab; }
+.ga-modal--form select { cursor: pointer; }
+.ga-modal--form .ga-field { margin-bottom: 0; min-width: 0; }
+.ga-field em { color: #c0392b; font-style: normal; }
+.ga-sec { background: #fff; border: 1px solid #e4e3df; border-radius: 8px; padding: 12px 14px; }
+.ga-sechead { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.ga-sechead b { font-size: 13px; color: #2b2f36; }
+.ga-sechead small { font-size: 11.5px; color: #6b7079; }
+.ga-hint { margin: 8px 0 0; font-size: 12px; line-height: 1.6; color: #5b6068; }
+.ga-grid2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+.ga-new-vendor { margin-top: 12px; padding-top: 12px; border-top: 1px solid #efefec; }
+.ga-new-vendor[hidden], .ga-fixnote[hidden] { display: none; }   /* .ga-grid2 などの display より優先して隠す */
+.ga-pn { font-weight: 700; }
+/* 工番の候補一覧 */
 .ga-combo { position: relative; }
-.ga-combo-list { position: absolute; left: 0; right: 0; top: calc(100% + 2px); z-index: 2; max-height: 260px; overflow-y: auto; background: #fff; border: 1px solid #cfd0cc; border-radius: 6px; box-shadow: 0 6px 20px rgba(0,0,0,0.15); }
-.ga-combo-item { display: grid; grid-template-columns: 44px minmax(0, 11em) minmax(0, 1fr); gap: 10px; align-items: baseline; width: 100%; padding: 7px 10px; border: 0; background: none; text-align: left; font: inherit; font-size: 13px; cursor: pointer; color: #2b2f36; }
-.ga-combo-item b { color: #2b2f36; }
+.ga-combo-list { position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 2; max-height: 260px; overflow-y: auto; background: #fff; border: 1px solid #cfd0cc; border-radius: 8px; box-shadow: 0 8px 28px rgba(25,27,31,.22); }
+.ga-combo-head { position: sticky; top: 0; padding: 6px 12px; font-size: 11.5px; font-weight: 700; color: #6b7079; background: #f7f7f5; border-bottom: 1px solid #e4e3df; }
+.ga-combo-item { display: grid; grid-template-columns: 52px minmax(0, 11em) minmax(0, 1fr); gap: 10px; align-items: baseline; width: 100%; padding: 8px 12px; border: 0; border-bottom: 1px solid #efefec; background: none; text-align: left; font: inherit; font-size: 13px; cursor: pointer; color: #2b2f36; }
+.ga-combo-item b { color: #2b2f36; font-size: 14px; font-variant-numeric: tabular-nums; }
 .ga-combo-item small { color: #5b6068; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ga-combo-item:hover, .ga-combo-item.is-active { background: #eceef1; }
-.ga-combo-empty { padding: 8px 10px; color: #6b7079; font-size: 12.5px; }
-.ga-table tr.ga-vrow td { border-bottom: 0; padding-bottom: 2px; }
-.ga-table tr.ga-reprow td { padding-top: 0; padding-bottom: 8px; }
-.ga-rep { display: grid; grid-template-columns: 52px 1fr 1fr 1fr; gap: 6px; align-items: center; }
-.ga-rep > span { font-size: 11.5px; color: #6b7079; font-weight: 700; }`;
+.ga-combo-item:hover, .ga-combo-item.is-active { background: #f5f5f3; }
+.ga-combo-empty { padding: 16px 12px; text-align: center; color: #6b7079; font-size: 12.5px; }
+/* 色分けの色 */
+.ga-colors { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.ga-swatches { display: flex; gap: 8px; align-items: center; }
+.ga-swatches.is-fixed { opacity: .35; }
+.ga-sw { width: 26px; height: 26px; border-radius: 50%; border: 0; padding: 0; cursor: pointer; box-shadow: inset 0 0 0 1px rgba(0,0,0,.08); }
+.ga-sw.is-on { box-shadow: 0 0 0 2px #fff, 0 0 0 4px #2b2f36; }
+.ga-swatches.is-fixed .ga-sw, .ga-swatches.is-fixed .ga-sw-custom { cursor: not-allowed; }
+.ga-sw-custom { position: relative; width: 26px; height: 26px; border-radius: 50%; border: 1px dashed #aaadb1; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: #5b6068; overflow: hidden; }
+.ga-sw-custom.is-on { border: 0; color: transparent; box-shadow: 0 0 0 2px #fff, 0 0 0 4px #2b2f36; }
+.ga-sw-custom input { position: absolute; inset: 0; opacity: 0; cursor: inherit; width: 100%; height: 100%; padding: 0; border: 0; }
+.ga-colors .ga-chip { margin-left: auto; }
+.ga-fixnote { margin-top: 10px; padding: 7px 10px; background: #f7f7f5; border-radius: 6px; font-size: 12px; color: #5b6068; }
+/* 外注先マスタの管理 */
+.ga-caution { background: #fff8e1; border: 1px solid #f0d58a; border-radius: 8px; padding: 10px 14px; display: flex; flex-direction: column; gap: 6px; }
+.ga-caution-head { display: flex; align-items: center; gap: 8px; }
+.ga-caution-head span { font-size: 11.5px; font-weight: 700; color: #fff; background: #b07800; padding: 1px 8px; border-radius: 3px; }
+.ga-caution-head b { font-size: 12.5px; color: #6b4a00; }
+.ga-caution ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 3px; font-size: 12px; line-height: 1.6; color: #5b4a1f; }
+.ga-vlist { display: flex; flex-direction: column; gap: 10px; }
+.ga-vcard { background: #fff; border: 1px solid #e4e3df; border-radius: 8px; overflow: hidden; }
+.ga-vcard-head { display: flex; align-items: center; gap: 10px; padding: 8px 14px; border-bottom: 1px solid #efefec; }
+.ga-vcard-no { font-size: 12px; font-weight: 700; color: #6b7079; font-variant-numeric: tabular-nums; }
+.ga-vcard-title { font-size: 14px; color: #2b2f36; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.ga-vcard-tag { flex: none; font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 3px; background: #eceef1; color: #2b2f36; }
+.ga-vcard-toggle { margin-left: auto; flex: none; display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px; color: #5b6068; }
+.ga-vcard-main { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) 76px; gap: 12px; padding: 12px 14px; }
+.ga-vcard-main .ga-field small { font-weight: 400; color: #6b7079; }
+.ga-vcard input.ga-vname { font-size: 14.5px; font-weight: 700; }
+.ga-vcard input.ga-vname.is-err { border-color: #e74c3c; }
+.ga-vcard input[type=number] { padding: 7px 8px; font-variant-numeric: tabular-nums; }
+.ga-rep { margin: 0 14px 14px; padding: 10px 12px 12px; background: #f7f7f5; border-radius: 6px; }
+.ga-rep .ga-sechead { margin-bottom: 6px; }
+.ga-rep .ga-sechead b { font-size: 12.5px; }
+.ga-rep-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.ga-rep .ga-field > span { font-size: 11.5px; color: #6b7079; }
+.ga-modal--form .ga-rep input[type=text] { font-size: 13.5px; padding: 6px 10px; }
+.ga-vcard.is-off .ga-vcard-head { background: #efefec; }
+.ga-vcard.is-off { background: #f3f3f1; }
+.ga-vcard.is-off .ga-vcard-title { color: #6b7079; }
+.ga-vcard.is-off .ga-vcard-tag { background: #e4e3df; color: #6b7079; }
+.ga-switch { appearance: none; -webkit-appearance: none; position: relative; flex: none; width: 40px; height: 22px; margin: 0; border-radius: 999px; background: #cfd0cc; cursor: pointer; transition: background .15s; }
+.ga-switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: left .15s; }
+.ga-switch:checked { background: #2b2f36; }
+.ga-switch:checked::after { left: 20px; }
+.ga-switch:focus-visible { outline: 2px solid #2b2f36; outline-offset: 2px; }
+.ga-addrow { font: inherit; font-size: 13px; font-weight: 700; padding: 10px; border-radius: 8px; border: 1px dashed #aaadb1; background: transparent; color: #2b2f36; cursor: pointer; }
+.ga-addrow:hover { background: #fff; border-color: #2b2f36; }
+.ga-status { margin-right: auto; display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: #2b2f36; }
+.ga-status i { width: 8px; height: 8px; border-radius: 50%; background: #f0a500; }
+.ga-status[hidden] { display: none; }
+@media (max-width: 640px) {
+    .ga-vcard-main { grid-template-columns: minmax(0, 1fr) 76px; }
+    .ga-vcard-main > :first-child { grid-column: 1 / -1; }
+    .ga-rep-grid, .ga-grid2 { grid-template-columns: minmax(0, 1fr); }
+}`;
         document.head.appendChild(st);
     }
 
-    function modal(title, body, buttons) {
+    function modal(title, body, buttons, extraClass) {
         addStyle();
         const bg = document.createElement('div');
         bg.className = 'ga-bg';
-        bg.innerHTML = `<div class="ga-modal"><div class="ga-head">${esc(title)}</div><div class="ga-body">${body}<div class="ga-err"></div></div><div class="ga-foot"></div></div>`;
+        bg.innerHTML = `<div class="ga-modal ${extraClass || ''}"><div class="ga-head">${esc(title)}</div><div class="ga-body">${body}<div class="ga-err"></div></div><div class="ga-foot"></div></div>`;
         const foot = bg.querySelector('.ga-foot');
         buttons.forEach(b => {
             const el = document.createElement('button');
             el.type = 'button';
-            el.className = 'ga-btn' + (b.primary ? ' ga-btn--primary' : '');
+            el.className = 'ga-btn' + (b.primary ? ' ga-btn--primary' : '') + (b.ghost ? ' ga-btn--ghost' : '');
             el.textContent = b.label;
             el.addEventListener('click', b.onClick);
             foot.appendChild(el);
@@ -111,9 +187,9 @@
             const q = input.value.trim().toLowerCase();
             shown = items.filter(it => !q || [it.pn, it.customer, it.name].some(s => (s || '').toLowerCase().includes(q))).slice(0, 100);
             active = Math.min(active, shown.length - 1);
-            list.innerHTML = shown.length
+            list.innerHTML = '<div class="ga-combo-head">外注のタスクがあり、シートがまだない工番（工程表と同じ順）</div>' + (shown.length
                 ? shown.map((it, i) => `<button type="button" class="ga-combo-item${i === active ? ' is-active' : ''}" data-i="${i}"><b>${esc(it.pn)}</b><small title="${esc(it.customer || '')}">${esc(it.customer || '')}</small><small title="${esc(it.name || '')}">${esc(it.name || '')}</small></button>`).join('')
-                : '<div class="ga-combo-empty">該当する工番がありません（直接入力もできます）</div>';
+                : '<div class="ga-combo-empty">該当する工番がありません（直接入力もできます）</div>');
             list.hidden = false;
         };
         const pick = i => { if (shown[i]) { input.value = shown[i].pn; list.hidden = true; input.dispatchEvent(new Event('change')); } };
@@ -149,21 +225,36 @@
         const usedColors = new Set(ctx.sheets.map(s => s.color));
         const freeColor = PALETTE.find(c => !usedColors.has(c)) || PALETTE[0];
         const here = fixedPn ? ctx.sheets.filter(s => s.pn === fixedPn).map(s => s.vendor_id) : [];
+        let color = freeColor, fixedColor = null;
         const m = modal(fixedPn ? `${fixedPn} に外注先を追加` : '外注先シートを追加', `
-            <div class="ga-field"><span>工番</span><div class="ga-combo">
-                <input type="text" data-f="pn" autocomplete="off" spellcheck="false" placeholder="工番を入力するか、候補から選ぶ"${fixedPn ? ` value="${esc(fixedPn)}" readonly` : ''}></div></div>
-            ${fixedPn ? '' : '<p class="ga-note">候補は、工程表で担当に「外注」が入っているタスクがあり、まだ外注先シートがない工番です（工程表と同じ順）。すでにシートがある工番に外注先を足すときは、その工番の「外注先の追加・削除」から追加してください。</p>'}
-            <label class="ga-field"><span>外注先</span><select data-f="vendor">
-                <option value="">― 選んでください ―</option>
-                ${ctx.vendors.filter(v => v.active !== false && !here.includes(v.id)).map(v => `<option value="${v.id}">${esc(vendorName(v))}</option>`).join('')}
-                <option value="__new">＋ 新しい外注先を登録する</option></select></label>
-            <div class="ga-new-vendor" hidden>
-                <label class="ga-field"><span>正式社名</span><input type="text" data-f="vname" autocomplete="off" placeholder="例：株式会社〇〇工業"></label>
-                <label class="ga-field"><span>略称（表などの狭いところに表示）</span><input type="text" data-f="vdisp" autocomplete="off" placeholder="例：〇〇工業（空欄なら正式社名から自動）"></label>
+            <div class="ga-sec">
+                <div class="ga-sechead"><b>工番</b><small>${fixedPn ? 'この工番に追加します' : '入力するか、候補から選びます'}</small></div>
+                <div class="ga-combo"><input type="text" class="ga-pn" data-f="pn" autocomplete="off" spellcheck="false" placeholder="例：2830"${fixedPn ? ` value="${esc(fixedPn)}" readonly` : ''}></div>
+                ${fixedPn ? '' : '<p class="ga-hint">すでにシートがある工番に外注先を足すときは、その工番の「外注先の追加・削除」から追加してください。</p>'}
             </div>
-            <label class="ga-field"><span>色分けの色</span><input type="color" data-f="color" value="${freeColor}"></label>
-            <p class="ga-note ga-color-note" hidden>この外注先は、ほかの工番と同じ色を使います（色は外注先ごとに固定）。</p>`, [
-            { label: 'キャンセル', onClick: () => m.close() },
+            <div class="ga-sec">
+                <div class="ga-sechead"><b>外注先</b><small>外注先マスタで「使用」になっている会社が出ます</small></div>
+                <select data-f="vendor">
+                    <option value="">― 選んでください ―</option>
+                    ${ctx.vendors.filter(v => v.active !== false && !here.includes(v.id)).map(v => `<option value="${v.id}">${esc(vendorName(v))}</option>`).join('')}
+                    <option value="__new">＋ 新しい外注先を登録する</option></select>
+                <div class="ga-new-vendor ga-grid2" hidden>
+                    <label class="ga-field"><span>正式社名 <em>*</em></span><input type="text" data-f="vname" autocomplete="off" placeholder="例：株式会社〇〇工業"></label>
+                    <label class="ga-field"><span>略称</span><input type="text" data-f="vdisp" autocomplete="off" placeholder="空欄なら自動（〇〇工業）"></label>
+                </div>
+            </div>
+            <div class="ga-sec">
+                <div class="ga-sechead"><b>色分けの色</b><small>工事一覧・工程表で外注先を見分ける色</small></div>
+                <div class="ga-colors">
+                    <div class="ga-swatches">
+                        ${PALETTE.map(c => `<button type="button" class="ga-sw" data-c="${c}" title="${c}" style="background:${c}"></button>`).join('')}
+                        <label class="ga-sw-custom" title="ほかの色を選ぶ">＋<input type="color" data-f="color" value="${freeColor}"></label>
+                    </div>
+                    <span class="ga-chip ga-preview"></span>
+                </div>
+                <div class="ga-fixnote" hidden>この外注先はほかの工番でも使っているため、同じ色に固定されます（色は外注先ごとに共通）。</div>
+            </div>`, [
+            { label: 'キャンセル', ghost: true, onClick: () => m.close() },
             { label: '追加', primary: true, onClick: async () => {
                 const f = n => m.el.querySelector(`[data-f=${n}]`);
                 const pn = f('pn').value.trim();
@@ -181,27 +272,50 @@
                     }
                     const count = ctx.sheets.filter(s => s.pn === pn).length;
                     const { error } = await db().from('gaichu_sheets')
-                        .insert({ project_number: pn, vendor_id: Number(vid), color: f('color').value, sort_order: (count + 1) * 10 }).select('id').single();
+                        .insert({ project_number: pn, vendor_id: Number(vid), color: fixedColor || color, sort_order: (count + 1) * 10 }).select('id').single();
                     if (error) throw new Error(/duplicate|unique/i.test(error.message) ? 'この工番には、その外注先のシートがすでにあります。' : error.message);
                 } catch (e) { return m.err('追加できませんでした：' + (e.message || e)); }
                 m.close();
                 if (onDone) onDone();
             } },
-        ]);
+        ], 'ga-modal--form');
         const pnInput = m.el.querySelector('[data-f=pn]');
         if (!fixedPn) combo(pnInput, candidates);
-        // すでにほかの工番で使っている外注先は、その色に固定する（同じ会社はどの工番でも同じ色にそろえる）
+        pnInput.addEventListener('input', () => m.err(''));
+
+        // 色：パレットから選ぶか、「＋」でほかの色。すでにほかの工番で使っている外注先は、その色に固定する（同じ会社はどの工番でも同じ色にそろえる）
+        const vendorSel = m.el.querySelector('[data-f=vendor]');
+        const swatches = m.el.querySelector('.ga-swatches');
+        const custom = m.el.querySelector('.ga-sw-custom');
         const colorInput = m.el.querySelector('[data-f=color]');
-        const colorNote = m.el.querySelector('.ga-color-note');
-        m.el.querySelector('[data-f=vendor]').addEventListener('change', e => {
-            const v = e.target.value;
+        const preview = m.el.querySelector('.ga-preview');
+        const fixNote = m.el.querySelector('.ga-fixnote');
+        const drawColor = () => {
+            const c = fixedColor || color;
+            const inPalette = PALETTE.includes(c);
+            swatches.querySelectorAll('.ga-sw').forEach(b => b.classList.toggle('is-on', b.dataset.c === c));
+            custom.classList.toggle('is-on', !inPalette);
+            custom.style.background = inPalette ? '' : c;
+            swatches.classList.toggle('is-fixed', !!fixedColor);
+            colorInput.disabled = !!fixedColor;
+            fixNote.hidden = !fixedColor;
+            const v = vendorSel.value, vendor = ctx.vendors.find(x => String(x.id) === v);
+            const label = vendor ? (vendor.display_name || autoShort(vendor.name) || vendor.name) : v === '__new' ? (m.el.querySelector('[data-f=vdisp]').value.trim() || autoShort(m.el.querySelector('[data-f=vname]').value) || '新しい外注先') : '外注先';
+            preview.setAttribute('style', chipStyle(c));
+            preview.innerHTML = `<span class="ga-dot" style="background:${esc(c)}"></span>${esc(label)}`;
+        };
+        swatches.querySelectorAll('.ga-sw').forEach(b => b.addEventListener('click', () => { if (fixedColor) return; color = b.dataset.c; drawColor(); }));
+        colorInput.addEventListener('input', () => { if (fixedColor) return; color = colorInput.value; drawColor(); });
+        vendorSel.addEventListener('change', () => {
+            const v = vendorSel.value;
             m.el.querySelector('.ga-new-vendor').hidden = v !== '__new';
-            const fixed = v && v !== '__new' ? vendorColor(ctx, Number(v)) : null;
-            colorInput.value = fixed || freeColor;
-            colorInput.disabled = !!fixed;
-            colorNote.hidden = !fixed;
+            fixedColor = v && v !== '__new' ? vendorColor(ctx, Number(v)) : null;
+            m.err('');
+            drawColor();
         });
-        (fixedPn ? m.el.querySelector('[data-f=vendor]') : pnInput).focus();
+        m.el.querySelectorAll('[data-f=vname], [data-f=vdisp]').forEach(i => i.addEventListener('input', drawColor));
+        drawColor();
+        (fixedPn ? vendorSel : pnInput).focus();
     }
 
     // ===== その工番の外注先シートの管理（一覧・削除・追加） =====
@@ -260,13 +374,22 @@
             return { ...v, hadRep: reps.has(v.id), ...Object.fromEntries(REP_FIELDS.map(k => ['rep_' + k, rep[k] || ''])) };
         });
         const m = modal('外注先マスタの管理', `
-            <p class="ga-note">「使用」を外すと、外注先シートを追加するときの選択肢に出なくなります（登録済みのシートはそのまま）。<br>代表者は、仕様書の「ご担当者」（工事ごとに入力していないとき）に役職と氏名を表示し、体制表のカードを追加するときの選択肢にも出ます。</p>
-            <table class="ga-table"><thead><tr><th>正式社名</th><th>略称</th><th>順</th><th>使用</th></tr></thead><tbody></tbody></table>
-            <button type="button" class="ga-btn" data-addv>＋ 行を追加</button>`, [
-            { label: '閉じる', onClick: () => m.close() },
+            <div class="ga-caution">
+                <div class="ga-caution-head"><span>注意</span><b>保存する前に確認してください</b></div>
+                <ul>
+                    <li><b>「使用」をオフ</b>にすると、外注先シートを追加するときの選択肢に出なくなります。登録済みのシートはそのまま残ります。</li>
+                    <li><b>代表者</b>は、仕様書の「ご担当者」（工事ごとに入力していないとき）に役職と氏名が表示され、体制表のカードを追加するときの選択肢にも出ます。</li>
+                </ul>
+            </div>
+            <div class="ga-vlist"></div>
+            <button type="button" class="ga-addrow" data-addv>＋ 外注先を追加</button>`, [
+            { label: '閉じる', ghost: true, onClick: () => m.close() },
             { label: '保存', primary: true, onClick: async () => {
                 collect();
-                if (rows.some(r => !String(r.name || '').trim())) return m.err('正式社名が空欄の行があります。');
+                if (rows.some(r => !String(r.name || '').trim())) {
+                    list.querySelectorAll('.ga-vname').forEach(i => i.classList.toggle('is-err', !i.value.trim()));
+                    return m.err('正式社名が空欄の外注先があります。');
+                }
                 try {
                     for (const r of rows) {
                         const rec = { name: r.name.trim(), display_name: String(r.display_name || '').trim() || null, sort_order: Number(r.sort_order) || 0, active: !!r.active, updated_at: new Date().toISOString() };
@@ -291,25 +414,77 @@
                 m.close();
                 if (onDone) onDone();
             } },
-        ]);
-        const tbody = m.el.querySelector('tbody');
-        const draw = () => {
-            tbody.innerHTML = rows.map((r, i) => `<tr data-i="${i}" class="ga-vrow">
-                <td><input type="text" data-f="name" autocomplete="off" value="${esc(r.name)}"></td>
-                <td><input type="text" data-f="display_name" autocomplete="off" value="${esc(r.display_name)}" placeholder="空欄なら自動"></td>
-                <td><input type="number" data-f="sort_order" value="${esc(r.sort_order)}" class="ga-num"></td>
-                <td style="text-align:center"><input type="checkbox" data-f="active"${r.active !== false ? ' checked' : ''}></td></tr>
-                <tr data-i="${i}" class="ga-reprow"><td colspan="4"><div class="ga-rep"><span>代表者</span>
-                    <input type="text" data-f="rep_title" autocomplete="off" value="${esc(r.rep_title)}" placeholder="役職（例：代表取締役）">
-                    <input type="text" data-f="rep_name" autocomplete="off" value="${esc(r.rep_name)}" placeholder="氏名">
-                    <input type="text" data-f="rep_tel" autocomplete="off" value="${esc(r.rep_tel)}" placeholder="電話" inputmode="tel"></div></td></tr>`).join('');
+        ], 'ga-modal--form ga-modal--wide');
+        const list = m.el.querySelector('.ga-vlist');
+        const head = m.el.querySelector('.ga-head');
+        const count = document.createElement('span');
+        count.className = 'ga-head-count';
+        head.appendChild(count);
+        const status = document.createElement('div');
+        status.className = 'ga-status';
+        status.hidden = true;
+        status.innerHTML = '<i></i><span>保存していない変更があります</span>';
+        m.el.querySelector('.ga-foot').prepend(status);
+        const drawCount = () => { count.textContent = `${rows.length}社（使用 ${rows.filter(r => r.active !== false).length}社）`; };
+        const titleOf = r => String(r.display_name || '').trim() || autoShort(r.name) || String(r.name || '').trim() || '（新しい外注先）';
+        const dispPh = r => autoShort(r.name) ? `空欄なら「${autoShort(r.name)}」` : '空欄なら自動';
+        const card = (r, i) => {
+            const on = r.active !== false;
+            return `<div class="ga-vcard${on ? '' : ' is-off'}" data-i="${i}">
+                <div class="ga-vcard-head">
+                    <span class="ga-vcard-no">${String(i + 1).padStart(2, '0')}</span>
+                    <b class="ga-vcard-title">${esc(titleOf(r))}</b>
+                    <span class="ga-vcard-tag">${on ? '使用中' : '使用しない'}</span>
+                    <label class="ga-vcard-toggle"><span>選択肢に出す</span><input type="checkbox" class="ga-switch" data-f="active"${on ? ' checked' : ''}></label>
+                </div>
+                <div class="ga-vcard-main">
+                    <label class="ga-field"><span>正式社名 <em>*</em></span><input type="text" class="ga-vname" data-f="name" autocomplete="off" value="${esc(r.name)}" placeholder="例：株式会社〇〇工業"></label>
+                    <label class="ga-field"><span>略称 <small>表など狭いところに表示</small></span><input type="text" data-f="display_name" autocomplete="off" value="${esc(r.display_name)}" placeholder="${esc(dispPh(r))}"></label>
+                    <label class="ga-field"><span>並び順</span><input type="number" data-f="sort_order" value="${esc(r.sort_order)}"></label>
+                </div>
+                <div class="ga-rep">
+                    <div class="ga-sechead"><b>代表者</b><small>任意</small></div>
+                    <div class="ga-rep-grid">
+                        <label class="ga-field"><span>役職</span><input type="text" data-f="rep_title" autocomplete="off" value="${esc(r.rep_title)}" placeholder="例：代表取締役"></label>
+                        <label class="ga-field"><span>氏名</span><input type="text" data-f="rep_name" autocomplete="off" value="${esc(r.rep_name)}" placeholder="例：山田 太郎"></label>
+                        <label class="ga-field"><span>電話</span><input type="text" data-f="rep_tel" autocomplete="off" value="${esc(r.rep_tel)}" placeholder="090-xxxx-xxxx" inputmode="tel"></label>
+                    </div>
+                </div></div>`;
         };
-        const collect = () => tbody.querySelectorAll('tr').forEach(tr => {
-            const r = rows[tr.dataset.i];
-            tr.querySelectorAll('[data-f]').forEach(inp => { r[inp.dataset.f] = inp.type === 'checkbox' ? inp.checked : inp.value; });
+        const draw = () => { list.innerHTML = rows.map(card).join(''); drawCount(); };
+        const collect = () => list.querySelectorAll('.ga-vcard').forEach(el => {
+            const r = rows[el.dataset.i];
+            el.querySelectorAll('[data-f]').forEach(inp => { r[inp.dataset.f] = inp.type === 'checkbox' ? inp.checked : inp.value; });
         });
-        m.el.querySelector('[data-addv]').addEventListener('click', () => { collect(); rows.push({ id: null, name: '', display_name: '', sort_order: (rows.length + 1) * 10, active: true, hadRep: false, rep_title: '', rep_name: '', rep_tel: '' }); draw(); });
-        m.el.querySelector('.ga-modal').style.width = 'min(780px, 94vw)';
+        // 入力に合わせて、カードの見出し・使用の表示・件数・未保存の表示を更新する
+        list.addEventListener('input', e => {
+            const el = e.target.closest('.ga-vcard');
+            if (!el) return;
+            collect();
+            const r = rows[el.dataset.i];
+            el.querySelector('.ga-vcard-title').textContent = titleOf(r);
+            if (e.target.dataset.f === 'name') {
+                el.querySelector('[data-f=display_name]').placeholder = dispPh(r);
+                if (e.target.value.trim()) e.target.classList.remove('is-err');
+            }
+            if (e.target.dataset.f === 'active') {
+                el.classList.toggle('is-off', !r.active);
+                el.querySelector('.ga-vcard-tag').textContent = r.active ? '使用中' : '使用しない';
+                drawCount();
+            }
+            status.hidden = false;
+            m.err('');
+        });
+        m.el.querySelector('[data-addv]').addEventListener('click', () => {
+            collect();
+            rows.push({ id: null, name: '', display_name: '', sort_order: (rows.length + 1) * 10, active: true, hadRep: false, rep_title: '', rep_name: '', rep_tel: '' });
+            draw();
+            status.hidden = false;
+            const last = list.lastElementChild;
+            last.querySelector('[data-f=name]').focus();
+            const body = m.el.querySelector('.ga-body');
+            body.scrollTop = body.scrollHeight;
+        });
         draw();
     }
 
