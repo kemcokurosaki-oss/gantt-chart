@@ -278,7 +278,7 @@
                     <div class="ga-pop" hidden>
                         <div class="ga-pop-head">外注先（並びは外注先マスタの順）</div>
                         <div class="ga-pop-list" role="listbox">${vendorOpts.length
-                            ? vendorOpts.map(v => { const c = vendorColor(ctx, v.id); return `<button type="button" class="ga-pop-item" data-v="${v.id}" role="option"><span class="ga-dot${c ? '' : ' is-none'}"${c ? ` style="background:${esc(c)}"` : ''}></span><b>${esc(vendorName(v))}</b><small>${c ? '色は登録済み' : ''}</small></button>`; }).join('')
+                            ? vendorOpts.map(v => { const c = vendorColor(ctx, v.id); return `<button type="button" class="ga-pop-item" data-v="${v.id}" role="option"><span class="ga-dot${c ? '' : ' is-none'}"${c ? ` style="background:${esc(c)}"` : ''}></span><b>${esc(vendorName(v))}</b></button>`; }).join('')
                             : '<div class="ga-pop-empty">選べる外注先がありません</div>'}</div>
                         <button type="button" class="ga-pop-item ga-pop-new" data-v="__new" role="option">＋ 新しい外注先を登録する</button>
                     </div>
@@ -288,7 +288,7 @@
                     <label class="ga-field"><span>略称</span><input type="text" data-f="vdisp" autocomplete="off" placeholder="空欄なら自動（〇〇工業）"></label>
                 </div>
             </div>
-            <p class="ga-hint">色分けの色は外注先ごとに決まっています（新しい外注先は自動で決め、外注先マスタの管理で確認できます）。</p>`, [
+`, [
             { label: 'キャンセル', ghost: true, onClick: () => m.close() },
             { label: '追加', primary: true, onClick: async () => {
                 const f = n => m.el.querySelector(`[data-f=${n}]`);
