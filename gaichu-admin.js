@@ -59,6 +59,9 @@
 .ga-modal--form .ga-body > * { flex-shrink: 0; }
 .ga-modal--form .ga-err:empty { display: none; }
 .ga-modal--wide { width: min(780px, 94vw); }
+/* 外注先シートの追加：工番の候補・外注先のプルダウンを開いても中でスクロールしない高さにする */
+.ga-modal--add { width: min(680px, 94vw); }
+.ga-modal--add .ga-body { min-height: min(560px, calc(90vh - 120px)); }
 .ga-modal--form input[type=text], .ga-modal--form input[type=number], .ga-modal--form select { font: inherit; font-size: 14px; padding: 7px 10px; border: 1px solid #cfd0cc; border-radius: 6px; background: #fff; color: #2b2f36; width: 100%; min-width: 0; box-sizing: border-box; }
 .ga-modal--form input:focus, .ga-modal--form select:focus { outline: none; border-color: #2b2f36; box-shadow: 0 0 0 3px rgba(43,47,54,.18); }
 .ga-modal--form input[readonly] { background: #f3f3f1; }
@@ -325,7 +328,7 @@
                 m.close();
                 if (onDone) onDone();
             } },
-        ], 'ga-modal--form');
+        ], 'ga-modal--form ga-modal--add');
         const pnInput = m.el.querySelector('[data-f=pn]');
         if (!fixedPn) combo(pnInput, candidates);
         pnInput.addEventListener('input', () => m.err(''));
