@@ -306,6 +306,9 @@
     .spec-input { width: 100%; min-width: 60px; font: inherit; font-size: 13px; padding: 4px 6px; border: 1px solid #cfd0cc; border-radius: 4px; background: #fff; }
     .spec-input:focus { outline: none; border-color: #2b2f36; box-shadow: 0 0 0 2px rgba(43,47,54,0.2); }
     .info-item .spec-input + .spec-input { margin-top: 4px; }
+    .spec-paste-hint { margin: 2px 0 6px; font-size: 12px; color: #6b7079; }
+    .spec-paste-msg { color: #1b7641; font-weight: 700; }
+    .spec-input.spec-pasted { background: #eafaf1; border-color: #27ae60; transition: background .6s; }
     .spec-auto { display: inline-block; margin-left: 8px; padding: 1px 7px; border-radius: 3px; background: #eef1f4; color: #5b6b7e; font-size: 11px; font-weight: 700; vertical-align: middle; white-space: nowrap; }
     .spec-rev { margin-top: 6px; padding-top: 6px; border-top: 1px dashed #dcdcd8; }
     .spec-rev small b { color: #2b2f36; }
@@ -1907,7 +1910,7 @@ window.addEventListener('afterprint', () => {
 <script src="gaichu-sheet.js?v=20261022b"></script>
 <script src="gaichu-jobnav.js?v=20261022a"></script>
 <script src="gaichu-overview.js?v=20261022b"></script>
-<script src="gaichu-spec.js?v=20261022a"></script>
+<script src="gaichu-spec.js?v=20261022b"></script>
 <script src="gaichu-scope.js?v=20261022j"></script>
 <script src="gaichu-gantt.js?v=20261022a"></script>
 <script src="org-chart.js?v=20261022a"></script>

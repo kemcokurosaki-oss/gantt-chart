@@ -133,6 +133,7 @@
             </table>${e ? '<button type="button" class="spec-btn spec-addrow" data-spec="addrow">＋ 行を追加</button>' : ''}`;
 
         const paint = `<div class="subhead">1-7) 塗装色</div>
+            ${e ? '<p class="spec-paste-hint">社内製作仕様書の「8)塗装色」の行（項目名の行と色の行、または色の行だけ）を Excel でコピーし、下のどれかの欄に貼り付けると、11項目にまとめて入ります。<span class="spec-paste-msg" aria-live="polite"></span></p>' : ''}
             <table class="data-table">
                 <thead><tr>${PAINT_COLS.map(c => `<th>${c}</th>`).join('')}</tr></thead>
                 <tbody><tr>${PAINT_COLS.map(c => `<td>${e ? input(`paint.${c}`, s.paint[c]) : dash(s.paint[c])}</td>`).join('')}</tr></tbody>
@@ -186,6 +187,47 @@
     }
     function endEdit() { editing = false; draft = null; draftSheetId = null; revNote = ''; revSkip = false; render(); }
     root.addEventListener('input', e => { if (e.target.classList.contains('spec-rev-note')) revNote = e.target.value; });
+
+    // ===== 塗装色の貼り付け =====
+    // 社内製作仕様書（Excel）の「8)塗装色」は1項目が3列の結合セルなので、コピーすると「値・空・空」の並びになる。
+    // 項目名の行もコピーしてあれば項目名で突き合わせ、色の行だけなら3列ごと（または空でない値が11個ならその順）に当てはめる
+    const normName = s => String(s || '').normalize('NFKC').replace(/\s/g, '');
+    function parsePaint(text) {
+        const rows = String(text).replace(/\r/g, '').split('\n').map(l => l.split('\t').map(c => c.trim().replace(/^"|"$/g, '').trim())).filter(r => r.some(c => c));
+        if (!rows.length) return null;
+        const names = PAINT_COLS.map(normName);
+        const hi = rows.findIndex(r => r.filter(c => names.includes(normName(c))).length >= 3);
+        const out = {};
+        if (hi >= 0 && rows[hi + 1]) {
+            rows[hi].forEach((c, i) => { const k = names.indexOf(normName(c)); if (k >= 0) out[PAINT_COLS[k]] = rows[hi + 1][i] || ''; });
+            return Object.keys(out).length ? out : null;
+        }
+        const r = rows[hi >= 0 ? hi : 0].filter(c => !/^\d+\)\s*塗装色$/.test(normName(c)));
+        const filled = r.filter(c => c);
+        if (filled.length === PAINT_COLS.length) { PAINT_COLS.forEach((k, i) => { out[k] = filled[i]; }); return out; }
+        const start = r.findIndex(c => c);
+        const every3 = r.slice(start).filter((_, i) => i % 3 === 0);
+        if (every3.length >= PAINT_COLS.length - 1 && every3.length <= PAINT_COLS.length) { PAINT_COLS.forEach((k, i) => { out[k] = every3[i] || ''; }); return out; }
+        return null;
+    }
+    root.addEventListener('paste', e => {
+        const inp = e.target.closest && e.target.closest('.spec-input[data-path^="paint."]');
+        if (!inp || !editing) return;
+        const text = (e.clipboardData || window.clipboardData).getData('text');
+        if (!/[\t\n]/.test(text)) return;   // 1つの値だけなら普通に貼り付ける
+        e.preventDefault();
+        const msg = root.querySelector('.spec-paste-msg');
+        const vals = parsePaint(text);
+        if (!vals) { if (msg) msg.textContent = '　貼り付けた内容から塗装色を読み取れませんでした。「8)塗装色」の行をコピーしてください。'; return; }
+        let n = 0;
+        PAINT_COLS.forEach(k => {
+            if (!(k in vals)) return;
+            const el = root.querySelector(`.spec-input[data-path="paint.${k}"]`);
+            if (el) { el.value = vals[k]; el.classList.add('spec-pasted'); n++; }
+        });
+        if (msg) msg.textContent = `　${n}項目を貼り付けました（保存するまで確定しません）。`;
+        setTimeout(() => root.querySelectorAll('.spec-pasted').forEach(el => el.classList.remove('spec-pasted')), 1600);
+    });
     root.addEventListener('change', e => {
         if (!e.target.classList.contains('spec-rev-skip-cb')) return;
         revSkip = e.target.checked;
