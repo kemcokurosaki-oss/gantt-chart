@@ -14,6 +14,15 @@
     // 上部の情報欄（試運転対象・試運転時間）は外注先シートの trial に保存し、試運転期間は工程表から自動表示する
     const GS = window.GaichuSheet || null;
     const tabsEl = document.getElementById('trialTabs');
+    const trialBar = document.getElementById('trialBar');
+    function placeTrialBar() {
+        if (!trialBar) return;
+        const panel = trialBar.closest('.sub-panel'), subBar = panel && panel.querySelector('.sub-bar');
+        const solo = document.body.classList.contains('solo');
+        const head = solo ? (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sticky-h')) || 0) : 0;
+        trialBar.style.setProperty('--trial-top', (head + (subBar ? subBar.offsetHeight : 0)) + 'px');
+    }
+    window.addEventListener('resize', placeTrialBar);
     const infoEl = document.getElementById('trialInfo');
     let sheetId = null;          // 表示中の外注先シート
     let trialDraft = null;       // 編集中の上部の情報欄
@@ -86,6 +95,7 @@
         return `<input type="text" class="spec-input" data-trial="${key}" value="${esc(value)}" placeholder="${esc(ph)}">`;
     }
     function renderTrial() {
+        placeTrialBar();
         if (!GS) return;
         const st = GS.state;
         if (tabsEl) tabsEl.innerHTML = st.loggedIn && st.sheets.length
