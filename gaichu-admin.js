@@ -144,6 +144,14 @@
 .ga-vcard input.ga-vname { font-size: 14.5px; font-weight: 700; }
 .ga-vcard input.ga-vname.is-err { border-color: #e74c3c; }
 .ga-vcard input[type=number] { padding: 7px 8px; font-variant-numeric: tabular-nums; }
+.ga-addr { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 12px; padding: 0 14px 12px; }
+.ga-addr .ga-field small { font-weight: 400; color: #6b7079; }
+.ga-zip { display: flex; gap: 6px; }
+.ga-zip input { flex: 1 1 auto; min-width: 0; }
+.ga-zip-btn { flex: none; font: inherit; font-size: 12px; font-weight: 700; padding: 0 10px; border: 1px solid #cfd0cc; border-radius: 6px; background: #fff; color: #2b2f36; cursor: pointer; white-space: nowrap; }
+.ga-zip-btn:hover { border-color: #2b2f36; background: #eceef1; }
+.ga-zip-msg { font-size: 11px; color: #1b7641; min-height: 1em; }
+.ga-zip-msg.is-err { color: #c0392b; }
 .ga-rep { margin: 0 14px 14px; padding: 10px 12px 12px; background: #f7f7f5; border-radius: 6px; }
 .ga-rep .ga-sechead { margin-bottom: 6px; }
 .ga-rep .ga-sechead b { font-size: 12.5px; }
@@ -422,6 +430,36 @@
     //   略称は DB の display_name 列に入れる（空欄なら正式社名から「株式会社」などを外して自動で作る）
     //   代表者は個人情報なので別テーブル gaichu_vendor_contacts に持つ。仕様書のご担当者（工事ごとの入力が空欄のとき）と体制表のカードの選択肢に使う
     const REP_FIELDS = ['title', 'name', 'tel'];
+    // 住所：DB は「〒000-0000　住所」の1つの文字。画面では郵便番号と住所に分けて入力する
+    function splitAddress(a) {
+        const s = String(a || '').trim();
+        const m = /^〒?\s*(\d{3})-?(\d{4})[\s　]*(.*)$/.exec(s.normalize('NFKC'));
+        return m ? { zip: `${m[1]}-${m[2]}`, addr: m[3].trim() } : { zip: '', addr: s };
+    }
+    function joinAddress(zip, addr) {
+        const d = String(zip || '').normalize('NFKC').replace(/\D/g, '');
+        const z = d.length === 7 ? `〒${d.slice(0, 3)}-${d.slice(3)}` : '';
+        return [z, String(addr || '').trim()].filter(Boolean).join('　') || null;
+    }
+    // 郵便番号から住所を調べる（郵便番号検索API zipcloud。郵便番号だけを送る）
+    function lookupZip(zip) {
+        return new Promise((resolve, reject) => {
+            const d = String(zip || '').normalize('NFKC').replace(/\D/g, '');
+            if (d.length !== 7) { reject(new Error('郵便番号は7けたで入力してください')); return; }
+            const cb = '_gaZip' + Date.now();
+            const s = document.createElement('script');
+            const done = () => { delete window[cb]; s.remove(); };
+            window[cb] = res => {
+                done();
+                const r = res && res.results && res.results[0];
+                if (!r) reject(new Error((res && res.message) || 'この郵便番号の住所が見つかりませんでした'));
+                else resolve(r.address1 + r.address2 + r.address3);
+            };
+            s.onerror = () => { done(); reject(new Error('住所を調べられませんでした（ネットワークを確認してください）')); };
+            s.src = `https://zipcloud.ibsnet.co.jp/api/search?zipcode=${d}&callback=${cb}`;
+            document.head.appendChild(s);
+        });
+    }
     async function openVendors({ onDone } = {}) {
         let ctx, reps;
         try {
@@ -432,7 +470,7 @@
         } catch (e) { alert('読み込めませんでした：' + (e.message || e)); return; }
         const rows = ctx.vendors.map(v => {
             const rep = reps.get(v.id) || {};
-            return { ...v, hadRep: reps.has(v.id), ...Object.fromEntries(REP_FIELDS.map(k => ['rep_' + k, rep[k] || ''])) };
+            return { ...v, ...splitAddress(v.address), hadRep: reps.has(v.id), ...Object.fromEntries(REP_FIELDS.map(k => ['rep_' + k, rep[k] || ''])) };
         });
         const m = modal('外注先マスタの管理', `
             <div class="ga-caution">
@@ -454,7 +492,7 @@
                 try {
                     for (const r of rows) {
                         const rec = { name: r.name.trim(), display_name: String(r.display_name || '').trim() || null, sort_order: Number(r.sort_order) || 0, active: !!r.active, updated_at: new Date().toISOString() };
-                        if ('address' in r) rec.address = String(r.address || '').trim() || null;   // 住所の列（SQLで追加）があるときだけ
+                        if ('address' in r) rec.address = joinAddress(r.zip, r.addr);   // 住所の列（SQLで追加）があるときだけ。「〒000-0000　住所」で保存
                         const q = r.id ? db().from('gaichu_vendors').update(rec).eq('id', r.id) : db().from('gaichu_vendors').insert(rec);
                         const { data, error } = await q.select('id');
                         if (error) throw error;
@@ -505,7 +543,10 @@
                     <label class="ga-field"><span>略称 <small>表など狭いところに表示</small></span><input type="text" data-f="display_name" autocomplete="off" value="${esc(r.display_name)}" placeholder="${esc(dispPh(r))}"></label>
                     <label class="ga-field"><span>並び順</span><input type="number" data-f="sort_order" value="${esc(r.sort_order)}"></label>
                 </div>
-                ${'address' in r ? `<label class="ga-field ga-addr"><span>住所 <small>概要の外注先企業カードに表示</small></span><input type="text" data-f="address" autocomplete="off" value="${esc(r.address || '')}" placeholder="例：〒000-0000 〇〇県〇〇市〇〇町1-2-3"></label>` : ''}
+                ${'address' in r ? `<div class="ga-addr">
+                    <label class="ga-field"><span>郵便番号</span><span class="ga-zip"><input type="text" data-f="zip" autocomplete="off" inputmode="numeric" value="${esc(r.zip || '')}" placeholder="例：675-2422"><button type="button" class="ga-zip-btn" data-zip>住所を検索</button></span><small class="ga-zip-msg"></small></label>
+                    <label class="ga-field"><span>住所 <small>概要の外注先企業カードに表示</small></span><input type="text" data-f="addr" autocomplete="off" value="${esc(r.addr || '')}" placeholder="例：兵庫県加西市山田町302"></label>
+                </div>` : ''}
                 <div class="ga-rep">
                     <div class="ga-sechead"><b>担当者</b><small>任意</small></div>
                     <div class="ga-rep-grid">
@@ -521,6 +562,24 @@
             el.querySelectorAll('[data-f]').forEach(inp => { r[inp.dataset.f] = inp.type === 'checkbox' ? inp.checked : inp.value; });
         });
         // 入力に合わせて、カードの見出し・使用の表示・件数・未保存の表示を更新する
+        // 「住所を検索」：郵便番号から住所を入れる（入力済みの住所は上書きしてよいか確かめる）
+        list.addEventListener('click', async e => {
+            const b = e.target.closest('[data-zip]');
+            if (!b) return;
+            const el = b.closest('.ga-vcard'), msg = el.querySelector('.ga-zip-msg');
+            const zipInp = el.querySelector('[data-f=zip]'), addrInp = el.querySelector('[data-f=addr]');
+            msg.textContent = '検索中…'; msg.classList.remove('is-err');
+            try {
+                const a = await lookupZip(zipInp.value);
+                if (addrInp.value.trim() && !addrInp.value.startsWith(a) && !confirm(`住所を「${a}」に置き換えますか？（番地は続けて入力してください）`)) { msg.textContent = ''; return; }
+                if (!addrInp.value.startsWith(a)) addrInp.value = a;
+                const d = zipInp.value.normalize('NFKC').replace(/\D/g, '');
+                zipInp.value = `${d.slice(0, 3)}-${d.slice(3)}`;
+                msg.textContent = '住所を入れました。番地を続けて入力してください';
+                addrInp.focus(); addrInp.setSelectionRange(addrInp.value.length, addrInp.value.length);
+                addrInp.dispatchEvent(new Event('input', { bubbles: true }));
+            } catch (err) { msg.textContent = err.message; msg.classList.add('is-err'); }
+        });
         list.addEventListener('input', e => {
             const el = e.target.closest('.ga-vcard');
             if (!el) return;
@@ -541,7 +600,7 @@
         });
         m.el.querySelector('[data-addv]').addEventListener('click', () => {
             collect();
-            rows.push({ id: null, name: '', display_name: '', ...(ctx.vendors.length && 'address' in ctx.vendors[0] ? { address: '' } : {}), sort_order: (rows.length + 1) * 10, active: true, hadRep: false, rep_title: '', rep_name: '', rep_tel: '' });
+            rows.push({ id: null, name: '', display_name: '', ...(ctx.vendors.length && 'address' in ctx.vendors[0] ? { address: '', zip: '', addr: '' } : {}), sort_order: (rows.length + 1) * 10, active: true, hadRep: false, rep_title: '', rep_name: '', rep_tel: '' });
             draw();
             status.hidden = false;
             const last = list.lastElementChild;
