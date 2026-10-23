@@ -366,12 +366,6 @@
     .se-addrow-fields .spec-input { width: 180px; }
     .se-addrow-err { color: #c0392b; font-size: 12px; margin-top: 4px; min-height: 1em; }
     .scope-table tr.se-new-row td { box-shadow: inset 0 0 0 9999px rgba(39,174,96,0.06); }
-    /* 削除する行（保存で工程表のタスクも消す）：取り消し線と薄い表示。↺ で元に戻せる */
-    .scope-table tr.se-del-row td { opacity: .45; text-decoration: line-through; }
-    .scope-table tr.se-del-row td.scope-row-btns { opacity: 1; text-decoration: none; }
-    .scope-table.is-editing tr.se-del-row .scope-row-btns > * { visibility: visible; }
-    .se-rowname { min-width: 70px; }
-    .se-rowname.is-empty { border-color: #e6a23c; background: #fffaf0; }
     .scope-table.is-editing td.se-task-cell:hover { background: #eceef1; }
     /* 図面ビューアの表示中は、担当範囲一覧を画面の下ぎりぎりまで使うため、枠の下の余白を詰める */
     #panel-scope.sv-fit .sub-body { padding-bottom: 10px; }
@@ -2020,11 +2014,11 @@ window.addEventListener('afterprint', () => {
 </script>
 <!-- gaichu-*.js / org-chart.js を変更したら ?v= の番号を上げる（ブラウザに古いファイルが残って動かなくなるのを防ぐ） -->
 <script src="gaichu-admin.js?v=20261022f"></script>
-<script src="gaichu-sheet.js?v=20261023c"></script>
+<script src="gaichu-sheet.js?v=20261023b"></script>
 <script src="gaichu-jobnav.js?v=20261022b"></script>
 <script src="gaichu-overview.js?v=20261023a"></script>
 <script src="gaichu-spec.js?v=20261022d"></script>
-<script src="gaichu-scope.js?v=20261023d"></script>
+<script src="gaichu-scope.js?v=20261023c"></script>
 <script src="gaichu-gantt.js?v=20261022a"></script>
 <script src="org-chart.js?v=20261022d"></script>
 
