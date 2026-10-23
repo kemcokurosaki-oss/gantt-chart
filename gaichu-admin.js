@@ -145,6 +145,7 @@
 .ga-vcard input.ga-vname.is-err { border-color: #e74c3c; }
 .ga-vcard input[type=number] { padding: 7px 8px; font-variant-numeric: tabular-nums; }
 .ga-addr { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 12px; padding: 0 14px 12px; }
+.ga-addr.has-tel { grid-template-columns: 230px minmax(0, 1fr) 170px; }
 .ga-addr .ga-field small { font-weight: 400; color: #6b7079; }
 .ga-zip { display: flex; gap: 6px; }
 .ga-zip input { flex: 1 1 auto; min-width: 0; }
@@ -155,7 +156,7 @@
 .ga-rep { margin: 0 14px 14px; padding: 10px 12px 12px; background: #f7f7f5; border-radius: 6px; }
 .ga-rep .ga-sechead { margin-bottom: 6px; }
 .ga-rep .ga-sechead b { font-size: 12.5px; }
-.ga-rep-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.ga-rep-grid { display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.4fr); gap: 10px; }
 .ga-rep .ga-field > span { font-size: 11.5px; color: #6b7079; }
 .ga-modal--form .ga-rep input[type=text] { font-size: 13.5px; padding: 6px 10px; }
 .ga-vcard.is-off .ga-vcard-head { background: #efefec; }
@@ -429,7 +430,7 @@
     // ===== 外注先マスタの管理（正式社名・略称・並び順・使用・代表者の変更と追加。使っている外注先があるため削除はしない） =====
     //   略称は DB の display_name 列に入れる（空欄なら正式社名から「株式会社」などを外して自動で作る）
     //   代表者は個人情報なので別テーブル gaichu_vendor_contacts に持つ。仕様書のご担当者（工事ごとの入力が空欄のとき）と体制表のカードの選択肢に使う
-    const REP_FIELDS = ['title', 'name', 'tel'];
+    const REP_FIELDS = ['title', 'name', 'tel', 'email'];
     // 住所：DB は「〒000-0000　住所」の1つの文字。画面では郵便番号と住所に分けて入力する
     function splitAddress(a) {
         const s = String(a || '').trim();
@@ -464,7 +465,7 @@
         let ctx, reps;
         try {
             ctx = await context();
-            const r = await db().from('gaichu_vendor_contacts').select('vendor_id, title, name, tel');
+            const r = await db().from('gaichu_vendor_contacts').select('vendor_id, title, name, tel, email');
             if (r.error) console.warn('外注先の代表者の取得に失敗しました', r.error);
             reps = new Map((r.data || []).map(x => [x.vendor_id, x]));
         } catch (e) { alert('読み込めませんでした：' + (e.message || e)); return; }
@@ -492,6 +493,7 @@
                 try {
                     for (const r of rows) {
                         const rec = { name: r.name.trim(), display_name: String(r.display_name || '').trim() || null, sort_order: Number(r.sort_order) || 0, active: !!r.active, updated_at: new Date().toISOString() };
+                        if ('tel' in r) rec.tel = String(r.tel || '').trim() || null;   // 代表電話（SQLで列を追加したとき）
                         if ('address' in r) rec.address = joinAddress(r.zip, r.addr);   // 住所の列（SQLで追加）があるときだけ。「〒000-0000　住所」で保存
                         const q = r.id ? db().from('gaichu_vendors').update(rec).eq('id', r.id) : db().from('gaichu_vendors').insert(rec);
                         const { data, error } = await q.select('id');
@@ -543,9 +545,10 @@
                     <label class="ga-field"><span>略称 <small>表など狭いところに表示</small></span><input type="text" data-f="display_name" autocomplete="off" value="${esc(r.display_name)}" placeholder="${esc(dispPh(r))}"></label>
                     <label class="ga-field"><span>並び順</span><input type="number" data-f="sort_order" value="${esc(r.sort_order)}"></label>
                 </div>
-                ${'address' in r ? `<div class="ga-addr">
+                ${'address' in r ? `<div class="ga-addr${'tel' in r ? ' has-tel' : ''}">
                     <label class="ga-field"><span>郵便番号</span><span class="ga-zip"><input type="text" data-f="zip" autocomplete="off" inputmode="numeric" value="${esc(r.zip || '')}" placeholder="例：675-2422"><button type="button" class="ga-zip-btn" data-zip>住所を検索</button></span><small class="ga-zip-msg"></small></label>
                     <label class="ga-field"><span>住所 <small>概要の外注先企業カードに表示</small></span><input type="text" data-f="addr" autocomplete="off" value="${esc(r.addr || '')}" placeholder="例：兵庫県加西市山田町302"></label>
+                    ${'tel' in r ? `<label class="ga-field"><span>代表電話</span><input type="text" data-f="tel" autocomplete="off" value="${esc(r.tel || '')}" placeholder="例：0790-00-0000" inputmode="tel"></label>` : ''}
                 </div>` : ''}
                 <div class="ga-rep">
                     <div class="ga-sechead"><b>担当者</b><small>任意</small></div>
@@ -553,6 +556,7 @@
                         <label class="ga-field"><span>役職</span><input type="text" data-f="rep_title" autocomplete="off" value="${esc(r.rep_title)}" placeholder="例：代表取締役"></label>
                         <label class="ga-field"><span>氏名</span><input type="text" data-f="rep_name" autocomplete="off" value="${esc(r.rep_name)}" placeholder="例：山田 太郎"></label>
                         <label class="ga-field"><span>電話</span><input type="text" data-f="rep_tel" autocomplete="off" value="${esc(r.rep_tel)}" placeholder="090-xxxx-xxxx" inputmode="tel"></label>
+                        <label class="ga-field"><span>メール</span><input type="email" data-f="rep_email" autocomplete="off" value="${esc(r.rep_email)}" placeholder="例：yamada@example.co.jp" inputmode="email"></label>
                     </div>
                 </div></div>`;
         };
@@ -600,7 +604,7 @@
         });
         m.el.querySelector('[data-addv]').addEventListener('click', () => {
             collect();
-            rows.push({ id: null, name: '', display_name: '', ...(ctx.vendors.length && 'address' in ctx.vendors[0] ? { address: '', zip: '', addr: '' } : {}), sort_order: (rows.length + 1) * 10, active: true, hadRep: false, rep_title: '', rep_name: '', rep_tel: '' });
+            rows.push({ id: null, name: '', display_name: '', ...(ctx.vendors.length && 'address' in ctx.vendors[0] ? { address: '', zip: '', addr: '' } : {}), ...(ctx.vendors.length && 'tel' in ctx.vendors[0] ? { tel: '' } : {}), sort_order: (rows.length + 1) * 10, active: true, hadRep: false, rep_title: '', rep_name: '', rep_tel: '', rep_email: '' });
             draw();
             status.hidden = false;
             const last = list.lastElementChild;

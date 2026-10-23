@@ -62,6 +62,7 @@
             display: (r.gaichu_vendors && r.gaichu_vendors.name) || '',   // 正式社名（見出し・仕様書など）
             short: (r.gaichu_vendors && (r.gaichu_vendors.display_name || shortName(r.gaichu_vendors.name))) || '',   // 略称（表・バッジ・切り替えボタンなど狭いところ）
             address: (r.gaichu_vendors && r.gaichu_vendors.address) || '',   // 住所（外注先マスタ）
+            tel: (r.gaichu_vendors && r.gaichu_vendors.tel) || '',           // 代表電話（外注先マスタ）
             color: r.color || '#7f8c8d',
             spec: r.spec || {},
             trial: r.trial || {},
@@ -69,7 +70,7 @@
         }));
         const ids = [...new Set(state.sheets.map(s => s.vendor_id))];
         if (!ids.length) return;
-        const { data: reps, error: repErr } = await client.from('gaichu_vendor_contacts').select('vendor_id, title, name, tel').in('vendor_id', ids);
+        const { data: reps, error: repErr } = await client.from('gaichu_vendor_contacts').select('vendor_id, title, name, tel, email').in('vendor_id', ids);
         if (repErr) { console.warn('外注先の代表者の取得に失敗しました', repErr); return; }
         (reps || []).forEach(r => state.sheets.forEach(s => { if (s.vendor_id === r.vendor_id) s.rep = r; }));
     }
