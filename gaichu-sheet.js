@@ -291,14 +291,9 @@
         const manual = Array.isArray(manualRows) ? manualRows : [];
         const rows = [...groups.values()].sort((a, b) => a.machine.localeCompare(b.machine, 'ja') || String(a.start).localeCompare(String(b.start)) || a.unit.localeCompare(b.unit, 'ja')).map(g => {
             const same = (tasks || []).filter(t => scopeRowKey(t.machine, t.unit) === g.key);
-            const row = { key: g.key, machine: g.machine, unit: g.unit, taskIds: {} };
-            Object.entries(SCOPE_TASKS).forEach(([name, col]) => {
-                const ts = same.filter(t => isName(t, name));
-                row[col] = uniq(ts.flatMap(ownerParties));
-                row.taskIds[col] = ts.filter(t => isOutsource(t.owner)).map(t => t.id);   // 外注先企業を付け直せるのは外注のタスクだけ
-            });
+            const row = { key: g.key, machine: g.machine, unit: g.unit };
+            Object.entries(SCOPE_TASKS).forEach(([name, col]) => { row[col] = uniq(same.filter(t => isName(t, name)).flatMap(ownerParties)); });
             const tr = trials.filter(t => covers(t, g));
-            row.taskIds.trial_place = tr.map(t => t.id);
             row.trial = uniq(tr.flatMap(ownerParties));
             row.trial_place = tr.length ? uniq(tr.map(t => placeParty(t.test_run_location))) : [];
             // 手入力の列（機械名・追加した列）

@@ -36,17 +36,14 @@
     const THUMB_H = 400;                                 // サムネイルの行の高さの目安（px）。横長の3D図が広い画面で1行に2枚ほど並ぶ大きさ
     let viewIdx = null;                                  // 図面ビューアで表示中の図面（null＝外注先に合わせて自動で選ぶ）
     let tasks = [];                                      // 工程表のタスク（担当範囲一覧の行を作る）
-    let draftTasks = null;                               // 編集中のタスク（外注先企業・試運転場所をシートから直す。保存で工程表に書き込む）
-    const tasksNow = () => (editing && draftTasks ? draftTasks : tasks);
     // 工程表から自動で表示する列（編集では変えられない）
     const AUTO = new Set(['machine', 'unit', 'assembly', 'electrical', 'trial', 'trial_place']);
     // 一覧の行：工程表から作った行に、手入力の列（機械名・追加した列）を重ねる
     function rowsOf(d) {
-        return GS.scopeRows(tasksNow(), d.rows).map(r => {
+        return GS.scopeRows(tasks, d.rows).map(r => {
             const out = { ...r.manual };
             AUTO.forEach(k => { out[k] = r[k]; });
             out.key = r.key;
-            out.taskIds = r.taskIds;
             return out;
         });
     }
@@ -224,18 +221,12 @@
             : `<th class="scope-col-edit"><span class="se-col-name"><input type="text" class="spec-input" data-colname="${ci}" value="${esc(c.label)}" placeholder="列の名前"><span class="se-col-btns"><button type="button" class="se-mini" data-sc="colleft" data-i="${ci}" title="左へ">◀</button><button type="button" class="se-mini" data-sc="colright" data-i="${ci}" title="右へ">▶</button><button type="button" class="spec-del" data-sc="coldel" data-i="${ci}" title="この列を削除">✕</button></span></span>${plusCol(ci)}</th>`).join('');
         const auto = rowsOf(d);
         const body = auto.length ? auto.map((r, ri) => `<tr>`
-                + cols.map(c => {
-                    if (!AUTO.has(c.key)) return cellEdit(d.rows[ri], ri, c);
-                    const ids = (r.taskIds && r.taskIds[c.key]) || [];
-                    if (!ids.length) return `<td class="se-auto">${cellView(r, c)}</td>`;
-                    const tip = c.key === 'trial_place' ? 'クリックで試運転場所を選ぶ（工程表の試運転タスクに保存）' : 'クリックで外注先企業を選ぶ（工程表のタスクに保存）';
-                    return `<td class="se-auto se-task-cell" data-task-cell="${ri}" data-key="${esc(c.key)}" title="${tip}"><span class="se-party">${cellView(r, c)}<span class="se-caret">▾</span></span></td>`;
-                }).join('')
+                + cols.map(c => AUTO.has(c.key) ? `<td class="se-auto">${cellView(r, c)}</td>` : cellEdit(d.rows[ri], ri, c)).join('')
                 + `</tr>`).join('')
             : `<tr><td colspan="${cols.length}" class="spec-empty">工程表に、担当が「外注」の「機械組立」「電気艤装」のタスクがありません（工程表にタスクを入れると、ここに行が出ます）</td></tr>`;
         return `<div class="se-head"><span class="se-title">① 図面</span><span class="se-hint">「色分け枠を描く」を押すと、その図面を拡大して担当先の枠を描けます</span></div>
             <div class="se-figs">${figs}${addFig}</div>
-            <div class="se-head"><span class="se-title">② 担当範囲一覧</span><span class="se-hint">灰色の列は工程表から表示します。機械組立・電気艤装の会社と試運転場所はここで選び直せます（保存すると工程表にも入ります）。機械名と追加した列を入力できます</span></div>
+            <div class="se-head"><span class="se-title">② 担当範囲一覧</span><span class="se-hint">灰色の列は工程表から自動で表示します（変えるときは工程表で）。機械名と追加した列を入力できます。見出しにマウスを乗せると「＋」で列を追加できます</span></div>
             <div class="se-table-area">
                 <table class="data-table scope-table is-editing"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>
                 <button type="button" class="se-edge se-edge--col" data-sc="addcol" data-i="${cols.length}" title="右端に列を追加"><span>＋</span><small>列を追加</small></button>
@@ -345,28 +336,15 @@
             AUTO.forEach(k => { delete m[k]; });
             return { ...m, key: r.key, machine: r.machine, unit: r.unit };
         });
-        draftTasks = clone(tasks);
         baseline = strip(draft);
         removedPaths = [];
         editing = true;
         render();
     }
-    function endEdit() { editing = false; draft = null; draftTasks = null; removedPaths = []; baseline = ''; closePicker(); render(); }
-    // 工程表のタスクで、シートで直したもの（外注先企業・試運転場所）
-    function changedTasks() {
-        if (!draftTasks) return [];
-        const before = new Map(tasks.map(t => [t.id, t]));
-        return draftTasks.map(t => {
-            const o = before.get(t.id), patch = {};
-            if (!o) return null;
-            if ((o.vendor_id ?? null) !== (t.vendor_id ?? null)) patch.vendor_id = t.vendor_id ?? null;
-            if ((o.test_run_location || null) !== (t.test_run_location || null)) patch.test_run_location = t.test_run_location || null;
-            return Object.keys(patch).length ? { id: t.id, patch } : null;
-        }).filter(Boolean);
-    }
+    function endEdit() { editing = false; draft = null; removedPaths = []; baseline = ''; closePicker(); render(); }
     function isDirty() {
         if (!editing) return false;
-        return strip(draft) !== baseline || draft.figures.some(f => f.file) || changedTasks().length > 0;
+        return strip(draft) !== baseline || draft.figures.some(f => f.file);
     }
     function move(list, i, delta) {
         const j = i + delta;
@@ -417,13 +395,6 @@
                 if (rmErr) console.warn('削除した図面のファイルを消せませんでした', rmErr);
             }
             data = { figures: rec.figures, rows: rec.rows, columns: rec.columns };
-            const edits = changedTasks();
-            for (const { id, patch } of edits) {
-                const { data: up, error: upErr } = await client.from('tasks').update(patch).eq('id', id).select('id');
-                if (upErr) throw new Error('工程表のタスクに保存できませんでした：' + upErr.message);
-                if (!up || !up.length) throw new Error('工程表のタスクに保存できませんでした（工程表の編集の権限がないか、ログインが切れています）');
-            }
-            if (edits.length) { location.reload(); return; }
             endEdit();
         } catch (err) {
             console.error('組立範囲の保存に失敗しました', err);
@@ -464,40 +435,8 @@
         });
     }
     document.addEventListener('mousedown', e => {
-        if (picker && !picker.contains(e.target) && !e.target.closest('.party-cell, .se-task-cell')) closePicker();
+        if (picker && !picker.contains(e.target) && !e.target.closest('.party-cell')) closePicker();
     });
-    // 工程表のタスクのマス：機械組立・電気艤装は外注先企業（1社。この工事の外注先と「未定」）、試運転場所は日下部電機（自社）とこの工事の外注先
-    function openTaskPicker(cell) {
-        closePicker();
-        pickerCell = cell;
-        const ri = Number(cell.dataset.taskCell), key = cell.dataset.key;
-        const row = rowsOf(draft)[ri];
-        const ids = new Set((row && row.taskIds && row.taskIds[key]) || []);
-        const ts = draftTasks.filter(t => ids.has(t.id));
-        const vendors = GS.state.sheets.map(s => ({ id: s.vendor_id, name: s.display, color: s.color }));
-        const isPlace = key === 'trial_place';
-        const curOf = t => isPlace ? (String(t.test_run_location || '').trim() || '') : (t.vendor_id != null ? String(t.vendor_id) : '');
-        const curs = new Set(ts.map(curOf));
-        const opt = (v, label, color) => `<button type="button" class="party-opt${curs.size === 1 && curs.has(v) ? ' is-on' : ''}" data-tv="${esc(v)}"><span class="party-opt-mark">${curs.size === 1 && curs.has(v) ? '✓' : ''}</span><span class="dot" style="background:${esc(color)}"></span>${esc(label)}</button>`;
-        picker = document.createElement('div');
-        picker.className = 'party-picker';
-        picker.innerHTML = (isPlace
-            ? opt('', GS.KUSAKABE.name + '（自社）', GS.KUSAKABE.color) + vendors.map(v => opt(v.name, v.name, v.color)).join('')
-            : vendors.map(v => opt(String(v.id), v.name, v.color)).join('') + opt('', '未定（外注先企業を空欄にする）', '#7b8088'))
-            + `<p class="party-picker-note">保存すると工程表の${isPlace ? '「試運転」タスクの試運転場所' : '「' + (key === 'assembly' ? '機械組立' : '電気艤装') + '」タスクの外注先企業'}にも入ります（${ts.length}件）</p>`;
-        document.body.appendChild(picker);
-        const r = cell.getBoundingClientRect();
-        picker.style.left = Math.min(r.left, window.innerWidth - picker.offsetWidth - 8) + 'px';
-        picker.style.top = (r.bottom + 4 + picker.offsetHeight > window.innerHeight ? r.top - picker.offsetHeight - 4 : r.bottom + 4) + 'px';
-        picker.addEventListener('click', ev => {
-            const o = ev.target.closest('[data-tv]');
-            if (!o) return;
-            const v = o.dataset.tv;
-            ts.forEach(t => { if (isPlace) t.test_run_location = v || null; else t.vendor_id = v ? Number(v) : null; });
-            closePicker();
-            render();
-        });
-    }
 
     // 列の追加：＋を押すとすぐに会社を選ぶ列を入れ、名前の欄を選んだ状態にする（そのまま打ち替えられる）
     function addColumn(at) {
@@ -563,9 +502,7 @@
         if (img) { openLightbox(Number(img.dataset.openFig)); return; }
         const cell = editing && e.target.closest('.party-cell');
         // 同じマスをもう一度クリックしたら閉じる
-        if (cell) { if (picker && pickerCell === cell) closePicker(); else openPicker(cell); return; }
-        const tcell = editing && e.target.closest('.se-task-cell');
-        if (tcell) { if (picker && pickerCell === tcell) closePicker(); else openTaskPicker(tcell); }
+        if (cell) { if (picker && pickerCell === cell) closePicker(); else openPicker(cell); }
     });
     root.addEventListener('input', e => {
         if (!editing) return;
