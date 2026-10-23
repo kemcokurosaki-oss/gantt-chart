@@ -94,11 +94,10 @@
                 const r = repOf(s);
                 return `<div class="ov-allrow"><span class="ov-vname"><i style="background:${esc(s.color)}"></i>${esc(s.display)}</span>`
                     + `<span class="ov-sub">${esc(s.address) || '<span class="ov-none">住所 未登録</span>'}${s.tel ? `<br><span class="ov-k">代表</span>${telLink(s.tel)}` : ''}</span>`
-                    + `<span>${r ? `<span class="ov-k">担当</span>${esc([r.title, r.name].filter(Boolean).join('　'))}${r.tel ? `　${telLink(r.tel)}` : ''}` : '<span class="ov-none">担当者 未登録</span>'}</span></div>`;
+                    + `<span>${r ? `<span class="ov-k">担当</span>${esc([r.title, r.name].filter(Boolean).join('　'))}${r.tel ? `　${telLink(r.tel)}` : ''}` : '<span class="ov-none">担当者 未登録</span>'}</span>`
+                    + `<button type="button" class="ov-spec-btn ov-spec-btn--row" data-ov-spec="${s.id}" title="${esc(s.display)}の組立発注仕様書を開く"><span>仕様書を開く</span><small>→</small></button></div>`;
             }).join('');
-            const specs = st.sheets.map(s => `<button type="button" class="ov-spec-btn" data-ov-spec="${s.id}" title="${esc(s.display)}の組立発注仕様書を開く"><i style="background:${esc(s.color)}"></i><span>${esc(s.short || s.display)}</span><small>${esc((s.spec && s.spec.revision) ? String(s.spec.revision).split('（')[0] : '')} →</small></button>`).join('');
-            const specCard = `<div class="ov-card ov-speccard"><span class="ov-k">組立発注仕様書</span>${specs || '<b>―</b>'}</div>`;
-            el.band.innerHTML = `<div class="ov-band ov-band--all">${shipCard}<div class="ov-card ov-alllist">${rows || muted('外注先が登録されていません。')}</div>${specCard}${contact}</div>`;
+            el.band.innerHTML = `<div class="ov-band ov-band--all">${shipCard}<div class="ov-card ov-alllist">${rows || muted('外注先が登録されていません。')}</div>${contact}</div>`;
             return;
         }
         const vendorCard = `<div class="ov-card" style="border-top-color:${esc(sh.color)}"><span class="ov-k">外注先企業</span><b class="ov-name">${esc(sh.display)}</b>`

@@ -1474,7 +1474,7 @@
     /* ===== 最初のページ（概要・gaichu-overview.js）：先頭の要約＋4つの章の簡易表示 ===== */
     .overview { display: flex; flex-direction: column; gap: 22px; }
     .ov-band { display: grid; grid-template-columns: 190px minmax(0, 1.4fr) minmax(0, 1fr) 170px 240px; gap: 12px; }
-    .ov-band--all { grid-template-columns: 190px minmax(0, 1fr) 200px 240px; }
+    .ov-band--all { grid-template-columns: 190px minmax(0, 1fr) 240px; }
     /* 仕様書のカード：仕様書の詳細を開くボタン（全体のときは外注先ごと） */
     .ov-speccard { gap: 6px; }
     .ov-spec-btn { appearance: none; display: flex; align-items: center; gap: 6px; width: 100%; font: inherit; font-size: 12.5px; font-weight: 700; color: #2b2f36; background: #fff; border: 1px solid #cfd0cc; border-radius: 6px; padding: 6px 10px; cursor: pointer; text-align: left; }
@@ -1482,6 +1482,8 @@
     .ov-spec-btn i { flex: none; width: 8px; height: 8px; border-radius: 50%; }
     .ov-spec-btn span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .ov-spec-btn small { color: inherit; opacity: .7; font-size: 11px; }
+    .ov-spec-btn--row { width: auto; padding: 4px 10px; font-size: 12px; }
+    @media print { .ov-spec-btn { display: none !important; } }
     .ov-ship { background: #2b2f36; color: #fff; border-radius: 10px; padding: 12px 16px; display: flex; flex-direction: column; gap: 2px; }
     .ov-ship .ov-k { color: #d8dce2; }
     .ov-ship b { font-size: 26px; line-height: 1.2; letter-spacing: .5px; }
@@ -1497,7 +1499,7 @@
     .ov-allrow .ov-sub .ov-k { margin-right: 6px; }
     .ov-k { font-size: 12px; font-weight: 700; color: #6b7079; }
     .ov-alllist { padding: 4px 16px; }
-    .ov-allrow { display: grid; grid-template-columns: 210px minmax(0, 1fr) minmax(0, 1fr); gap: 10px; align-items: center; font-size: 13px; padding: 8px 0; border-top: 1px solid #efefec; }
+    .ov-allrow { display: grid; grid-template-columns: 210px minmax(0, 1fr) minmax(0, 1fr) auto; gap: 10px; align-items: center; font-size: 13px; padding: 8px 0; border-top: 1px solid #efefec; }
     .ov-allrow:first-child { border-top: 0; }
     .ov-allrow .ov-k { margin-right: 8px; }
     .ov-vname { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; }
@@ -1603,6 +1605,8 @@
     .job-nav-toc .jn-foot-label { margin-bottom: 4px; }
     .toc-btn { appearance: none; text-align: left; font-family: inherit; font-size: 13px; font-weight: 500; color: #5b6068; background: none; border: none; border-left: 2px solid #e4e3df; padding: 6px 10px; cursor: pointer; display: flex; gap: 8px; }
     .toc-btn span { width: 12px; font-weight: 700; }
+    .toc-btn .toc-nonum { visibility: hidden; }   /* 仕様書は番号なし（一覧をたたんだときだけ「仕」を出す） */
+    body.nav-collapsed .toc-btn .toc-nonum { visibility: visible; }
     .toc-btn:hover { color: #2b2f36; background: #f5f5f3; }
     .toc-btn.active { color: #2b2f36; font-weight: 700; border-left-color: #2b2f36; background: #f3f3f1; }
     /* たたんだとき：この工事の資料は番号だけを出す */
@@ -1643,8 +1647,8 @@
         .print-first { break-before: auto !important; }
         .overview { gap: 14px; }
         .ov-band { grid-template-columns: 150px minmax(0, 1.4fr) minmax(0, 1fr) 140px 190px !important; gap: 8px; }
-        .ov-band--all { grid-template-columns: 150px minmax(0, 1fr) 170px 190px !important; }
-        .ov-allrow { grid-template-columns: 190px minmax(0, 1fr) minmax(0, 1fr) !important; gap: 10px !important; padding: 5px 0; }
+        .ov-band--all { grid-template-columns: 150px minmax(0, 1fr) 190px !important; }
+        .ov-allrow { grid-template-columns: 190px minmax(0, 1fr) minmax(0, 1fr) auto !important; gap: 10px !important; padding: 5px 0; }
         .ov-ship b { font-size: 22px; }
         .ov-scope { flex-direction: row !important; }
         .ov-fig { flex: 0 0 40% !important; }
@@ -1720,8 +1724,8 @@
         <span class="jn-foot-label">この工事の資料</span>
         <button type="button" class="toc-btn" data-doc="scope"><span>1</span>組立範囲</button>
         <button type="button" class="toc-btn" data-doc="schedule"><span>2</span>工程表</button>
-        <button type="button" class="toc-btn" data-doc="order-spec"><span>3</span>組立発注仕様書</button>
-        <button type="button" class="toc-btn" data-doc="trial"><span>4</span>体制表</button>
+        <button type="button" class="toc-btn" data-doc="trial"><span>3</span>体制表</button>
+        <button type="button" class="toc-btn" data-doc="order-spec"><span class="toc-nonum">仕</span>組立発注仕様書</button>
     </div>
     <div class="job-nav-foot" id="jobNavAdmin"></div>
 </nav>
@@ -1744,8 +1748,8 @@
                 <label><input type="checkbox" data-print-pick="overview" checked><span></span>概要</label>
                 <label><input type="checkbox" data-print-pick="scope" checked><span>1</span>組立範囲</label>
                 <label><input type="checkbox" data-print-pick="schedule" checked><span>2</span>工程表</label>
-                <label><input type="checkbox" data-print-pick="order-spec" checked><span>3</span>組立発注仕様書</label>
-                <label><input type="checkbox" data-print-pick="trial" checked><span>4</span>体制表</label>
+                <label><input type="checkbox" data-print-pick="trial" checked><span>3</span>体制表</label>
+                <label><input type="checkbox" data-print-pick="order-spec" checked><span></span>組立発注仕様書</label>
                 <hr>
                 <button type="button" class="print-go" id="printGo">印刷／PDF保存</button>
             </div>
@@ -1815,7 +1819,7 @@
 
     <!-- 3. 組立発注仕様書 基本概要 -->
     <section class="sub-panel" id="panel-order-spec">
-        <div class="sub-bar"><h2><span class="sub-num">3</span>組立発注仕様書　基本概要</h2><button type="button" class="doc-print-btn" data-newtab title="この資料だけを新しいタブで開きます（画面を並べて見比べるときに）">別タブで開く ↗</button><button type="button" class="doc-print-btn" data-print="order-spec">この資料を印刷／PDF保存</button><button type="button" class="sub-close" data-close-doc>✕ 閉じる</button></div>
+        <div class="sub-bar"><h2>組立発注仕様書　基本概要</h2><button type="button" class="doc-print-btn" data-newtab title="この資料だけを新しいタブで開きます（画面を並べて見比べるときに）">別タブで開く ↗</button><button type="button" class="doc-print-btn" data-print="order-spec">この資料を印刷／PDF保存</button><button type="button" class="sub-close" data-close-doc>✕ 閉じる</button></div>
         <div class="sub-body">
         <div class="panel-head">
             <h2 class="print-only">組立発注仕様書　基本概要</h2>
@@ -1836,7 +1840,7 @@
 
     <!-- 4. 体制表 -->
     <section class="sub-panel" id="panel-trial">
-        <div class="sub-bar"><h2><span class="sub-num">4</span>体制表</h2><button type="button" class="doc-print-btn" data-newtab title="この資料だけを新しいタブで開きます（画面を並べて見比べるときに）">別タブで開く ↗</button><button type="button" class="doc-print-btn" data-print="trial">この資料を印刷／PDF保存</button><button type="button" class="sub-close" data-close-doc>✕ 閉じる</button></div>
+        <div class="sub-bar"><h2><span class="sub-num">3</span>体制表</h2><button type="button" class="doc-print-btn" data-newtab title="この資料だけを新しいタブで開きます（画面を並べて見比べるときに）">別タブで開く ↗</button><button type="button" class="doc-print-btn" data-print="trial">この資料を印刷／PDF保存</button><button type="button" class="sub-close" data-close-doc>✕ 閉じる</button></div>
         <div class="sub-body">
         <div class="panel-head">
             <h2 class="print-only">体制表</h2>
@@ -1952,7 +1956,7 @@ window.addEventListener('popstate', readUrl);
 readUrl();
 
 // 印刷：選んだもの（概要と4つの資料の詳細）を、この順番で資料ごとにページを分けて印刷する
-const PRINT_ORDER = ['overview', ...DOCS];
+const PRINT_ORDER = ['overview', 'scope', 'schedule', 'trial', 'order-spec'];   // 印刷の順（体制表の次に仕様書）
 function printDocs(list) {
     const picked = PRINT_ORDER.filter(k => list.includes(k));
     if (!picked.length) return;
@@ -2007,7 +2011,7 @@ window.addEventListener('afterprint', () => {
 <script src="gaichu-admin.js?v=20261023v"></script>
 <script src="gaichu-sheet.js?v=20261023v"></script>
 <script src="gaichu-jobnav.js?v=20261022b"></script>
-<script src="gaichu-overview.js?v=20261023x"></script>
+<script src="gaichu-overview.js?v=20261023y"></script>
 <script src="gaichu-spec.js?v=20261023s"></script>
 <script src="gaichu-scope.js?v=20261023r"></script>
 <script src="gaichu-gantt.js?v=20261022a"></script>
