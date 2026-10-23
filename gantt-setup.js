@@ -863,13 +863,13 @@
         // 「電気艤装」「試運転」は社内の人が作業して、場所だけ外注先を借りることがあるので、担当に外注がなくても場所を入れられる
         const PLACE_TASKS = ['電気艤装', '試運転'];
         function needsPlace(name) { return PLACE_TASKS.indexOf(String(name || '').normalize('NFKC').trim()) >= 0; }
-        /** DB保存用：外注先企業は担当に「外注」があるとき、場所（test_run_location）は担当に外注があるか、電気艤装・試運転のときだけ保存し、それ以外は空にする */
+        /** DB保存用：外注先企業は担当に「外注」があるとき、場所（test_run_location）は電気艤装・試運転のときだけ保存し、それ以外は空にする */
         window.outsourceFieldsForDb = function(item) {
             const out = ownerIncludesOutsource(item && item.owner);
             const vid = item && item.vendor_id;
             return {
                 vendor_id: out && vid != null && vid !== '' ? Number(vid) : null,
-                test_run_location: out || needsPlace(item && item.text) ? (String(item.test_run_location || '').trim() || null) : null
+                test_run_location: needsPlace(item && item.text) ? (String(item.test_run_location || '').trim() || null) : null
             };
         };
 
@@ -932,7 +932,8 @@
                         owner = checked.concat(free.split(/[,，]/)).join(',');
                     }
                     const name = String(currentName() || '').normalize('NFKC').trim();
-                    const showVendor = ownerIncludesOutsource(owner), showPlace = showVendor || needsPlace(name);
+                    // 場所は電気艤装（作業場所）と試運転（試運転場所）だけ。機械組立など、ほかのタスクには出さない
+                    const showVendor = ownerIncludesOutsource(owner), showPlace = needsPlace(name);
                     vendorRow.style.display = showVendor ? 'flex' : 'none';
                     placeRow.style.display = showPlace ? 'flex' : 'none';
                     placeLabel.textContent = name === '電気艤装' ? '作業場所' : '試運転場所';
