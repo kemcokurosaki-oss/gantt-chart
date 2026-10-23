@@ -882,6 +882,7 @@
                             </label>
                             <label class='outsource_place_row' style='display:flex; align-items:center; gap:6px; font-size:12px;'>
                                 <span class='outsource_place_label' style='width:72px; flex-shrink:0; color:#555;'>試運転場所</span>
+                                <select class='outsource_place_select' style='flex-grow:1; min-width:0; height:30px !important; padding:0 6px !important; line-height:normal !important; font-size:12.5px !important; display:none;'></select>
                                 <input type='text' class='outsource_test_run_location' placeholder='自由入力（例：貴社工場）' style='flex-grow:1; min-width:0; height:30px !important; padding:0 6px !important; line-height:normal !important; font-size:12.5px !important; border:1px solid #aaa; border-radius:4px; box-sizing:border-box;'>
                             </label>
                         </div>`;
@@ -898,6 +899,14 @@
                         return `<option value='${v.id}'${String(v.id) === cur ? ' selected' : ''}>${label}</option>`;
                     }).join('');
                 loc.value = task.test_run_location || '';
+                // 試運転のタスクの試運転場所は、外注先企業と同じ外注先マスタの会社から選ぶ（正式社名で保存）。以前に自由入力した文字はそのまま選べるように残す
+                const placeSel = node.querySelector('.outsource_place_select');
+                const curLoc = String(task.test_run_location || '').trim();
+                const escHtml = function(s) { return String(s).replace(/[&<>"']/g, function(c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+                const placeNames = vendors.filter(function(v) { return v.active !== false || (v.name || '') === curLoc; }).map(function(v) { return v.name || v.display_name || ''; }).filter(Boolean);
+                placeSel.innerHTML = "<option value=''>（未選択）</option>"
+                    + placeNames.map(function(n) { return `<option value='${escHtml(n)}'${n === curLoc ? ' selected' : ''}>${escHtml(n)}</option>`; }).join('')
+                    + (curLoc && placeNames.indexOf(curLoc) < 0 ? `<option value='${escHtml(curLoc)}' selected>${escHtml(curLoc)}（以前の入力）</option>` : '');
 
                 // 担当（チェックボックス・自由入力）の変更に合わせて、この欄の表示をその場で切り替える
                 // wide_form では見出しと欄が .gantt_wrap_section にまとまる。無い場合は欄と直前の見出しだけを隠す
@@ -927,6 +936,10 @@
                     vendorRow.style.display = showVendor ? 'flex' : 'none';
                     placeRow.style.display = showPlace ? 'flex' : 'none';
                     placeLabel.textContent = name === '電気艤装' ? '作業場所' : '試運転場所';
+                    // 試運転のタスクはプルダウン、それ以外（電気艤装・外注のタスク）は自由入力
+                    const useSelect = name === '試運転';
+                    placeSel.style.display = useSelect ? '' : 'none';
+                    loc.style.display = useSelect ? 'none' : '';
                     (wrap ? [wrap] : [node, label]).forEach(function(el) { if (el) el.style.display = showVendor || showPlace ? '' : 'none'; });
                     // 欄の見出し：外注先企業が出るときは「外注先」、場所だけのときは「場所」
                     const head = wrap ? wrap.querySelector('.gantt_cal_lsection') : label;
@@ -951,7 +964,9 @@
                 const sel = node.querySelector('.outsource_vendor');
                 const loc = node.querySelector('.outsource_test_run_location');
                 task.vendor_id = ownerIncludesOutsource(task.owner) && sel.value ? Number(sel.value) : null;
-                task.test_run_location = node.querySelector('.outsource_place_row').style.display !== 'none' ? loc.value.trim() : '';
+                const placeSel = node.querySelector('.outsource_place_select');
+                const placeValue = placeSel.style.display !== 'none' ? placeSel.value : loc.value;
+                task.test_run_location = node.querySelector('.outsource_place_row').style.display !== 'none' ? String(placeValue || '').trim() : '';
                 return task.vendor_id;
             },
             focus: function(node) {}
