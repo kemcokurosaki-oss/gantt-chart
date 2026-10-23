@@ -247,6 +247,30 @@
         const tk = unitTokens(task.unit);
         return set.has('*') || tk.length === 0 || tk.some(u => set.has(u));
     }
+    // ===== 工程表（外注先用シート）：工程ごとのまとまり =====
+    // 工程の並び：機械組立 → 電気艤装 → 試運転 → 出荷準備 → 工場出荷、そのほかの工程は始まりの早い順でその後ろ
+    const PROCESS_ORDER = ['機械組立', '電気艤装', '試運転', '出荷準備', '工場出荷'];
+    const procName = t => String(t.text || '').normalize('NFKC').trim();
+    // 外注のタスクの機械・ユニットにかかる「試運転」タスク（社内の人が担当）。vendorId を渡すとその外注先の分だけ
+    function trialTasksFor(tasks, vendorId) {
+        const units = new Map();
+        tasks.filter(t => isOutsource(t.owner) && (vendorId == null || t.vendor_id === vendorId)).forEach(t => {
+            const mk = machineKey(t.machine);
+            if (!units.has(mk)) units.set(mk, new Set());
+            const tk = unitTokens(t.unit);
+            (tk.length ? tk : ['*']).forEach(u => units.get(mk).add(u));
+        });
+        return tasks.filter(t => procName(t) === '試運転' && !isOutsource(t.owner) && coversVendor(t, units));
+    }
+    // タスクを工程ごとにまとめる [{ name, tasks }]（タスクは start が Date のもの）
+    function processGroups(list) {
+        const map = new Map();
+        list.forEach(t => { const n = procName(t); if (!map.has(n)) map.set(n, []); map.get(n).push(t); });
+        const rank = n => { const i = PROCESS_ORDER.indexOf(n); return i < 0 ? PROCESS_ORDER.length : i; };
+        return [...map.entries()].map(([name, ts]) => ({ name, tasks: ts.sort((a, b) => a.start - b.start || String(a.unit || '').localeCompare(String(b.unit || ''), 'ja')) }))
+            .sort((a, b) => rank(a.name) - rank(b.name) || a.tasks[0].start - b.tasks[0].start);
+    }
+
     // 試運転期間：機械・ユニットが外注先の「外注」タスクと一致する「試運転」タスク（現地試運転は除く）の最初の開始日〜最後の終了日
     async function trialPeriod(sheet) {
         if (!sheet) return null;
@@ -279,7 +303,7 @@
         shortName,
         repLabel,
         state, client, select, saveSheet,
-        loadTasks, unitTokens, isOutsource, vendorUnits, coversVendor, trialPeriod, fmtDate,
+        loadTasks, unitTokens, isOutsource, vendorUnits, coversVendor, trialPeriod, fmtDate, trialTasksFor, processGroups,
         sheetById: id => state.sheets.find(s => String(s.id) === String(id)) || null,
         KUSAKABE, chipStyle, chipHtml,
     };

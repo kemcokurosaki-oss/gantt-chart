@@ -23,6 +23,7 @@
     let figUrls = {};         // 図面の path → 表示用の署名付きURL
     let orgBySheet = null;     // sheet_id → 最初の系統のツリー
     let tasks = null;
+    let allTasks = [];         // 工程表のタスク（試運転のタスクも含めたすべて）
 
     function esc(s) {
         return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -48,6 +49,7 @@
         scope = { figures: Array.isArray(r.figures) ? r.figures : [], rows: Array.isArray(r.rows) ? r.rows : [], columns: Array.isArray(r.columns) && r.columns.length ? r.columns : DEFAULT_COLUMNS };
         orgBySheet = new Map();
         (oc.data || []).forEach(c => { if (!orgBySheet.has(c.sheet_id)) orgBySheet.set(c.sheet_id, Array.isArray(c.tree) ? c.tree : []); });
+        allTasks = tk || [];
         tasks = (tk || []).filter(t => GS.isOutsource(t.owner) && t.start_date && t.end_date)
             .map(t => ({ ...t, start: toDate(t.start_date), end: toDate(t.end_date) })).sort((a, b) => a.start - b.start);
         // 外注先によって概要に出す図面が変わるので、図面の表示用URLはまとめて作っておく
@@ -178,13 +180,16 @@
     // 月の目盛り（縦の線）と今日の線を入れた短い工程表。期間は最初の工程の月の初めから最後の工程の翌月末まで
     function renderSchedule() {
         const sh = GS.state.currentSheet;
-        const list = (sh ? tasks.filter(t => t.vendor_id === sh.vendor_id) : tasks).slice(0, 8);
+        const conv = t => ({ ...t, start: toDate(t.start_date), end: toDate(t.end_date) });
+        const trials = GS.trialTasksFor(allTasks, sh ? sh.vendor_id : null).filter(t => t.start_date && t.end_date).map(t => ({ ...conv(t), _kusakabe: true }));
+        const list = (sh ? tasks.filter(t => t.vendor_id === sh.vendor_id) : tasks).concat(trials);
         if (!list.length) { el.schedule.innerHTML = muted('担当が「外注」のタスクが見つかりませんでした。'); return; }
         const t0 = today();
         const lo = new Date(Math.min(t0, ...list.map(t => t.start))), hi = new Date(Math.max(...list.map(t => t.end)));
         const min = new Date(lo.getFullYear(), lo.getMonth(), 1), max = new Date(hi.getFullYear(), hi.getMonth() + 2, 0);
         const span = max - min + DAY;
-        const pos = d => ((d - min) / span * 100).toFixed(2) + '%';
+        const pct = d => (d - min) / span * 100;
+        const pos = d => pct(d).toFixed(2) + '%';
         const months = [];
         for (let d = new Date(min); d <= max; d = new Date(d.getFullYear(), d.getMonth() + 1, 1)) {
             months.push({ d, label: (months.length === 0 || d.getMonth() === 0 ? `${d.getFullYear()}年` : '') + `${d.getMonth() + 1}月` });
@@ -193,28 +198,40 @@
         const showNow = t0 >= min && t0 <= max;
         const now = showNow ? `<i class="ov-now" style="left:${pos(t0)}"></i>` : '';
         const head = `<div class="ov-grow ov-ghead"><span></span><span class="ov-gmonths">${months.map(m => `<span style="left:${pos(m.d)}">${m.label}</span>`).join('')}${showNow ? `<b class="ov-today" style="left:${pos(t0)}">今日</b>` : ''}</span></div>`;
-        // 「全体」のときは外注先が混ざるので、バーの色の見本（凡例）を右上に出す
-        let legend = '';
-        if (!sh) {
-            const items = GS.state.sheets.filter(s => list.some(t => t.vendor_id === s.vendor_id))
-                .map(s => `<span><i style="background:${esc(s.color)}"></i>${esc(s.short)}</span>`);
-            if (list.some(t => !vendorOf(t))) items.push('<span><i style="background:#7b8088"></i>未定</span>');
-            legend = `<div class="ov-legend">${items.join('')}</div>`;
-        }
-        el.schedule.innerHTML = `${legend}<div class="ov-gantt">${head}${list.map(t => {
-            const v = vendorOf(t), color = v ? v.color : '#7b8088';
-            const n = days(t.start, t.end);
-            const label = `<span class="ov-glabel"><b>${esc(t.text)}</b><span>${esc([t.machine, t.unit].filter(Boolean).join(' '))}</span></span>`;
-            // 工場出荷など1日だけの出荷の予定は、詳細の工程表と同じひし形の印にする
-            if (n === 1 && /出荷/.test(t.text)) {
-                return `<div class="ov-grow">${label}<span class="ov-gtrack">${grid}${now}<span class="ov-gmile" style="left:${pos(t.start)}"><i></i><b>${esc(t.text)} ${md(t.start)}</b></span></span></div>`;
-            }
-            const w = Math.max(0.8, n * DAY / span * 100).toFixed(2);
-            return `<div class="ov-grow">${label}`
-                + `<span class="ov-gtrack">${grid}${now}<i class="ov-gbar" style="left:${pos(t.start)};width:${w}%;background:${esc(color)}"></i>`
-                + `<span class="ov-gtext" style="left:calc(${pos(t.start)} + ${w}%)">${esc(t.text)}　${md(t.start)}〜${md(t.end)}（${n}日）</span></span></div>`;
-        }).join('')}</div>`;
+        const colorOf = t => t._kusakabe ? GS.KUSAKABE.color : (vendorOf(t) ? vendorOf(t).color : '#7b8088');
+        const nameOf = t => t._kusakabe ? GS.shortName(GS.KUSAKABE.name) : (vendorOf(t) ? (vendorOf(t).short || vendorOf(t).display) : '未定');
+        // 凡例：表に出ている会社の色
+        const legendItems = [...new Map(list.map(t => [nameOf(t), colorOf(t)])).entries()]
+            .map(([n, c]) => `<span><i style="background:${esc(c)}"></i>${esc(n)}</span>`).join('');
+        const legend = `<div class="ov-legend">${legendItems}</div>`;
+        const LANE = 18, CH = 0.75;   // 1段の高さ（px）、文字1つぶんの幅の目安（表の幅に対する%）
+        const rowsHtml = GS.processGroups(list).map(g => {
+            // バー（＋右の文字）が重ならないように段を分ける
+            const lanes = [];
+            const items = g.tasks.map(t => {
+                const n = days(t.start, t.end), mile = n === 1 && /出荷/.test(t.text);
+                const text = mile ? md(t.start) : `${md(t.start)}〜${md(t.end)}`;
+                const l = pct(t.start), w = mile ? 0 : Math.max(0.8, n * DAY / span * 100);
+                const end = l + w + 1 + [...text].length * CH;
+                let lane = lanes.findIndex(x => x <= l);
+                if (lane < 0) { lane = lanes.length; lanes.push(0); }
+                lanes[lane] = end + 0.5;
+                return { t, n, mile, text, l, w, lane };
+            });
+            const h = Math.max(1, lanes.length) * LANE + 4;
+            const marks = items.map(({ t, n, mile, text, l, w, lane }) => {
+                const top = 2 + lane * LANE, where = [t.machine, t.unit].filter(Boolean).join(' ');
+                const title = `${g.name}（${where}） ${nameOf(t)} ${md(t.start)}〜${md(t.end)}（${n}日）`;
+                if (mile) return `<span class="ov-gmile" style="left:${l.toFixed(2)}%;top:${top + LANE / 2}px" title="${esc(title)}"><i></i><b>${esc(text)}</b></span>`;
+                return `<i class="ov-gbar" style="left:${l.toFixed(2)}%;width:${w.toFixed(2)}%;top:${top + 3}px;height:${LANE - 6}px;bottom:auto;background:${esc(colorOf(t))}" title="${esc(title)}"></i>`
+                    + `<span class="ov-gtext" style="left:calc(${(l + w).toFixed(2)}%);top:${top}px;line-height:${LANE}px" title="${esc(title)}">${esc(text)}</span>`;
+            }).join('');
+            return `<div class="ov-grow"><span class="ov-glabel"><b>${esc(g.name)}</b><span>${g.tasks.length}件</span></span>`
+                + `<span class="ov-gtrack" style="height:${h}px">${grid}${now}${marks}</span></div>`;
+        }).join('');
+        el.schedule.innerHTML = `${legend}<div class="ov-gantt">${head}${rowsHtml}</div>`;
     }
+
 
     // ===== 3 組立発注仕様書 =====
     function renderSpec() {

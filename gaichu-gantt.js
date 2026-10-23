@@ -18,7 +18,17 @@
     const PRINT_W = 930, PRINT_LABEL_W = 180;
     let printing = false;
 
-    let tasks = [];          // [{ ...task, start: Date, end: Date }]
+    let tasks = [];          // [{ ...task, start: Date, end: Date }]（外注のタスク＋それにかかる試運転のタスク）
+    let allTasks = [];
+    // 表示するタスク：外注のタスクすべてと、外注先の機械・ユニットにかかる試運転のタスク（外注先を選んでいるときはその外注先の分）
+    function pickTasks() {
+        const vid = GS.state.currentSheet ? GS.state.currentSheet.vendor_id : null;
+        const withDate = t => t.start_date && t.end_date;
+        const conv = t => ({ ...t, start: toDate(t.start_date), end: toDate(t.end_date) });
+        tasks = allTasks.filter(t => GS.isOutsource(t.owner) && withDate(t)).map(conv)
+            .concat(GS.trialTasksFor(allTasks, vid).filter(withDate).map(t => ({ ...conv(t), _kusakabe: true })))
+            .sort((a, b) => a.start - b.start);
+    }
     let loaded = false;
     let unit = 'week';
     let otherOpen = true;
@@ -53,10 +63,8 @@
 
     async function load() {
         if (!GS.state.ready) return;
-        const all = await GS.loadTasks();
-        tasks = all.filter(t => GS.isOutsource(t.owner) && t.start_date && t.end_date)
-            .map(t => ({ ...t, start: toDate(t.start_date), end: toDate(t.end_date) }))
-            .sort((a, b) => a.start - b.start);
+        allTasks = await GS.loadTasks();
+        pickTasks();
         loaded = true;
         render();
     }
@@ -106,59 +114,45 @@
         const weekends = unit === 'day'
             ? cols.filter(d => d.getDay() % 6 === 0).map(d => `<div class="gt-we" style="left:${pct(d)}%;width:${100 / T}%"></div>`).join('') : '';
 
-        const rows = tasks.map(t => {
+        const vid = GS.state.currentSheet ? GS.state.currentSheet.vendor_id : null;
+        const KUSA = { color: GS.KUSAKABE.color, tint: mix(GS.KUSAKABE.color, 0.85), ink: mix(GS.KUSAKABE.color, -0.35), name: GS.KUSAKABE.name, short: GS.shortName(GS.KUSAKABE.name) };
+        // バーの色：外注先の色。外注先を選んでいるときは、ほかの外注先は灰色（参考）。外注先企業が未入力は「未定」、試運転は日下部電機
+        function lookOf(t) {
+            if (t._kusakabe) return { ...KUSA };
+            if (!looks.has(t.vendor_id)) return { ...UNSET, name: '外注先未設定', short: '未定' };
+            const l = looks.get(t.vendor_id);
+            return vid != null && t.vendor_id !== vid ? { ...GREY, name: l.name, short: l.short, grey: true } : l;
+        }
+        function rowHtml(t) {
+            const look = lookOf(t);
             const days = Math.round((t.end - t.start) / DAY_MS) + 1;
-            return { t, key: looks.has(t.vendor_id) ? t.vendor_id : null, days, left: pct(t.start), width: days / T * 100, mile: days === 1 && /出荷/.test(t.text) };
-        });
-        function rowHtml(r, grey) {
-            const look = r.key != null ? looks.get(r.key) : { ...UNSET, name: '外注先未設定', short: '未定' };
-            const v = grey ? { ...GREY, short: look.short } : look;
-            const name = look.short;
-            const period = `${mdStr(r.t.start)}〜${mdStr(r.t.end)}（${r.days}日）`;
-            const where = [r.t.machine, r.t.unit].filter(Boolean).join(' ');
-            const title = `${r.t.text}${where ? '（' + where + '）' : ''} ${look.name} ${period}`;
+            const left = pct(t.start), width = days / T * 100;
+            const period = `${mdStr(t.start)}〜${mdStr(t.end)}（${days}日）`;
+            const where = [t.machine, t.unit].filter(Boolean).join(' ');
+            const title = `${t.text}${where ? '（' + where + '）' : ''} ${look.name} ${period}`;
             let body;
-            if (r.mile) {
-                body = `<div class="gt-mile${grey ? ' is-grey' : ''}" style="left:${r.left}%" title="${esc(title)}"><i></i><b>${esc(r.t.text)} ${mdStr(r.t.start)}</b></div>`;
+            if (days === 1 && /出荷/.test(t.text)) {
+                body = `<div class="gt-mile${look.grey ? ' is-grey' : ''}" style="left:${left}%" title="${esc(title)}"><i></i><b>${mdStr(t.start)}</b></div>`;
             } else {
                 // 外注先名＋期間が入りきらないときは、期間をバーの右外に出す
-                const fits = r.width / 100 * cols.length * colW >= [...name].length * 12.5 + [...period].length * 7 + 40;
-                body = `<div class="gt-bar" style="left:${r.left}%;width:${r.width}%;background:${v.tint};border-color:${v.color};color:${v.ink}" title="${esc(title)}">
-                        <b>${esc(name)}</b>${fits ? `<span>${period}</span>` : ''}</div>
-                    ${fits ? '' : `<div class="gt-period" style="left:calc(${r.left + r.width}% + 8px)">${period}</div>`}`;
+                const fits = width / 100 * cols.length * colW >= [...look.short].length * 12.5 + [...period].length * 7 + 40;
+                body = `<div class="gt-bar" style="left:${left}%;width:${width}%;background:${look.tint};border-color:${look.color};color:${look.ink}" title="${esc(title)}">
+                        <b>${esc(look.short)}</b>${fits ? `<span>${period}</span>` : ''}</div>
+                    ${fits ? '' : `<div class="gt-period" style="left:calc(${left + width}% + 8px)">${period}</div>`}`;
             }
-            return `<div class="gt-row${grey ? ' is-grey' : ''}">
-                <div class="gt-label"><b>${esc(r.t.text)}</b><span>${esc(where)}</span></div>
+            return `<div class="gt-row${look.grey ? ' is-grey' : ''}">
+                <div class="gt-label"><b>${esc(t.machine || '')}</b><span>${esc(t.unit || '')}</span></div>
                 <div class="gt-track">${body}</div></div>`;
         }
-        function groupHtml(g) {
-            const toggle = g.toggle ? ` data-gt-toggle="1"` : '';
+        // 工程ごとのまとまり（見出しに、その工程に入っている会社の色の印）
+        const groups = GS.processGroups(tasks);
+        const groupHtml = g => {
+            const dots = [...new Map(g.tasks.map(t => { const l = lookOf(t); return [l.short, l]; })).values()]
+                .map(l => `<span class="gt-gdot"><i style="background:${l.color}"></i>${esc(l.short)}</span>`).join('');
             return `<div class="gt-group">
-                <div class="gt-ghead${g.toggle ? ' is-toggle' : ''}" style="background:${g.tint};color:${g.ink}"${toggle}>
-                    <div class="gt-gname">${g.toggle ? `<span class="gt-caret">${g.open ? '▼' : '▶'}</span>` : ''}<i style="background:${g.color}"></i>${esc(g.name)}<small>${g.note}</small></div>
-                </div>
-                ${g.open ? g.rows.map(r => rowHtml(r, g.grey)).join('') : ''}</div>`;
-        }
-
-        const byKey = k => rows.filter(r => r.key === k);
-        const unset = byKey(null);
-        // 振り分けの方法（工程表の編集画面の案内）は管理者だけに出す
-        const unsetNote = GS.state.isAdmin ? '（工程表の編集画面で「外注先企業」を入れると振り分けられます）' : '';
-        const unsetGroup = unset.length ? [{ name: GS.state.isAdmin ? '外注先未設定' : '担当未定', note: unsetNote, ...UNSET, tint: '#eeeeeb', ink: '#2b2f36', rows: unset, open: true }] : [];
-        const vid = GS.state.currentSheet ? GS.state.currentSheet.vendor_id : null;
-        const groups = [];
-        if (vid != null && looks.has(vid)) {
-            const me = looks.get(vid);
-            groups.push({ name: me.name, note: '', ...me, rows: byKey(vid), open: true });
-            groups.push(...unsetGroup);
-            if (SHOW_OTHER_VENDORS) [...looks.keys()].filter(k => k !== vid && byKey(k).length).forEach(k => groups.push({
-                name: looks.get(k).name, note: `参考<span class="gt-toggle-hint">（クリックで${otherOpen ? '閉じる' : '開く'}）</span>`,
-                color: GREY.color, tint: '#f5f5f3', ink: '#5b6068', rows: byKey(k), open: otherOpen, toggle: true, grey: true,
-            }));
-        } else {
-            [...looks.keys()].filter(k => byKey(k).length).forEach(k => groups.push({ name: looks.get(k).name, note: '', ...looks.get(k), rows: byKey(k), open: true }));
-            groups.push(...unsetGroup);
-        }
+                <div class="gt-ghead" style="background:#eeeeeb;color:#2b2f36"><div class="gt-gname">${esc(g.name)}<small class="gt-gdots">${dots}</small></div></div>
+                ${g.tasks.map(rowHtml).join('')}</div>`;
+        };
 
         container.innerHTML = `<div class="gt-inner" style="min-width:${printing ? 0 : LABEL_W + cols.length * colW}px">${head}
             <div class="gt-body"><div class="gt-bg">${weekends}${lines}</div>${groups.map(groupHtml).join('')}</div></div>`;
@@ -177,7 +171,7 @@
             render();
         });
     });
-    document.addEventListener('gaichusheetchange', () => { if (!loaded) load(); else render(); });
+    document.addEventListener('gaichusheetchange', () => { if (!loaded) load(); else { pickTasks(); render(); } });
     window.addEventListener('beforeprint', () => { printing = true; render(); });
     window.addEventListener('afterprint', () => { printing = false; render(); });
 
