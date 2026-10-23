@@ -150,6 +150,8 @@
             }},
             { name: "area_number", label: "場所", width: COLUMN_WIDTHS[7], align: "center", template: function(obj) {
                 if (obj.$virtual) return "";
+                // 外注の場所は会社の略称（例：大洋金属）。会社を選んでいなければ「外注」
+                if (obj.area_group === "外注" && obj.test_run_location && typeof window.vendorShortByName === "function") return escapeHtml(window.vendorShortByName(obj.test_run_location));
                 return escapeHtml(formatLocationText(obj.area_group, obj.area_number));
             }},
             { name: "start_date", label: "開始日", width: COLUMN_WIDTHS[8], align: "center", template: function(t) {

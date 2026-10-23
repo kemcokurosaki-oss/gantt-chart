@@ -404,8 +404,18 @@
                 inner += `<div style='margin-bottom: 8px;'><strong>${OUTSOURCE_LOCATION}:</strong><br/>` +
                     `<label style='margin-right: 10px; display: inline-block; cursor: pointer;'>` +
                     `<input type='checkbox' name='loc_cb' value='${OUTSOURCE_LOCATION}-${OUTSOURCE_LOCATION}' data-group='${OUTSOURCE_LOCATION}' data-num='${OUTSOURCE_LOCATION}' style='vertical-align: middle; cursor: pointer;'> ${OUTSOURCE_LOCATION}` +
-                    `</label></div>`;
+                    `</label>` +
+                    `<select class='loc_vendor' title='外注先の会社（場所を借りる会社）' style='height:26px !important; padding:0 6px !important; font-size:12.5px !important; vertical-align:middle; min-width:180px;'></select>` +
+                    `</div>`;
                 body.innerHTML = inner;
+                // 「外注」の会社：外注先マスタの会社（正式社名で保存）。以前に入れた文字はそのまま選べるように残す
+                const locVendor = node.querySelector('.loc_vendor');
+                const curLoc = String((task && task.test_run_location) || '').trim();
+                const escHtml = function(v) { return String(v).replace(/[&<>"']/g, function(c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+                const names = (_gaichuVendors || []).filter(function(v) { return v.active !== false || v.name === curLoc; }).map(function(v) { return v.name || v.display_name || ''; }).filter(Boolean);
+                locVendor.innerHTML = "<option value=''>（会社を選ぶ）</option>"
+                    + names.map(function(n) { return `<option value='${escHtml(n)}'${n === curLoc ? ' selected' : ''}>${escHtml(n)}</option>`; }).join('')
+                    + (curLoc && names.indexOf(curLoc) < 0 ? `<option value='${escHtml(curLoc)}' selected>${escHtml(curLoc)}（以前の入力）</option>` : '');
 
                 const checkboxes = node.querySelectorAll("input[name='loc_cb']");
                 checkboxes.forEach(cb => { cb.checked = false; });
@@ -448,8 +458,16 @@
                         if (cb.getAttribute("data-group") === g && cb.getAttribute("data-num") === n) cb.checked = true;
                     });
                 });
+                // 会社のプルダウンは「外注」にチェックがあるときだけ選べる
+                const outCb = node.querySelector(`input[name='loc_cb'][data-group='${OUTSOURCE_LOCATION}']`);
+                const syncVendor = () => { locVendor.disabled = !outCb.checked; locVendor.style.opacity = outCb.checked ? '1' : '.45'; };
+                node.querySelectorAll("input[name='loc_cb']").forEach(cb => cb.addEventListener('change', syncVendor));
+                syncVendor();
             },
             get_value: function (node, task) {
+                const outCb = node.querySelector(`input[name='loc_cb'][data-group='${OUTSOURCE_LOCATION}']`);
+                const locVendor = node.querySelector('.loc_vendor');
+                if (task) task.test_run_location = outCb && outCb.checked && locVendor ? locVendor.value : '';
                 const checked = Array.from(node.querySelectorAll("input[name='loc_cb']:checked"));
                 return checked.map(cb => ({
                     area_group: cb.getAttribute("data-group") || "",
@@ -856,40 +874,46 @@
             return _gaichuVendors;
         }
         window.ensureGaichuVendors = ensureGaichuVendors;
+        setTimeout(function() { ensureGaichuVendors().then(function(list) { if (list && list.length) { try { gantt.render(); } catch (e) {} } }); }, 1500);
         function ownerIncludesOutsource(owner) {
             return String(owner || '').split(/[,，]/).some(function(s) { return s.trim() === '外注'; });
         }
         window.ownerIncludesOutsource = ownerIncludesOutsource;
-        // 「電気艤装」「試運転」は社内の人が作業して、場所だけ外注先を借りることがあるので、担当に外注がなくても場所を入れられる
-        const PLACE_TASKS = ['電気艤装', '試運転'];
-        function needsPlace(name) { return PLACE_TASKS.indexOf(String(name || '').normalize('NFKC').trim()) >= 0; }
-        /** DB保存用：外注先企業は担当に「外注」があるとき、場所（test_run_location）は電気艤装・試運転のときだけ保存し、それ以外は空にする */
+        // 組立場所の「外注」で選んだ会社（場所）。保存先は tasks.test_run_location（外注先用シートの試運転の表示・色にも使う）
+        function hasOutsourceLocation(item) {
+            if (!item) return false;
+            if (Array.isArray(item.locations)) return item.locations.some(function(p) { return p && p.area_group === OUTSOURCE_LOCATION; });
+            return item.area_group === OUTSOURCE_LOCATION;
+        }
+        // 会社の略称（グリッドの場所列に出す）：外注先マスタの略称。なければ正式社名から「株式会社」などを外す
+        function vendorShortByName(name) {
+            const n = String(name || '').trim();
+            if (!n) return '';
+            const v = (_gaichuVendors || []).find(function(x) { return x.name === n || x.display_name === n; });
+            const shortOf = function(t) { return String(t || '').normalize('NFKC').replace(/殿$/, '').replace(/株式会社|有限会社|\(株\)|\(有\)/g, '').trim(); };
+            return (v && v.display_name) || shortOf(v ? v.name : n) || n;
+        }
+        window.vendorShortByName = vendorShortByName;
+        /** DB保存用：外注先企業は担当に「外注」があるとき、場所の会社は組立場所に「外注」があるときだけ保存し、それ以外は空にする */
         window.outsourceFieldsForDb = function(item) {
-            const out = ownerIncludesOutsource(item && item.owner);
             const vid = item && item.vendor_id;
             return {
-                vendor_id: out && vid != null && vid !== '' ? Number(vid) : null,
-                test_run_location: needsPlace(item && item.text) ? (String(item.test_run_location || '').trim() || null) : null
+                vendor_id: ownerIncludesOutsource(item && item.owner) && vid != null && vid !== '' ? Number(vid) : null,
+                test_run_location: hasOutsourceLocation(item) ? (String(item.test_run_location || '').trim() || null) : null
             };
         };
 
         gantt.form_blocks["outsource_selector"] = {
             render: function() {
                 return `<div class='outsource_selector' style='padding:5px; display:flex; flex-direction:column; gap:5px;'>
-                            <label class='outsource_vendor_row' style='display:flex; align-items:center; gap:6px; font-size:12px;'>
+                            <label style='display:flex; align-items:center; gap:6px; font-size:12px;'>
                                 <span style='width:72px; flex-shrink:0; color:#555;'>外注先企業</span>
                                 <select class='outsource_vendor' style='flex-grow:1; min-width:0; height:30px !important; padding:0 6px !important; line-height:normal !important; font-size:12.5px !important;'></select>
-                            </label>
-                            <label class='outsource_place_row' style='display:flex; align-items:center; gap:6px; font-size:12px;'>
-                                <span class='outsource_place_label' style='width:72px; flex-shrink:0; color:#555;'>試運転場所</span>
-                                <select class='outsource_place_select' style='flex-grow:1; min-width:0; height:30px !important; padding:0 6px !important; line-height:normal !important; font-size:12.5px !important; display:none;'></select>
-                                <input type='text' class='outsource_test_run_location' placeholder='自由入力（例：貴社工場）' style='flex-grow:1; min-width:0; height:30px !important; padding:0 6px !important; line-height:normal !important; font-size:12.5px !important; border:1px solid #aaa; border-radius:4px; box-sizing:border-box;'>
                             </label>
                         </div>`;
             },
             set_value: function(node, value, task) {
                 const sel = node.querySelector('.outsource_vendor');
-                const loc = node.querySelector('.outsource_test_run_location');
                 const vendors = _gaichuVendors || [];
                 const cur = task.vendor_id != null ? String(task.vendor_id) : '';
                 sel.innerHTML = "<option value=''>（未選択）</option>" + vendors
@@ -898,15 +922,6 @@
                         const label = (v.name || v.display_name || '').replace(/[&<>"]/g, function(c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; });
                         return `<option value='${v.id}'${String(v.id) === cur ? ' selected' : ''}>${label}</option>`;
                     }).join('');
-                loc.value = task.test_run_location || '';
-                // 試運転のタスクの試運転場所は、外注先企業と同じ外注先マスタの会社から選ぶ（正式社名で保存）。以前に自由入力した文字はそのまま選べるように残す
-                const placeSel = node.querySelector('.outsource_place_select');
-                const curLoc = String(task.test_run_location || '').trim();
-                const escHtml = function(s) { return String(s).replace(/[&<>"']/g, function(c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
-                const placeNames = vendors.filter(function(v) { return v.active !== false || (v.name || '') === curLoc; }).map(function(v) { return v.name || v.display_name || ''; }).filter(Boolean);
-                placeSel.innerHTML = "<option value=''>（未選択）</option>"
-                    + placeNames.map(function(n) { return `<option value='${escHtml(n)}'${n === curLoc ? ' selected' : ''}>${escHtml(n)}</option>`; }).join('')
-                    + (curLoc && placeNames.indexOf(curLoc) < 0 ? `<option value='${escHtml(curLoc)}' selected>${escHtml(curLoc)}（以前の入力）</option>` : '');
 
                 // 担当（チェックボックス・自由入力）の変更に合わせて、この欄の表示をその場で切り替える
                 // wide_form では見出しと欄が .gantt_wrap_section にまとまる。無い場合は欄と直前の見出しだけを隠す
@@ -914,16 +929,6 @@
                 const label = !wrap && node.previousElementSibling && node.previousElementSibling.classList.contains('gantt_cal_lsection')
                     ? node.previousElementSibling : null;
                 const ownerNode = document.querySelector('.gantt_cal_light .owner_selector_wrapper');
-                const nameNode = document.querySelector('.gantt_cal_light .task_name_selector_container');
-                const currentName = function() {
-                    if (!nameNode) return task.text || '';
-                    const free = nameNode.querySelector('.task_name_free_input');
-                    if (free && free.style.display !== 'none' && free.value.trim()) return free.value;
-                    const s = nameNode.querySelector('select');
-                    return s ? s.value : (task.text || '');
-                };
-                const vendorRow = node.querySelector('.outsource_vendor_row'), placeRow = node.querySelector('.outsource_place_row');
-                const placeLabel = node.querySelector('.outsource_place_label');
                 const sync = function() {
                     let owner = task.owner || '';
                     if (ownerNode) {
@@ -931,43 +936,27 @@
                         const free = (ownerNode.querySelector('.owner_free_input') || {}).value || '';
                         owner = checked.concat(free.split(/[,，]/)).join(',');
                     }
-                    const name = String(currentName() || '').normalize('NFKC').trim();
-                    // 場所は電気艤装（作業場所）と試運転（試運転場所）だけ。機械組立など、ほかのタスクには出さない
-                    const showVendor = ownerIncludesOutsource(owner), showPlace = needsPlace(name);
-                    vendorRow.style.display = showVendor ? 'flex' : 'none';
-                    placeRow.style.display = showPlace ? 'flex' : 'none';
-                    placeLabel.textContent = name === '電気艤装' ? '作業場所' : '試運転場所';
-                    // 試運転のタスクはプルダウン、それ以外（電気艤装・外注のタスク）は自由入力
-                    const useSelect = name === '試運転';
-                    placeSel.style.display = useSelect ? '' : 'none';
-                    loc.style.display = useSelect ? 'none' : '';
-                    (wrap ? [wrap] : [node, label]).forEach(function(el) { if (el) el.style.display = showVendor || showPlace ? '' : 'none'; });
-                    // 欄の見出し：外注先企業が出るときは「外注先」、場所だけのときは「場所」
+                    const show = ownerIncludesOutsource(owner);
+                    (wrap ? [wrap] : [node, label]).forEach(function(el) { if (el) el.style.display = show ? '' : 'none'; });
                     const head = wrap ? wrap.querySelector('.gantt_cal_lsection') : label;
-                    if (head) { const lbl = head.querySelector('label') || head; const t = showVendor ? '外注先' : '場所'; if (lbl.textContent !== t) lbl.textContent = t; }
+                    if (head) { const lbl = head.querySelector('label') || head; if (lbl.textContent !== '外注先') lbl.textContent = '外注先'; }
                 };
                 // ライトボックスのDOMは使い回されるため、リスナーは1回だけ登録し、開くたびに判定処理（そのタスク用）を差し替える
-                // タスク名の変更（電気艤装・試運転にしたとき）でも切り替える
-                [ownerNode, nameNode].forEach(function(n) {
-                    if (!n) return;
-                    n._outsourceSync = sync;
-                    if (!n._outsourceSyncAttached) {
-                        const run = function() { if (n._outsourceSync) n._outsourceSync(); };
-                        n.addEventListener('change', run);
-                        n.addEventListener('input', run);
-                        n._outsourceSyncAttached = true;
+                if (ownerNode) {
+                    ownerNode._outsourceSync = sync;
+                    if (!ownerNode._outsourceSyncAttached) {
+                        const run = function() { if (ownerNode._outsourceSync) ownerNode._outsourceSync(); };
+                        ownerNode.addEventListener('change', run);
+                        ownerNode.addEventListener('input', run);
+                        ownerNode._outsourceSyncAttached = true;
                     }
-                });
+                }
                 sync();
             },
             // map_to: "auto" のため、値はタスクに直接書き込む。担当に「外注」が無いときは空にする
             get_value: function(node, task) {
                 const sel = node.querySelector('.outsource_vendor');
-                const loc = node.querySelector('.outsource_test_run_location');
                 task.vendor_id = ownerIncludesOutsource(task.owner) && sel.value ? Number(sel.value) : null;
-                const placeSel = node.querySelector('.outsource_place_select');
-                const placeValue = placeSel.style.display !== 'none' ? placeSel.value : loc.value;
-                task.test_run_location = node.querySelector('.outsource_place_row').style.display !== 'none' ? String(placeValue || '').trim() : '';
                 return task.vendor_id;
             },
             focus: function(node) {}

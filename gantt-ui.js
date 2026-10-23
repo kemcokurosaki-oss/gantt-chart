@@ -314,6 +314,26 @@
                     bindOutsourceLocationExclusive(popup.querySelector('#inline-edit-ms-options'), 'input[type=checkbox]', function(cb) {
                         return cb.value === OUTSOURCE_LOCATION + '-' + OUTSOURCE_LOCATION;
                     });
+                    // 「外注」の会社（外注先マスタの会社から選ぶ。「外注」にチェックがあるときだけ選べる）
+                    {
+                        const box = popup.querySelector('#inline-edit-ms-options');
+                        const outCb = box.querySelector('input[type=checkbox][value="' + OUTSOURCE_LOCATION + '-' + OUTSOURCE_LOCATION + '"]');
+                        const vendors = (typeof window.ensureGaichuVendors === 'function') ? await window.ensureGaichuVendors() : [];
+                        const cur = String(task.test_run_location || '').trim();
+                        const names = (vendors || []).filter(function(v) { return v.active !== false || v.name === cur; }).map(function(v) { return v.name || v.display_name || ''; }).filter(Boolean);
+                        const sel = document.createElement('select');
+                        sel.id = 'inline-edit-loc-vendor';
+                        sel.style.cssText = 'margin:4px 0 2px 22px; height:26px; font-size:12.5px; max-width:220px;';
+                        const add = function(v, t) { const o = document.createElement('option'); o.value = v; o.textContent = t; if (v === cur) o.selected = true; sel.appendChild(o); };
+                        add('', '（会社を選ぶ）');
+                        names.forEach(function(n) { add(n, n); });
+                        if (cur && names.indexOf(cur) < 0) add(cur, cur + '（以前の入力）');
+                        const row = outCb ? outCb.closest('.inline-ms-option') : null;
+                        if (row && row.parentNode) row.parentNode.insertBefore(sel, row.nextSibling); else box.appendChild(sel);
+                        const sync = function() { sel.disabled = !(outCb && outCb.checked); sel.style.opacity = sel.disabled ? '.45' : '1'; };
+                        box.addEventListener('change', sync);
+                        sync();
+                    }
                 } else if (field === 'start_date') {
                     // unscheduled タスクは gantt が内部的に仮の日付を割り当てているため、
                     // そのまま表示すると未入力に見えなくなる。入力欄は空のまま出す。
@@ -375,6 +395,14 @@
                         return { area_group: val.slice(0, i), area_number: val.slice(i + 1) };
                     });
                     const realId = task.original_id || taskId;
+                    // 「外注」の会社（チェックがなければ空にする）
+                    const vSel = document.getElementById('inline-edit-loc-vendor');
+                    const hasOut = pairs.some(function(p) { return p.area_group === OUTSOURCE_LOCATION; });
+                    const newLoc = hasOut && vSel ? vSel.value : '';
+                    if (String(task.test_run_location || '') !== newLoc) {
+                        task.test_run_location = newLoc;
+                        supabaseClient.from('tasks').update({ test_run_location: newLoc || null }).eq('id', realId).then(function(r) { if (r.error) console.error('場所の会社を保存できませんでした', r.error); });
+                    }
                     closeIE();
                     if (typeof window.persistTaskLocations !== "function") return;
                     // 画面を先に更新し、DB 保存は後ろで行う（失敗時は DB から読み直して元に戻す）
