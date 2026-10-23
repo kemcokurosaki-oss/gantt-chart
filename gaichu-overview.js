@@ -1,5 +1,5 @@
 // 外注先用シート：最初のページ（概要）
-//   ・先頭の要約（工場出荷日・外注先企業・外注先担当者・当社担当）と、4つの章（組立範囲・工程表・組立発注仕様書・体制表）の簡易表示を作る
+//   ・先頭の要約（工場出荷日・外注先企業・外注先担当者・組立発注仕様書・当社担当）と、4つの章（組立範囲・工程表・組立発注仕様書・体制表）の簡易表示を作る
 //   ・各章の「詳しく見る →」で、ページの上に詳細（今までの全画面の資料）を重ねて開く（開閉はページ側の openDoc）
 //   ・外注先を選んでいるときは、その外注先に関係する分だけを表示する。「全体」のときは外注先ごとの一覧にする
 // 読み込み前に gaichu-sheet.js を読み込み、ページに #ovBand / #ovScope / #ovSchedule / #ovSpec / #ovTrial を置いておくこと。
@@ -96,7 +96,9 @@
                     + `<span class="ov-sub">${esc(s.address) || '<span class="ov-none">住所 未登録</span>'}${s.tel ? `<br><span class="ov-k">代表</span>${telLink(s.tel)}` : ''}</span>`
                     + `<span>${r ? `<span class="ov-k">担当</span>${esc([r.title, r.name].filter(Boolean).join('　'))}${r.tel ? `　${telLink(r.tel)}` : ''}` : '<span class="ov-none">担当者 未登録</span>'}</span></div>`;
             }).join('');
-            el.band.innerHTML = `<div class="ov-band ov-band--all">${shipCard}<div class="ov-card ov-alllist">${rows || muted('外注先が登録されていません。')}</div>${contact}</div>`;
+            const specs = st.sheets.map(s => `<button type="button" class="ov-spec-btn" data-ov-spec="${s.id}" title="${esc(s.display)}の組立発注仕様書を開く"><i style="background:${esc(s.color)}"></i><span>${esc(s.short || s.display)}</span><small>${esc((s.spec && s.spec.revision) ? String(s.spec.revision).split('（')[0] : '')} →</small></button>`).join('');
+            const specCard = `<div class="ov-card ov-speccard"><span class="ov-k">組立発注仕様書</span>${specs || '<b>―</b>'}</div>`;
+            el.band.innerHTML = `<div class="ov-band ov-band--all">${shipCard}<div class="ov-card ov-alllist">${rows || muted('外注先が登録されていません。')}</div>${specCard}${contact}</div>`;
             return;
         }
         const vendorCard = `<div class="ov-card" style="border-top-color:${esc(sh.color)}"><span class="ov-k">外注先企業</span><b class="ov-name">${esc(sh.display)}</b>`
@@ -104,7 +106,10 @@
         const r = repOf(sh);
         const repCard = `<div class="ov-card" style="border-top-color:${esc(sh.color)}"><span class="ov-k">外注先担当者</span>`
             + (r ? `<b class="ov-name">${esc(r.name || '―')}</b><small>${esc(r.title || '')}</small>${telLink(r.tel)}` : '<b>―</b><small>外注先マスタの管理で登録できます</small>') + `</div>`;
-        el.band.innerHTML = `<div class="ov-band">${shipCard}${vendorCard}${repCard}${contact}</div>`;
+        const rev = sh.spec && sh.spec.revision;
+        const specCard = `<div class="ov-card ov-speccard" style="border-top-color:${esc(sh.color)}"><span class="ov-k">組立発注仕様書</span><small>${rev ? '改訂 ' + esc(rev) : '改訂 未入力'}</small>`
+            + `<button type="button" class="ov-spec-btn" data-ov-spec="${sh.id}"><span>仕様書を開く</span><small>→</small></button></div>`;
+        el.band.innerHTML = `<div class="ov-band">${shipCard}${vendorCard}${repCard}${specCard}${contact}</div>`;
     }
 
     // ===== 1 組立範囲 =====
@@ -208,6 +213,7 @@
 
     // ===== 3 組立発注仕様書 =====
     function renderSpec() {
+        if (!el.spec) return;   // 概要の仕様書の章は廃止（先頭のカードの「仕様書を開く」から開く）
         const st = GS.state, sh = st.currentSheet;
         if (!sh) {
             el.spec.innerHTML = st.sheets.length ? `<div class="ov-vlist">${st.sheets.map(s => `<div><span class="ov-vname"><i style="background:${esc(s.color)}"></i>${esc(s.display)}</span><span class="ov-sub">改訂 ${esc((s.spec && s.spec.revision) || '未入力')}</span></div>`).join('')}</div>`
@@ -264,4 +270,10 @@
         renderTrial();
     }
     document.addEventListener('gaichusheetchange', render);
+    el.band.addEventListener('click', e => {
+        const b = e.target.closest('[data-ov-spec]');
+        if (!b) return;
+        if (String(GS.state.current) !== String(b.dataset.ovSpec)) GS.select(b.dataset.ovSpec);
+        if (typeof window.openDoc === 'function') window.openDoc('order-spec', true);
+    });
 })();
