@@ -144,8 +144,23 @@
 .ga-vcard input.ga-vname { font-size: 14.5px; font-weight: 700; }
 .ga-vcard input.ga-vname.is-err { border-color: #e74c3c; }
 .ga-vcard input[type=number] { padding: 7px 8px; font-variant-numeric: tabular-nums; }
-.ga-route { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #5b6068; font-weight: 700; }
-.ga-route select { font: inherit; font-size: 12.5px; padding: 3px 6px; border: 1px solid #cfd0cc; border-radius: 6px; }
+/* 外注先シートの管理：外注先ごとの行（外注先・出荷のしかた・削除） */
+.ga-sheets { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+.ga-sheet-row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 14px; padding: 10px 12px; border: 1px solid #e4e3df; border-radius: 8px; background: #fff; }
+.ga-sheet-row > .ga-chip { flex: 0 0 auto; }
+.ga-sheet-row > .ga-btn--danger { margin-left: auto; padding: 5px 12px; font-size: 12.5px; }
+.ga-modal--manage { width: min(640px, 94vw); }
+.ga-route { position: relative; display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: #6b7079; font-weight: 700; }
+/* 出荷のしかた：3つから選ぶ切り替え（ヘッダーの外注先の切り替えと同じ形） */
+.ga-seg { display: inline-flex; gap: 2px; padding: 3px; background: #f0f0ee; border: 1px solid #e4e3df; border-radius: 8px; }
+.ga-seg button { appearance: none; border: 0; background: transparent; font: inherit; font-size: 12.5px; font-weight: 700; color: #5b6068; padding: 5px 12px; border-radius: 6px; cursor: pointer; white-space: nowrap; }
+.ga-seg button:hover { color: #2b2f36; background: #fff; }
+.ga-seg button.is-on { background: #2b2f36; color: #fff; cursor: default; }
+.ga-seg button:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(43,47,54,.18); }
+.ga-seg.is-saving { opacity: .6; pointer-events: none; }
+/* 「保存しました」は行の幅に影響しないよう、切り替えの右横に重ねて出す */
+.ga-route-msg { position: absolute; left: 100%; top: 50%; transform: translateY(-50%); margin-left: 8px; white-space: nowrap; font-size: 12px; font-weight: 700; color: #27ae60; background: #fff; pointer-events: none; }
+.ga-route-msg:empty { display: none; }
 .ga-addr { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 12px; padding: 0 14px 12px; }
 .ga-addr.has-tel { grid-template-columns: 230px minmax(0, 1fr) 170px; }
 .ga-addr .ga-field small { font-weight: 400; color: #6b7079; }
@@ -391,30 +406,40 @@
     }
 
     // ===== その工番の外注先シートの管理（一覧・削除・追加） =====
+    // 出荷のしかた（値・表示・説明）
+    const ROUTES = [
+        ['', '工程表から自動', '工程表の設定から自動で決めます'],
+        ['direct', '客先へ直接', '外注先から客先へ直接出荷します（工程表の工場出荷日）'],
+        ['via', '当社経由', '外注先から当社へ出荷します（当社への出荷日）'],
+    ];
     async function openManage({ pn, onDone } = {}) {
         let ctx;
         try { ctx = await context(); } catch (e) { alert('読み込めませんでした：' + (e.message || e)); return; }
         const sheets = ctx.sheets.filter(s => s.pn === String(pn));
         const m = modal(`${pn} の外注先`, `
-            ${sheets.length ? `<table class="ga-table"><tbody>${sheets.map(s => `<tr>
-                <td>${chip(s.display, s.color)}</td>
-                <td>${s.hasRoute ? `<label class="ga-route"><span>出荷</span><select data-route="${s.id}">
-                    <option value=""${!s.ship_route ? ' selected' : ''}>工程表から自動</option>
-                    <option value="direct"${s.ship_route === 'direct' ? ' selected' : ''}>客先へ直接</option>
-                    <option value="via"${s.ship_route === 'via' ? ' selected' : ''}>当社経由</option></select></label>` : ''}</td>
-                <td style="text-align:right"><button type="button" class="ga-btn ga-btn--danger" data-del-sheet="${s.id}">削除</button></td></tr>`).join('')}</tbody></table>`
+            ${sheets.length ? `<div class="ga-sheets">${sheets.map(s => `<div class="ga-sheet-row">${chip(s.display, s.color)}${s.hasRoute ? `<div class="ga-route"><span>出荷</span><div class="ga-seg" role="radiogroup" aria-label="出荷のしかた" data-route="${s.id}">${ROUTES.map(([v, label, tip]) => `<button type="button" role="radio" data-v="${v}" title="${tip}" aria-checked="${(s.ship_route || '') === v}"${(s.ship_route || '') === v ? ' class="is-on"' : ''}>${label}</button>`).join('')}</div><span class="ga-route-msg"></span></div>` : ''}<button type="button" class="ga-btn ga-btn--danger" data-del-sheet="${s.id}">削除</button></div>`).join('')}</div>`
                 : '<p class="ga-note" style="margin:0 0 10px">この工番には外注先シートがありません。</p>'}
             <button type="button" class="ga-btn" data-add-here>＋ この工番に外注先を追加</button>
             <p class="ga-note" style="margin-top:10px">削除すると、その外注先の組立発注仕様書と体制表も削除されます（元に戻せません）。組立範囲（図面・担当範囲一覧）は工番ごとなので、最後の1社を削除するときに残すか選べます。</p>`, [
             { label: '閉じる', onClick: () => m.close() },
-        ]);
+        ], 'ga-modal--manage');
         m.el.querySelector('[data-add-here]').addEventListener('click', () => { m.close(); openAdd({ pn: String(pn), onDone }); });
         // 出荷のしかた：選んだらすぐ保存（閉じるとページを読み込み直して表示に反映）
         let routeChanged = false;
-        m.el.querySelectorAll('[data-route]').forEach(sel => sel.addEventListener('change', async () => {
-            const { data, error } = await db().from('gaichu_sheets').update({ ship_route: sel.value || null }).eq('id', Number(sel.dataset.route)).select('id');
-            if (error || !data || !data.length) { m.err('出荷のしかたを保存できませんでした：' + ((error && error.message) || '編集の権限がないか、ログインが切れています')); return; }
+        m.el.querySelectorAll('[data-route]').forEach(seg => seg.addEventListener('click', async e => {
+            const btn = e.target.closest('button[data-v]');
+            if (!btn || btn.classList.contains('is-on')) return;
+            const btns = [...seg.querySelectorAll('button[data-v]')];
+            const prev = btns.find(x => x.classList.contains('is-on'));
+            const mark = on => btns.forEach(x => { x.classList.toggle('is-on', x === on); x.setAttribute('aria-checked', String(x === on)); });
+            const msg = seg.parentElement.querySelector('.ga-route-msg');
+            mark(btn); seg.classList.add('is-saving'); msg.textContent = '';
+            const { data, error } = await db().from('gaichu_sheets').update({ ship_route: btn.dataset.v || null }).eq('id', Number(seg.dataset.route)).select('id');
+            seg.classList.remove('is-saving');
+            if (error || !data || !data.length) { mark(prev); m.err('出荷のしかたを保存できませんでした：' + ((error && error.message) || '編集の権限がないか、ログインが切れています')); return; }
             routeChanged = true; m.err('');
+            msg.textContent = '保存しました';
+            clearTimeout(msg._t); msg._t = setTimeout(() => { msg.textContent = ''; }, 2000);
         }));
         const closeBtn = [...m.el.querySelectorAll('.ga-foot .ga-btn')].find(b => b.textContent === '閉じる');
         if (closeBtn) closeBtn.addEventListener('click', () => { if (routeChanged && onDone) onDone(); });
