@@ -148,8 +148,8 @@
 .ga-addr .ga-field small { font-weight: 400; color: #6b7079; }
 .ga-zip { display: flex; gap: 6px; }
 .ga-zip input { flex: 1 1 auto; min-width: 0; }
-.ga-zip-btn { flex: none; font: inherit; font-size: 12px; font-weight: 700; padding: 0 10px; border: 1px solid #cfd0cc; border-radius: 6px; background: #fff; color: #2b2f36; cursor: pointer; white-space: nowrap; }
-.ga-zip-btn:hover { border-color: #2b2f36; background: #eceef1; }
+.ga-zip-btn { flex: none; font: inherit; font-size: 12px; font-weight: 700; padding: 0 12px; border: 1px solid #3d5a80; border-radius: 6px; background: #eaf0f7; color: #2c4766; cursor: pointer; white-space: nowrap; }   /* 押せるボタンとわかるよう青みの色 */
+.ga-zip-btn:hover { background: #3d5a80; color: #fff; }
 .ga-zip-msg { font-size: 11px; color: #1b7641; min-height: 1em; }
 .ga-zip-msg.is-err { color: #c0392b; }
 .ga-rep { margin: 0 14px 14px; padding: 10px 12px 12px; background: #f7f7f5; border-radius: 6px; }
