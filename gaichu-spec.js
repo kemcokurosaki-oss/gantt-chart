@@ -80,7 +80,7 @@
     function renderContacts() {
         if (!contactsEl) return;
         const list = GS.state.loggedIn ? GS.state.contacts : [];
-        contactsEl.innerHTML = list.length ? `<div class="subhead">2-4) 弊社担当（問い合わせ窓口）</div><div class="contact-grid">${list.map((c, i) => `<div class="contact-card">
+        contactsEl.innerHTML = list.length ? `<div class="subhead">2-4) 当社担当（問い合わせ窓口）</div><div class="contact-grid">${list.map((c, i) => `<div class="contact-card">
                 <span class="role"${i ? ' style="background:#95a5a6;"' : ''}>${esc([c.dept, c.title].filter(Boolean).join(' '))}</span>
                 <div class="name">${esc(c.name)}</div>
                 ${c.tel ? `<span class="tel">TEL ${esc(c.tel)}</span>` : ''}
@@ -125,8 +125,8 @@
             <div class="info-item"><div class="k">1-2) 工事名称</div><div class="v">${dash(p.name)}${autoTag(e, '工程表から自動表示')}</div></div>
             <div class="info-item"><div class="k">1-3) 貴社名</div><div class="v">${dash(sheet.name)}${autoTag(e, '外注先マスタから自動表示')}</div></div>
             <div class="info-item"><div class="k">1-4) ご担当者</div><div class="v">${e
-                ? input('contact', s.contact, ` placeholder="${esc(GS.repLabel(sheet) ? `空欄なら代表者（${GS.repLabel(sheet)}）` : '例：取締役工場長　山田 太郎 様')}"`)
-                  + `<small>空欄のときは、外注先マスタの代表者を自動表示します</small>`
+                ? input('contact', s.contact, ` placeholder="${esc(GS.repLabel(sheet) ? `空欄なら担当者（${GS.repLabel(sheet)}）` : '例：取締役工場長　山田 太郎 様')}"`)
+                  + `<small>空欄のときは、外注先マスタの担当者を自動表示します</small>`
                 : dash(s.contact || GS.repLabel(sheet))}</div></div>
             <div class="info-item"><div class="k">1-5) 出荷納期</div><div class="v">${fmtDate(p.shipDate)}${autoTag(e, '工程表から自動表示')}</div></div>
             <div class="info-item"><div class="k">改訂</div><div class="v">${e

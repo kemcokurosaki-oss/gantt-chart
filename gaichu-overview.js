@@ -1,5 +1,5 @@
 // 外注先用シート：最初のページ（概要）
-//   ・先頭の要約（工場出荷までの日数・次の作業・その次・試運転・弊社担当）と、4つの章（組立範囲・工程表・組立発注仕様書・体制表）の簡易表示を作る
+//   ・先頭の要約（工場出荷日・外注先企業・外注先担当者・当社担当）と、4つの章（組立範囲・工程表・組立発注仕様書・体制表）の簡易表示を作る
 //   ・各章の「詳しく見る →」で、ページの上に詳細（今までの全画面の資料）を重ねて開く（開閉はページ側の openDoc）
 //   ・外注先を選んでいるときは、その外注先に関係する分だけを表示する。「全体」のときは外注先ごとの一覧にする
 // 読み込み前に gaichu-sheet.js を読み込み、ページに #ovBand / #ovScope / #ovSchedule / #ovSpec / #ovTrial を置いておくこと。
@@ -81,28 +81,30 @@
         const st = GS.state, sh = st.currentSheet;
         const ship = st.project.shipDate ? toDate(st.project.shipDate) : null;
         const left = ship ? Math.round((ship - today()) / DAY) : null;
-        const shipCard = `<div class="ov-ship"><span class="ov-k">工場出荷まで</span>`
-            + (left == null ? `<b>―</b><small>出荷日未定</small>` : left < 0 ? `<b>出荷済み</b><small>${ymd(ship)}</small>` : `<b>${left}<em>日</em></b><small>${ymd(ship)} 出荷</small>`) + `</div>`;
+        // 工場出荷日を大きく、残りの日数は小さく
+        const shipCard = `<div class="ov-ship"><span class="ov-k">工場出荷日</span>`
+            + (ship ? `<b>${ymd(ship)}</b><small>${left < 0 ? '出荷済み' : left === 0 ? '本日出荷' : `工場出荷まで ${left}日`}</small>` : `<b>―</b><small>出荷日未定</small>`) + `</div>`;
+        const telLink = t => t ? `<a href="tel:${esc(t)}">${esc(t)}</a>` : '';
+        const repOf = s => s && s.rep && (s.rep.name || s.rep.title || s.rep.tel) ? s.rep : null;
+        const c = st.contacts[0];
+        const contact = `<div class="ov-card"><span class="ov-k">当社担当（問い合わせ）</span>${c ? `<b class="ov-name">${esc(c.name)}</b><small>${esc([c.dept, c.title].filter(Boolean).join(' '))}</small>${telLink(c.tel)}` : '<b>―</b>'}</div>`;
         if (!sh) {
+            // 全体：外注先ごとに 正式社名・住所・担当者 を1行で
             const rows = st.sheets.map(s => {
-                const [n1, n2] = nextTasks(tasks.filter(t => t.vendor_id === s.vendor_id));
-                const fmt = t => t ? `${esc(t.text)}　${md(t.start)}〜${md(t.end)}` : '―';
-                return `<div class="ov-allrow"><span class="ov-vname"><i style="background:${esc(s.color)}"></i>${esc(s.display)}</span><span><span class="ov-k">次</span>${fmt(n1)}</span><span class="ov-sub"><span class="ov-k">その次</span>${fmt(n2)}</span></div>`;
+                const r = repOf(s);
+                return `<div class="ov-allrow"><span class="ov-vname"><i style="background:${esc(s.color)}"></i>${esc(s.display)}</span>`
+                    + `<span class="ov-sub">${esc(s.address) || '<span class="ov-none">住所 未登録</span>'}</span>`
+                    + `<span>${r ? `<span class="ov-k">担当</span>${esc([r.title, r.name].filter(Boolean).join('　'))}${r.tel ? `　${telLink(r.tel)}` : ''}` : '<span class="ov-none">担当者 未登録</span>'}</span></div>`;
             }).join('');
-            el.band.innerHTML = `<div class="ov-band ov-band--all">${shipCard}<div class="ov-card ov-alllist">${rows || muted('外注先が登録されていません。')}</div></div>`;
+            el.band.innerHTML = `<div class="ov-band ov-band--all">${shipCard}<div class="ov-card ov-alllist">${rows || muted('外注先が登録されていません。')}</div>${contact}</div>`;
             return;
         }
-        const [n1, n2] = nextTasks(tasks.filter(t => t.vendor_id === sh.vendor_id));
-        const c = st.contacts[0];
-        const contact = `<div class="ov-card"><span class="ov-k">弊社担当（問い合わせ）</span>${c ? `<b class="ov-name">${esc(c.name)}</b><small>${esc([c.dept, c.title].filter(Boolean).join(' '))}</small>${c.tel ? `<a href="tel:${esc(c.tel)}">${esc(c.tel)}</a>` : ''}` : '<b>―</b>'}</div>`;
-        const trialSlot = `<div class="ov-card" id="ovTrialCard" style="border-top-color:${esc(GS.KUSAKABE.color)}"><span class="ov-k">試運転（${esc(GS.KUSAKABE.name)}）</span><b>計算中…</b></div>`;
-        el.band.innerHTML = `<div class="ov-band">${shipCard}${taskCard('次の作業', n1, sh.color)}${taskCard('その次', n2, sh.color)}${trialSlot}${contact}</div>`;
-        const r = await GS.trialPeriod(sh);
-        const box = $('ovTrialCard');
-        if (!box || GS.state.currentSheet !== sh) return;
-        box.innerHTML = `<span class="ov-k">試運転（${esc(GS.KUSAKABE.name)}）</span>` + (r && r.start
-            ? `<b>${md(toDate(r.start))} ～ ${md(toDate(r.end))}</b><span>${ymd(toDate(r.start))} ～ ${ymd(toDate(r.end))}</span>`
-            : `<b>―</b><small>工程表に試運転の予定がありません</small>`);
+        const vendorCard = `<div class="ov-card" style="border-top-color:${esc(sh.color)}"><span class="ov-k">外注先企業</span><b class="ov-name">${esc(sh.display)}</b>`
+            + `<small>${esc(sh.address) || '住所 未登録'}</small></div>`;
+        const r = repOf(sh);
+        const repCard = `<div class="ov-card" style="border-top-color:${esc(sh.color)}"><span class="ov-k">外注先担当者</span>`
+            + (r ? `<b class="ov-name">${esc(r.name || '―')}</b><small>${esc(r.title || '')}</small>${telLink(r.tel)}` : '<b>―</b><small>外注先マスタの管理で登録できます</small>') + `</div>`;
+        el.band.innerHTML = `<div class="ov-band">${shipCard}${vendorCard}${repCard}${contact}</div>`;
     }
 
     // ===== 1 組立範囲 =====
@@ -215,7 +217,7 @@
         const s = sh.spec || {};
         const machines = (Array.isArray(s.machines) ? s.machines : []).map(m => [m.machine, m.unit].filter(Boolean).join(' ')).filter(Boolean);
         const u = s.utility || {}, p = s.paint || {};
-        // ご担当者は、仕様書で入力していなければ外注先マスタの代表者（仕様書の詳細と同じ）
+        // ご担当者は、仕様書で入力していなければ外注先マスタの担当者（仕様書の詳細と同じ）
         const facts = [
             ['改訂', s.revision], ['ご担当者', s.contact || GS.repLabel(sh)], ['発注機械', machines.join(' / ')],
             ['機械色', p['機械色']], ['動力電源', [u.power_v, u.power_kva].filter(Boolean).join('　')], ['圧縮空気', u.air],

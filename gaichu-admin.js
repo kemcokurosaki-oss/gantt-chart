@@ -439,7 +439,7 @@
                 <div class="ga-caution-head"><span>注意</span><b>保存する前に確認してください</b></div>
                 <ul>
                     <li><b>「使用」をオフ</b>にすると、外注先シートを追加するときの選択肢に出なくなります。登録済みのシートはそのまま残ります。</li>
-                    <li><b>代表者</b>は、仕様書の「ご担当者」（工事ごとに入力していないとき）に役職と氏名が表示され、体制表のカードを追加するときの選択肢にも出ます。</li>
+                    <li><b>担当者</b>は、仕様書の「ご担当者」（工事ごとに入力していないとき）に役職と氏名が表示され、体制表のカードを追加するときの選択肢にも出ます。</li>
                 </ul>
             </div>
             <div class="ga-vlist"></div>
@@ -454,6 +454,7 @@
                 try {
                     for (const r of rows) {
                         const rec = { name: r.name.trim(), display_name: String(r.display_name || '').trim() || null, sort_order: Number(r.sort_order) || 0, active: !!r.active, updated_at: new Date().toISOString() };
+                        if ('address' in r) rec.address = String(r.address || '').trim() || null;   // 住所の列（SQLで追加）があるときだけ
                         const q = r.id ? db().from('gaichu_vendors').update(rec).eq('id', r.id) : db().from('gaichu_vendors').insert(rec);
                         const { data, error } = await q.select('id');
                         if (error) throw error;
@@ -465,7 +466,7 @@
                             const { data: rd, error: re } = await db().from('gaichu_vendor_contacts')
                                 .upsert({ vendor_id: vendorId, ...rep, updated_at: new Date().toISOString() }, { onConflict: 'vendor_id' }).select('vendor_id');
                             if (re) throw re;
-                            if (!rd || !rd.length) throw new Error('代表者を保存できませんでした（編集の権限がないか、ログインが切れています）');
+                            if (!rd || !rd.length) throw new Error('担当者を保存できませんでした（編集の権限がないか、ログインが切れています）');
                         } else if (r.hadRep) {
                             const { error: re } = await db().from('gaichu_vendor_contacts').delete().eq('vendor_id', vendorId);
                             if (re) throw re;
@@ -504,8 +505,9 @@
                     <label class="ga-field"><span>略称 <small>表など狭いところに表示</small></span><input type="text" data-f="display_name" autocomplete="off" value="${esc(r.display_name)}" placeholder="${esc(dispPh(r))}"></label>
                     <label class="ga-field"><span>並び順</span><input type="number" data-f="sort_order" value="${esc(r.sort_order)}"></label>
                 </div>
+                ${'address' in r ? `<label class="ga-field ga-addr"><span>住所 <small>概要の外注先企業カードに表示</small></span><input type="text" data-f="address" autocomplete="off" value="${esc(r.address || '')}" placeholder="例：〒000-0000 〇〇県〇〇市〇〇町1-2-3"></label>` : ''}
                 <div class="ga-rep">
-                    <div class="ga-sechead"><b>代表者</b><small>任意</small></div>
+                    <div class="ga-sechead"><b>担当者</b><small>任意</small></div>
                     <div class="ga-rep-grid">
                         <label class="ga-field"><span>役職</span><input type="text" data-f="rep_title" autocomplete="off" value="${esc(r.rep_title)}" placeholder="例：代表取締役"></label>
                         <label class="ga-field"><span>氏名</span><input type="text" data-f="rep_name" autocomplete="off" value="${esc(r.rep_name)}" placeholder="例：山田 太郎"></label>
@@ -539,7 +541,7 @@
         });
         m.el.querySelector('[data-addv]').addEventListener('click', () => {
             collect();
-            rows.push({ id: null, name: '', display_name: '', sort_order: (rows.length + 1) * 10, active: true, hadRep: false, rep_title: '', rep_name: '', rep_tel: '' });
+            rows.push({ id: null, name: '', display_name: '', ...(ctx.vendors.length && 'address' in ctx.vendors[0] ? { address: '' } : {}), sort_order: (rows.length + 1) * 10, active: true, hadRep: false, rep_title: '', rep_name: '', rep_tel: '' });
             draw();
             status.hidden = false;
             const last = list.lastElementChild;

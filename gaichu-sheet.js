@@ -52,7 +52,7 @@
     }
     async function loadSheets() {
         const { data, error } = await client.from('gaichu_sheets')
-            .select('id, vendor_id, color, sort_order, spec, trial, gaichu_vendors(name, display_name)')
+            .select('id, vendor_id, color, sort_order, spec, trial, gaichu_vendors(*)')
             .eq('project_number', state.pn).order('sort_order').order('id');
         if (error) { console.error('外注先シートの取得に失敗しました', error); return; }
         state.sheets = (data || []).map(r => ({
@@ -61,6 +61,7 @@
             name: (r.gaichu_vendors && r.gaichu_vendors.name) || '',
             display: (r.gaichu_vendors && r.gaichu_vendors.name) || '',   // 正式社名（見出し・仕様書など）
             short: (r.gaichu_vendors && (r.gaichu_vendors.display_name || shortName(r.gaichu_vendors.name))) || '',   // 略称（表・バッジ・切り替えボタンなど狭いところ）
+            address: (r.gaichu_vendors && r.gaichu_vendors.address) || '',   // 住所（外注先マスタ）
             color: r.color || '#7f8c8d',
             spec: r.spec || {},
             trial: r.trial || {},

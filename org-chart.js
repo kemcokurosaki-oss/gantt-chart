@@ -401,7 +401,7 @@
             (groups[k] = groups[k] || []).push(s);
         });
         return `<option value="">― 自由入力（社外の人など）―</option>`
-            + (rep ? `<optgroup label="外注先の代表者"><option value="${rep.id}">${esc(rep.name)}${rep.tel ? '（' + esc(rep.tel) + '）' : ''}</option></optgroup>` : '')
+            + (rep ? `<optgroup label="外注先の担当者"><option value="${rep.id}">${esc(rep.name)}${rep.tel ? '（' + esc(rep.tel) + '）' : ''}</option></optgroup>` : '')
             + Object.keys(groups).map(k =>
             `<optgroup label="${esc(k)}">` + groups[k].map(s =>
                 `<option value="${s.id}"${s.id === selectedId ? ' selected' : ''}>${esc(s.name)}${s.tel ? '（' + esc(s.tel) + '）' : ''}</option>`

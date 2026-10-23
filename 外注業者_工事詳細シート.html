@@ -1473,11 +1473,11 @@
 
     /* ===== 最初のページ（概要・gaichu-overview.js）：先頭の要約＋4つの章の簡易表示 ===== */
     .overview { display: flex; flex-direction: column; gap: 22px; }
-    .ov-band { display: grid; grid-template-columns: 170px repeat(3, minmax(0, 1fr)) 210px; gap: 12px; }
-    .ov-band--all { grid-template-columns: 170px minmax(0, 1fr); }
+    .ov-band { display: grid; grid-template-columns: 190px minmax(0, 1.4fr) minmax(0, 1fr) 240px; gap: 12px; }
+    .ov-band--all { grid-template-columns: 190px minmax(0, 1fr) 240px; }
     .ov-ship { background: #2b2f36; color: #fff; border-radius: 10px; padding: 12px 16px; display: flex; flex-direction: column; gap: 2px; }
     .ov-ship .ov-k { color: #d8dce2; }
-    .ov-ship b { font-size: 34px; line-height: 1.15; }
+    .ov-ship b { font-size: 26px; line-height: 1.2; letter-spacing: .5px; }
     .ov-ship em { font-style: normal; font-size: 15px; margin-left: 4px; }
     .ov-ship small { font-size: 12px; color: #d8dce2; }
     .ov-card { min-width: 0; background: #fff; border-radius: 10px; padding: 10px 14px; border-top: 4px solid transparent; display: flex; flex-direction: column; gap: 2px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
@@ -1632,10 +1632,10 @@
         body.print-pick .sub-panel:not(.print-target) { display: none !important; }
         .print-first { break-before: auto !important; }
         .overview { gap: 14px; }
-        .ov-band { grid-template-columns: 140px repeat(3, minmax(0, 1fr)) 180px !important; gap: 8px; }
-        .ov-band--all { grid-template-columns: 140px minmax(0, 1fr) !important; }
+        .ov-band { grid-template-columns: 160px minmax(0, 1.4fr) minmax(0, 1fr) 200px !important; gap: 8px; }
+        .ov-band--all { grid-template-columns: 160px minmax(0, 1fr) 200px !important; }
         .ov-allrow { grid-template-columns: 190px minmax(0, 1fr) minmax(0, 1fr) !important; gap: 10px !important; padding: 5px 0; }
-        .ov-ship b { font-size: 28px; }
+        .ov-ship b { font-size: 22px; }
         .ov-scope { flex-direction: row !important; }
         .ov-fig { flex: 0 0 40% !important; }
         .ov-grow { grid-template-columns: 200px minmax(0, 1fr) !important; }
@@ -1997,14 +1997,14 @@ window.addEventListener('afterprint', () => {
 
 </script>
 <!-- gaichu-*.js / org-chart.js を変更したら ?v= の番号を上げる（ブラウザに古いファイルが残って動かなくなるのを防ぐ） -->
-<script src="gaichu-admin.js?v=20261022f"></script>
-<script src="gaichu-sheet.js?v=20261023r"></script>
+<script src="gaichu-admin.js?v=20261023s"></script>
+<script src="gaichu-sheet.js?v=20261023s"></script>
 <script src="gaichu-jobnav.js?v=20261022b"></script>
-<script src="gaichu-overview.js?v=20261023r"></script>
-<script src="gaichu-spec.js?v=20261022d"></script>
+<script src="gaichu-overview.js?v=20261023s"></script>
+<script src="gaichu-spec.js?v=20261023s"></script>
 <script src="gaichu-scope.js?v=20261023r"></script>
 <script src="gaichu-gantt.js?v=20261022a"></script>
-<script src="org-chart.js?v=20261022d"></script>
+<script src="org-chart.js?v=20261023s"></script>
 
 </body>
 </html>
