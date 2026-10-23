@@ -38,14 +38,6 @@
     let tasks = [];                                      // 工程表のタスク（担当範囲一覧の行を作る）
     let draftTasks = null;                               // 編集中のタスク（外注先企業・試運転場所をシートから直す。保存で工程表に書き込む）
     const tasksNow = () => (editing && draftTasks ? draftTasks : tasks);
-    let adding = null;                                   // 行の追加の入力欄 { machine, unit, assembly, electrical }（開いていないときは null）
-    let newSeq = 0;                                      // まだ保存していない新しいタスクの仮の番号
-    // 手入力の行（機械名・追加した列）を、工程表から作った行の key で探す（なければ作る）。編集中の入力欄はこの位置で読み書きする
-    function manualIndex(d, r) {
-        let i = d.rows.findIndex(x => x.key === r.key);
-        if (i < 0) { d.rows.push({ key: r.key, machine: r.machine, unit: r.unit }); i = d.rows.length - 1; }
-        return i;
-    }
     // 工程表から自動で表示する列（編集では変えられない）
     const AUTO = new Set(['machine', 'unit', 'assembly', 'electrical', 'trial', 'trial_place']);
     // 一覧の行：工程表から作った行に、手入力の列（機械名・追加した列）を重ねる
@@ -231,39 +223,22 @@
             ? `<th>${esc(c.label)}${plusCol(ci)}</th>`
             : `<th class="scope-col-edit"><span class="se-col-name"><input type="text" class="spec-input" data-colname="${ci}" value="${esc(c.label)}" placeholder="列の名前"><span class="se-col-btns"><button type="button" class="se-mini" data-sc="colleft" data-i="${ci}" title="左へ">◀</button><button type="button" class="se-mini" data-sc="colright" data-i="${ci}" title="右へ">▶</button><button type="button" class="spec-del" data-sc="coldel" data-i="${ci}" title="この列を削除">✕</button></span></span>${plusCol(ci)}</th>`).join('');
         const auto = rowsOf(d);
-        const isNewRow = r => Object.values(r.taskIds || {}).flat().length > 0 && ['assembly', 'electrical'].every(k => ((r.taskIds || {})[k] || []).every(id => String(id).startsWith('new')));
-        const body = auto.length ? auto.map((r, ri) => `<tr${isNewRow(r) ? ' class="se-new-row"' : ''}>`
+        const body = auto.length ? auto.map((r, ri) => `<tr>`
                 + cols.map(c => {
-                    if (!AUTO.has(c.key)) { const mi = manualIndex(d, r); return cellEdit(d.rows[mi], mi, c); }
+                    if (!AUTO.has(c.key)) return cellEdit(d.rows[ri], ri, c);
                     const ids = (r.taskIds && r.taskIds[c.key]) || [];
                     if (!ids.length) return `<td class="se-auto">${cellView(r, c)}</td>`;
                     const tip = c.key === 'trial_place' ? 'クリックで試運転場所を選ぶ（工程表の試運転タスクに保存）' : 'クリックで外注先企業を選ぶ（工程表のタスクに保存）';
                     return `<td class="se-auto se-task-cell" data-task-cell="${ri}" data-key="${esc(c.key)}" title="${tip}"><span class="se-party">${cellView(r, c)}<span class="se-caret">▾</span></span></td>`;
                 }).join('')
-                + `<td class="scope-row-btns">${isNewRow(r) ? `<button type="button" class="spec-del" data-sc="newdel" data-key="${esc(r.key)}" title="追加した行を取り消す（保存前）">✕</button>` : ''}</td></tr>`).join('')
-            : `<tr><td colspan="${cols.length + 1}" class="spec-empty">工程表に、担当が「外注」の「機械組立」「電気艤装」のタスクがありません。下の「＋ 行を追加」から追加できます</td></tr>`;
-        const vopts = cur => GS.state.sheets.map(s => `<option value="${s.vendor_id}"${String(cur) === String(s.vendor_id) ? ' selected' : ''}>${esc(s.display)}</option>`).join('') + `<option value=""${cur === '' ? ' selected' : ''}>未定</option>`;
-        const addForm = adding ? `<div class="se-addrow">
-                <b>行を追加</b><small>工程表に「機械組立」（大項目：組立）と「電気艤装」（大項目：電装）のタスクを作ります。期間は工程表で入れてください</small>
-                <div class="se-addrow-fields">
-                    <label>機械<input type="text" class="spec-input" data-add="machine" value="${esc(adding.machine)}" placeholder="例：TR"></label>
-                    <label>ユニット<input type="text" class="spec-input" data-add="unit" value="${esc(adding.unit)}" placeholder="例：CV1&2&3 PV1"></label>
-                    <label>機械組立の外注先<select class="spec-input" data-add="assembly">${vopts(adding.assembly)}</select></label>
-                    <label>電気艤装の外注先<select class="spec-input" data-add="electrical">${vopts(adding.electrical)}</select></label>
-                    <span class="spec-spacer"></span>
-                    <button type="button" class="spec-btn" data-sc="addcancel">やめる</button>
-                    <button type="button" class="spec-btn spec-btn--primary" data-sc="addok">追加</button>
-                </div>
-                <p class="se-addrow-err"></p></div>`
-            : `<button type="button" class="se-addrow-btn" data-sc="addopen">＋ 行を追加（工程表にタスクを作る）</button>`;
+                + `</tr>`).join('')
+            : `<tr><td colspan="${cols.length}" class="spec-empty">工程表に、担当が「外注」の「機械組立」「電気艤装」のタスクがありません（工程表にタスクを入れると、ここに行が出ます）</td></tr>`;
         return `<div class="se-head"><span class="se-title">① 図面</span><span class="se-hint">「色分け枠を描く」を押すと、その図面を拡大して担当先の枠を描けます</span></div>
             <div class="se-figs">${figs}${addFig}</div>
             <div class="se-head"><span class="se-title">② 担当範囲一覧</span><span class="se-hint">灰色の列は工程表から表示します。機械組立・電気艤装の会社と試運転場所はここで選び直せます（保存すると工程表にも入ります）。機械名と追加した列を入力できます</span></div>
             <div class="se-table-area">
-                <table class="data-table scope-table is-editing"><thead><tr>${head}<th class="se-actions-h"></th></tr></thead><tbody>${body}</tbody></table>
+                <table class="data-table scope-table is-editing"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>
                 <button type="button" class="se-edge se-edge--col" data-sc="addcol" data-i="${cols.length}" title="右端に列を追加"><span>＋</span><small>列を追加</small></button>
-            </div>
-            <div class="se-addrow-wrap">${addForm}
             </div>`;
     }
     function cellEdit(r, ri, c) {
@@ -376,7 +351,7 @@
         editing = true;
         render();
     }
-    function endEdit() { editing = false; draft = null; draftTasks = null; adding = null; removedPaths = []; baseline = ''; closePicker(); render(); }
+    function endEdit() { editing = false; draft = null; draftTasks = null; removedPaths = []; baseline = ''; closePicker(); render(); }
     // 工程表のタスクで、シートで直したもの（外注先企業・試運転場所）
     function changedTasks() {
         if (!draftTasks) return [];
@@ -391,7 +366,7 @@
     }
     function isDirty() {
         if (!editing) return false;
-        return strip(draft) !== baseline || draft.figures.some(f => f.file) || changedTasks().length > 0 || (draftTasks || []).some(t => t._new);
+        return strip(draft) !== baseline || draft.figures.some(f => f.file) || changedTasks().length > 0;
     }
     function move(list, i, delta) {
         const j = i + delta;
@@ -442,28 +417,13 @@
                 if (rmErr) console.warn('削除した図面のファイルを消せませんでした', rmErr);
             }
             data = { figures: rec.figures, rows: rec.rows, columns: rec.columns };
-            const created = (draftTasks || []).filter(t => t._new);
-            if (created.length) {
-                const { data: last } = await client.from('tasks').select('sort_order').eq('project_number', pn).order('sort_order', { ascending: false }).limit(1);
-                let order = ((last && last[0] && last[0].sort_order) || 0) + 1;
-                const p = GS.state.project;
-                const recs = created.map(t => ({
-                    project_number: pn, text: t.text, owner: '外注', machine: t.machine, unit: t.unit, major_item: t.major_item,
-                    parent: '組立全体', customer_name: p.customer || '', project_details: p.name || '',
-                    vendor_id: t.vendor_id ?? null, start_date: null, end_date: null,
-                    sort_order: order++, sort_order_machine: 0, is_business_trip: false,
-                }));
-                const { data: ins, error: insErr } = await client.from('tasks').insert(recs).select('id');
-                if (insErr) throw new Error('工程表にタスクを作れませんでした：' + insErr.message);
-                if (!ins || ins.length !== recs.length) throw new Error('工程表にタスクを作れませんでした（工程表の編集の権限がないか、ログインが切れています）');
-            }
             const edits = changedTasks();
             for (const { id, patch } of edits) {
                 const { data: up, error: upErr } = await client.from('tasks').update(patch).eq('id', id).select('id');
                 if (upErr) throw new Error('工程表のタスクに保存できませんでした：' + upErr.message);
                 if (!up || !up.length) throw new Error('工程表のタスクに保存できませんでした（工程表の編集の権限がないか、ログインが切れています）');
             }
-            if (edits.length || created.length) { location.reload(); return; }
+            if (edits.length) { location.reload(); return; }
             endEdit();
         } catch (err) {
             console.error('組立範囲の保存に失敗しました', err);
@@ -585,25 +545,6 @@
             case 'rowdown': move(draft.rows, i, 1); break;
             case 'rowdel': draft.rows.splice(i, 1); break;
             case 'addcol': addColumn(i); return;
-            case 'addopen': adding = { machine: '', unit: '', assembly: '', electrical: '' }; render(); { const m = root.querySelector('[data-add="machine"]'); if (m) m.focus(); } return;
-            case 'addcancel': adding = null; break;
-            case 'addok': {
-                const err = root.querySelector('.se-addrow-err');
-                const machine = String(adding.machine || '').trim(), unit = String(adding.unit || '').trim();
-                if (!machine || !unit) { if (err) err.textContent = '機械とユニットを入力してください。'; return; }
-                const key = rowsOf(draft).find(r => r.key === GS.scopeRows([{ id: 0, text: '機械組立', owner: '外注', machine, unit }], [])[0].key);
-                if (key) { if (err) err.textContent = 'この機械・ユニットの行はすでにあります。'; return; }
-                [['機械組立', '組立', adding.assembly], ['電気艤装', '電装', adding.electrical]].forEach(([text, major, v]) => {
-                    draftTasks.push({ id: 'new' + (++newSeq), _new: true, text, owner: '外注', major_item: major, machine, unit, vendor_id: v ? Number(v) : null, test_run_location: null, start_date: null, end_date: null });
-                });
-                adding = null;
-                break;
-            }
-            case 'newdel': {
-                const k = b.dataset.key;
-                draftTasks = draftTasks.filter(t => !(t._new && GS.scopeRows([t], [])[0] && GS.scopeRows([t], [])[0].key === k));
-                break;
-            }
             case 'colleft': move(draft.columns, i, -1); break;
             case 'colright': move(draft.columns, i, 1); break;
             case 'coldel':
@@ -632,11 +573,9 @@
         if (t.dataset.cap != null) draft.figures[Number(t.dataset.cap)].caption = t.value;
         else if (t.dataset.colname != null) draft.columns[Number(t.dataset.colname)].label = t.value;
         else if (t.dataset.cell != null) draft.rows[Number(t.dataset.cell)][t.dataset.key] = t.value;
-        else if (t.dataset.add != null && adding) adding[t.dataset.add] = t.value;
     });
     root.addEventListener('change', e => {
         if (e.target.matches('[data-sc-file]')) { [...e.target.files].forEach(addImageFile); e.target.value = ''; }
-        if (e.target.dataset.add != null && adding) adding[e.target.dataset.add] = e.target.value;
     });
     // スクリーンショットの貼り付け（図面の編集中で、入力欄以外にカーソルがあるとき）
     document.addEventListener('paste', e => {
