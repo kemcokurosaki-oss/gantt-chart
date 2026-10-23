@@ -929,6 +929,13 @@
                     vendorRow.style.display = showVendor ? 'flex' : 'none';
                     placeRow.style.display = showPlace ? 'flex' : 'none';
                     (wrap ? [wrap] : [node, label]).forEach(function(el) { if (el) el.style.display = showVendor || showPlace ? '' : 'none'; });
+                    // 欄の見出しは、出ている項目に合わせる（外注先／試運転場所／外注先・試運転場所）
+                    const head = wrap ? wrap.querySelector('.gantt_cal_lsection') : label;
+                    if (head) {
+                        const t = showVendor && showPlace ? '外注先・試運転場所' : showPlace ? '試運転場所' : '外注先';
+                        const lbl = head.querySelector('label') || head;
+                        if (lbl.textContent !== t) lbl.textContent = t;
+                    }
                 };
                 // ライトボックスのDOMは使い回されるため、リスナーは1回だけ登録し、開くたびに判定処理（そのタスク用）を差し替える
                 // タスク名の変更（「試運転」にしたとき）でも切り替える

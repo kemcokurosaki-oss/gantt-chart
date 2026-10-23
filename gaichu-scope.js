@@ -55,6 +55,8 @@
             AUTO.forEach(k => { out[k] = r[k]; });
             out.key = r.key;
             out.taskIds = r.taskIds;
+            out.rowTaskIds = r.rowTaskIds;
+            out.deleted = r.deleted;
             return out;
         });
     }
@@ -231,39 +233,28 @@
             ? `<th>${esc(c.label)}${plusCol(ci)}</th>`
             : `<th class="scope-col-edit"><span class="se-col-name"><input type="text" class="spec-input" data-colname="${ci}" value="${esc(c.label)}" placeholder="列の名前"><span class="se-col-btns"><button type="button" class="se-mini" data-sc="colleft" data-i="${ci}" title="左へ">◀</button><button type="button" class="se-mini" data-sc="colright" data-i="${ci}" title="右へ">▶</button><button type="button" class="spec-del" data-sc="coldel" data-i="${ci}" title="この列を削除">✕</button></span></span>${plusCol(ci)}</th>`).join('');
         const auto = rowsOf(d);
-        const isNewRow = r => Object.values(r.taskIds || {}).flat().length > 0 && ['assembly', 'electrical'].every(k => ((r.taskIds || {})[k] || []).every(id => String(id).startsWith('new')));
-        const body = auto.length ? auto.map((r, ri) => `<tr${isNewRow(r) ? ' class="se-new-row"' : ''}>`
+        const isNewRow = r => String(r.key).startsWith('new');
+        const body = auto.length ? auto.map((r, ri) => `<tr class="${isNewRow(r) ? 'se-new-row' : ''}${r.deleted ? ' se-del-row' : ''}">`
                 + cols.map(c => {
                     if (!AUTO.has(c.key)) { const mi = manualIndex(d, r); return cellEdit(d.rows[mi], mi, c); }
+                    // 機械・ユニット：入力すると、その行の機械組立・電気艤装のタスクの機械・ユニットが変わる（保存で工程表へ）
+                    if (c.key === 'machine' || c.key === 'unit') return `<td><input type="text" class="spec-input se-rowname${!String(r[c.key] || '').trim() ? ' is-empty' : ''}" data-rowname="${esc(c.key)}" data-rk="${esc(r.key)}" value="${esc(r[c.key])}" placeholder="${c.key === 'machine' ? '例：TR' : '例：CV1&2&3 PV1'}"${r.deleted ? ' disabled' : ''}></td>`;
                     const ids = (r.taskIds && r.taskIds[c.key]) || [];
-                    if (!ids.length) return `<td class="se-auto">${cellView(r, c)}</td>`;
+                    if (!ids.length || r.deleted) return `<td class="se-auto">${cellView(r, c)}</td>`;
                     const tip = c.key === 'trial_place' ? 'クリックで試運転場所を選ぶ（工程表の試運転タスクに保存）' : 'クリックで外注先企業を選ぶ（工程表のタスクに保存）';
                     return `<td class="se-auto se-task-cell" data-task-cell="${ri}" data-key="${esc(c.key)}" title="${tip}"><span class="se-party">${cellView(r, c)}<span class="se-caret">▾</span></span></td>`;
                 }).join('')
-                + `<td class="scope-row-btns">${isNewRow(r) ? `<button type="button" class="spec-del" data-sc="newdel" data-key="${esc(r.key)}" title="追加した行を取り消す（保存前）">✕</button>` : ''}</td></tr>`).join('')
+                + `<td class="scope-row-btns">${r.deleted
+                    ? `<button type="button" data-sc="rowundel" data-rk="${esc(r.key)}" title="削除を取り消す">↺</button>`
+                    : `<button type="button" class="spec-del" data-sc="rowdel2" data-rk="${esc(r.key)}" title="この行を削除（保存すると工程表の機械組立・電気艤装のタスクも削除）">✕</button>`}</td></tr>`).join('')
             : `<tr><td colspan="${cols.length + 1}" class="spec-empty">工程表に、担当が「外注」の「機械組立」「電気艤装」のタスクがありません。下の「＋ 行を追加」から追加できます</td></tr>`;
-        const vopts = cur => GS.state.sheets.map(s => `<option value="${s.vendor_id}"${String(cur) === String(s.vendor_id) ? ' selected' : ''}>${esc(s.display)}</option>`).join('') + `<option value=""${cur === '' ? ' selected' : ''}>未定</option>`;
-        const addForm = adding ? `<div class="se-addrow">
-                <b>行を追加</b><small>工程表に「機械組立」（大項目：組立）と「電気艤装」（大項目：電装）のタスクを作ります。期間は工程表で入れてください</small>
-                <div class="se-addrow-fields">
-                    <label>機械<input type="text" class="spec-input" data-add="machine" value="${esc(adding.machine)}" placeholder="例：TR"></label>
-                    <label>ユニット<input type="text" class="spec-input" data-add="unit" value="${esc(adding.unit)}" placeholder="例：CV1&2&3 PV1"></label>
-                    <label>機械組立の外注先<select class="spec-input" data-add="assembly">${vopts(adding.assembly)}</select></label>
-                    <label>電気艤装の外注先<select class="spec-input" data-add="electrical">${vopts(adding.electrical)}</select></label>
-                    <span class="spec-spacer"></span>
-                    <button type="button" class="spec-btn" data-sc="addcancel">やめる</button>
-                    <button type="button" class="spec-btn spec-btn--primary" data-sc="addok">追加</button>
-                </div>
-                <p class="se-addrow-err"></p></div>`
-            : `<button type="button" class="se-addrow-btn" data-sc="addopen">＋ 行を追加（工程表にタスクを作る）</button>`;
         return `<div class="se-head"><span class="se-title">① 図面</span><span class="se-hint">「色分け枠を描く」を押すと、その図面を拡大して担当先の枠を描けます</span></div>
             <div class="se-figs">${figs}${addFig}</div>
-            <div class="se-head"><span class="se-title">② 担当範囲一覧</span><span class="se-hint">灰色の列は工程表から表示します。機械組立・電気艤装の会社と試運転場所はここで選び直せます（保存すると工程表にも入ります）。機械名と追加した列を入力できます</span></div>
+            <div class="se-head"><span class="se-title">② 担当範囲一覧</span><span class="se-hint">この一覧は工程表のタスクとつながっています。機械・ユニット・会社・試運転場所の変更、行の追加・削除は、保存すると工程表にも入ります（試運転のタスクは変わりません）</span></div>
             <div class="se-table-area">
                 <table class="data-table scope-table is-editing"><thead><tr>${head}<th class="se-actions-h"></th></tr></thead><tbody>${body}</tbody></table>
                 <button type="button" class="se-edge se-edge--col" data-sc="addcol" data-i="${cols.length}" title="右端に列を追加"><span>＋</span><small>列を追加</small></button>
-            </div>
-            <div class="se-addrow-wrap">${addForm}
+                <button type="button" class="se-edge se-edge--row" data-sc="addrow2" title="行を追加（工程表に機械組立・電気艤装のタスクを作る）"><span>＋</span>行を追加</button>
             </div>`;
     }
     function cellEdit(r, ri, c) {
@@ -371,6 +362,7 @@
             return { ...m, key: r.key, machine: r.machine, unit: r.unit };
         });
         draftTasks = clone(tasks);
+        draftTasks.forEach(t => { if (['機械組立', '電気艤装'].includes(String(t.text || '').normalize('NFKC').trim())) t._rowKey = GS.scopeRowKey(t.machine, t.unit); });
         baseline = strip(draft);
         removedPaths = [];
         editing = true;
@@ -386,12 +378,14 @@
             if (!o) return null;
             if ((o.vendor_id ?? null) !== (t.vendor_id ?? null)) patch.vendor_id = t.vendor_id ?? null;
             if ((o.test_run_location || null) !== (t.test_run_location || null)) patch.test_run_location = t.test_run_location || null;
+            if (String(o.machine || '') !== String(t.machine || '')) patch.machine = String(t.machine || '').trim();
+            if (String(o.unit || '') !== String(t.unit || '')) patch.unit = String(t.unit || '').trim();
             return Object.keys(patch).length ? { id: t.id, patch } : null;
         }).filter(Boolean);
     }
     function isDirty() {
         if (!editing) return false;
-        return strip(draft) !== baseline || draft.figures.some(f => f.file) || changedTasks().length > 0 || (draftTasks || []).some(t => t._new);
+        return strip(draft) !== baseline || draft.figures.some(f => f.file) || changedTasks().length > 0 || (draftTasks || []).some(t => t._new || t._deleted);
     }
     function move(list, i, delta) {
         const j = i + delta;
@@ -408,6 +402,12 @@
         return rows.filter(r => cols.some(c => !AUTO.has(c.key) && (c.type === 'party' ? (r[c.key] || []).length : String(r[c.key] || '').trim())));
     }
     async function save() {
+        if (draftTasks) {
+            const live = rowsOf(draft).filter(r => !r.deleted);
+            if (live.some(r => !String(r.machine || '').trim() || !String(r.unit || '').trim())) { alert('機械かユニットが空欄の行があります。入力するか、行を削除してください。'); return; }
+            const delCount = draftTasks.filter(t => t._deleted && !t._new).length;
+            if (delCount && !confirm(`工程表の「機械組立」「電気艤装」のタスクを ${delCount} 件削除します（期間が入っていても消えます。試運転のタスクは残ります）。よろしいですか？`)) return;
+        }
         const btn = (barTools || root).querySelector('[data-sc="save"]');
         if (btn) { btn.disabled = true; btn.textContent = '保存中…'; }
         try {
@@ -426,6 +426,11 @@
                 urls[path] = f.dataUrl;   // 署名付きURLを取り直すまでは手元の画像で表示する
             }
             const cols = draft.columns.length ? draft.columns : DEFAULT_COLUMNS;
+            // 手入力の行は「機械|ユニット」で保存する（シートで機械・ユニットを変えた行・追加した行は新しい値で）。削除した行は手入力も消す
+            if (draftTasks) {
+                const keyMap = new Map(rowsOf(draft).map(r => [r.key, r.deleted ? null : { key: GS.scopeRowKey(r.machine, r.unit), machine: String(r.machine || '').trim(), unit: String(r.unit || '').trim() }]));
+                draft.rows = draft.rows.filter(r => !r.key || keyMap.get(r.key) !== null).map(r => (keyMap.get(r.key) ? { ...r, ...keyMap.get(r.key) } : r));
+            }
             const rec = {
                 project_number: pn,
                 figures: draft.figures.map(f => ({ path: f.path, caption: (f.caption || '').trim(), zones: f.zones || [] })),
@@ -442,7 +447,8 @@
                 if (rmErr) console.warn('削除した図面のファイルを消せませんでした', rmErr);
             }
             data = { figures: rec.figures, rows: rec.rows, columns: rec.columns };
-            const created = (draftTasks || []).filter(t => t._new);
+            const created = (draftTasks || []).filter(t => t._new && !t._deleted).map(t => ({ ...t, machine: String(t.machine || '').trim(), unit: String(t.unit || '').trim() }));
+            const removed = (draftTasks || []).filter(t => t._deleted && !t._new).map(t => t.id);
             if (created.length) {
                 const { data: last } = await client.from('tasks').select('sort_order').eq('project_number', pn).order('sort_order', { ascending: false }).limit(1);
                 let order = ((last && last[0] && last[0].sort_order) || 0) + 1;
@@ -457,13 +463,18 @@
                 if (insErr) throw new Error('工程表にタスクを作れませんでした：' + insErr.message);
                 if (!ins || ins.length !== recs.length) throw new Error('工程表にタスクを作れませんでした（工程表の編集の権限がないか、ログインが切れています）');
             }
-            const edits = changedTasks();
+            const edits = changedTasks().filter(e => !removed.includes(e.id));
+            if (removed.length) {
+                const { data: del, error: delErr } = await client.from('tasks').delete().in('id', removed).select('id');
+                if (delErr) throw new Error('工程表のタスクを削除できませんでした：' + delErr.message);
+                if (!del || del.length !== removed.length) throw new Error('工程表のタスクを削除できませんでした（工程表の編集の権限がないか、ログインが切れています）');
+            }
             for (const { id, patch } of edits) {
                 const { data: up, error: upErr } = await client.from('tasks').update(patch).eq('id', id).select('id');
                 if (upErr) throw new Error('工程表のタスクに保存できませんでした：' + upErr.message);
                 if (!up || !up.length) throw new Error('工程表のタスクに保存できませんでした（工程表の編集の権限がないか、ログインが切れています）');
             }
-            if (edits.length || created.length) { location.reload(); return; }
+            if (edits.length || created.length || removed.length) { location.reload(); return; }
             endEdit();
         } catch (err) {
             console.error('組立範囲の保存に失敗しました', err);
@@ -585,6 +596,23 @@
             case 'rowdown': move(draft.rows, i, 1); break;
             case 'rowdel': draft.rows.splice(i, 1); break;
             case 'addcol': addColumn(i); return;
+            case 'addrow2': {
+                // 空の行をすぐに足す（工程表の「機械組立」「電気艤装」のタスクを保存のときに作る）
+                const rk = 'new' + (++newSeq);
+                [['機械組立', '組立'], ['電気艤装', '電装']].forEach(([text, major]) => {
+                    draftTasks.push({ id: rk + '-' + text, _new: true, _rowKey: rk, text, owner: '外注', major_item: major, machine: '', unit: '', vendor_id: null, test_run_location: null, start_date: null, end_date: null });
+                });
+                render();
+                const inp = root.querySelector(`[data-rowname="machine"][data-rk="${rk}"]`);
+                if (inp) inp.focus();
+                return;
+            }
+            case 'rowdel2': case 'rowundel': {
+                const rk = b.dataset.rk, del = b.dataset.sc === 'rowdel2';
+                draftTasks = draftTasks.filter(t => !(del && t._new && t._rowKey === rk));   // 追加したばかりの行はそのまま消す
+                draftTasks.forEach(t => { if (t._rowKey === rk) t._deleted = del; });
+                break;
+            }
             case 'addopen': adding = { machine: '', unit: '', assembly: '', electrical: '' }; render(); { const m = root.querySelector('[data-add="machine"]'); if (m) m.focus(); } return;
             case 'addcancel': adding = null; break;
             case 'addok': {
@@ -633,6 +661,12 @@
         else if (t.dataset.colname != null) draft.columns[Number(t.dataset.colname)].label = t.value;
         else if (t.dataset.cell != null) draft.rows[Number(t.dataset.cell)][t.dataset.key] = t.value;
         else if (t.dataset.add != null && adding) adding[t.dataset.add] = t.value;
+        else if (t.dataset.rowname != null) {
+            // 機械・ユニット：その行の機械組立・電気艤装のタスクに入れる（表は描き直さない＝入力を続けられる）
+            const k = t.dataset.rowname;
+            draftTasks.forEach(x => { if (x._rowKey === t.dataset.rk) x[k] = t.value; });
+            t.classList.toggle('is-empty', !t.value.trim());
+        }
     });
     root.addEventListener('change', e => {
         if (e.target.matches('[data-sc-file]')) { [...e.target.files].forEach(addImageFile); e.target.value = ''; }

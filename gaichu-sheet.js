@@ -276,7 +276,7 @@
         (tasks || []).forEach(t => {
             const col = SCOPE_TASKS[normText(t.text)];
             if (!col || !isOutsource(t.owner)) return;
-            const key = scopeRowKey(t.machine, t.unit);
+            const key = t._rowKey || scopeRowKey(t.machine, t.unit);
             if (!groups.has(key)) groups.set(key, { key, machine: normText(t.machine), unit: normText(t.unit), start: t.start_date || '' });
             const g = groups.get(key);
             if (t.start_date && (!g.start || t.start_date < g.start)) g.start = t.start_date;
@@ -289,9 +289,11 @@
             return !a.length || !b.length || a.some(u => b.includes(u));
         };
         const manual = Array.isArray(manualRows) ? manualRows : [];
-        const rows = [...groups.values()].sort((a, b) => a.machine.localeCompare(b.machine, 'ja') || String(a.start).localeCompare(String(b.start)) || a.unit.localeCompare(b.unit, 'ja')).map(g => {
-            const same = (tasks || []).filter(t => scopeRowKey(t.machine, t.unit) === g.key);
-            const row = { key: g.key, machine: g.machine, unit: g.unit, taskIds: {} };
+        const isNew = k => String(k).startsWith('new');   // シートで追加した（まだ保存していない）行は最後に並べる
+        const rows = [...groups.values()].sort((a, b) => (isNew(a.key) - isNew(b.key)) || a.machine.localeCompare(b.machine, 'ja') || String(a.start).localeCompare(String(b.start)) || a.unit.localeCompare(b.unit, 'ja')).map(g => {
+            const same = (tasks || []).filter(t => (t._rowKey || scopeRowKey(t.machine, t.unit)) === g.key);
+            const row = { key: g.key, machine: g.machine, unit: g.unit, taskIds: {}, rowTaskIds: same.filter(t => SCOPE_TASKS[normText(t.text)]).map(t => t.id) };
+            row.deleted = same.length > 0 && same.filter(t => SCOPE_TASKS[normText(t.text)]).every(t => t._deleted);
             Object.entries(SCOPE_TASKS).forEach(([name, col]) => {
                 const ts = same.filter(t => isName(t, name));
                 row[col] = uniq(ts.flatMap(ownerParties));
@@ -346,7 +348,7 @@
     function shortName(s) { return _short(s); }
     const _short = s => String(s || '').normalize('NFKC').replace(/殿$/, '').replace(/株式会社|有限会社|\(株\)|\(有\)/g, '').trim() || String(s || '');
     window.GaichuSheet = {
-        shortName, scopeRows,
+        shortName, scopeRows, scopeRowKey,
         repLabel,
         state, client, select, saveSheet,
         loadTasks, unitTokens, isOutsource, vendorUnits, coversVendor, trialPeriod, fmtDate,
