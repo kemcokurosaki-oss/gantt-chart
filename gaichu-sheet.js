@@ -262,6 +262,13 @@
         });
         return tasks.filter(t => procName(t) === '試運転' && !isOutsource(t.owner) && coversVendor(t, units));
     }
+    // 場所（試運転場所など自由入力の文字）に当てはまる外注先シート。「大洋金属（株）」「株式会社ニッシン殿」などの書き方の違いはそろえて比べる
+    const placeKey = s => String(s || '').normalize('NFKC').replace(/殿|様|株式会社|有限会社|\(株\)|\(有\)|\s/g, '');
+    function sheetByPlace(text) {
+        const k = placeKey(text);
+        if (!k) return null;
+        return state.sheets.find(s => [s.name, s.display, s.short].some(n => { const nk = placeKey(n); return nk && (nk === k || nk.includes(k) || k.includes(nk)); })) || null;
+    }
     // タスクを工程ごとにまとめる [{ name, tasks }]（タスクは start が Date のもの）
     function processGroups(list) {
         const map = new Map();
@@ -303,7 +310,7 @@
         shortName,
         repLabel,
         state, client, select, saveSheet,
-        loadTasks, unitTokens, isOutsource, vendorUnits, coversVendor, trialPeriod, fmtDate, trialTasksFor, processGroups,
+        loadTasks, unitTokens, isOutsource, vendorUnits, coversVendor, trialPeriod, fmtDate, trialTasksFor, processGroups, sheetByPlace,
         sheetById: id => state.sheets.find(s => String(s.id) === String(id)) || null,
         KUSAKABE, chipStyle, chipHtml,
     };
