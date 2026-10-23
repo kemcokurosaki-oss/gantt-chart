@@ -128,7 +128,7 @@
                 ? input('contact', s.contact, ` placeholder="${esc(GS.repLabel(sheet) ? `空欄なら担当者（${GS.repLabel(sheet)}）` : '例：取締役工場長　山田 太郎 様')}"`)
                   + `<small>空欄のときは、外注先マスタの担当者を自動表示します</small>`
                 : dash(s.contact || GS.repLabel(sheet))}</div></div>
-            <div class="info-item"><div class="k">1-5) 出荷納期</div><div class="v">${fmtDate(p.shipDate)}${autoTag(e, '工程表から自動表示')}</div></div>
+            <div class="info-item"><div class="k">1-5) ${GS.shipInfo(sheet).route === 'via' ? '当社への出荷日' : '出荷納期'}</div><div class="v">${GS.shipInfo(sheet).route === 'via' ? '未定' : fmtDate(p.shipDate)}${autoTag(e, '工程表から自動表示')}</div></div>
             <div class="info-item"><div class="k">改訂</div><div class="v">${e
                 ? `${dash(s.revision)}${s.revision_note ? `<small>${esc(s.revision_note)}</small>` : ''}`
                   + `<div class="spec-rev"><small>内容を変更して保存すると「<b>${esc(nextRev(s.revision))}（${today()}）</b>」になります</small>`

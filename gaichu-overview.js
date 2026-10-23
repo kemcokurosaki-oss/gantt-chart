@@ -81,14 +81,17 @@
              : `<b>―</b><small>予定はありません</small>`) + `</div>`;
     async function renderBand() {
         const st = GS.state, sh = st.currentSheet;
-        const ship = st.project.shipDate ? toDate(st.project.shipDate) : null;
+        // 出荷日：外注先を選んでいて「当社経由」なら「当社への出荷日」（日付は今は未定）。工場出荷の日付は下に小さく
+        const si = GS.shipInfo(sh);
+        const ship = si.date ? toDate(si.date) : null;
+        const factory = si.factory ? toDate(si.factory) : null;
         const left = ship ? Math.round((ship - today()) / DAY) : null;
         const W = '日月火水木金土';
         // 工場出荷日：年は小さく、月日を大きく、残りの日数は下にバッジで
-        const shipCard = `<div class="ov-ship"><span class="ov-k">工場出荷日</span>`
+        const shipCard = `<div class="ov-ship"><span class="ov-k">${si.label}</span>`
             + (ship ? `<div class="ov-ship-date"><small>${ship.getFullYear()}年</small><b>${ship.getMonth() + 1}/${ship.getDate()}<em>(${W[ship.getDay()]})</em></b></div>`
                     + `<span class="ov-ship-left">${left < 0 ? '出荷済み' : left === 0 ? '本日出荷' : `工場出荷まで ${left}日`}</span>`
-                    : `<div class="ov-ship-date"><b>―</b></div><span class="ov-ship-left">出荷日未定</span>`) + `</div>`;
+                    : `<div class="ov-ship-date"><b>未定</b></div><span class="ov-ship-left">${si.route === 'via' && factory ? `工場出荷 ${ymd(factory)}` : '出荷日未定'}</span>`) + `</div>`;
         const telLink = t => t ? `<a href="tel:${esc(t)}">${esc(t)}</a>` : '';
         const repOf = s => s && s.rep && (s.rep.name || s.rep.title || s.rep.tel) ? s.rep : null;
         const revOf = s => (s.spec && s.spec.revision) ? '改訂 ' + esc(s.spec.revision) : '改訂 未入力';

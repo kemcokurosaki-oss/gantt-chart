@@ -38,12 +38,14 @@
         // 工事名称・客先は、その工番のタスクのうち値が入っている最初のものから取る
         const firstValue = col => client.from('tasks').select(col).eq('project_number', state.pn)
             .not(col, 'is', null).neq(col, '').limit(1);
-        const [name, customer, ship] = await Promise.all([
+        const [name, customer, ship, shipAll] = await Promise.all([
             firstValue('project_details'),
             firstValue('customer_name'),
             client.from('tasks').select('end_date').eq('project_number', state.pn).eq('text', '工場出荷')
                 .not('end_date', 'is', null).order('end_date', { ascending: false }).limit(1),
+            client.from('tasks').select('owner, vendor_id').eq('project_number', state.pn).eq('text', '工場出荷'),
         ]);
+        shipTasks = (shipAll && shipAll.data) || [];
         [name, customer, ship].forEach(r => { if (r.error) console.error('工事情報の取得に失敗しました', r.error); });
         const first = (r, col) => (r.data && r.data[0] && r.data[0][col]) || '';
         state.project.name = first(name, 'project_details');
@@ -52,7 +54,7 @@
     }
     async function loadSheets() {
         const { data, error } = await client.from('gaichu_sheets')
-            .select('id, vendor_id, color, sort_order, spec, trial, gaichu_vendors(*)')
+            .select('*, gaichu_vendors(*)')
             .eq('project_number', state.pn).order('sort_order').order('id');
         if (error) { console.error('外注先シートの取得に失敗しました', error); return; }
         state.sheets = (data || []).map(r => ({
@@ -64,6 +66,7 @@
             address: (r.gaichu_vendors && r.gaichu_vendors.address) || '',   // 住所（外注先マスタ）
             tel: (r.gaichu_vendors && r.gaichu_vendors.tel) || '',           // 代表電話（外注先マスタ）
             color: r.color || '#7f8c8d',
+            ship_route: r.ship_route || null,   // 出荷のしかた：direct／via／null（工程表から自動判定）
             spec: r.spec || {},
             trial: r.trial || {},
             rep: null,
@@ -81,12 +84,31 @@
         return [r.title, r.name ? r.name + ' 様' : ''].filter(Boolean).join('　');
     }
 
+    // ===== 出荷のしかた（外注先ごと） =====
+    // direct＝外注先から客先へ直接（工程表の「工場出荷」の日付）、via＝当社経由（当社への出荷日。日付の出どころは検討中）
+    // 設定がなければ工程表から判定：「工場出荷」タスクの担当が外注で、外注先企業がこの会社か未入力なら direct
+    let shipTasks = [];   // 「工場出荷」タスク
+    function shipRouteOf(sheet) {
+        if (!sheet) return 'direct';
+        if (sheet.ship_route === 'direct' || sheet.ship_route === 'via') return sheet.ship_route;
+        return shipTasks.some(t => isOutsource(t.owner) && (t.vendor_id == null || t.vendor_id === sheet.vendor_id)) ? 'direct' : 'via';
+    }
+    // 表示する出荷日 { label, date（YYYY-MM-DD か null）, route, factory（工場出荷の日付） }
+    function shipInfo(sheet) {
+        const route = shipRouteOf(sheet), factory = state.project.shipDate;
+        return route === 'via' ? { label: '当社への出荷日', date: null, route, factory } : { label: '工場出荷日', date: factory, route, factory };
+    }
+
     // ===== 表示 =====
     function renderHeader() {
         $('sheetJobNo').textContent = state.pn;
         $('sheetTitle').textContent = state.project.name || '（工事名称未登録）';
         $('customerName').textContent = state.project.customer || '―';
-        $('shipDate').textContent = fmtDate(state.project.shipDate);
+        // 出荷日：外注先を選んでいて「当社経由」のときは当社への出荷日（今は未定）。それ以外は工場出荷の日付
+        const si = shipInfo(state.currentSheet);
+        const lbl = $('shipDate').previousElementSibling;
+        if (lbl && lbl.classList.contains('meta-k')) lbl.textContent = si.route === 'via' ? '当社への出荷日' : '出荷納期';
+        $('shipDate').textContent = si.route === 'via' ? '未定' : fmtDate(si.date);
         $('sheetVendors').textContent = state.sheets.length ? state.sheets.map(s => s.display).join(' ／ ')
             : (state.loggedIn ? '（未登録）' : '（ログインすると表示されます）');
         document.title = `外注先用 工事詳細シート｜${state.pn} ${state.project.name || ''}`.trim();
@@ -144,6 +166,7 @@
         history.replaceState(null, '', url);
         renderSwitch();
         renderLegend();
+        renderHeader();
         if (!silent) document.dispatchEvent(new CustomEvent('gaichusheetchange', { detail: state }));
     }
 
@@ -305,7 +328,7 @@
     function shortName(s) { return _short(s); }
     const _short = s => String(s || '').normalize('NFKC').replace(/殿$/, '').replace(/株式会社|有限会社|\(株\)|\(有\)/g, '').trim() || String(s || '');
     window.GaichuSheet = {
-        shortName,
+        shortName, shipInfo,
         repLabel,
         state, client, select, saveSheet,
         loadTasks, unitTokens, isOutsource, vendorUnits, coversVendor, trialPeriod, fmtDate, trialTasksFor, processGroups, sheetByPlace,

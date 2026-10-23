@@ -144,6 +144,8 @@
 .ga-vcard input.ga-vname { font-size: 14.5px; font-weight: 700; }
 .ga-vcard input.ga-vname.is-err { border-color: #e74c3c; }
 .ga-vcard input[type=number] { padding: 7px 8px; font-variant-numeric: tabular-nums; }
+.ga-route { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #5b6068; font-weight: 700; }
+.ga-route select { font: inherit; font-size: 12.5px; padding: 3px 6px; border: 1px solid #cfd0cc; border-radius: 6px; }
 .ga-addr { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 12px; padding: 0 14px 12px; }
 .ga-addr.has-tel { grid-template-columns: 230px minmax(0, 1fr) 170px; }
 .ga-addr .ga-field small { font-weight: 400; color: #6b7079; }
@@ -202,13 +204,13 @@
     // 最新の外注先シートと外注先マスタを読み込む
     async function context() {
         const [sheets, vendors] = await Promise.all([
-            db().from('gaichu_sheets').select('id, project_number, vendor_id, color, sort_order, gaichu_vendors(name, display_name)').order('sort_order').order('id'),
+            db().from('gaichu_sheets').select('*, gaichu_vendors(name, display_name)').order('sort_order').order('id'),
             db().from('gaichu_vendors').select('*').order('sort_order').order('name'),
         ]);
         if (sheets.error) throw sheets.error;
         if (vendors.error) throw vendors.error;
         return {
-            sheets: (sheets.data || []).map(r => ({ id: r.id, pn: String(r.project_number), vendor_id: r.vendor_id, color: r.color || '#7f8c8d', display: (r.gaichu_vendors && vendorName(r.gaichu_vendors)) || '' })),
+            sheets: (sheets.data || []).map(r => ({ id: r.id, pn: String(r.project_number), vendor_id: r.vendor_id, color: r.color || '#7f8c8d', hasRoute: 'ship_route' in r, ship_route: r.ship_route || '', display: (r.gaichu_vendors && vendorName(r.gaichu_vendors)) || '' })),
             vendors: vendors.data || [],
         };
     }
@@ -396,6 +398,10 @@
         const m = modal(`${pn} の外注先`, `
             ${sheets.length ? `<table class="ga-table"><tbody>${sheets.map(s => `<tr>
                 <td>${chip(s.display, s.color)}</td>
+                <td>${s.hasRoute ? `<label class="ga-route"><span>出荷</span><select data-route="${s.id}">
+                    <option value=""${!s.ship_route ? ' selected' : ''}>工程表から自動</option>
+                    <option value="direct"${s.ship_route === 'direct' ? ' selected' : ''}>客先へ直接</option>
+                    <option value="via"${s.ship_route === 'via' ? ' selected' : ''}>当社経由</option></select></label>` : ''}</td>
                 <td style="text-align:right"><button type="button" class="ga-btn ga-btn--danger" data-del-sheet="${s.id}">削除</button></td></tr>`).join('')}</tbody></table>`
                 : '<p class="ga-note" style="margin:0 0 10px">この工番には外注先シートがありません。</p>'}
             <button type="button" class="ga-btn" data-add-here>＋ この工番に外注先を追加</button>
@@ -403,6 +409,15 @@
             { label: '閉じる', onClick: () => m.close() },
         ]);
         m.el.querySelector('[data-add-here]').addEventListener('click', () => { m.close(); openAdd({ pn: String(pn), onDone }); });
+        // 出荷のしかた：選んだらすぐ保存（閉じるとページを読み込み直して表示に反映）
+        let routeChanged = false;
+        m.el.querySelectorAll('[data-route]').forEach(sel => sel.addEventListener('change', async () => {
+            const { data, error } = await db().from('gaichu_sheets').update({ ship_route: sel.value || null }).eq('id', Number(sel.dataset.route)).select('id');
+            if (error || !data || !data.length) { m.err('出荷のしかたを保存できませんでした：' + ((error && error.message) || '編集の権限がないか、ログインが切れています')); return; }
+            routeChanged = true; m.err('');
+        }));
+        const closeBtn = [...m.el.querySelectorAll('.ga-foot .ga-btn')].find(b => b.textContent === '閉じる');
+        if (closeBtn) closeBtn.addEventListener('click', () => { if (routeChanged && onDone) onDone(); });
         m.el.querySelectorAll('[data-del-sheet]').forEach(btn => btn.addEventListener('click', async () => {
             const sheet = sheets.find(s => String(s.id) === btn.dataset.delSheet);
             if (!confirm(`「${sheet.display}」の外注先シート（工番 ${pn}）を削除します。\nこの外注先の組立発注仕様書と体制表も削除され、元に戻せません。よろしいですか？`)) return;
