@@ -26,7 +26,7 @@
         const withDate = t => t.start_date && t.end_date;
         const conv = t => ({ ...t, start: toDate(t.start_date), end: toDate(t.end_date) });
         tasks = allTasks.filter(t => GS.isOutsource(t.owner) && withDate(t)).map(conv)
-            .concat(GS.trialTasksFor(allTasks, vid).filter(withDate).map(t => ({ ...conv(t), _kusakabe: true })))
+            .concat(GS.trialTasksFor(allTasks, null).filter(withDate).map(t => ({ ...conv(t), _kusakabe: true })))
             .sort((a, b) => a.start - b.start);
     }
     let loaded = false;

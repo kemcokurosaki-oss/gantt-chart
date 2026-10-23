@@ -251,23 +251,21 @@
     // 工程の並び：機械組立 → 電気艤装 → 試運転 → 出荷準備 → 工場出荷、そのほかの工程は始まりの早い順でその後ろ
     const PROCESS_ORDER = ['機械組立', '電気艤装', '試運転', '出荷準備', '工場出荷'];
     const procName = t => String(t.text || '').normalize('NFKC').trim();
-    // 外注のタスクの機械・ユニットにかかる「試運転」タスク（社内の人が担当）。vendorId を渡すとその外注先の分だけ
-    function trialTasksFor(tasks, vendorId) {
-        const units = new Map();
-        tasks.filter(t => isOutsource(t.owner) && (vendorId == null || t.vendor_id === vendorId)).forEach(t => {
-            const mk = machineKey(t.machine);
-            if (!units.has(mk)) units.set(mk, new Set());
-            const tk = unitTokens(t.unit);
-            (tk.length ? tk : ['*']).forEach(u => units.get(mk).add(u));
-        });
-        return tasks.filter(t => procName(t) === '試運転' && !isOutsource(t.owner) && coversVendor(t, units));
-    }
     // 場所（試運転場所など自由入力の文字）に当てはまる外注先シート。「大洋金属（株）」「株式会社ニッシン殿」などの書き方の違いはそろえて比べる
     const placeKey = s => String(s || '').normalize('NFKC').replace(/殿|様|株式会社|有限会社|\(株\)|\(有\)|\s/g, '');
     function sheetByPlace(text) {
         const k = placeKey(text);
         if (!k) return null;
         return state.sheets.find(s => [s.name, s.display, s.short].some(n => { const nk = placeKey(n); return nk && (nk === k || nk.includes(k) || k.includes(nk)); })) || null;
+    }
+    // 試運転場所に外注先の会社名が入っている「試運転」タスク（外注先の場所で行う試運転）。vendorId を渡すとその外注先の分だけ
+    // 担当に「外注」が入っている試運転は、外注のタスクとしてすでに出しているので除く
+    function trialTasksFor(tasks, vendorId) {
+        return tasks.filter(t => {
+            if (procName(t) !== '試運転' || isOutsource(t.owner)) return false;
+            const s = sheetByPlace(t.test_run_location);
+            return s && (vendorId == null || s.vendor_id === vendorId);
+        });
     }
     // タスクを工程ごとにまとめる [{ name, tasks }]（タスクは start が Date のもの）
     function processGroups(list) {
