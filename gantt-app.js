@@ -349,6 +349,9 @@
                 return 5;
             };
             const isPureNumeric = (s) => /^\d+$/.test(s);
+            // 担当に「外注」が入っているタスクは、同じ見出しの中で社内の担当のタスクより下に並べる（それぞれの中の順は手動の並び順のまま）
+            const isOutsourceTask = (t) => String(t.owner || "").split(/[,，]/).some(s => s.trim() === "外注");
+            const outsourceLast = (list) => list.filter(t => !isOutsourceTask(t)).concat(list.filter(isOutsourceTask));
             // "YYYY-MM-DD" をローカル深夜0時の Date に変換（new Date("YYYY-MM-DD") はUTC深夜0時になりタイムゾーン分ずれるため）
             const parseLocalDate = (str) => { if (str == null) return null; const match = String(str).trim().match(/^(\d{4})-(\d{2})-(\d{2})/); if (!match) return null; return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3])); };
 
@@ -407,6 +410,8 @@
                                 const c = pa.localeCompare(pb, undefined, { numeric: true, sensitivity: 'base' });
                                 if (c !== 0) return c;
                             }
+                            const xa = isOutsourceTask(a) ? 1 : 0, xb = isOutsourceTask(b) ? 1 : 0;
+                            if (xa !== xb) return xa - xb;
                             const ma = Number(a.sort_order_machine != null ? a.sort_order_machine : 1e9);
                             const mb = Number(b.sort_order_machine != null ? b.sort_order_machine : 1e9);
                             if (ma !== mb) return ma - mb;
@@ -488,7 +493,7 @@
                     const assignedTaskIds = new Set();
                     const taskByParent = {};
                     parentOrder.forEach(pName => {
-                        taskByParent[pName] = projectTasks.filter(t => t.parent_name === pName);
+                        taskByParent[pName] = outsourceLast(projectTasks.filter(t => t.parent_name === pName));
                     });
 
                     parentOrder.forEach(pName => {
@@ -549,7 +554,7 @@
                         }
                     });
 
-                    const unassignedTasks = projectTasks.filter(t => !assignedTaskIds.has(t.id));
+                    const unassignedTasks = outsourceLast(projectTasks.filter(t => !assignedTaskIds.has(t.id)));
                     if (unassignedTasks.length > 0) {
                         const parentKey = `p_${pNum}_other`;
                         let minStart = null;
