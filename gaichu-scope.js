@@ -1,8 +1,7 @@
 // 外注先用シート：組立範囲（図面・色分け枠・担当範囲一覧）。工番ごとに1件（gaichu_scopes）
 //   ・図面：3Dデータのスクリーンショットなどの画像。Storage（gaichu-figures・非公開）に保存し、表示は署名付きURL
 //   ・色分け枠：図面ごとに担当先の枠（位置は画像に対する%）。拡大表示の画面で描く
-//   ・担当範囲一覧：行と 機械・ユニット・機械組立・電気艤装・試運転・試運転場所 は工程表から自動で表示する（GaichuSheet.scopeRows）。
-//     機械名と工事ごとに追加した列は手入力（行の key＝機械・ユニットで保存）。担当の列は外注先（外注先マスタのID）と日下部電機（'kusakabe'）を複数選べる
+//   ・担当範囲一覧：列は既定の7列＋工事ごとに追加できる列。担当の列は外注先（外注先マスタのID）と日下部電機（'kusakabe'）を複数選べる
 //   ・外注先の切り替え（gaichu-sheet.js）で、その外注先が担当に入っている行と、その外注先・日下部電機の枠だけを表示する
 //   編集は体制表の管理者のみ。見出しの帯の「組立範囲を編集」で、図面・色分け枠と担当範囲一覧をまとめて編集し、「保存」1回で両方保存する。
 //   担当範囲一覧で文字を入力するのは 機械・ユニット・機械名 だけ。試運転場所と追加する列は会社を選ぶ列（以前に文字で入れた試運転場所は、編集を始めたときに当てはまる会社に置き換える）
@@ -35,18 +34,6 @@
     const ratioOf = {};                                  // 表示用URL → 画像の縦横比（横÷縦）。サムネイルの幅の配分に使う
     const THUMB_H = 400;                                 // サムネイルの行の高さの目安（px）。横長の3D図が広い画面で1行に2枚ほど並ぶ大きさ
     let viewIdx = null;                                  // 図面ビューアで表示中の図面（null＝外注先に合わせて自動で選ぶ）
-    let tasks = [];                                      // 工程表のタスク（担当範囲一覧の行を作る）
-    // 工程表から自動で表示する列（編集では変えられない）
-    const AUTO = new Set(['machine', 'unit', 'assembly', 'electrical', 'trial', 'trial_place']);
-    // 一覧の行：工程表から作った行に、手入力の列（機械名・追加した列）を重ねる
-    function rowsOf(d) {
-        return GS.scopeRows(tasks, d.rows).map(r => {
-            const out = { ...r.manual };
-            AUTO.forEach(k => { out[k] = r[k]; });
-            out.key = r.key;
-            return out;
-        });
-    }
 
     function esc(s) {
         return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -61,9 +48,7 @@
             .concat([{ key: KUSAKABE, label: GS.KUSAKABE.name, short: GS.shortName(GS.KUSAKABE.name), color: GS.KUSAKABE.color }]);
     }
     function partyInfo(key) {
-        if (key === 'unset') return { key, label: '未定', short: '未定', color: '#7b8088' };
-        return parties().find(p => String(p.key) === String(key))
-            || (typeof key === 'string' && !/^\d+$/.test(key) ? { key, label: key, short: key, color: '#95a5a6' } : { key, label: '（不明な担当）', color: '#95a5a6' });
+        return parties().find(p => String(p.key) === String(key)) || { key, label: '（不明な担当）', color: '#95a5a6' };
     }
     const partyChip = key => { const p = partyInfo(key); return GS.chipHtml(p.short || GS.shortName(p.label), p.color).replace('<span class="party-chip"', `<span class="party-chip" data-party="${esc(key)}"`); };
     // 試運転場所などの文字を担当先に当てはめる（「大洋金属㈱殿」「株式会社ニッシン」「日下部電機」などの書き方の違いはそろえて比べる）
@@ -108,11 +93,8 @@
         const st = GS.state;
         if (!st.ready) return;
         if (!st.loggedIn) { loaded = true; render(); return; }
-        const [{ data: rec, error }, tk] = await Promise.all([
-            client.from('gaichu_scopes').select('figures, rows, columns').eq('project_number', st.pn).maybeSingle(),
-            GS.loadTasks(),
-        ]);
-        tasks = tk || [];
+        const { data: rec, error } = await client.from('gaichu_scopes')
+            .select('figures, rows, columns').eq('project_number', st.pn).maybeSingle();
         if (error) console.error('組立範囲の取得に失敗しました', error);
         data = {
             figures: (rec && Array.isArray(rec.figures)) ? rec.figures : [],
@@ -194,10 +176,10 @@
         const figures = figs
             ? viewerHtml(d, vid, showViewer, '') + `<div class="figure-row scope-figs${showViewer ? ' scope-figs--print' : ''}">${figs}</div>`
             : '<p class="spec-msg">図面はまだ登録されていません。</p>';
-        const all = rowsOf(d), rowsShown = all.filter(r => rowVisible(r, cols));
+        const rowsShown = d.rows.filter(r => rowVisible(r, cols));
         const body = rowsShown.length
             ? rowsShown.map(r => `<tr data-parties="${esc(rowParties(r, cols))}">${cols.map(c => `<td>${cellView(r, c)}</td>`).join('')}</tr>`).join('')
-            : `<tr><td colspan="${cols.length}" class="spec-empty">${all.length ? 'この外注先が担当に入っている行はありません' : '工程表に、担当が「外注」の「機械組立」「電気艤装」のタスクがありません'}</td></tr>`;
+            : `<tr><td colspan="${cols.length}" class="spec-empty">${d.rows.length ? 'この外注先が担当に入っている行はありません' : '（未入力）'}</td></tr>`;
         return figures + `<div class="scope-table-wrap"><table class="data-table scope-table"><thead><tr>${cols.map(c => `<th>${esc(c.label)}</th>`).join('')}</tr></thead><tbody>${body}</tbody></table></div>`;
     }
 
@@ -219,17 +201,17 @@
         const head = cols.map((c, ci) => c.fixed
             ? `<th>${esc(c.label)}${plusCol(ci)}</th>`
             : `<th class="scope-col-edit"><span class="se-col-name"><input type="text" class="spec-input" data-colname="${ci}" value="${esc(c.label)}" placeholder="列の名前"><span class="se-col-btns"><button type="button" class="se-mini" data-sc="colleft" data-i="${ci}" title="左へ">◀</button><button type="button" class="se-mini" data-sc="colright" data-i="${ci}" title="右へ">▶</button><button type="button" class="spec-del" data-sc="coldel" data-i="${ci}" title="この列を削除">✕</button></span></span>${plusCol(ci)}</th>`).join('');
-        const auto = rowsOf(d);
-        const body = auto.length ? auto.map((r, ri) => `<tr>`
-                + cols.map(c => AUTO.has(c.key) ? `<td class="se-auto">${cellView(r, c)}</td>` : cellEdit(d.rows[ri], ri, c)).join('')
-                + `</tr>`).join('')
-            : `<tr><td colspan="${cols.length}" class="spec-empty">工程表に、担当が「外注」の「機械組立」「電気艤装」のタスクがありません（工程表にタスクを入れると、ここに行が出ます）</td></tr>`;
+        const body = d.rows.length ? d.rows.map((r, ri) => `<tr><td class="se-gutter"><button type="button" class="se-plus se-plus--row" data-sc="addrow" data-i="${ri + 1}" title="この下に行を追加">＋</button><span class="se-tip se-tip--row">この下に行を追加</span></td>`
+                + cols.map(c => cellEdit(r, ri, c)).join('')
+                + `<td class="scope-row-btns"><button type="button" data-sc="rowup" data-i="${ri}" title="上へ">↑</button><button type="button" data-sc="rowdown" data-i="${ri}" title="下へ">↓</button><button type="button" class="spec-del" data-sc="rowdel" data-i="${ri}" title="この行を削除">✕</button></td></tr>`).join('')
+            : `<tr><td class="se-gutter"></td><td colspan="${cols.length + 1}" class="spec-empty">（未入力）表にマウスを乗せると出る「＋ 行を追加」から入力してください</td></tr>`;
         return `<div class="se-head"><span class="se-title">① 図面</span><span class="se-hint">「色分け枠を描く」を押すと、その図面を拡大して担当先の枠を描けます</span></div>
             <div class="se-figs">${figs}${addFig}</div>
-            <div class="se-head"><span class="se-title">② 担当範囲一覧</span><span class="se-hint">灰色の列は工程表から自動で表示します（変えるときは工程表で）。機械名と追加した列を入力できます。見出しにマウスを乗せると「＋」で列を追加できます</span></div>
+            <div class="se-head"><span class="se-title">② 担当範囲一覧</span><span class="se-hint">行や見出しにマウスを乗せると「＋」が出ます。担当のマスをクリックすると会社を選べます</span></div>
             <div class="se-table-area">
-                <table class="data-table scope-table is-editing"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>
+                <table class="data-table scope-table is-editing"><thead><tr><th class="se-gutter"></th>${head}<th class="se-actions-h"></th></tr></thead><tbody>${body}</tbody></table>
                 <button type="button" class="se-edge se-edge--col" data-sc="addcol" data-i="${cols.length}" title="右端に列を追加"><span>＋</span><small>列を追加</small></button>
+                <button type="button" class="se-edge se-edge--row" data-sc="addrow" data-i="${d.rows.length}" title="最後に行を追加"><span>＋</span>行を追加</button>
             </div>`;
     }
     function cellEdit(r, ri, c) {
@@ -330,11 +312,13 @@
     function startEdit() {
         draft = clone(data);
         if (!draft.columns.length) draft.columns = clone(DEFAULT_COLUMNS);
+        // 試運転場所は会社を選ぶ列にする。文字で入っていたものは当てはまる会社に置き換える（当てはまらなければ文字のまま残し、選び直せる）
         draft.columns.forEach(c => { if (c.key === 'trial_place') c.type = 'party'; });
-        draft.rows = GS.scopeRows(tasks, data.rows).map(r => {
-            const m = { ...r.manual };
-            AUTO.forEach(k => { delete m[k]; });
-            return { ...m, key: r.key, machine: r.machine, unit: r.unit };
+        draft.rows.forEach(r => {
+            const v = r.trial_place;
+            if (v == null || Array.isArray(v)) return;
+            const p = partyByName(v);
+            r.trial_place = p ? [p.key] : (String(v).trim() ? v : []);
         });
         baseline = strip(draft);
         removedPaths = [];
@@ -358,7 +342,7 @@
         reader.readAsDataURL(file);
     }
     function cleanRows(rows, cols) {
-        return rows.filter(r => cols.some(c => !AUTO.has(c.key) && (c.type === 'party' ? (r[c.key] || []).length : String(r[c.key] || '').trim())));
+        return rows.filter(r => cols.some(c => c.type === 'party' ? (r[c.key] || []).length : String(r[c.key] || '').trim()));
     }
     async function save() {
         const btn = (barTools || root).querySelector('[data-sc="save"]');

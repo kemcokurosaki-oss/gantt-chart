@@ -245,73 +245,6 @@
         const tk = unitTokens(task.unit);
         return set.has('*') || tk.length === 0 || tk.some(u => set.has(u));
     }
-    // ===== 担当範囲一覧の行（工程表から作る） =====
-    // 担当に「外注」が入っている「機械組立」「電気艤装」のタスクの 機械・ユニット（工程表の書き方のまま）を1行にする。
-    // 各列：機械組立・電気艤装＝その行の同じ名前のタスクの担当（外注→外注先企業、未入力なら 'unset'＝未定。社員の名前→日下部電機）
-    //       試運転＝機械・ユニットが重なる「試運転」タスクの担当、試運転場所＝そのタスクの試運転場所（空欄なら日下部電機）
-    // 機械名と、工事ごとに追加した列は手入力（manualRows に key で保存。key が無い以前の1ユニットずつの行は、ユニットが含まれる行に寄せる）
-    const SCOPE_TASKS = { '機械組立': 'assembly', '電気艤装': 'electrical' };
-    const normText = s => String(s || '').normalize('NFKC').replace(/\s+/g, ' ').trim();
-    const scopeRowKey = (machine, unit) => machineKey(machine) + '|' + normText(unit).toUpperCase();
-    const hasStaff = owner => String(owner || '').split(/[,，]/).some(s => s.trim() && s.trim() !== '外注');
-    // 担当先のキー：外注先（外注先マスタのID）／'unset'（外注だが外注先企業が未入力）／'kusakabe'（社員の名前）
-    function ownerParties(t) {
-        const out = [];
-        if (isOutsource(t.owner)) out.push(t.vendor_id != null ? t.vendor_id : 'unset');
-        if (hasStaff(t.owner)) out.push('kusakabe');
-        return out;
-    }
-    // 試運転場所の文字を担当先のキーにする（外注先シートの外注先・日下部電機の名前に当てはまれば、そのキー。空欄は日下部電機）
-    const nameKey = s => String(s || '').normalize('NFKC').replace(/殿|様|株式会社|\(株\)|㈱|有限会社|\(有\)|\s/g, '');
-    function placeParty(text) {
-        const k = nameKey(text);
-        if (!k) return 'kusakabe';
-        const s = state.sheets.find(x => [x.name, x.display, x.short].some(n => { const nk = nameKey(n); return nk && (nk === k || nk.includes(k) || k.includes(nk)); }));
-        if (s) return s.vendor_id;
-        return k.includes('日下部') ? 'kusakabe' : String(text).trim();   // 当てはまらない文字はそのまま（灰色のバッジ）
-    }
-    function scopeRows(tasks, manualRows) {
-        const isName = (t, n) => normText(t.text) === n;
-        const groups = new Map();
-        (tasks || []).forEach(t => {
-            const col = SCOPE_TASKS[normText(t.text)];
-            if (!col || !isOutsource(t.owner)) return;
-            const key = scopeRowKey(t.machine, t.unit);
-            if (!groups.has(key)) groups.set(key, { key, machine: normText(t.machine), unit: normText(t.unit), start: t.start_date || '' });
-            const g = groups.get(key);
-            if (t.start_date && (!g.start || t.start_date < g.start)) g.start = t.start_date;
-        });
-        const uniq = a => [...new Map(a.map(v => [String(v), v])).values()];
-        const trials = (tasks || []).filter(t => isName(t, '試運転'));
-        const covers = (t, g) => {
-            if (machineKey(t.machine) !== machineKey(g.machine)) return false;
-            const a = unitTokens(t.unit), b = unitTokens(g.unit);
-            return !a.length || !b.length || a.some(u => b.includes(u));
-        };
-        const manual = Array.isArray(manualRows) ? manualRows : [];
-        const rows = [...groups.values()].sort((a, b) => a.machine.localeCompare(b.machine, 'ja') || String(a.start).localeCompare(String(b.start)) || a.unit.localeCompare(b.unit, 'ja')).map(g => {
-            const same = (tasks || []).filter(t => scopeRowKey(t.machine, t.unit) === g.key);
-            const row = { key: g.key, machine: g.machine, unit: g.unit };
-            Object.entries(SCOPE_TASKS).forEach(([name, col]) => { row[col] = uniq(same.filter(t => isName(t, name)).flatMap(ownerParties)); });
-            const tr = trials.filter(t => covers(t, g));
-            row.trial = uniq(tr.flatMap(ownerParties));
-            row.trial_place = tr.length ? uniq(tr.map(t => placeParty(t.test_run_location))) : [];
-            // 手入力の列（機械名・追加した列）
-            const m = manual.find(r => r.key === g.key);
-            const legacy = m ? [] : manual.filter(r => !r.key && machineKey(r.machine || g.machine) === machineKey(g.machine) && unitTokens(r.unit).length && unitTokens(r.unit).every(u => unitTokens(g.unit).includes(u)));
-            row.manual = m ? { ...m } : legacy.reduce((acc, r) => {
-                Object.entries(r).forEach(([k, v]) => {
-                    if (['machine', 'unit', 'assembly', 'electrical', 'trial', 'trial_place', 'key'].includes(k)) return;
-                    if (Array.isArray(v)) acc[k] = uniq((acc[k] || []).concat(v));
-                    else if (String(v || '').trim()) acc[k] = acc[k] ? (acc[k].split('・').includes(v) ? acc[k] : acc[k] + '・' + v) : v;
-                });
-                return acc;
-            }, {});
-            return row;
-        });
-        return rows;
-    }
-
     // 試運転期間：機械・ユニットが外注先の「外注」タスクと一致する「試運転」タスク（現地試運転は除く）の最初の開始日〜最後の終了日
     async function trialPeriod(sheet) {
         if (!sheet) return null;
@@ -341,7 +274,7 @@
     function shortName(s) { return _short(s); }
     const _short = s => String(s || '').normalize('NFKC').replace(/殿$/, '').replace(/株式会社|有限会社|\(株\)|\(有\)/g, '').trim() || String(s || '');
     window.GaichuSheet = {
-        shortName, scopeRows,
+        shortName,
         repLabel,
         state, client, select, saveSheet,
         loadTasks, unitTokens, isOutsource, vendorUnits, coversVendor, trialPeriod, fmtDate,
