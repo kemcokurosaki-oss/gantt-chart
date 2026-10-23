@@ -81,33 +81,39 @@
         const st = GS.state, sh = st.currentSheet;
         const ship = st.project.shipDate ? toDate(st.project.shipDate) : null;
         const left = ship ? Math.round((ship - today()) / DAY) : null;
-        // 工場出荷日を大きく、残りの日数は小さく
+        const W = '日月火水木金土';
+        // 工場出荷日：年は小さく、月日を大きく、残りの日数は下にバッジで
         const shipCard = `<div class="ov-ship"><span class="ov-k">工場出荷日</span>`
-            + (ship ? `<b>${ymd(ship)}</b><small>${left < 0 ? '出荷済み' : left === 0 ? '本日出荷' : `工場出荷まで ${left}日`}</small>` : `<b>―</b><small>出荷日未定</small>`) + `</div>`;
+            + (ship ? `<div class="ov-ship-date"><small>${ship.getFullYear()}年</small><b>${ship.getMonth() + 1}/${ship.getDate()}<em>(${W[ship.getDay()]})</em></b></div>`
+                    + `<span class="ov-ship-left">${left < 0 ? '出荷済み' : left === 0 ? '本日出荷' : `工場出荷まで ${left}日`}</span>`
+                    : `<div class="ov-ship-date"><b>―</b></div><span class="ov-ship-left">出荷日未定</span>`) + `</div>`;
         const telLink = t => t ? `<a href="tel:${esc(t)}">${esc(t)}</a>` : '';
         const repOf = s => s && s.rep && (s.rep.name || s.rep.title || s.rep.tel) ? s.rep : null;
+        const revOf = s => (s.spec && s.spec.revision) ? '改訂 ' + esc(s.spec.revision) : '改訂 未入力';
         const c = st.contacts[0];
-        const contact = `<div class="ov-card"><span class="ov-k">当社担当（問い合わせ）</span>${c ? `<b class="ov-name">${esc(c.name)}</b><small>${esc([c.dept, c.title].filter(Boolean).join(' '))}</small>${telLink(c.tel)}` : '<b>―</b>'}</div>`;
+        const contact = `<div class="ov-card ov-contact" style="border-top-color:#7b8088"><span class="ov-k">当社担当（問い合わせ）</span>`
+            + (c ? `<b class="ov-name">${esc(c.name)}</b><small>${esc([c.dept, c.title].filter(Boolean).join(' '))}</small><div class="ov-foot">${telLink(c.tel)}</div>` : '<b>―</b>') + `</div>`;
         if (!sh) {
-            // 全体：外注先ごとに 正式社名・住所・担当者 を1行で
-            const rows = st.sheets.map(s => {
+            // 全体：外注先ごとに、選択時と同じ形のカードを並べる（仕様書のボタンはカードの一番下）
+            const cards = st.sheets.map(s => {
                 const r = repOf(s);
-                return `<div class="ov-allrow"><span class="ov-vname"><i style="background:${esc(s.color)}"></i>${esc(s.display)}</span>`
-                    + `<span class="ov-sub">${esc(s.address) || '<span class="ov-none">住所 未登録</span>'}${s.tel ? `<br><span class="ov-k">代表</span>${telLink(s.tel)}` : ''}</span>`
-                    + `<span>${r ? `<span class="ov-k">担当</span>${esc([r.title, r.name].filter(Boolean).join('　'))}${r.tel ? `　${telLink(r.tel)}` : ''}` : '<span class="ov-none">担当者 未登録</span>'}</span>`
-                    + `<button type="button" class="ov-spec-btn ov-spec-btn--row" data-ov-spec="${s.id}" title="${esc(s.display)}の組立発注仕様書を開く"><span>仕様書を開く</span><small>→</small></button></div>`;
+                return `<div class="ov-card ov-vcard" style="border-top-color:${esc(s.color)}"><span class="ov-k">外注先企業</span><b class="ov-name">${esc(s.display)}</b>`
+                    + `<small>${esc(s.address) || '<span class="ov-none">住所 未登録</span>'}</small>`
+                    + (s.tel ? `<div class="ov-line"><span class="ov-k">代表</span>${telLink(s.tel)}</div>` : '')
+                    + `<div class="ov-line ov-rep"><span class="ov-k">担当</span>`
+                    + (r ? `<b>${esc(r.name || '―')}</b>${r.title ? `<small>${esc(r.title)}</small>` : ''}${telLink(r.tel)}` : '<span class="ov-none">担当者 未登録</span>') + `</div>`
+                    + `<div class="ov-spec-wrap"><button type="button" class="ov-spec-btn" data-ov-spec="${s.id}" title="${esc(s.display)}の組立発注仕様書を開く"><span>組立発注仕様書を開く</span><small>${revOf(s)}</small>→</button></div></div>`;
             }).join('');
-            el.band.innerHTML = `<div class="ov-band ov-band--all">${shipCard}<div class="ov-card ov-alllist">${rows || muted('外注先が登録されていません。')}</div>${contact}</div>`;
+            el.band.innerHTML = `<div class="ov-band ov-band--all">${shipCard}${cards || `<div class="ov-card">${muted('外注先が登録されていません。')}</div>`}${contact}</div>`;
             return;
         }
-        const vendorCard = `<div class="ov-card" style="border-top-color:${esc(sh.color)}"><span class="ov-k">外注先企業</span><b class="ov-name">${esc(sh.display)}</b>`
-            + `<small>${esc(sh.address) || '住所 未登録'}</small>${sh.tel ? `<span class="ov-k ov-tel-k">代表電話 ${telLink(sh.tel)}</span>` : ''}</div>`;
+        const vendorCard = `<div class="ov-card ov-vendor" style="border-top-color:${esc(sh.color)}"><span class="ov-k">外注先企業</span><b class="ov-name">${esc(sh.display)}</b>`
+            + `<small>${esc(sh.address) || '住所 未登録'}</small>${sh.tel ? `<div class="ov-line ov-foot"><span class="ov-k">代表</span>${telLink(sh.tel)}</div>` : ''}</div>`;
         const r = repOf(sh);
         const repCard = `<div class="ov-card" style="border-top-color:${esc(sh.color)}"><span class="ov-k">外注先担当者</span>`
-            + (r ? `<b class="ov-name">${esc(r.name || '―')}</b><small>${esc(r.title || '')}</small>${telLink(r.tel)}` : '<b>―</b><small>外注先マスタの管理で登録できます</small>') + `</div>`;
-        const rev = sh.spec && sh.spec.revision;
-        const specCard = `<div class="ov-card ov-speccard" style="border-top-color:${esc(sh.color)}"><span class="ov-k">組立発注仕様書</span><small>${rev ? '改訂 ' + esc(rev) : '改訂 未入力'}</small>`
-            + `<button type="button" class="ov-spec-btn" data-ov-spec="${sh.id}"><span>仕様書を開く</span><small>→</small></button></div>`;
+            + (r ? `<b class="ov-name">${esc(r.name || '―')}</b><small>${esc(r.title || '')}</small><div class="ov-foot">${telLink(r.tel)}</div>` : '<b>―</b><small>外注先マスタの管理で登録できます</small>') + `</div>`;
+        const specCard = `<div class="ov-card ov-speccard" style="border-top-color:${esc(sh.color)}"><span class="ov-k">組立発注仕様書</span><b>${revOf(sh)}</b>`
+            + `<div class="ov-spec-wrap"><button type="button" class="ov-spec-btn ov-spec-btn--primary" data-ov-spec="${sh.id}"><span>仕様書を開く</span>→</button></div></div>`;
         el.band.innerHTML = `<div class="ov-band">${shipCard}${vendorCard}${repCard}${specCard}${contact}</div>`;
     }
 

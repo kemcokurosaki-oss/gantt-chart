@@ -1473,35 +1473,41 @@
 
     /* ===== 最初のページ（概要・gaichu-overview.js）：先頭の要約＋4つの章の簡易表示 ===== */
     .overview { display: flex; flex-direction: column; gap: 22px; }
-    .ov-band { display: grid; grid-template-columns: 190px minmax(0, 1.4fr) minmax(0, 1fr) 170px 240px; gap: 12px; }
-    .ov-band--all { grid-template-columns: 190px minmax(0, 1fr) 240px; }
-    /* 仕様書のカード：仕様書の詳細を開くボタン（全体のときは外注先ごと） */
-    .ov-speccard { gap: 6px; }
-    .ov-spec-btn { appearance: none; display: flex; align-items: center; gap: 6px; width: 100%; font: inherit; font-size: 12.5px; font-weight: 700; color: #2b2f36; background: #fff; border: 1px solid #cfd0cc; border-radius: 6px; padding: 6px 10px; cursor: pointer; text-align: left; }
-    .ov-spec-btn:hover { background: #2b2f36; color: #fff; border-color: #2b2f36; }
-    .ov-spec-btn i { flex: none; width: 8px; height: 8px; border-radius: 50%; }
-    .ov-spec-btn span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .ov-spec-btn small { color: inherit; opacity: .7; font-size: 11px; }
-    .ov-spec-btn--row { width: auto; padding: 4px 10px; font-size: 12px; }
-    @media print { .ov-spec-btn { display: none !important; } }
-    .ov-ship { background: #2b2f36; color: #fff; border-radius: 10px; padding: 12px 16px; display: flex; flex-direction: column; gap: 2px; }
+    .ov-band { display: flex; flex-wrap: wrap; gap: 12px; align-items: stretch; }
+    .ov-band > * { flex: 1 1 200px; min-width: 0; }
+    .ov-band > .ov-ship { flex: 0 0 auto; min-width: 180px; }
+    .ov-band > .ov-vendor { flex: 1.6 1 280px; }
+    .ov-band > .ov-speccard { flex: 0 1 220px; min-width: 190px; }
+    .ov-band--all > .ov-vcard { flex: 1 1 260px; max-width: 440px; }
+    .ov-band--all > .ov-contact { max-width: 320px; }
+    /* 工場出荷日：ラベル・日付・残り日数をカードの縦中央にまとめる */
+    .ov-ship { background: #2b2f36; color: #fff; border-radius: 10px; padding: 12px 18px 14px; display: flex; flex-direction: column; justify-content: center; gap: 8px; }
     .ov-ship .ov-k { color: #d8dce2; }
-    .ov-ship b { font-size: 26px; line-height: 1.2; letter-spacing: .5px; }
-    .ov-ship em { font-style: normal; font-size: 15px; margin-left: 4px; }
-    .ov-ship small { font-size: 12px; color: #d8dce2; }
-    .ov-card { min-width: 0; background: #fff; border-radius: 10px; padding: 10px 14px; border-top: 4px solid transparent; display: flex; flex-direction: column; gap: 2px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+    .ov-ship-date { display: flex; flex-direction: column; line-height: 1.15; }
+    .ov-ship-date small { font-size: 12.5px; color: #d8dce2; font-weight: 500; }
+    .ov-ship-date b { font-size: 30px; letter-spacing: .5px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .ov-ship-date em { font-style: normal; font-size: 14px; font-weight: 500; color: #d8dce2; margin-left: 6px; }
+    .ov-ship-left { align-self: flex-start; font-size: 12px; font-weight: 700; background: rgba(255,255,255,0.14); border-radius: 999px; padding: 2px 10px; white-space: nowrap; }
+    .ov-card { background: #fff; border-radius: 10px; padding: 10px 16px 12px; border-top: 4px solid transparent; display: flex; flex-direction: column; gap: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
     .ov-card b { font-size: 16px; }
     .ov-card span { font-size: 12.5px; }
     .ov-card small { font-size: 12px; color: #5b6068; }
-    .ov-card a { font-size: 13px; color: #3d5a80; }
-    .ov-tel-k { font-weight: 500; margin-top: 2px; }
-    .ov-tel-k a { font-weight: 700; }
-    .ov-allrow .ov-sub .ov-k { margin-right: 6px; }
-    .ov-k { font-size: 12px; font-weight: 700; color: #6b7079; }
-    .ov-alllist { padding: 4px 16px; }
-    .ov-allrow { display: grid; grid-template-columns: 210px minmax(0, 1fr) minmax(0, 1fr) auto; gap: 10px; align-items: center; font-size: 13px; padding: 8px 0; border-top: 1px solid #efefec; }
-    .ov-allrow:first-child { border-top: 0; }
-    .ov-allrow .ov-k { margin-right: 8px; }
+    .ov-card a { font-size: 13px; font-weight: 700; color: #3d5a80; }
+    .ov-k, .ov-card .ov-k { font-size: 12px; font-weight: 700; color: #6b7079; }
+    .ov-line { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 8px; font-size: 13px; }
+    .ov-foot { margin-top: auto; padding-top: 4px; }
+    .ov-rep { margin-top: 6px; padding-top: 7px; border-top: 1px dashed #e4e3df; }
+    .ov-rep b { font-size: 14px; }
+    .ov-rep a { margin-left: auto; }
+    /* 仕様書を開くボタン：カードの一番下にそろえる */
+    .ov-spec-wrap { margin-top: auto; padding-top: 10px; }
+    .ov-spec-btn { appearance: none; display: flex; align-items: center; gap: 8px; width: 100%; font: inherit; font-size: 12.5px; font-weight: 700; color: #2b2f36; background: #fff; border: 1px solid #2b2f36; border-radius: 6px; padding: 7px 12px; cursor: pointer; white-space: nowrap; }
+    .ov-spec-btn:hover { background: #2b2f36; color: #fff; }
+    .ov-card .ov-spec-btn span { flex: 1; text-align: left; font-size: 12.5px; }
+    .ov-card .ov-spec-btn small { font-size: 11.5px; font-weight: 500; opacity: .75; color: inherit; }
+    .ov-spec-btn--primary { background: #2b2f36; color: #fff; }
+    .ov-spec-btn--primary:hover { background: #16191d; }
+    @media print { .ov-spec-btn, .ov-spec-wrap { display: none !important; } }
     .ov-vname { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; }
     .ov-vname i { flex: 0 0 9px; width: 9px; height: 9px; border-radius: 50%; }
     .ov-sub { color: #5b6068; }
@@ -1570,7 +1576,6 @@
     .ov-vlist > div:first-child { border-top: 0; }
     .ov-vlist .ov-vname { width: 210px; }
     @media (max-width: 1100px) {
-        .ov-band { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         .ov-scope { flex-direction: column; }
         .ov-fig { flex-basis: auto; }
         .ov-grow { grid-template-columns: 1fr; }
@@ -1601,7 +1606,6 @@
     .job-nav { overflow-y: auto; }
     .job-nav-list { min-height: 160px; }
     .sub-close { white-space: nowrap; }
-    @media (max-width: 1100px) { .ov-band--all { grid-template-columns: 1fr; } .ov-allrow { grid-template-columns: 1fr; gap: 2px; } }
     .job-nav-toc .jn-foot-label { margin-bottom: 4px; }
     .toc-btn { appearance: none; text-align: left; font-family: inherit; font-size: 13px; font-weight: 500; color: #5b6068; background: none; border: none; border-left: 2px solid #e4e3df; padding: 6px 10px; cursor: pointer; display: flex; gap: 8px; }
     .toc-btn span { width: 12px; font-weight: 700; }
@@ -1646,10 +1650,8 @@
         body.print-pick .sub-panel:not(.print-target) { display: none !important; }
         .print-first { break-before: auto !important; }
         .overview { gap: 14px; }
-        .ov-band { grid-template-columns: 150px minmax(0, 1.4fr) minmax(0, 1fr) 140px 190px !important; gap: 8px; }
-        .ov-band--all { grid-template-columns: 150px minmax(0, 1fr) 190px !important; }
-        .ov-allrow { grid-template-columns: 190px minmax(0, 1fr) minmax(0, 1fr) auto !important; gap: 10px !important; padding: 5px 0; }
-        .ov-ship b { font-size: 22px; }
+        .ov-band { gap: 8px; }
+        .ov-ship-date b { font-size: 24px; }
         .ov-scope { flex-direction: row !important; }
         .ov-fig { flex: 0 0 40% !important; }
         .ov-grow { grid-template-columns: 200px minmax(0, 1fr) !important; }
@@ -2011,7 +2013,7 @@ window.addEventListener('afterprint', () => {
 <script src="gaichu-admin.js?v=20261023v"></script>
 <script src="gaichu-sheet.js?v=20261023v"></script>
 <script src="gaichu-jobnav.js?v=20261022b"></script>
-<script src="gaichu-overview.js?v=20261023y"></script>
+<script src="gaichu-overview.js?v=20261023z"></script>
 <script src="gaichu-spec.js?v=20261023s"></script>
 <script src="gaichu-scope.js?v=20261023r"></script>
 <script src="gaichu-gantt.js?v=20261022a"></script>
