@@ -93,14 +93,14 @@
             const rows = st.sheets.map(s => {
                 const r = repOf(s);
                 return `<div class="ov-allrow"><span class="ov-vname"><i style="background:${esc(s.color)}"></i>${esc(s.display)}</span>`
-                    + `<span class="ov-sub">${esc(s.address) || '<span class="ov-none">住所 未登録</span>'}</span>`
+                    + `<span class="ov-sub">${esc(s.address) || '<span class="ov-none">住所 未登録</span>'}${s.tel ? `<br><span class="ov-k">代表</span>${telLink(s.tel)}` : ''}</span>`
                     + `<span>${r ? `<span class="ov-k">担当</span>${esc([r.title, r.name].filter(Boolean).join('　'))}${r.tel ? `　${telLink(r.tel)}` : ''}` : '<span class="ov-none">担当者 未登録</span>'}</span></div>`;
             }).join('');
             el.band.innerHTML = `<div class="ov-band ov-band--all">${shipCard}<div class="ov-card ov-alllist">${rows || muted('外注先が登録されていません。')}</div>${contact}</div>`;
             return;
         }
         const vendorCard = `<div class="ov-card" style="border-top-color:${esc(sh.color)}"><span class="ov-k">外注先企業</span><b class="ov-name">${esc(sh.display)}</b>`
-            + `<small>${esc(sh.address) || '住所 未登録'}</small></div>`;
+            + `<small>${esc(sh.address) || '住所 未登録'}</small>${sh.tel ? `<span class="ov-k ov-tel-k">代表電話 ${telLink(sh.tel)}</span>` : ''}</div>`;
         const r = repOf(sh);
         const repCard = `<div class="ov-card" style="border-top-color:${esc(sh.color)}"><span class="ov-k">外注先担当者</span>`
             + (r ? `<b class="ov-name">${esc(r.name || '―')}</b><small>${esc(r.title || '')}</small>${telLink(r.tel)}` : '<b>―</b><small>外注先マスタの管理で登録できます</small>') + `</div>`;
