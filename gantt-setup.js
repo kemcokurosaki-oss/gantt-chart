@@ -860,25 +860,28 @@
             return String(owner || '').split(/[,，]/).some(function(s) { return s.trim() === '外注'; });
         }
         window.ownerIncludesOutsource = ownerIncludesOutsource;
-        /** DB保存用：担当に「外注」が入っているときだけ外注先企業・試運転場所を保存し、それ以外は空にする */
+        // 「電気艤装」「試運転」は社内の人が作業して、場所だけ外注先を借りることがあるので、担当に外注がなくても場所を入れられる
+        const PLACE_TASKS = ['電気艤装', '試運転'];
+        function needsPlace(name) { return PLACE_TASKS.indexOf(String(name || '').normalize('NFKC').trim()) >= 0; }
+        /** DB保存用：外注先企業は担当に「外注」があるとき、場所（test_run_location）は担当に外注があるか、電気艤装・試運転のときだけ保存し、それ以外は空にする */
         window.outsourceFieldsForDb = function(item) {
-            if (!ownerIncludesOutsource(item && item.owner)) return { vendor_id: null, test_run_location: null };
-            const vid = item.vendor_id;
+            const out = ownerIncludesOutsource(item && item.owner);
+            const vid = item && item.vendor_id;
             return {
-                vendor_id: vid != null && vid !== '' ? Number(vid) : null,
-                test_run_location: String(item.test_run_location || '').trim() || null
+                vendor_id: out && vid != null && vid !== '' ? Number(vid) : null,
+                test_run_location: out || needsPlace(item && item.text) ? (String(item.test_run_location || '').trim() || null) : null
             };
         };
 
         gantt.form_blocks["outsource_selector"] = {
             render: function() {
                 return `<div class='outsource_selector' style='padding:5px; display:flex; flex-direction:column; gap:5px;'>
-                            <label style='display:flex; align-items:center; gap:6px; font-size:12px;'>
+                            <label class='outsource_vendor_row' style='display:flex; align-items:center; gap:6px; font-size:12px;'>
                                 <span style='width:72px; flex-shrink:0; color:#555;'>外注先企業</span>
                                 <select class='outsource_vendor' style='flex-grow:1; min-width:0; height:30px !important; padding:0 6px !important; line-height:normal !important; font-size:12.5px !important;'></select>
                             </label>
-                            <label style='display:flex; align-items:center; gap:6px; font-size:12px;'>
-                                <span style='width:72px; flex-shrink:0; color:#555;'>試運転場所</span>
+                            <label class='outsource_place_row' style='display:flex; align-items:center; gap:6px; font-size:12px;'>
+                                <span class='outsource_place_label' style='width:72px; flex-shrink:0; color:#555;'>試運転場所</span>
                                 <input type='text' class='outsource_test_run_location' placeholder='自由入力（例：貴社工場）' style='flex-grow:1; min-width:0; height:30px !important; padding:0 6px !important; line-height:normal !important; font-size:12.5px !important; border:1px solid #aaa; border-radius:4px; box-sizing:border-box;'>
                             </label>
                         </div>`;
@@ -902,6 +905,16 @@
                 const label = !wrap && node.previousElementSibling && node.previousElementSibling.classList.contains('gantt_cal_lsection')
                     ? node.previousElementSibling : null;
                 const ownerNode = document.querySelector('.gantt_cal_light .owner_selector_wrapper');
+                const nameNode = document.querySelector('.gantt_cal_light .task_name_selector_container');
+                const currentName = function() {
+                    if (!nameNode) return task.text || '';
+                    const free = nameNode.querySelector('.task_name_free_input');
+                    if (free && free.style.display !== 'none' && free.value.trim()) return free.value;
+                    const s = nameNode.querySelector('select');
+                    return s ? s.value : (task.text || '');
+                };
+                const vendorRow = node.querySelector('.outsource_vendor_row'), placeRow = node.querySelector('.outsource_place_row');
+                const placeLabel = node.querySelector('.outsource_place_label');
                 const sync = function() {
                     let owner = task.owner || '';
                     if (ownerNode) {
@@ -909,32 +922,36 @@
                         const free = (ownerNode.querySelector('.owner_free_input') || {}).value || '';
                         owner = checked.concat(free.split(/[,，]/)).join(',');
                     }
-                    const show = ownerIncludesOutsource(owner);
-                    (wrap ? [wrap] : [node, label]).forEach(function(el) { if (el) el.style.display = show ? '' : 'none'; });
+                    const name = String(currentName() || '').normalize('NFKC').trim();
+                    const showVendor = ownerIncludesOutsource(owner), showPlace = showVendor || needsPlace(name);
+                    vendorRow.style.display = showVendor ? 'flex' : 'none';
+                    placeRow.style.display = showPlace ? 'flex' : 'none';
+                    placeLabel.textContent = name === '電気艤装' ? '作業場所' : '試運転場所';
+                    (wrap ? [wrap] : [node, label]).forEach(function(el) { if (el) el.style.display = showVendor || showPlace ? '' : 'none'; });
+                    // 欄の見出し：外注先企業が出るときは「外注先」、場所だけのときは「場所」
+                    const head = wrap ? wrap.querySelector('.gantt_cal_lsection') : label;
+                    if (head) { const lbl = head.querySelector('label') || head; const t = showVendor ? '外注先' : '場所'; if (lbl.textContent !== t) lbl.textContent = t; }
                 };
                 // ライトボックスのDOMは使い回されるため、リスナーは1回だけ登録し、開くたびに判定処理（そのタスク用）を差し替える
-                if (ownerNode) {
-                    ownerNode._outsourceSync = sync;
-                    if (!ownerNode._outsourceSyncAttached) {
-                        const run = function() { if (ownerNode._outsourceSync) ownerNode._outsourceSync(); };
-                        ownerNode.addEventListener('change', run);
-                        ownerNode.addEventListener('input', run);
-                        ownerNode._outsourceSyncAttached = true;
+                // タスク名の変更（電気艤装・試運転にしたとき）でも切り替える
+                [ownerNode, nameNode].forEach(function(n) {
+                    if (!n) return;
+                    n._outsourceSync = sync;
+                    if (!n._outsourceSyncAttached) {
+                        const run = function() { if (n._outsourceSync) n._outsourceSync(); };
+                        n.addEventListener('change', run);
+                        n.addEventListener('input', run);
+                        n._outsourceSyncAttached = true;
                     }
-                }
+                });
                 sync();
             },
             // map_to: "auto" のため、値はタスクに直接書き込む。担当に「外注」が無いときは空にする
             get_value: function(node, task) {
                 const sel = node.querySelector('.outsource_vendor');
                 const loc = node.querySelector('.outsource_test_run_location');
-                if (ownerIncludesOutsource(task.owner)) {
-                    task.vendor_id = sel.value ? Number(sel.value) : null;
-                    task.test_run_location = loc.value.trim();
-                } else {
-                    task.vendor_id = null;
-                    task.test_run_location = '';
-                }
+                task.vendor_id = ownerIncludesOutsource(task.owner) && sel.value ? Number(sel.value) : null;
+                task.test_run_location = node.querySelector('.outsource_place_row').style.display !== 'none' ? loc.value.trim() : '';
                 return task.vendor_id;
             },
             focus: function(node) {}
