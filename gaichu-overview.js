@@ -94,15 +94,15 @@
         const contact = `<div class="ov-card ov-contact" style="border-top-color:#7b8088"><span class="ov-k">当社担当（問い合わせ）</span>`
             + (c ? `<b class="ov-name">${esc(c.name)}</b><small>${esc([c.dept, c.title].filter(Boolean).join(' '))}</small><div class="ov-foot">${telLink(c.tel)}</div>` : '<b>―</b>') + `</div>`;
         if (!sh) {
-            // 全体：外注先ごとに、選択時と同じ形のカードを並べる（仕様書のボタンはカードの一番下）
+            // 全体：外注先ごとに、社名・住所・代表電話・担当者名だけの小さなカードを並べる
             const cards = st.sheets.map(s => {
                 const r = repOf(s);
                 return `<div class="ov-card ov-vcard" style="border-top-color:${esc(s.color)}"><span class="ov-k">外注先企業</span><b class="ov-name">${esc(s.display)}</b>`
                     + `<small>${esc(s.address) || '<span class="ov-none">住所 未登録</span>'}</small>`
-                    + (s.tel ? `<div class="ov-line"><span class="ov-k">代表</span>${telLink(s.tel)}</div>` : '')
-                    + `<div class="ov-line ov-rep"><span class="ov-k">担当</span>`
-                    + (r ? `<b>${esc(r.name || '―')}</b>${r.title ? `<small>${esc(r.title)}</small>` : ''}${telLink(r.tel)}` : '<span class="ov-none">担当者 未登録</span>') + `</div>`
-                    + `<div class="ov-spec-wrap"><button type="button" class="ov-spec-btn" data-ov-spec="${s.id}" title="${esc(s.display)}の組立発注仕様書を開く"><span>組立発注仕様書を開く</span><small>${revOf(s)}</small>→</button></div></div>`;
+                    + `<div class="ov-vfoot"><div class="ov-line">`
+                    + (s.tel ? `<span><span class="ov-k">代表</span>${telLink(s.tel)}</span>` : '')
+                    + `<span><span class="ov-k">担当</span>${r && r.name ? `<b>${esc(r.name)}</b>` : '<span class="ov-none">未登録</span>'}</span></div>`
+                    + `<button type="button" class="ov-spec-btn ov-spec-btn--sm" data-ov-spec="${s.id}" title="${esc(s.display)}の組立発注仕様書を開く（${revOf(s)}）"><span>仕様書を開く</span>→</button></div></div>`;
             }).join('');
             el.band.innerHTML = `<div class="ov-band ov-band--all">${shipCard}${cards || `<div class="ov-card">${muted('外注先が登録されていません。')}</div>`}${contact}</div>`;
             return;

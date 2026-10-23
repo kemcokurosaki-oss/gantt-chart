@@ -1474,12 +1474,10 @@
     /* ===== 最初のページ（概要・gaichu-overview.js）：先頭の要約＋4つの章の簡易表示 ===== */
     .overview { display: flex; flex-direction: column; gap: 22px; }
     .ov-band { display: flex; flex-wrap: wrap; gap: 12px; align-items: stretch; }
-    .ov-band > * { flex: 1 1 200px; min-width: 0; }
-    .ov-band > .ov-ship { flex: 0 0 auto; min-width: 180px; }
-    .ov-band > .ov-vendor { flex: 1.6 1 280px; }
-    .ov-band > .ov-speccard { flex: 0 1 220px; min-width: 190px; }
-    .ov-band--all > .ov-vcard { flex: 1 1 260px; max-width: 440px; }
-    .ov-band--all > .ov-contact { max-width: 320px; }
+    /* カードの幅は中身の文字量で決まる（余った横幅は空けたまま）。同じ行のカードは高さをそろえる */
+    .ov-band > * { flex: 0 1 auto; min-width: 0; }
+    .ov-band > .ov-ship { flex: 0 0 auto; min-width: 170px; }
+    .ov-band > .ov-card { min-width: 170px; max-width: 480px; }
     /* 工場出荷日：ラベル・日付・残り日数をカードの縦中央にまとめる */
     .ov-ship { background: #2b2f36; color: #fff; border-radius: 10px; padding: 12px 18px 14px; display: flex; flex-direction: column; justify-content: center; gap: 8px; }
     .ov-ship .ov-k { color: #d8dce2; }
@@ -1499,6 +1497,13 @@
     .ov-rep { margin-top: 6px; padding-top: 7px; border-top: 1px dashed #e4e3df; }
     .ov-rep b { font-size: 14px; }
     .ov-rep a { margin-left: auto; }
+    /* 全体表示：代表電話・担当者名と、仕様書のボタンを1行にまとめる */
+    .ov-vfoot { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 16px; margin-top: auto; padding-top: 6px; }
+    .ov-vfoot .ov-line { gap: 0 12px; }
+    .ov-vfoot .ov-line > span { display: inline-flex; align-items: baseline; gap: 6px; }
+    .ov-card .ov-vfoot b { font-size: 13px; }
+    .ov-card .ov-spec-btn--sm { width: auto; margin-left: auto; padding: 4px 10px; font-size: 12px; gap: 6px; }
+    @media print { .ov-vfoot .ov-spec-btn { display: none !important; } }
     /* 仕様書を開くボタン：カードの一番下にそろえる */
     .ov-spec-wrap { margin-top: auto; padding-top: 10px; }
     .ov-spec-btn { appearance: none; display: flex; align-items: center; gap: 8px; width: 100%; font: inherit; font-size: 12.5px; font-weight: 700; color: #2b2f36; background: #fff; border: 1px solid #2b2f36; border-radius: 6px; padding: 7px 12px; cursor: pointer; white-space: nowrap; }
@@ -2013,7 +2018,7 @@ window.addEventListener('afterprint', () => {
 <script src="gaichu-admin.js?v=20261023v"></script>
 <script src="gaichu-sheet.js?v=20261023v"></script>
 <script src="gaichu-jobnav.js?v=20261022b"></script>
-<script src="gaichu-overview.js?v=20261023z"></script>
+<script src="gaichu-overview.js?v=20261023z2"></script>
 <script src="gaichu-spec.js?v=20261023s"></script>
 <script src="gaichu-scope.js?v=20261023r"></script>
 <script src="gaichu-gantt.js?v=20261022a"></script>
