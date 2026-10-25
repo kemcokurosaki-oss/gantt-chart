@@ -102,7 +102,7 @@
         const name = t => String(t.text || '').normalize('NFKC').trim();
         return taskCache.filter(t => name(t) !== '工場出荷' && t.end_date && (
             (isOutsource(t.owner) && t.vendor_id === sheet.vendor_id)
-            || (String(t.test_run_location || '').trim() && (sheetByPlace(t.test_run_location) || {}).id === sheet.id)));
+            || (t.area_group === '外注' && String(t.test_run_location || '').trim() && (sheetByPlace(t.test_run_location) || {}).id === sheet.id)));
     }
     function shipInfo(sheet) {
         const route = shipRouteOf(sheet), factory = state.project.shipDate;
@@ -243,7 +243,7 @@
     function loadTasks() {
         if (!tasksPromise) {
             tasksPromise = client.from('tasks')
-                .select('id, text, owner, major_item, machine, unit, vendor_id, test_run_location, start_date, end_date')
+                .select('id, text, owner, major_item, machine, unit, vendor_id, area_group, test_run_location, start_date, end_date')
                 .eq('project_number', state.pn)
                 .then(r => { if (r.error) { console.error('工程表のタスクの取得に失敗しました', r.error); return []; } return r.data || []; });
         }
