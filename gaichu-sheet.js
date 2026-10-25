@@ -299,12 +299,13 @@
         if (!k) return null;
         return state.sheets.find(s => [s.name, s.display, s.short].some(n => { const nk = placeKey(n); return nk && (nk === k || nk.includes(k) || k.includes(nk)); })) || null;
     }
-    // 場所だけ外注先を借りて社内の人が作業する「電気艤装」「試運転」タスク（組立場所が「外注」で、その会社を選んでいるもの）。vendorId を渡すとその外注先の分だけ
+    // 場所だけ外注先を借りて社内の人が作業する「電気艤装」「試運転」「出荷準備（出荷準備(電装)なども含む）」タスク（組立場所が「外注」で、その会社を選んでいるもの）。vendorId を渡すとその外注先の分だけ
     // 担当に「外注」が入っているタスクは、外注のタスクとしてすでに出しているので除く
     const PLACE_ONLY_PROCS = ['電気艤装', '試運転'];
+    const isPlaceOnlyProc = n => PLACE_ONLY_PROCS.includes(n) || n.startsWith('出荷準備');
     function trialTasksFor(tasks, vendorId) {
         return tasks.filter(t => {
-            if (!PLACE_ONLY_PROCS.includes(procName(t)) || isOutsource(t.owner) || t.area_group !== '外注') return false;
+            if (!isPlaceOnlyProc(procName(t)) || isOutsource(t.owner) || t.area_group !== '外注') return false;
             const s = sheetByPlace(t.test_run_location);
             return s && (vendorId == null || s.vendor_id === vendorId);
         });

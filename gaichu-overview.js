@@ -211,7 +211,7 @@
         const showNow = t0 >= min && t0 <= max;
         const now = showNow ? `<i class="ov-now" style="left:${pos(t0)}"></i>` : '';
         const head = `<div class="ov-grow ov-ghead"><span></span><span class="ov-gmonths">${months.map(m => `<span style="left:${pos(m.d)}">${m.label}</span>`).join('')}${showNow ? `<b class="ov-today" style="left:${pos(t0)}">今日</b>` : ''}</span></div>`;
-        // 場所だけ借りる電気艤装・試運転のタスクは、場所に入っている会社の色（入っていなければ未定）
+        // 場所だけ借りる電気艤装・試運転・出荷準備のタスクは、場所に入っている会社の色（入っていなければ未定）
         const sheetOf = t => t._kusakabe ? GS.sheetByPlace(t.test_run_location) : vendorOf(t);
         const colorOf = t => sheetOf(t) ? sheetOf(t).color : '#7b8088';
         const nameOf = t => sheetOf(t) ? (sheetOf(t).short || sheetOf(t).display) : '未定';
