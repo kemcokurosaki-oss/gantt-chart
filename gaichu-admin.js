@@ -146,10 +146,10 @@
 .ga-vcard input[type=number] { padding: 7px 8px; font-variant-numeric: tabular-nums; }
 /* 外注先シートの管理：外注先ごとの行（外注先・出荷のしかた・削除） */
 .ga-sheets { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
-.ga-sheet-row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 14px; padding: 10px 12px; border: 1px solid #e4e3df; border-radius: 8px; background: #fff; }
-.ga-sheet-row > .ga-chip { flex: 0 0 auto; }
-.ga-sheet-row > .ga-btn--danger { margin-left: auto; padding: 5px 12px; font-size: 12.5px; }
-.ga-modal--manage { width: min(640px, 94vw); }
+.ga-sheet-row { display: grid; grid-template-columns: 170px auto minmax(0, 1fr) auto; align-items: center; gap: 10px 14px; padding: 10px 12px; border: 1px solid #e4e3df; border-radius: 8px; background: #fff; }
+.ga-sheet-row > .ga-chip { justify-self: start; max-width: 100%; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.ga-sheet-row > .ga-btn--danger { grid-column: 4; justify-self: end; padding: 5px 12px; font-size: 12.5px; }
+.ga-modal--manage { width: min(740px, 94vw); }
 .ga-route { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: #6b7079; font-weight: 700; }
 /* 出荷のしかた：3つから選ぶ切り替え（ヘッダーの外注先の切り替えと同じ形） */
 .ga-seg { display: inline-flex; gap: 2px; padding: 3px; background: #f0f0ee; border: 1px solid #e4e3df; border-radius: 8px; }
@@ -158,9 +158,16 @@
 .ga-seg button.is-on { background: #2b2f36; color: #fff; cursor: default; }
 .ga-seg button:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(43,47,54,.18); }
 .ga-seg.is-saving { opacity: .6; pointer-events: none; }
-/* 「保存しました」は切り替えと削除ボタンの間の空きに収める（狭いときは省略表示。行の幅・高さは変えない） */
-.ga-route-msg { flex: 1 1 0; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 12px; font-weight: 700; color: #27ae60; }
-.ga-sheet-row > .ga-btn--danger { flex: 0 0 auto; }
+/* 「保存しました」は切り替えと削除ボタンの間の列に出す（列は各行でそろえる。行の幅・高さは変えない） */
+.ga-route-msg { min-width: 0; white-space: nowrap; overflow: hidden; font-size: 12px; font-weight: 700; color: #27ae60; }
+.ga-route > span { white-space: nowrap; }
+/* 狭い画面：1段目に会社名と削除、2段目に出荷の切り替えと「保存しました」 */
+@media (max-width: 760px) {
+  .ga-sheet-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .ga-sheet-row > .ga-btn--danger { grid-column: 2; grid-row: 1; }
+  .ga-sheet-row > .ga-route { grid-column: 1; grid-row: 2; }
+  .ga-sheet-row > .ga-route-msg { grid-column: 2; grid-row: 2; }
+}
 .ga-addr { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 12px; padding: 0 14px 12px; }
 .ga-addr.has-tel { grid-template-columns: 230px minmax(0, 1fr) 170px; }
 .ga-addr .ga-field small { font-weight: 400; color: #6b7079; }

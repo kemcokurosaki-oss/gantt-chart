@@ -79,6 +79,15 @@
     const taskCard = (label, t, color) => `<div class="ov-card" style="border-top-color:${esc(color)}"><span class="ov-k">${label}</span>`
         + (t ? `<b>${esc(t.text)}</b><span>${ymd(t.start)} ～ ${ymd(t.end)}（${days(t.start, t.end)}日）</span><small>${esc([t.machine, t.unit].filter(Boolean).join(' '))}</small>`
              : `<b>―</b><small>予定はありません</small>`) + `</div>`;
+    // 当社経由のとき、管理者にだけ：外注先企業が未入力の外注タスクがあれば注意（マウスを乗せると該当タスクの一覧）
+    function shipWarn(st, si) {
+        if (!st.isAdmin || si.route !== 'via') return '';
+        const list = GS.unsetVendorTasks();
+        if (!list.length) return '';
+        const tip = '工程表で外注先企業を入れると、当社への出荷日の計算に入ります\n'
+            + list.map(t => `・${[t.text, t.machine, t.unit].filter(Boolean).join(' ')}（${ymd(toDate(t.start_date || t.end_date))} ～ ${ymd(toDate(t.end_date))}）`).join('\n');
+        return `<small class="ov-ship-warn" title="${esc(tip)}">⚠ 外注先企業が未入力の外注タスクが${list.length}件あります</small>`;
+    }
     async function renderBand() {
         const st = GS.state, sh = st.currentSheet;
         // 出荷日：外注先を選んでいて「当社経由」なら「当社への出荷日」（その外注先の最後の作業の終了日）。工場出荷の日付は下に小さく
@@ -91,7 +100,8 @@
         const shipCard = `<div class="ov-ship"><span class="ov-k">${si.label}</span>`
             + (ship ? `<div class="ov-ship-date"><small>${ship.getFullYear()}年</small><b>${ship.getMonth() + 1}/${ship.getDate()}<em>(${W[ship.getDay()]})</em></b></div>`
                     + `<span class="ov-ship-left">${left < 0 ? '出荷済み' : left === 0 ? '本日出荷' : `${si.route === 'via' ? '当社への出荷' : '工場出荷'}まで ${left}日`}</span>${si.route === 'via' && factory ? `<small class="ov-ship-sub">工場出荷 ${ymd(factory)}</small>` : ''}`
-                    : `<div class="ov-ship-date"><b>未定</b></div><span class="ov-ship-left">${si.route === 'via' && factory ? `工場出荷 ${ymd(factory)}` : '出荷日未定'}</span>`) + `</div>`;
+                    : `<div class="ov-ship-date"><b>未定</b></div><span class="ov-ship-left">${si.route === 'via' && factory ? `工場出荷 ${ymd(factory)}` : '出荷日未定'}</span>`)
+            + shipWarn(st, si) + `</div>`;
         const telLink = t => t ? `<a href="tel:${esc(t)}">${esc(t)}</a>` : '';
         const repOf = s => s && s.rep && (s.rep.name || s.rep.title || s.rep.tel) ? s.rep : null;
         const revOf = s => (s.spec && s.spec.revision) ? '改訂 ' + esc(s.spec.revision) : '改訂 未入力';
@@ -201,7 +211,7 @@
         const showNow = t0 >= min && t0 <= max;
         const now = showNow ? `<i class="ov-now" style="left:${pos(t0)}"></i>` : '';
         const head = `<div class="ov-grow ov-ghead"><span></span><span class="ov-gmonths">${months.map(m => `<span style="left:${pos(m.d)}">${m.label}</span>`).join('')}${showNow ? `<b class="ov-today" style="left:${pos(t0)}">今日</b>` : ''}</span></div>`;
-        // 試運転のタスクは試運転場所に入っている会社の色（入っていなければ未定）
+        // 場所だけ借りる電気艤装・試運転のタスクは、場所に入っている会社の色（入っていなければ未定）
         const sheetOf = t => t._kusakabe ? GS.sheetByPlace(t.test_run_location) : vendorOf(t);
         const colorOf = t => sheetOf(t) ? sheetOf(t).color : '#7b8088';
         const nameOf = t => sheetOf(t) ? (sheetOf(t).short || sheetOf(t).display) : '未定';

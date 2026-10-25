@@ -115,14 +115,13 @@
             ? cols.filter(d => d.getDay() % 6 === 0).map(d => `<div class="gt-we" style="left:${pct(d)}%;width:${100 / T}%"></div>`).join('') : '';
 
         const vid = GS.state.currentSheet ? GS.state.currentSheet.vendor_id : null;
-        // バーの色：外注先の色。外注先を選んでいるときは、ほかの外注先は灰色（参考）。外注先企業が未入力は「未定」、試運転は試運転場所の会社
+        // バーの色：外注先の色。外注先を選んでいるときは、ほかの外注先は灰色（参考）。外注先企業が未入力は「未定」、場所だけ借りる電気艤装・試運転は場所の会社
         function lookOf(t) {
-            // 試運転のタスク：試運転場所に入っている会社の色（入っていなければ未定）
+            // 場所だけ借りる電気艤装・試運転：場所に入っている会社の色（入っていなければ未定）
             const key = t._kusakabe ? (GS.sheetByPlace(t.test_run_location) || {}).vendor_id : t.vendor_id;
-            if (!looks.has(key)) return { ...UNSET, name: t._kusakabe ? '試運転場所 未定' : '外注先未設定', short: '未定' };
+            if (!looks.has(key)) return { ...UNSET, name: t._kusakabe ? '場所 未定' : '外注先未設定', short: '未定' };
             const l = looks.get(key);
-            if (vid != null && key !== vid) return { ...GREY, name: l.name, short: l.short, grey: true };
-            return vid != null && t.vendor_id !== vid ? { ...GREY, name: l.name, short: l.short, grey: true } : l;
+            return vid != null && key !== vid ? { ...GREY, name: l.name, short: l.short, grey: true } : l;
         }
         function rowHtml(t) {
             const look = lookOf(t);

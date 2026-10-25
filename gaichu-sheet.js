@@ -104,6 +104,11 @@
             (isOutsource(t.owner) && t.vendor_id === sheet.vendor_id)
             || (t.area_group === '外注' && String(t.test_run_location || '').trim() && (sheetByPlace(t.test_run_location) || {}).id === sheet.id)));
     }
+    // 担当が外注なのに外注先企業が未入力のタスク（工場出荷は除く）。当社への出荷日の計算に入らないので、管理者に知らせる
+    function unsetVendorTasks() {
+        return taskCache.filter(t => isOutsource(t.owner) && t.vendor_id == null && t.end_date
+            && String(t.text || '').normalize('NFKC').trim() !== '工場出荷');
+    }
     function shipInfo(sheet) {
         const route = shipRouteOf(sheet), factory = state.project.shipDate;
         if (route !== 'via') return { label: '工場出荷日', date: factory, route, factory };
@@ -294,11 +299,12 @@
         if (!k) return null;
         return state.sheets.find(s => [s.name, s.display, s.short].some(n => { const nk = placeKey(n); return nk && (nk === k || nk.includes(k) || k.includes(nk)); })) || null;
     }
-    // 試運転場所に外注先の会社名が入っている「試運転」タスク（外注先の場所で行う試運転）。vendorId を渡すとその外注先の分だけ
-    // 担当に「外注」が入っている試運転は、外注のタスクとしてすでに出しているので除く
+    // 場所だけ外注先を借りて社内の人が作業する「電気艤装」「試運転」タスク（組立場所が「外注」で、その会社を選んでいるもの）。vendorId を渡すとその外注先の分だけ
+    // 担当に「外注」が入っているタスクは、外注のタスクとしてすでに出しているので除く
+    const PLACE_ONLY_PROCS = ['電気艤装', '試運転'];
     function trialTasksFor(tasks, vendorId) {
         return tasks.filter(t => {
-            if (procName(t) !== '試運転' || isOutsource(t.owner)) return false;
+            if (!PLACE_ONLY_PROCS.includes(procName(t)) || isOutsource(t.owner) || t.area_group !== '外注') return false;
             const s = sheetByPlace(t.test_run_location);
             return s && (vendorId == null || s.vendor_id === vendorId);
         });
@@ -341,7 +347,7 @@
     function shortName(s) { return _short(s); }
     const _short = s => String(s || '').normalize('NFKC').replace(/殿$/, '').replace(/株式会社|有限会社|\(株\)|\(有\)/g, '').trim() || String(s || '');
     window.GaichuSheet = {
-        shortName, shipInfo,
+        shortName, shipInfo, unsetVendorTasks,
         repLabel,
         state, client, select, saveSheet,
         loadTasks, unitTokens, isOutsource, vendorUnits, coversVendor, trialPeriod, fmtDate, trialTasksFor, processGroups, sheetByPlace,
