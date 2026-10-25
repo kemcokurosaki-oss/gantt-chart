@@ -150,7 +150,7 @@
 .ga-sheet-row > .ga-chip { flex: 0 0 auto; }
 .ga-sheet-row > .ga-btn--danger { margin-left: auto; padding: 5px 12px; font-size: 12.5px; }
 .ga-modal--manage { width: min(640px, 94vw); }
-.ga-route { position: relative; display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: #6b7079; font-weight: 700; }
+.ga-route { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: #6b7079; font-weight: 700; }
 /* 出荷のしかた：3つから選ぶ切り替え（ヘッダーの外注先の切り替えと同じ形） */
 .ga-seg { display: inline-flex; gap: 2px; padding: 3px; background: #f0f0ee; border: 1px solid #e4e3df; border-radius: 8px; }
 .ga-seg button { appearance: none; border: 0; background: transparent; font: inherit; font-size: 12.5px; font-weight: 700; color: #5b6068; padding: 5px 12px; border-radius: 6px; cursor: pointer; white-space: nowrap; }
@@ -158,9 +158,9 @@
 .ga-seg button.is-on { background: #2b2f36; color: #fff; cursor: default; }
 .ga-seg button:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(43,47,54,.18); }
 .ga-seg.is-saving { opacity: .6; pointer-events: none; }
-/* 「保存しました」は行の幅に影響しないよう、切り替えの右横に重ねて出す */
-.ga-route-msg { position: absolute; left: 100%; top: 50%; transform: translateY(-50%); margin-left: 8px; white-space: nowrap; font-size: 12px; font-weight: 700; color: #27ae60; background: #fff; pointer-events: none; }
-.ga-route-msg:empty { display: none; }
+/* 「保存しました」は切り替えと削除ボタンの間の空きに収める（狭いときは省略表示。行の幅・高さは変えない） */
+.ga-route-msg { flex: 1 1 0; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 12px; font-weight: 700; color: #27ae60; }
+.ga-sheet-row > .ga-btn--danger { flex: 0 0 auto; }
 .ga-addr { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 12px; padding: 0 14px 12px; }
 .ga-addr.has-tel { grid-template-columns: 230px minmax(0, 1fr) 170px; }
 .ga-addr .ga-field small { font-weight: 400; color: #6b7079; }
@@ -417,7 +417,7 @@
         try { ctx = await context(); } catch (e) { alert('読み込めませんでした：' + (e.message || e)); return; }
         const sheets = ctx.sheets.filter(s => s.pn === String(pn));
         const m = modal(`${pn} の外注先`, `
-            ${sheets.length ? `<div class="ga-sheets">${sheets.map(s => `<div class="ga-sheet-row">${chip(s.display, s.color)}${s.hasRoute ? `<div class="ga-route"><span>出荷</span><div class="ga-seg" role="radiogroup" aria-label="出荷のしかた" data-route="${s.id}">${ROUTES.map(([v, label, tip]) => `<button type="button" role="radio" data-v="${v}" title="${tip}" aria-checked="${(s.ship_route || '') === v}"${(s.ship_route || '') === v ? ' class="is-on"' : ''}>${label}</button>`).join('')}</div><span class="ga-route-msg"></span></div>` : ''}<button type="button" class="ga-btn ga-btn--danger" data-del-sheet="${s.id}">削除</button></div>`).join('')}</div>`
+            ${sheets.length ? `<div class="ga-sheets">${sheets.map(s => `<div class="ga-sheet-row">${chip(s.display, s.color)}${s.hasRoute ? `<div class="ga-route"><span>出荷</span><div class="ga-seg" role="radiogroup" aria-label="出荷のしかた" data-route="${s.id}">${ROUTES.map(([v, label, tip]) => `<button type="button" role="radio" data-v="${v}" title="${tip}" aria-checked="${(s.ship_route || '') === v}"${(s.ship_route || '') === v ? ' class="is-on"' : ''}>${label}</button>`).join('')}</div></div><span class="ga-route-msg" aria-live="polite"></span>` : ''}<button type="button" class="ga-btn ga-btn--danger" data-del-sheet="${s.id}">削除</button></div>`).join('')}</div>`
                 : '<p class="ga-note" style="margin:0 0 10px">この工番には外注先シートがありません。</p>'}
             <button type="button" class="ga-btn" data-add-here>＋ この工番に外注先を追加</button>
             <p class="ga-note" style="margin-top:10px">削除すると、その外注先の組立発注仕様書と体制表も削除されます（元に戻せません）。組立範囲（図面・担当範囲一覧）は工番ごとなので、最後の1社を削除するときに残すか選べます。</p>`, [
@@ -432,7 +432,7 @@
             const btns = [...seg.querySelectorAll('button[data-v]')];
             const prev = btns.find(x => x.classList.contains('is-on'));
             const mark = on => btns.forEach(x => { x.classList.toggle('is-on', x === on); x.setAttribute('aria-checked', String(x === on)); });
-            const msg = seg.parentElement.querySelector('.ga-route-msg');
+            const msg = seg.closest('.ga-sheet-row').querySelector('.ga-route-msg');
             mark(btn); seg.classList.add('is-saving'); msg.textContent = '';
             const { data, error } = await db().from('gaichu_sheets').update({ ship_route: btn.dataset.v || null }).eq('id', Number(seg.dataset.route)).select('id');
             seg.classList.remove('is-saving');
