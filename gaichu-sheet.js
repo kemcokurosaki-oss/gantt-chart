@@ -94,9 +94,21 @@
         return shipTasks.some(t => isOutsource(t.owner) && (t.vendor_id == null || t.vendor_id === sheet.vendor_id)) ? 'direct' : 'via';
     }
     // 表示する出荷日 { label, date（YYYY-MM-DD か null）, route, factory（工場出荷の日付） }
+    // 当社経由のときの「当社への出荷日」＝その外注先が関わる最後の作業の終了日（その日に当社へ出荷する）
+    //   対象：担当が外注で外注先企業がこの会社のタスク（工場出荷は除く）と、組立場所の「外注」でこの会社を選んだタスク（試運転・電気艤装など）
+    let taskCache = [];
+    function vendorWorkTasks(sheet) {
+        if (!sheet) return [];
+        const name = t => String(t.text || '').normalize('NFKC').trim();
+        return taskCache.filter(t => name(t) !== '工場出荷' && t.end_date && (
+            (isOutsource(t.owner) && t.vendor_id === sheet.vendor_id)
+            || (String(t.test_run_location || '').trim() && (sheetByPlace(t.test_run_location) || {}).id === sheet.id)));
+    }
     function shipInfo(sheet) {
         const route = shipRouteOf(sheet), factory = state.project.shipDate;
-        return route === 'via' ? { label: '当社への出荷日', date: null, route, factory } : { label: '工場出荷日', date: factory, route, factory };
+        if (route !== 'via') return { label: '工場出荷日', date: factory, route, factory };
+        const ends = vendorWorkTasks(sheet).map(t => String(t.end_date).slice(0, 10)).sort();
+        return { label: '当社への出荷日', date: ends.length ? ends[ends.length - 1] : null, route, factory };
     }
 
     // ===== 表示 =====
@@ -104,11 +116,11 @@
         $('sheetJobNo').textContent = state.pn;
         $('sheetTitle').textContent = state.project.name || '（工事名称未登録）';
         $('customerName').textContent = state.project.customer || '―';
-        // 出荷日：外注先を選んでいて「当社経由」のときは当社への出荷日（今は未定）。それ以外は工場出荷の日付
+        // 出荷日：外注先を選んでいて「当社経由」のときは当社への出荷日（その外注先の最後の作業の終了日）。それ以外は工場出荷の日付
         const si = shipInfo(state.currentSheet);
         const lbl = $('shipDate').previousElementSibling;
         if (lbl && lbl.classList.contains('meta-k')) lbl.textContent = si.route === 'via' ? '当社への出荷日' : '出荷納期';
-        $('shipDate').textContent = si.route === 'via' ? '未定' : fmtDate(si.date);
+        $('shipDate').textContent = fmtDate(si.date);
         $('sheetVendors').textContent = state.sheets.length ? state.sheets.map(s => s.display).join(' ／ ')
             : (state.loggedIn ? '（未登録）' : '（ログインすると表示されます）');
         document.title = `外注先用 工事詳細シート｜${state.pn} ${state.project.name || ''}`.trim();
@@ -214,6 +226,7 @@
         await Promise.all([
             loadProject(),
             state.loggedIn ? loadSheets() : Promise.resolve(),
+            loadTasks().then(ts => { taskCache = ts || []; }),
             state.loggedIn ? client.rpc('is_org_chart_admin').then(r => { state.isAdmin = !r.error && r.data === true; }) : Promise.resolve(),
             state.loggedIn ? client.rpc('gaichu_pn_public', { pn: state.pn }).then(r => { state.isPublic = r.error ? true : r.data === true; }) : Promise.resolve(),
             state.loggedIn ? client.from('gaichu_settings').select('value').eq('key', 'company_contacts').maybeSingle()
