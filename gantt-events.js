@@ -1254,13 +1254,24 @@
                     } else {
                         // 既存タスク: gantt.updateTask を先に呼んで onAfterTaskUpdate をトリガー
                         // ※ 非同期処理の後に呼ぶとタスクが消えている場合があるため先に実行
+                        const realIdForLoc = (_taskObj && _taskObj.original_id) || (item && item.original_id) || id;
+                        // 先にタスクの場所欄（area_group / area_number）をライトボックスで選んだ場所にそろえる。
+                        // そろえないと onAfterTaskUpdate が開いたときの古い場所欄を書き、下の場所の保存と競合して「外注」が消えることがある
+                        // （item はライトボックスの入力値の写しで、閉じたあとタスクに上書きされるので、こちらもそろえる）
+                        if (Array.isArray(item.locations) && typeof window.applyTaskLocationsLocally === "function") {
+                            window.applyTaskLocationsLocally(realIdForLoc, item.locations);
+                            if (gantt.isTaskExists(id)) {
+                                const _locTask = gantt.getTask(id);
+                                item.area_group = _locTask.area_group;
+                                item.area_number = _locTask.area_number;
+                            }
+                        }
                         if (gantt.isTaskExists(id)) {
                             gantt.updateTask(id);
                         }
                         // 組立場所の保存（非同期）
                         if (typeof window.persistTaskLocations === "function") {
                             showLoading();
-                            const realIdForLoc = (_taskObj && _taskObj.original_id) || (item && item.original_id) || id;
                             const ok = await window.persistTaskLocations(realIdForLoc, item.locations);
                             hideLoading();
                             if (!ok) return;
