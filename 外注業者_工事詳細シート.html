@@ -637,15 +637,15 @@
     .gt-row.is-grey .gt-label b, .gt-row.is-grey .gt-label span { color: #9a9ea5; }
     .gt-track { flex: 1; position: relative; min-height: 36px; }
     /* バー：外注先の色の薄い背景＋枠線＋左端の濃い帯（色は gaichu-gantt.js が入れる）。先頭に工程名・機械ユニット・期間。短いバーは文字をバーの外へ続けて出す */
-    .gt-bar { position: absolute; top: 6px; height: 24px; box-sizing: border-box; display: flex; align-items: center; gap: 6px; padding: 0 8px 0 10px; border: 1px solid; border-radius: 5px; font-size: 12.5px; line-height: 1; white-space: nowrap; }
+    .gt-bar { position: absolute; top: calc(50% - 15px); height: 30px; box-sizing: border-box; display: flex; align-items: center; gap: 6px; padding: 0 8px 0 10px; border: 1px solid; border-radius: 5px; font-size: 12.5px; line-height: 1; white-space: nowrap; }
     /* バーの文字（工程名・機械ユニット・期間）。バーの中に置き、入りきらないときだけバーの右（gaichu-gantt.js の fitLabels） */
-    .gt-text { position: absolute; top: 6px; height: 24px; display: flex; align-items: center; gap: 6px; font-size: 12.5px; line-height: 1; white-space: nowrap; pointer-events: auto; }
+    .gt-text { position: absolute; top: calc(50% - 15px); height: 30px; display: flex; align-items: center; gap: 6px; font-size: 12.5px; line-height: 1; white-space: nowrap; pointer-events: auto; }
     .gt-text span { font-weight: 500; }
     .gt-text.is-done { opacity: .45; }
     .gt-bar.is-done, .gt-mile.is-done { opacity: .45; }
     /* 1日だけの出荷・検査・立会：外注先の色の縦線＋文字（文字は外注先の色を濃くした色） */
-    .gt-mile { position: absolute; top: 6px; height: 24px; transform: translateX(-2px); display: flex; align-items: center; gap: 8px; white-space: nowrap; }
-    .gt-mile i { width: 4px; height: 16px; border-radius: 2px; flex: none; }
+    .gt-mile { position: absolute; top: calc(50% - 15px); height: 30px; transform: translateX(-2px); display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+    .gt-mile i { width: 4px; height: 22px; border-radius: 2px; flex: none; }
     .gt-mile b { font-size: 12.5px; }
     /* 週単位・日単位の切り替えと凡例を並べる行 */
     .gantt-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; margin-bottom: 12px; min-height: 36px; }
@@ -1663,12 +1663,12 @@
     .ov-gt-row:last-child { border-bottom: 0; }
     .ov-gt-track { flex: 1; min-width: 0; position: relative; }
     /* バー：会社の色の薄い背景＋枠線＋左端の濃い帯（色は gaichu-overview.js が入れる）。先頭に工程名と期間。短いバーは文字をバーの外へ続けて出す */
-    .ov-gt-bar { position: absolute; height: 18px; margin-top: 2px; box-sizing: border-box; display: flex; align-items: center; gap: 5px; padding: 0 6px 0 10px; border: 1px solid; border-radius: 4px; font-size: 11px; font-weight: 500; line-height: 1; white-space: nowrap; }
-    .ov-gt-text { position: absolute; height: 18px; margin-top: 2px; display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 500; line-height: 1; white-space: nowrap; }
+    .ov-gt-bar { position: absolute; height: 20px; margin-top: 1px; box-sizing: border-box; display: flex; align-items: center; gap: 5px; padding: 0 6px 0 10px; border: 1px solid; border-radius: 4px; font-size: 11px; font-weight: 500; line-height: 1; white-space: nowrap; }
+    .ov-gt-text { position: absolute; height: 20px; margin-top: 1px; display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 500; line-height: 1; white-space: nowrap; }
     .ov-gt-text b { font-weight: 700; }
     .ov-gt-text.is-done { opacity: .45; }
     /* 1日だけの行事：会社の色の縦線＋文字 */
-    .ov-gt-mile { position: absolute; height: 18px; margin-top: 2px; transform: translateX(-2px); display: flex; align-items: center; gap: 7px; white-space: nowrap; }
+    .ov-gt-mile { position: absolute; height: 20px; margin-top: 1px; transform: translateX(-2px); display: flex; align-items: center; gap: 7px; white-space: nowrap; }
     .ov-gt-mile i { width: 4px; height: 16px; border-radius: 2px; flex: none; }
     .ov-gt-mile b { font-size: 11.5px; }
     /* 終わった工程は薄く */
@@ -1779,7 +1779,7 @@
         .gt .gt-row .gt-label { left: 115px; width: 145px; padding: 2px 8px; }
         .gt .gt-row .gt-label span { font-size: 10.5px; }
         .gt-track { min-height: 28px; }
-        .gt-bar, .gt-mile, .gt-text { top: 4px; height: 20px; font-size: 10.5px; }
+        .gt-bar, .gt-mile, .gt-text { top: calc(50% - 11px); height: 22px; font-size: 10.5px; }
         /* 組立範囲の図面：2枚ずつ並べ、図面の途中で改ページしない。色分け枠は画像に合わせて重ねる（画面用の位置の計算は使わない） */
         .figure-row.scope-figs .figure-card { flex: 0 1 calc(50% - 8px) !important; break-inside: avoid; }
         .figure-row.scope-figs .figure-card:only-child { flex-basis: 70% !important; }
