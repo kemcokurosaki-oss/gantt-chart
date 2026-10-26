@@ -1430,6 +1430,7 @@
     /* 別タブで開いたとき（&solo=1）：その資料だけを普通のページとして表示する */
     body.solo .doc-nav, body.solo .toolbar-row, body.solo .view-panel, body.solo .sub-close, body.solo [data-newtab] { display: none !important; }
     body.solo .sub-panel { position: static; opacity: 1; visibility: visible; overflow: visible; }
+    body.solo .sub-panel:not(.open):not(.print-target) { display: none !important; }   /* 別タブでは、開いた資料だけを出す（印刷メニューで選んだ資料は印刷する） */
     body.solo.sub-open { overflow: auto; }
     body.solo .sub-bar { top: var(--sticky-h, 0px); }
     body.solo .content { padding: 0; }
