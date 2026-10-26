@@ -662,5 +662,5 @@
         draw();
     }
 
-    window.GaichuAdmin = { openAdd, openManage, openVendors };
+    window.GaichuAdmin = { openAdd, openManage, openVendors, modal };   // modal は支給品チェックリスト（gaichu-supply.js）でも使う
 })();

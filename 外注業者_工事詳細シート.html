@@ -1399,6 +1399,59 @@
     #panel-trial .card { overflow-x: auto; }
     /* 仕様書：外注先の切り替え・編集ボタンの行は、スクロールしても見出しの帯の下に止めて押せるようにする（枠の横スクロールは止めないとこの固定が効かない） */
     #panel-order-spec .card { overflow: visible; }
+    /* 4 支給品チェックリスト */
+    #panel-supply .card { overflow: visible; }
+    .supply-bar .spec-tabs { gap: 6px 8px; }
+    .sp-sep { width: 1px; align-self: stretch; background: #d6d6d2; margin: 0 4px; }
+    .sp-kinds { display: inline-flex; gap: 2px; padding: 3px; background: #f0f0ee; border: 1px solid #e4e3df; border-radius: 8px; }
+    .sp-kinds button { appearance: none; border: 0; background: transparent; font: inherit; font-size: 13px; font-weight: 700; color: #5b6068; padding: 5px 14px; border-radius: 6px; cursor: pointer; white-space: nowrap; }
+    .sp-kinds button small { margin-left: 6px; font-size: 11px; font-weight: 500; opacity: .8; }
+    .sp-kinds button:hover { color: #2b2f36; background: #fff; }
+    .sp-kinds button.is-on { background: #2b2f36; color: #fff; cursor: default; }
+    .sp-filter { display: inline-flex; align-items: center; gap: 6px; margin-left: 6px; font-size: 12px; font-weight: 700; color: #6b7079; }
+    .sp-filter select { font: inherit; font-size: 12.5px; padding: 4px 8px; border: 1px solid #cfd0cc; border-radius: 6px; background: #fff; width: auto; }
+    .sp-table .sp-in--drawing_no, .sp-table .sp-in--doc { min-width: 125px; } .sp-table .sp-in--name { min-width: 140px; } .sp-table .sp-in--spec { min-width: 130px; } .sp-table .sp-in--remark { min-width: 170px; } .sp-table .sp-in--maker, .sp-table .sp-in--material { min-width: 90px; }
+    .sp-summary { display: flex; align-items: baseline; gap: 6px 14px; flex-wrap: wrap; margin-bottom: 10px; font-size: 13.5px; color: #2b2f36; }
+    .sp-prog { margin-left: auto; font-size: 13px; color: #5b6068; }
+    .sp-prog b { font-size: 16px; color: #2b2f36; }
+    .sp-table-wrap { overflow-x: auto; }
+    .sp-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .sp-table th { background: #f3f3f1; color: #5b6068; font-size: 12px; font-weight: 700; text-align: left; padding: 7px 8px; border-bottom: 1px solid #e4e3df; white-space: nowrap; }
+    .sp-table td { padding: 5px 8px; border-bottom: 1px solid #efefec; vertical-align: middle; white-space: nowrap; }
+    .sp-table td.sp-name { white-space: normal; min-width: 120px; font-weight: 700; }
+    .sp-table .sp-num { text-align: right; font-variant-numeric: tabular-nums; }
+    .sp-table .sp-doc, .sp-table .sp-date { color: #6b7079; font-size: 12px; }
+    .sp-table tr.is-done td { background: #f6fbf7; }
+    .sp-table tr.is-done td.sp-name { color: #5b6068; }
+    .sp-table tr.is-off td { opacity: .45; }
+    .sp-chk-col { width: 34px; text-align: center; }
+    .sp-chk { width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; border: 1.5px solid #b4b7bb; border-radius: 5px; background: #fff; color: #fff; font-size: 15px; font-weight: 700; line-height: 1; padding: 0; cursor: pointer; }
+    .sp-chk:hover:not(:disabled) { border-color: #27ae60; }
+    .sp-chk.is-on { background: #27ae60; border-color: #27ae60; }
+    .sp-chk:disabled { cursor: default; }
+    .sp-none { text-align: center; color: #6b7079; padding: 18px !important; }
+    .sp-del-col { width: 28px; }
+    .sp-del { border: 0; background: none; color: #c0392b; font-size: 14px; cursor: pointer; padding: 2px 4px; }
+    .sp-in { font: inherit; font-size: 12.5px; padding: 3px 6px; border: 1px solid #cfd0cc; border-radius: 4px; width: 100%; min-width: 70px; box-sizing: border-box; }
+    .sp-in--num { min-width: 56px; text-align: right; }
+    .sp-in--date { min-width: 130px; }
+    .sp-dup { font-size: 11px; font-weight: 700; color: #7a6000; background: #fef9e7; border: 1px solid #f5d76e; border-radius: 999px; padding: 1px 8px; white-space: nowrap; }
+    .sp-warn { margin: 0 0 8px; padding: 6px 10px; border-radius: 6px; background: #fdecea; color: #922b21; font-size: 12.5px; font-weight: 700; }
+    .sp-busy { margin: 6px 0 0; font-size: 13px; font-weight: 700; color: #3d5a80; }
+    .sp-pv-head { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 10px; }
+    .ga-modal.sp-modal { width: min(1100px, 96vw); }
+    .sp-table--pv td { padding: 3px 4px; }
+    /* 概要：外注先ごとの進み具合 */
+    .sp-ov { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .sp-ov th { text-align: left; font-size: 12px; color: #6b7079; font-weight: 700; padding: 6px 10px; border-bottom: 1px solid #e4e3df; }
+    .sp-ov td { padding: 8px 10px; border-bottom: 1px solid #efefec; white-space: nowrap; }
+    .sp-ov td b { font-size: 15px; margin-left: 8px; }
+    .sp-ov td span { color: #6b7079; }
+    .sp-ov-bar { display: inline-block; width: 120px; height: 8px; border-radius: 4px; background: #ebebe8; overflow: hidden; vertical-align: middle; }
+    .sp-ov-bar i { display: block; height: 100%; }
+    .sp-ov-done { font-style: normal; margin-left: 8px; font-size: 11px; font-weight: 700; color: #1e8449; background: #e9f7ef; border-radius: 999px; padding: 1px 8px; }
+    .sp-ov-none { color: #a3a7ad; }
+    @media print { .supply-bar { display: none; } .sp-chk, .sp-table tr.is-done td, .sp-ov-bar i { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
     .spec-bar { position: sticky; top: var(--spec-top, 52px); z-index: 5; margin: -16px -32px 12px; padding: 10px 32px; background: #f3f3f1; border-bottom: 1px solid #e4e3df; }
     .spec-bar:empty { display: none; }
     /* 体制表の行：左に外注先の切り替え、右に編集ボタン。編集中は道具の行を下の段いっぱいに出す */
@@ -1734,6 +1787,7 @@
         <button type="button" class="toc-btn" data-doc="scope"><span>1</span>組立範囲</button>
         <button type="button" class="toc-btn" data-doc="schedule"><span>2</span>工程表</button>
         <button type="button" class="toc-btn" data-doc="trial"><span>3</span>体制表</button>
+        <button type="button" class="toc-btn" data-doc="supply"><span>4</span>支給品チェックリスト</button>
         <button type="button" class="toc-btn" data-doc="order-spec"><span class="toc-nonum">仕</span>組立発注仕様書</button>
     </div>
     <div class="job-nav-foot" id="jobNavAdmin"></div>
@@ -1758,6 +1812,7 @@
                 <label><input type="checkbox" data-print-pick="scope" checked><span>1</span>組立範囲</label>
                 <label><input type="checkbox" data-print-pick="schedule" checked><span>2</span>工程表</label>
                 <label><input type="checkbox" data-print-pick="trial" checked><span>3</span>体制表</label>
+                <label><input type="checkbox" data-print-pick="supply" checked><span>4</span>支給品チェックリスト</label>
                 <label><input type="checkbox" data-print-pick="order-spec" checked><span></span>組立発注仕様書</label>
                 <hr>
                 <button type="button" class="print-go" id="printGo">印刷／PDF保存</button>
@@ -1788,6 +1843,10 @@
         <section class="ov-chapter" data-ch="3">
             <div class="ov-head"><span class="ov-num">3</span><h2>体制表</h2><button type="button" class="ov-open" data-doc="trial">体制表を開く →</button></div>
             <div class="ov-body" id="ovTrial"><p class="ov-muted">読込中…</p></div>
+        </section>
+        <section class="ov-chapter" data-ch="4">
+            <div class="ov-head"><span class="ov-num">4</span><h2>支給品チェックリスト</h2><button type="button" class="ov-open" data-doc="supply">チェックリストを開く →</button></div>
+            <div class="ov-body" id="ovSupply"><p class="ov-muted">読込中…</p></div>
         </section>
     </div>
 
@@ -1869,6 +1928,22 @@
         </div><!-- /.sub-body -->
     </section>
 
+    <!-- 4. 支給品チェックリスト -->
+    <section class="sub-panel" id="panel-supply">
+        <div class="sub-bar"><h2><span class="sub-num">4</span>支給品チェックリスト</h2><button type="button" class="doc-print-btn" data-newtab title="この資料だけを新しいタブで開きます（画面を並べて見比べるときに）">別タブで開く ↗</button><button type="button" class="doc-print-btn" data-print="supply">この資料を印刷／PDF保存</button><button type="button" class="sub-close" data-close-doc>✕ 閉じる</button></div>
+        <div class="sub-body">
+        <div class="panel-head">
+            <h2 class="print-only">支給品チェックリスト</h2>
+        </div>
+        <!-- 外注先・加工品／購入品の切り替え、支給日の絞り込み、PDFの読み込み（gaichu-supply.js）。枠の外に置き、スクロールしても止める -->
+        <div class="spec-bar supply-bar" id="supplyBar"></div>
+        <div class="card">
+            <!-- 行は gaichu-supply.js が支給品（gaichu_supply_items）から表示する -->
+            <div id="supplyRoot"></div>
+        </div>
+        </div><!-- /.sub-body -->
+    </section>
+
     </main>
 </div><!-- /.layout-wrap -->
 
@@ -1919,7 +1994,7 @@ const SOLO = new URLSearchParams(location.search).has('solo');
 document.body.classList.toggle('solo', SOLO);
 
 // 最初のページは概要（4つの章の簡易表示）。各章の「詳しく見る →」で詳細を概要の上に重ねて表示し、URL の &doc= に残す（リンクの共有・ブラウザの「戻る」に対応）
-const DOCS = ['scope', 'schedule', 'order-spec', 'trial'];
+const DOCS = ['scope', 'schedule', 'order-spec', 'trial', 'supply'];
 function setParam(key, value, push) {
     const url = new URL(location.href);
     if (value) url.searchParams.set(key, value); else url.searchParams.delete(key);
@@ -1965,7 +2040,7 @@ window.addEventListener('popstate', readUrl);
 readUrl();
 
 // 印刷：選んだもの（概要と4つの資料の詳細）を、この順番で資料ごとにページを分けて印刷する
-const PRINT_ORDER = ['overview', 'scope', 'schedule', 'trial', 'order-spec'];   // 印刷の順（体制表の次に仕様書）
+const PRINT_ORDER = ['overview', 'scope', 'schedule', 'trial', 'supply', 'order-spec'];   // 印刷の順（体制表・支給品の次に仕様書）
 function printDocs(list) {
     const picked = PRINT_ORDER.filter(k => list.includes(k));
     if (!picked.length) return;
@@ -2017,7 +2092,7 @@ window.addEventListener('afterprint', () => {
 
 </script>
 <!-- gaichu-*.js / org-chart.js を変更したら ?v= の番号を上げる（ブラウザに古いファイルが残って動かなくなるのを防ぐ） -->
-<script src="gaichu-admin.js?v=20261026d"></script>
+<script src="gaichu-admin.js?v=20261026e"></script>
 <script src="gaichu-sheet.js?v=20261026r"></script>
 <script src="gaichu-jobnav.js?v=20261022b"></script>
 <script src="gaichu-overview.js?v=20261026r"></script>
@@ -2025,6 +2100,7 @@ window.addEventListener('afterprint', () => {
 <script src="gaichu-scope.js?v=20261023r"></script>
 <script src="gaichu-gantt.js?v=20261026r"></script>
 <script src="org-chart.js?v=20261023s"></script>
+<script src="gaichu-supply.js?v=20261026c"></script>
 
 </body>
 </html>
