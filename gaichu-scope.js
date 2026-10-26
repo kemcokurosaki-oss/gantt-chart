@@ -519,7 +519,12 @@
     const editBtn = document.getElementById('lbEditBtn');
     const undoBtn = document.getElementById('lbUndo');
     const clearBtn = document.getElementById('lbClear');
-    const editHint = document.getElementById('lbEditHint');
+    const editHint = document.getElementById('lbEditHint');   // 2026-10：説明は下の .lb-help に移したため、今は無い（null）
+    const entryNote = document.getElementById('lbEntryNote');
+    const selBox = document.getElementById('lbSel');
+    const selPartyEl = document.getElementById('lbSelParty');
+    const selPartyBtn = document.getElementById('lbSelPartyBtn');
+    const selDelBtn = document.getElementById('lbSelDel');
     const SVG_NS = 'http://www.w3.org/2000/svg';
     const svgEl = (tag, attrs) => { const el = document.createElementNS(SVG_NS, tag); for (const k in attrs) el.setAttribute(k, attrs[k]); return el; };
     function rotatePoint(px, py, cx, cy, deg) {
@@ -629,19 +634,26 @@
         overlay.innerHTML = '';
         if (zs.fi == null) return;
         const a = aspect();
+        // 枠の編集中に枠を選んだら、ほかの枠は薄く、選んだ枠は白いふち＋担当先の色の太線で一番上に描く
+        const sel = zs.editMode ? zs.selected : null;
+        let selPts = null, selDark = null;
         visibleZones().forEach(({ z, idx }) => {
             const pts = cornersU(z, a);
             const color = partyInfo(z.party).color;
+            const isSel = sel === idx, dim = sel != null && !isSel;
             overlay.appendChild(svgEl('polygon', {
-                points: ptsAttr(pts), fill: color, 'fill-opacity': '0.42', stroke: darken(color), 'stroke-width': '0.5',
-                'stroke-linejoin': 'round', class: 'zone-rect', 'data-idx': idx,
+                points: ptsAttr(pts), fill: color, 'fill-opacity': dim ? '0.18' : isSel ? '0.5' : '0.42', stroke: darken(color), 'stroke-width': '0.5',
+                'stroke-linejoin': 'round', class: dim ? 'zone-rect zone-dim' : 'zone-rect', 'data-idx': idx,
             }));
-            if (zs.selected === idx) {
-                overlay.appendChild(svgEl('polygon', { points: ptsAttr(pts), class: 'zone-select-outline' }));
-                // 角のつまみ：ドラッグするとその角だけが動く
-                pts.forEach((q, pi) => overlay.appendChild(svgEl('circle', { cx: q[0], cy: q[1], r: '1.1', class: 'zone-handle corner-handle', 'data-idx': idx, 'data-pi': pi })));
-            }
+            if (isSel) { selPts = pts; selDark = darken(color); }
         });
+        if (selPts) {
+            overlay.appendChild(svgEl('polygon', { points: ptsAttr(selPts), class: 'zone-select-halo' }));
+            overlay.appendChild(svgEl('polygon', { points: ptsAttr(selPts), class: 'zone-select-outline', style: 'stroke:' + selDark }));
+            // 角のつまみ：ドラッグするとその角だけが動く
+            selPts.forEach((q, pi) => overlay.appendChild(svgEl('circle', { cx: q[0], cy: q[1], r: '1.0', class: 'zone-handle corner-handle', style: 'stroke:' + selDark, 'data-idx': sel, 'data-pi': pi })));
+        }
+        updateEditBar();
         if (zs.dragStart && zs.dragCurrent) {
             overlay.appendChild(svgEl('rect', {
                 x: Math.min(zs.dragStart.x, zs.dragCurrent.x), y: Math.min(zs.dragStart.y, zs.dragCurrent.y),
@@ -655,6 +667,43 @@
         }
         if (zs.pendingPts) overlay.appendChild(svgEl('polygon', { points: ptsAttr(zs.pendingPts), class: 'draft-rect' }));
     }
+    // 操作バー：選んだ枠の担当先、ボタンの押せる／押せない、入口の件数
+    function updateEditBar() {
+        const zones = zonesOf();
+        const sz = zs.editMode && zs.selected != null ? zones[zs.selected] : null;
+        if (selBox) {
+            selBox.hidden = !sz;
+            if (sz && selPartyEl) { const p = partyInfo(sz.party); selPartyEl.innerHTML = `<span class="dot" style="background:${esc(p.color)};"></span>${esc(p.short || p.label)}`; }
+        }
+        if (undoBtn) undoBtn.disabled = !zones.length;
+        if (clearBtn) clearBtn.disabled = !zones.length;
+        if (entryNote) entryNote.textContent = (zones.length ? `枠 ${zones.length}件　｜　` : '') + '押すと全体表示に戻り、枠を描いたり動かしたりできます';
+    }
+    // 選んだ枠の担当先を変える（会社を選ぶメニューは、新しく描いたときと同じもの）
+    function changeSelectedParty() {
+        const idx = zs.selected;
+        if (idx == null || !selPartyBtn) return;
+        stage.querySelectorAll('.zone-picker').forEach(p => p.remove());
+        const b = selPartyBtn.getBoundingClientRect(), sr = stage.getBoundingClientRect();
+        const pk = document.createElement('div');
+        pk.className = 'zone-picker';
+        pk.style.left = Math.max(8, b.left - sr.left) + 'px';
+        pk.style.top = '8px';
+        pk.innerHTML = parties().map(p => `<button data-party="${esc(p.key)}"><span class="dot" style="background:${esc(p.color)};"></span>${esc(p.label)}</button>`).join('')
+            + `<button data-party="__cancel">キャンセル</button>`;
+        stage.appendChild(pk);
+        pk.addEventListener('click', ev => {
+            const btn = ev.target.closest('button');
+            if (!btn) return;
+            const party = btn.dataset.party;
+            const zone = zonesOf()[idx];
+            if (party !== '__cancel' && zone) zone.party = party === KUSAKABE ? KUSAKABE : Number(party);
+            pk.remove();
+            renderZones();
+        });
+    }
+    if (selPartyBtn) selPartyBtn.addEventListener('click', changeSelectedParty);
+    if (selDelBtn) selDelBtn.addEventListener('click', () => { if (zs.selected == null) return; zonesOf().splice(zs.selected, 1); zs.selected = null; renderZones(); });
     function showZonePicker(ptsU, clickX, clickY) {
         zs.pendingPts = ptsU;
         renderZones();
@@ -692,6 +741,7 @@
     function cancelPoly() { zs.polyPts = []; zs.polyHover = null; renderZones(); }
     function setTool(tool) {
         zs.tool = tool;
+        lb.classList.toggle('tool-poly', tool === 'poly');
         cancelPoly();
         if (toolBox) toolBox.querySelectorAll('[data-tool]').forEach(b => b.classList.toggle('active', b.dataset.tool === tool));
         if (editHint && zs.editMode) editHint.textContent = tool === 'poly'
@@ -705,7 +755,7 @@
         zs.editMode = on && !!editing;
         if (entering && lbImg.naturalWidth) fit();
         lb.classList.toggle('edit-mode', zs.editMode);
-        if (editBtn) { editBtn.classList.toggle('active', zs.editMode); editBtn.textContent = zs.editMode ? '枠の編集を終了' : '✏️ 色分け枠を編集'; }
+        if (editBtn) { editBtn.classList.toggle('active', zs.editMode); editBtn.textContent = zs.editMode ? '枠の編集を終了' : '色分け枠を編集'; }
         lb.querySelectorAll('[data-z]').forEach(b => { b.disabled = zs.editMode; b.title = zs.editMode ? '枠の編集中は拡大・縮小できません' : ''; });
         zs.dragStart = zs.dragCurrent = zs.handleOp = null;
         zs.selected = null;
