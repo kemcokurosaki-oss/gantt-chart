@@ -2,7 +2,8 @@
 //   ・工事企画表（加工品）・購入部品表（購入品）は、デスクトップアプリなどのClaudeで読み取った結果（JSON）か、Excelの表を貼り付けて作る。
 //     APIキー（有料）を登録していれば、PDFから自動で読み取ることもできる（Edge Function gaichu-supply-extract。PDFは図面と同じ保存場所に残す）
 //     読み取った行は画面で確認・修正してから保存する（gaichu_supply_items・gaichu_supply_docs）
-//   ・納品を受けたら行ごとに✓。✓を付けた日が支給日になり、支給日で絞り込める。✓を付けた人はDB側で自動で入る
+//   ・支給の前の事前チェックとして行ごとに✓。✓を付けた日と人は自動で残る（checked_on・checked_by。✓にマウスを乗せると出る）
+//   ・支給日は✓とは別に、編集画面で入力する（supply_date）
 //   ・作成・編集・✓は体制表の管理者（org_chart_admins）だけ。閲覧は外注先用シートを見られる人
 //   ・概要ページに #ovSupply があれば外注先ごとの進み具合を出す（今は概要には置いていない）
 // 読み込み前に gaichu-sheet.js・gaichu-admin.js を読み込み、ページに #supplyRoot・#supplyBar を置いておくこと。
@@ -23,16 +24,18 @@
         purchased: [['seq', '通番', 'int'], ['name', '品名', 'text'], ['spec', '寸法・型式', 'text'], ['qty', '数量', 'num'],
             ['maker', 'メーカー', 'text'], ['remark', '備考', 'text']],
     };
-    const FIELDS = ['unit_code', 'doc_no', 'seq', 'drawing_no', 'name', 'material', 'spec', 'qty', 'weight_material', 'weight_finished', 'plan_code', 'maker', 'remark', 'checked_on'];
+    const BASE_FIELDS = ['unit_code', 'doc_no', 'seq', 'drawing_no', 'name', 'material', 'spec', 'qty', 'weight_material', 'weight_finished', 'plan_code', 'maker', 'remark'];
+    let hasSupplyDate = true;   // 支給日の列（scripts/gaichu_supply_date_setup.sql）があるか
+    const fields = () => hasSupplyDate ? [...BASE_FIELDS, 'supply_date'] : BASE_FIELDS;
 
     let items = [];          // この工番の全外注先の行
     let loadedPn = null, loadError = null, loading = false;
     let kind = 'machined';
     // Excelのような列ごとの絞り込み・並べ替え（加工品・購入品ごとに持つ。外注先を切り替えたら解除）
-    //   filters[key] = 表示する値の Set（値は画面に出す文字。空欄は「（空白）」、支給日の空欄は「（未支給）」）
+    //   filters[key] = 表示する値の Set（値は画面に出す文字。空欄は「（空白）」、支給日の空欄は「（未入力）」）
     const views = { machined: { filters: {}, sort: null }, purchased: { filters: {}, sort: null } };
     let viewSheetId = null;
-    const BLANK = '（空白）', NOT_YET = '（未支給）';
+    const BLANK = '（空白）', NOT_YET = '（未入力）', CHECKED = '✓ チェック済み', UNCHECKED = '未チェック';
     let editing = false, draft = null, removed = [];
 
     function esc(s) {
@@ -42,10 +45,11 @@
     const ymdJa = s => { if (!s) return ''; const [y, m, d] = String(s).slice(0, 10).split('-').map(Number); return `${y}/${m}/${d}`; };
     function todayStr() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
     const num = v => (v == null || v === '' ? '' : String(Number(v)));
-    // 絞り込み・並べ替えに使う列（✓と支給日は同じなので支給日だけ）
-    const viewCols = k => [['checked_on', '支給日', 'date'], ['unit_code', 'ユニット', 'text'], ...COLS[k], ['doc_no', '資料', 'text']];
+    // 絞り込み・並べ替えに使う列（表の列の順と同じ。✓はチェック済み／未チェック）
+    const viewCols = k => [['checked_on', '✓', 'check'], ['supply_date', '支給日', 'date'], ['unit_code', 'ユニット', 'text'], ...COLS[k], ['doc_no', '資料', 'text']];
     function dispOf(r, key, type) {
         const v = r[key];
+        if (type === 'check') return v ? CHECKED : UNCHECKED;
         if (type === 'date') return v ? ymdJa(v) : NOT_YET;
         if (v == null || String(v).trim() === '') return BLANK;
         return type === 'num' || type === 'int' ? num(v) : String(v);
@@ -78,7 +82,11 @@
         if (!st.ready || !st.loggedIn || !st.pn) return;
         if (!force && loadedPn === st.pn) return;
         loading = true;
-        const { data, error } = await db().from('gaichu_supply_items').select('*').eq('project_number', st.pn).order('sort_order').order('id');
+        const [{ data, error }, probe] = await Promise.all([
+            db().from('gaichu_supply_items').select('*').eq('project_number', st.pn).order('sort_order').order('id'),
+            db().from('gaichu_supply_items').select('supply_date').limit(1),
+        ]);
+        hasSupplyDate = !probe.error;
         loading = false;
         loadedPn = st.pn;
         loadError = error || null;
@@ -103,8 +111,8 @@
             const pct = Math.round(p.done / p.total * 100);
             return `<span class="sp-ov-bar"><i style="width:${pct}%;background:${esc(s.color)}"></i></span><b>${p.done}</b><span>／${p.total}</span>${p.done === p.total ? '<em class="sp-ov-done">完了</em>' : ''}`;
         };
-        const last = s => { const ds = sheetItems(s.id).map(r => r.checked_on).filter(Boolean).sort(); return ds.length ? ymdJa(ds[ds.length - 1]) : '―'; };
-        ovEl.innerHTML = `<table class="sp-ov"><thead><tr><th>外注先</th><th>加工品（支給済み／全数）</th><th>購入品（支給済み／全数）</th><th>最後の支給日</th></tr></thead><tbody>`
+        const last = s => { const ds = sheetItems(s.id).map(r => r.supply_date).filter(Boolean).sort(); return ds.length ? ymdJa(ds[ds.length - 1]) : '―'; };
+        ovEl.innerHTML = `<table class="sp-ov"><thead><tr><th>外注先</th><th>加工品（チェック済み／全数）</th><th>購入品（チェック済み／全数）</th><th>最後の支給日</th></tr></thead><tbody>`
             + sheets.map(s => `<tr><td>${GS.chipHtml(s.short, s.color)}</td><td>${cell(s, 'machined')}</td><td>${cell(s, 'purchased')}</td><td>${last(s)}</td></tr>`).join('')
             + `</tbody></table>`;
     }
@@ -158,13 +166,14 @@
         const p = progress(rows);
         // 見出し：押すと絞り込み・並べ替えのメニュー（編集中は文字だけ）
         const v = views[kind];
-        const th = ([key, label]) => {
-            if (editing) return `<th>${label}</th>`;
+        const th = ([key, label, type]) => {
+            const cls = type === 'check' ? ' class="sp-chk-col"' : '';
+            if (editing) return `<th${cls}>${label}</th>`;
             const on = !!v.filters[key], s = v.sort && v.sort.key === key ? v.sort.dir : '';
-            return `<th><button type="button" class="sp-th${on || s ? ' is-on' : ''}" data-sp-col="${key}" title="絞り込み・並べ替え">${label}<i>${s === 'asc' ? '▲' : s === 'desc' ? '▼' : ''}${on ? '<b>▽</b>' : s ? '' : '▾'}</i></button></th>`;
+            return `<th${cls}><button type="button" class="sp-th${on || s ? ' is-on' : ''}" data-sp-col="${key}" title="絞り込み・並べ替え">${label}<i>${s === 'asc' ? '▲' : s === 'desc' ? '▼' : ''}${on ? '<b>▽</b>' : s ? '' : '▾'}</i></button></th>`;
         };
         const vc = viewCols(kind);
-        const head = `<tr>${editing ? '<th class="sp-del-col"></th>' : ''}<th class="sp-chk-col">✓</th>${vc.map(th).join('')}</tr>`;
+        const head = `<tr>${editing ? '<th class="sp-del-col"></th>' : ''}${vc.map(th).join('')}</tr>`;
         const cellView = (r, [k, , type]) => {
             const v = r[k];
             if (type === 'num' || type === 'int') return `<td class="sp-num">${esc(num(v))}</td>`;
@@ -174,8 +183,8 @@
         const body = shown.map(r => {
             const i = editing ? draft.indexOf(r) : -1;
             const chk = editing
-                ? `<td class="sp-chk-col"><span class="sp-chk${r.checked_on ? ' is-on' : ''}">${r.checked_on ? '✓' : ''}</span></td><td><input type="date" class="sp-in sp-in--date" data-i="${i}" data-k="checked_on" value="${esc(r.checked_on || '')}"></td>`
-                : `<td class="sp-chk-col"><button type="button" class="sp-chk${r.checked_on ? ' is-on' : ''}" data-sp-check="${r.id}"${st.isAdmin ? '' : ' disabled'} title="${r.checked_on ? `${ymdJa(r.checked_on)} 支給${r.checked_by ? '（' + esc(r.checked_by) + '）' : ''}` : '納品を確認したら✓'}">${r.checked_on ? '✓' : ''}</button></td><td class="sp-date">${r.checked_on ? md(r.checked_on) : ''}</td>`;
+                ? `<td class="sp-chk-col"><span class="sp-chk${r.checked_on ? ' is-on' : ''}">${r.checked_on ? '✓' : ''}</span></td><td><input type="date" class="sp-in sp-in--date" data-i="${i}" data-k="supply_date" value="${esc(r.supply_date || '')}"${hasSupplyDate ? '' : ' disabled title="支給日の列がまだありません（scripts/gaichu_supply_date_setup.sql を実行してください）"'}></td>`
+                : `<td class="sp-chk-col"><button type="button" class="sp-chk${r.checked_on ? ' is-on' : ''}" data-sp-check="${r.id}"${st.isAdmin ? '' : ' disabled'} title="${r.checked_on ? `${ymdJa(r.checked_on)} にチェック${r.checked_by ? '（' + esc(r.checked_by) + '）' : ''}` : '事前チェックが済んだら✓'}">${r.checked_on ? '✓' : ''}</button></td><td class="sp-date">${r.supply_date ? md(r.supply_date) : ''}</td>`;
             return `<tr class="${r.checked_on ? 'is-done' : ''}">${editing ? `<td class="sp-del-col"><button type="button" class="sp-del" data-sp-del="${i}" title="この行を削除">✕</button></td>` : ''}${chk}`
                 + (editing ? `<td><input class="sp-in sp-in--unit" data-i="${i}" data-k="unit_code" value="${esc(r.unit_code || '')}"></td>` : `<td>${esc(r.unit_code || '')}</td>`)
                 + cols.map(c => editing ? cellEdit(r, i, c) : cellView(r, c)).join('')
@@ -185,7 +194,7 @@
         const empty = !rows.length
             ? `<p class="spec-msg">${esc(kindLabel[1])}の行はまだありません。${st.isAdmin ? `上の「読み込む」から、${esc(kindLabel[2])}をClaudeで読み取った結果やExcelの表を貼り付けると作成できます。` : ''}</p>` : '';
         root.innerHTML = `<div class="sp-summary"><b>${esc(sheet.display)}</b>　${esc(kindLabel[1])}（${esc(kindLabel[2])}から）`
-            + (rows.length ? `<span class="sp-prog">支給済み <b>${p.done}</b> ／ ${p.total}</span>` : '') + `</div>`
+            + (rows.length ? `<span class="sp-prog">チェック済み <b>${p.done}</b> ／ ${p.total}</span>` : '') + `</div>`
             + (empty || `<div class="sp-table-wrap"><table class="sp-table"><thead>${head}</thead><tbody>${body || `<tr><td colspan="${cols.length + 5}" class="sp-none">この条件の行はありません。</td></tr>`}</tbody></table></div>`);
     }
 
@@ -193,7 +202,7 @@
     async function toggleCheck(id) {
         const r = items.find(x => x.id === id);
         if (!r) return;
-        if (r.checked_on && !confirm(`「${r.name}」の✓を外しますか？（${ymdJa(r.checked_on)} 支給の記録が消えます）`)) return;
+        if (r.checked_on && !confirm(`「${r.name}」の✓を外しますか？（${ymdJa(r.checked_on)} にチェックした記録が消えます）`)) return;
         const value = r.checked_on ? null : todayStr();
         const { data, error } = await db().from('gaichu_supply_items').update({ checked_on: value }).eq('id', id).select('*');
         if (error || !data || !data.length) { alert('保存できませんでした：' + ((error && error.message) || '編集の権限がないか、ログインが切れています')); return; }
@@ -232,10 +241,10 @@
             const orig = new Map(sheetItems(sheet.id).map(r => [r.id, r]));
             for (const [i, r] of draft.entries()) {
                 const rec = { sort_order: i };
-                FIELDS.forEach(k => { rec[k] = r[k] == null ? null : r[k]; });
+                fields().forEach(k => { rec[k] = r[k] == null ? null : r[k]; });
                 if (r.id) {
                     const o = orig.get(r.id);
-                    if (o && o.sort_order === i && FIELDS.every(k => (o[k] == null ? null : o[k]) == rec[k])) continue;   // 変わっていない行は書かない
+                    if (o && o.sort_order === i && fields().every(k => (o[k] == null ? null : o[k]) == rec[k])) continue;   // 変わっていない行は書かない
                     const { data, error } = await db().from('gaichu_supply_items').update(rec).eq('id', r.id).select('id');
                     if (error) throw error;
                     if (!data || !data.length) throw new Error('編集の権限がないか、ログインが切れています');
@@ -537,7 +546,7 @@
         const base = sheetItems(sheet.id, kind).filter(r => viewCols(kind).every(([k2, , t2]) => !others[k2] || others[k2].has(dispOf(r, k2, t2))));
         const counts = new Map();
         base.forEach(r => { const d = dispOf(r, key, type); counts.set(d, (counts.get(d) || 0) + 1); });
-        const special = new Set([BLANK, NOT_YET]);
+        const special = new Set([BLANK, NOT_YET, UNCHECKED]);
         const raw = new Map(base.map(r => [dispOf(r, key, type), r[key]]));
         const values = [...counts.keys()].sort((a, b) => (special.has(a) - special.has(b)) || cmpVal(raw.get(a), raw.get(b), type));
         const cur = v.filters[key];
