@@ -1562,6 +1562,9 @@
     .ov-gt-mile { position: absolute; height: 22px; transform: translateX(-7px); display: flex; align-items: center; gap: 9px; white-space: nowrap; }
     .ov-gt-mile i { width: 13px; height: 13px; transform: rotate(45deg); background: #2b2f36; flex: none; }
     .ov-gt-mile b { font-size: 12.5px; }
+    /* 終わった工程は薄く */
+    .ov-gt-bar.is-done, .ov-gt-mile.is-done i { opacity: .3; }
+    .ov-gt-text.is-done, .ov-gt-mile.is-done b { color: #a3a7ad; font-weight: 500; }
     /* 工程名の右の機械・ユニット名：右の段（LANE＝22px、上5px）と高さをそろえる */
     @media (max-width: 700px) { .ov-gt { --lab: 110px; } }
     @media print { .ov-gt-row { break-inside: avoid; } .ov-gt-bar, .ov-gt-band, .ov-gt-now, .ov-gt-mile i, .gt-bar, .gt-band, .gt-we, .gt-now, .gt-gname { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
@@ -2015,12 +2018,12 @@ window.addEventListener('afterprint', () => {
 </script>
 <!-- gaichu-*.js / org-chart.js を変更したら ?v= の番号を上げる（ブラウザに古いファイルが残って動かなくなるのを防ぐ） -->
 <script src="gaichu-admin.js?v=20261026d"></script>
-<script src="gaichu-sheet.js?v=20261026f"></script>
+<script src="gaichu-sheet.js?v=20261026r"></script>
 <script src="gaichu-jobnav.js?v=20261022b"></script>
-<script src="gaichu-overview.js?v=20261026o"></script>
+<script src="gaichu-overview.js?v=20261026r"></script>
 <script src="gaichu-spec.js?v=20261026a"></script>
 <script src="gaichu-scope.js?v=20261023r"></script>
-<script src="gaichu-gantt.js?v=20261026q"></script>
+<script src="gaichu-gantt.js?v=20261026r"></script>
 <script src="org-chart.js?v=20261023s"></script>
 
 </body>

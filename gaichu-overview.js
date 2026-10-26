@@ -195,7 +195,10 @@
         const sh = GS.state.currentSheet;
         const conv = t => ({ ...t, start: toDate(t.start_date), end: toDate(t.end_date) });
         const trials = GS.trialTasksFor(allTasks, sh ? sh.vendor_id : null).filter(t => t.start_date && t.end_date).map(t => ({ ...conv(t), _kusakabe: true }));
-        const list = (sh ? tasks.filter(t => t.vendor_id === sh.vendor_id) : tasks).concat(trials);
+        // 当社経由の外注先は「当社への出荷」の日を◆で出す
+        const viaMarks = (sh ? [sh] : GS.state.sheets).map(s => ({ s, si: GS.shipInfo(s) })).filter(x => x.si.route === 'via' && x.si.date)
+            .map(x => ({ text: '当社への出荷', start: toDate(x.si.date), end: toDate(x.si.date), _via: x.s }));
+        const list = (sh ? tasks.filter(t => t.vendor_id === sh.vendor_id) : tasks).concat(trials, viaMarks);
         if (!list.length) { el.schedule.innerHTML = muted('担当が「外注」のタスクが見つかりませんでした。'); return; }
         const t0 = today();
         const lo = new Date(Math.min(t0, ...list.map(t => t.start))), hi = new Date(Math.max(...list.map(t => t.end)));
@@ -214,7 +217,7 @@
         const now = showNow ? `<i class="ov-gt-now" style="left:${pos(t0)}"></i>` : '';
         const head = `<div class="ov-gt-head"><div class="ov-gt-lab">工程</div><div class="ov-gt-scale">${months.map(m => `<span style="left:${pos(m.d)}">${m.label}</span>`).join('')}</div></div>`;
         // 場所だけ借りる電気艤装・試運転・出荷準備のタスクは、場所に入っている会社の色（入っていなければ未定）
-        const sheetOf = t => t._kusakabe ? GS.sheetByPlace(t.test_run_location) : vendorOf(t);
+        const sheetOf = t => t._via || (t._kusakabe ? GS.sheetByPlace(t.test_run_location) : vendorOf(t));
         const colorOf = t => sheetOf(t) ? sheetOf(t).color : '#7b8088';
         const nameOf = t => sheetOf(t) ? (sheetOf(t).short || sheetOf(t).display) : '未定';
         // 凡例：表に出ている会社の色
@@ -233,12 +236,15 @@
                 // 機械・ユニット名（同じ会社で複数あるときは「、」でつなぐ）
                 const where = [...new Set(v.ts.map(t => [t.machine, t.unit].filter(Boolean).join(' ')).filter(Boolean))].join('、');
                 const title = `${g.name}${where ? '（' + where + '）' : ''} ${v.name} ${md(s)}〜${md(e)}（${n}日）`;
-                if (n === 1 && v.ts.every(t => /出荷/.test(t.text))) return `<span class="ov-gt-mile" style="left:${pos(s)};top:${top}px" title="${esc(title)}"><i style="background:${esc(v.color)}"></i><b>${esc(v.ts[0].text)} ${md(s)}</b></span>`;
+                // 終わった工程（終了日が今日より前）は薄く出す
+                const done = e < t0 ? ' is-done' : '';
+                // 大事な日（1日だけの出荷・外観検査・客先立会）は◆
+                if (n === 1 && v.ts.every(t => /出荷|検査|立会/.test(t.text))) return `<span class="ov-gt-mile${done}" style="left:${pos(s)};top:${top}px" title="${esc(title)}"><i style="background:${esc(v.color)}"></i><b>${esc(v.ts[0].text)} ${md(s)}</b></span>`;
                 const l = pct(s), w = Math.max(0.8, n * DAY / span * 100);
                 const label = `${n === 1 ? md(s) : `${md(s)}〜${md(e)}`}（${n}日）`;
                 const textPos = `left:calc(${(l + w).toFixed(2)}% + 8px)`;   // 期間はいつもバーの右
-                return `<i class="ov-gt-bar" style="left:${l.toFixed(2)}%;width:${w.toFixed(2)}%;top:${top}px;background:${esc(v.color)}" title="${esc(title)}"></i>`
-                    + `<span class="ov-gt-text" style="${textPos};top:${top}px" title="${esc(title)}">${label}</span>`;
+                return `<i class="ov-gt-bar${done}" style="left:${l.toFixed(2)}%;width:${w.toFixed(2)}%;top:${top}px;background:${esc(v.color)}" title="${esc(title)}"></i>`
+                    + `<span class="ov-gt-text${done}" style="${textPos};top:${top}px" title="${esc(title)}">${label}</span>`;
             }).join('');
             return `<div class="ov-gt-row"><div class="ov-gt-lab"><b>${esc(g.name)}</b></div><div class="ov-gt-track" style="height:${by.size * LANE + 6}px">${lanes}</div></div>`;
         }).join('');

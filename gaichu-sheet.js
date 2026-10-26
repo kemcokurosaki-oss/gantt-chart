@@ -289,8 +289,8 @@
         return set.has('*') || tk.length === 0 || tk.some(u => set.has(u));
     }
     // ===== 工程表（外注先用シート）：工程ごとのまとまり =====
-    // 工程の並び：機械組立 → 電気艤装 → 試運転 → 出荷準備 → 工場出荷、そのほかの工程は始まりの早い順でその後ろ
-    const PROCESS_ORDER = ['機械組立', '電気艤装', '試運転', '出荷準備', '工場出荷'];
+    // 工程の並び：機械組立 → 電気艤装 → 外観検査 → 試運転 → 客先立会 → 出荷準備 → 当社への出荷 → 工場出荷、そのほかの工程は始まりの早い順でその後ろ
+    const PROCESS_ORDER = ['機械組立', '電気艤装', '外観検査', '試運転', '客先立会', '出荷準備', '当社への出荷', '工場出荷'];
     const procName = t => String(t.text || '').normalize('NFKC').trim();
     // 場所（試運転場所など自由入力の文字）に当てはまる外注先シート。「大洋金属（株）」「株式会社ニッシン殿」などの書き方の違いはそろえて比べる
     const placeKey = s => String(s || '').normalize('NFKC').replace(/殿|様|株式会社|有限会社|\(株\)|\(有\)|\s/g, '');
@@ -299,9 +299,10 @@
         if (!k) return null;
         return state.sheets.find(s => [s.name, s.display, s.short].some(n => { const nk = placeKey(n); return nk && (nk === k || nk.includes(k) || k.includes(nk)); })) || null;
     }
-    // 場所だけ外注先を借りて社内の人が作業する「電気艤装」「試運転」「出荷準備（出荷準備(電装)なども含む）」タスク（組立場所が「外注」で、その会社を選んでいるもの）。vendorId を渡すとその外注先の分だけ
+    // 場所だけ外注先を借りて社内の人が作業する「電気艤装」「試運転」「出荷準備（出荷準備(電装)なども含む）」タスクと、
+    // 当社の人が外注先へ行く「外観検査」「客先立会」タスク（組立場所が「外注」で、その会社を選んでいるもの）。vendorId を渡すとその外注先の分だけ
     // 担当に「外注」が入っているタスクは、外注のタスクとしてすでに出しているので除く
-    const PLACE_ONLY_PROCS = ['電気艤装', '試運転'];
+    const PLACE_ONLY_PROCS = ['電気艤装', '外観検査', '試運転', '客先立会'];
     const isPlaceOnlyProc = n => PLACE_ONLY_PROCS.includes(n) || n.startsWith('出荷準備');
     function trialTasksFor(tasks, vendorId) {
         return tasks.filter(t => {

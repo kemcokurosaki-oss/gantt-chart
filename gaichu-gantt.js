@@ -136,7 +136,7 @@
             const where = [t.machine, t.unit].filter(Boolean).join(' ');
             const title = `${t.text}${where ? '（' + where + '）' : ''} ${look.name} ${period}`;
             // 期間の文字は、バーの長さにかかわらずいつもバーの右に出す
-            const body = days === 1 && /出荷/.test(t.text)
+            const body = days === 1 && /出荷|検査|立会/.test(t.text)
                 ? `<div class="gt-mile${look.grey ? ' is-grey' : ''}" style="left:${left}%" title="${esc(title)}"><i style="background:${look.color}"></i><b>${esc(t.text)} ${mdStr(t.start)}</b></div>`
                 : `<div class="gt-bar" style="left:${left}%;width:${width}%;background:${look.color}" title="${esc(title)}"></div>`
                   + `<div class="gt-period" style="left:calc(${left + width}% + 8px)">${period}</div>`;
