@@ -379,6 +379,8 @@
                 if (rmErr) console.warn('削除した図面のファイルを消せませんでした', rmErr);
             }
             data = { figures: rec.figures, rows: rec.rows, columns: rec.columns };
+            // 概要ページの組立範囲もすぐ描き直す（gaichu-overview.js が受け取る）
+            document.dispatchEvent(new CustomEvent('gaichuscopechange', { detail: data }));
             endEdit();
         } catch (err) {
             console.error('組立範囲の保存に失敗しました', err);

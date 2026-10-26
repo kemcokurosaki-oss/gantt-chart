@@ -335,6 +335,20 @@
         renderTrial();
     }
     document.addEventListener('gaichusheetchange', render);
+    // 詳細ページで組立範囲（図面・色分け枠・担当範囲一覧）を保存したら、概要の組立範囲もすぐ描き直す
+    document.addEventListener('gaichuscopechange', async e => {
+        const r = e.detail || {};
+        scope = { figures: Array.isArray(r.figures) ? r.figures : [], rows: Array.isArray(r.rows) ? r.rows : [], columns: Array.isArray(r.columns) && r.columns.length ? r.columns : DEFAULT_COLUMNS };
+        // 新しく足した図面は表示用URLがまだないので作る
+        const paths = scope.figures.map(f => f.path).filter(p => p && !(figUrls && figUrls[p]));
+        if (paths.length) {
+            const { data, error } = await client.storage.from('gaichu-figures').createSignedUrls(paths, 60 * 60 * 12);
+            if (error) console.error('図面の表示用URLを作れませんでした', error);
+            figUrls = figUrls || {};
+            (data || []).forEach(d => { if (d.signedUrl) figUrls[d.path] = d.signedUrl; });
+        }
+        renderScope();
+    });
     el.band.addEventListener('click', e => {
         const b = e.target.closest('[data-ov-spec]');
         if (!b) return;
