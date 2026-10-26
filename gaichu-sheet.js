@@ -314,7 +314,8 @@
     function processGroups(list) {
         const map = new Map();
         list.forEach(t => { const n = procName(t); if (!map.has(n)) map.set(n, []); map.get(n).push(t); });
-        const rank = n => { const i = PROCESS_ORDER.indexOf(n); return i < 0 ? PROCESS_ORDER.length : i; };
+        // 「出荷準備(電装)」「出荷準備(組立)」のように後ろに文字が付いた工程も、もとの工程（出荷準備）の位置に並べる
+        const rank = n => { let i = PROCESS_ORDER.indexOf(n); if (i < 0) i = PROCESS_ORDER.findIndex(p => n.startsWith(p)); return i < 0 ? PROCESS_ORDER.length : i; };
         return [...map.entries()].map(([name, ts]) => ({ name, tasks: ts.sort((a, b) => a.start - b.start || String(a.unit || '').localeCompare(String(b.unit || ''), 'ja')) }))
             .sort((a, b) => rank(a.name) - rank(b.name) || a.tasks[0].start - b.tasks[0].start);
     }
