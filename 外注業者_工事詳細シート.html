@@ -1409,6 +1409,28 @@
     .sp-kinds button small { margin-left: 6px; font-size: 11px; font-weight: 500; opacity: .8; }
     .sp-kinds button:hover { color: #2b2f36; background: #fff; }
     .sp-kinds button.is-on { background: #2b2f36; color: #fff; cursor: default; }
+    .sp-view-note { margin-left: 6px; font-size: 12.5px; font-weight: 700; color: #3d5a80; }
+    .sp-th { appearance: none; border: 0; background: none; font: inherit; color: inherit; font-weight: 700; padding: 2px 4px; margin: -2px -4px; border-radius: 4px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+    .sp-th:hover { background: #e4e3df; color: #2b2f36; }
+    .sp-th i { font-style: normal; font-size: 10px; color: #8b9097; }
+    .sp-th.is-on { color: #3d5a80; }
+    .sp-th.is-on i { color: #3d5a80; }
+    .sp-th i b { font-size: 11px; }
+    .sp-pop { position: fixed; z-index: 2000; width: 260px; background: #fff; border: 1px solid #d6d6d2; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.18); padding: 6px; font-size: 13px; }
+    .sp-pop-sort { display: block; width: 100%; text-align: left; border: 0; background: none; font: inherit; padding: 6px 8px; border-radius: 5px; cursor: pointer; color: #2b2f36; }
+    .sp-pop-sort:hover { background: #f0f0ee; }
+    .sp-pop-sort.is-on { background: #e8eef6; color: #3d5a80; font-weight: 700; }
+    .sp-pop-sep { height: 1px; background: #e4e3df; margin: 6px 0; }
+    .sp-pop-q { width: 100%; box-sizing: border-box; font: inherit; font-size: 12.5px; padding: 5px 8px; border: 1px solid #cfd0cc; border-radius: 5px; margin-bottom: 6px; }
+    .sp-pop-list { max-height: 240px; overflow-y: auto; border: 1px solid #efefec; border-radius: 5px; padding: 4px; }
+    .sp-pop-list label { display: flex; align-items: center; gap: 6px; padding: 3px 4px; border-radius: 4px; cursor: pointer; }
+    .sp-pop-list label:hover { background: #f6f6f4; }
+    .sp-pop-list label[hidden] { display: none; }
+    .sp-pop-list label span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .sp-pop-list label small { color: #8b9097; font-size: 11px; }
+    .sp-pop-all { border-bottom: 1px solid #efefec; margin-bottom: 2px; font-weight: 700; }
+    .sp-pop-foot { display: flex; align-items: center; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+    .sp-pop-foot .spec-btn { padding: 5px 10px; font-size: 12px; }
     .sp-filter { display: inline-flex; align-items: center; gap: 6px; margin-left: 6px; font-size: 12px; font-weight: 700; color: #6b7079; }
     .sp-filter select { font: inherit; font-size: 12.5px; padding: 4px 8px; border: 1px solid #cfd0cc; border-radius: 6px; background: #fff; width: auto; }
     .sp-table .sp-in--drawing_no, .sp-table .sp-in--doc { min-width: 125px; } .sp-table .sp-in--name { min-width: 140px; } .sp-table .sp-in--spec { min-width: 130px; } .sp-table .sp-in--remark { min-width: 170px; } .sp-table .sp-in--maker, .sp-table .sp-in--material { min-width: 90px; }
@@ -2102,7 +2124,7 @@ window.addEventListener('afterprint', () => {
 <script src="gaichu-scope.js?v=20261023r"></script>
 <script src="gaichu-gantt.js?v=20261026r"></script>
 <script src="org-chart.js?v=20261023s"></script>
-<script src="gaichu-supply.js?v=20261026e"></script>
+<script src="gaichu-supply.js?v=20261026g"></script>
 
 </body>
 </html>

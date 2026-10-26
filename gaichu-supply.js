@@ -28,7 +28,11 @@
     let items = [];          // この工番の全外注先の行
     let loadedPn = null, loadError = null, loading = false;
     let kind = 'machined';
-    let filter = 'all';      // all / none（未支給）/ YYYY-MM-DD（その日に支給）
+    // Excelのような列ごとの絞り込み・並べ替え（加工品・購入品ごとに持つ。外注先を切り替えたら解除）
+    //   filters[key] = 表示する値の Set（値は画面に出す文字。空欄は「（空白）」、支給日の空欄は「（未支給）」）
+    const views = { machined: { filters: {}, sort: null }, purchased: { filters: {}, sort: null } };
+    let viewSheetId = null;
+    const BLANK = '（空白）', NOT_YET = '（未支給）';
     let editing = false, draft = null, removed = [];
 
     function esc(s) {
@@ -38,6 +42,34 @@
     const ymdJa = s => { if (!s) return ''; const [y, m, d] = String(s).slice(0, 10).split('-').map(Number); return `${y}/${m}/${d}`; };
     function todayStr() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
     const num = v => (v == null || v === '' ? '' : String(Number(v)));
+    // 絞り込み・並べ替えに使う列（✓と支給日は同じなので支給日だけ）
+    const viewCols = k => [['checked_on', '支給日', 'date'], ['unit_code', 'ユニット', 'text'], ...COLS[k], ['doc_no', '資料', 'text']];
+    function dispOf(r, key, type) {
+        const v = r[key];
+        if (type === 'date') return v ? ymdJa(v) : NOT_YET;
+        if (v == null || String(v).trim() === '') return BLANK;
+        return type === 'num' || type === 'int' ? num(v) : String(v);
+    }
+    function cmpVal(a, b, type) {
+        const blankA = a == null || a === '', blankB = b == null || b === '';
+        if (blankA || blankB) return blankA === blankB ? 0 : blankA ? 1 : -1;   // 空欄はいつも最後
+        if (type === 'num' || type === 'int') return Number(a) - Number(b);
+        return String(a).localeCompare(String(b), 'ja', { numeric: true, sensitivity: 'base' });
+    }
+    function applyView(rows, k) {
+        const v = views[k], cols = viewCols(k);
+        let out = rows.filter(r => cols.every(([key, , type]) => !v.filters[key] || v.filters[key].has(dispOf(r, key, type))));
+        if (v.sort) {
+            const c = cols.find(x => x[0] === v.sort.key);
+            if (c) out = out.map((r, i) => [r, i]).sort((x, y) => {
+                const blankX = x[0][c[0]] == null || x[0][c[0]] === '', blankY = y[0][c[0]] == null || y[0][c[0]] === '';
+                if (blankX !== blankY) return blankX ? 1 : -1;
+                return (v.sort.dir === 'desc' ? -1 : 1) * cmpVal(x[0][c[0]], y[0][c[0]], c[2]) || x[1] - y[1];
+            }).map(x => x[0]);
+        }
+        return out;
+    }
+    const viewActive = k => !!views[k].sort || Object.keys(views[k].filters).length > 0;
     const notFoundTable = err => err && (err.code === '42P01' || err.code === 'PGRST205' || /does not exist|Could not find the table/i.test(err.message || ''));
 
     // ===== 読み込み =====
@@ -108,19 +140,15 @@
             return;
         }
 
+        if (viewSheetId !== sheet.id) { viewSheetId = sheet.id; Object.values(views).forEach(v => { v.filters = {}; v.sort = null; }); }
         const rows = (editing ? draft : sheetItems(sheet.id)).filter(r => r.kind === kind);
-        const dates = [...new Set(sheetItems(sheet.id, kind).map(r => r.checked_on).filter(Boolean))].sort();
-        if (filter !== 'all' && filter !== 'none' && !dates.includes(filter)) filter = 'all';
-        const shown = editing ? rows : rows.filter(r => filter === 'all' || (filter === 'none' ? !r.checked_on : r.checked_on === filter));
+        const shown = editing ? rows : applyView(rows, kind);
         const kindBtns = KINDS.map(([k, label]) => {
             const p = progress(sheetItems(sheet.id, k));
             return `<button type="button" data-sp-kind="${k}"${k === kind ? ' class="is-on"' : ''}>${label}<small>${p.total ? `${p.done}/${p.total}` : '0'}</small></button>`;
         }).join('');
-        const filterSel = editing ? '' : `<label class="sp-filter"><span>支給日</span><select data-sp-filter>
-                <option value="all"${filter === 'all' ? ' selected' : ''}>すべて（${rows.length}）</option>
-                <option value="none"${filter === 'none' ? ' selected' : ''}>未支給（${rows.filter(r => !r.checked_on).length}）</option>
-                ${dates.map(d => `<option value="${d}"${filter === d ? ' selected' : ''}>${ymdJa(d)} に支給（${rows.filter(r => r.checked_on === d).length}）</option>`).join('')}
-            </select></label>`;
+        const filterSel = editing || !viewActive(kind) ? ''
+            : `<span class="sp-view-note">${shown.length} / ${rows.length} 行を表示</span><button type="button" class="spec-btn" data-sp="clearview">絞り込み・並べ替えを解除</button>`;
         const tools = !st.isAdmin ? '' : editing
             ? `<span class="spec-spacer"></span><span class="scope-editing-tag">編集中</span><button type="button" class="spec-btn" data-sp="add">＋ 行を追加</button><button type="button" class="spec-btn" data-sp="cancel">キャンセル</button><button type="button" class="spec-btn spec-btn--primary" data-sp="save">保存</button>`
             : `<span class="spec-spacer"></span><button type="button" class="spec-btn spec-btn--primary" data-sp="import">読み込む</button><button type="button" class="spec-btn" data-sp="edit"${rows.length ? '' : ' disabled'}>編集</button>`;
@@ -128,7 +156,15 @@
 
         const cols = COLS[kind];
         const p = progress(rows);
-        const head = `<tr>${editing ? '<th class="sp-del-col"></th>' : ''}<th class="sp-chk-col">✓</th><th>支給日</th><th>ユニット</th>${cols.map(c => `<th>${c[1]}</th>`).join('')}<th>資料</th></tr>`;
+        // 見出し：押すと絞り込み・並べ替えのメニュー（編集中は文字だけ）
+        const v = views[kind];
+        const th = ([key, label]) => {
+            if (editing) return `<th>${label}</th>`;
+            const on = !!v.filters[key], s = v.sort && v.sort.key === key ? v.sort.dir : '';
+            return `<th><button type="button" class="sp-th${on || s ? ' is-on' : ''}" data-sp-col="${key}" title="絞り込み・並べ替え">${label}<i>${s === 'asc' ? '▲' : s === 'desc' ? '▼' : ''}${on ? '<b>▽</b>' : s ? '' : '▾'}</i></button></th>`;
+        };
+        const vc = viewCols(kind);
+        const head = `<tr>${editing ? '<th class="sp-del-col"></th>' : ''}<th class="sp-chk-col">✓</th>${vc.map(th).join('')}</tr>`;
         const cellView = (r, [k, , type]) => {
             const v = r[k];
             if (type === 'num' || type === 'int') return `<td class="sp-num">${esc(num(v))}</td>`;
@@ -458,7 +494,7 @@
             if (error) { m.el.querySelectorAll('.ga-foot .ga-btn').forEach(b => { b.disabled = false; }); m.err('保存できませんでした：' + error.message); return; }
             await db().from('gaichu_supply_docs').insert({ sheet_id: sheet.id, project_number: st.pn, kind: k, doc_no: doc, file_name: fileName || '（貼り付け）', file_path: path, rows_added: recs.length });
             m.close();
-            kind = k; filter = 'all';
+            kind = k;
             await load(true);
         }
     }
@@ -468,12 +504,14 @@
         const kb = e.target.closest('[data-sp-kind]');
         if (kb) {
             if (editing) collect();
-            kind = kb.dataset.spKind; filter = 'all'; render(); return;
+            closePop();
+            kind = kb.dataset.spKind; render(); return;
         }
         const b = e.target.closest('[data-sp]');
         if (!b) return;
         const act = b.dataset.sp;
-        if (act === 'import') openImport();
+        if (act === 'clearview') { views[kind].filters = {}; views[kind].sort = null; render(); }
+        else if (act === 'import') openImport();
         else if (act === 'edit') startEdit();
         else if (act === 'cancel') { editing = false; draft = null; removed = []; render(); }
         else if (act === 'save') saveEdit();
@@ -485,10 +523,85 @@
             if (ins.length) ins[ins.length - 1].focus();
         }
     });
-    if (bar) bar.addEventListener('change', e => {
-        if (e.target.matches('[data-sp-filter]')) { filter = e.target.value; render(); }
-    });
+    // ===== 見出しのメニュー（並べ替え・値で絞り込み） =====
+    let pop = null;
+    function closePop() { if (pop) { pop.remove(); pop = null; } }
+    function openPop(btn) {
+        closePop();
+        const sheet = GS.state.currentSheet;
+        const key = btn.dataset.spCol, col = viewCols(kind).find(c => c[0] === key);
+        if (!sheet || !col) return;
+        const v = views[kind], type = col[2];
+        // 値の一覧：ほかの列の絞り込みをかけた行から（Excelと同じ）
+        const others = { ...v.filters }; delete others[key];
+        const base = sheetItems(sheet.id, kind).filter(r => viewCols(kind).every(([k2, , t2]) => !others[k2] || others[k2].has(dispOf(r, k2, t2))));
+        const counts = new Map();
+        base.forEach(r => { const d = dispOf(r, key, type); counts.set(d, (counts.get(d) || 0) + 1); });
+        const special = new Set([BLANK, NOT_YET]);
+        const raw = new Map(base.map(r => [dispOf(r, key, type), r[key]]));
+        const values = [...counts.keys()].sort((a, b) => (special.has(a) - special.has(b)) || cmpVal(raw.get(a), raw.get(b), type));
+        const cur = v.filters[key];
+        pop = document.createElement('div');
+        pop.className = 'sp-pop';
+        pop.innerHTML = `
+            <button type="button" class="sp-pop-sort${v.sort && v.sort.key === key && v.sort.dir === 'asc' ? ' is-on' : ''}" data-pop-sort="asc">▲ 昇順で並べ替え</button>
+            <button type="button" class="sp-pop-sort${v.sort && v.sort.key === key && v.sort.dir === 'desc' ? ' is-on' : ''}" data-pop-sort="desc">▼ 降順で並べ替え</button>
+            <div class="sp-pop-sep"></div>
+            <input type="search" class="sp-pop-q" placeholder="検索" data-pop-q>
+            <div class="sp-pop-list">
+                <label class="sp-pop-all"><input type="checkbox" data-pop-all><span>（すべて選択）</span></label>
+                ${values.map(d => `<label data-pop-item="${esc(d)}"><input type="checkbox" value="${esc(d)}"${!cur || cur.has(d) ? ' checked' : ''}><span>${esc(d)}</span><small>${counts.get(d)}</small></label>`).join('')}
+            </div>
+            <div class="sp-pop-foot">
+                <button type="button" class="spec-btn" data-pop="clear"${cur ? '' : ' disabled'}>この列の絞り込みを解除</button>
+                <span class="spec-spacer"></span>
+                <button type="button" class="spec-btn" data-pop="cancel">キャンセル</button>
+                <button type="button" class="spec-btn spec-btn--primary" data-pop="ok">OK</button>
+            </div>`;
+        document.body.appendChild(pop);
+        const r = btn.getBoundingClientRect();
+        const w = pop.offsetWidth, h = pop.offsetHeight;
+        pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8)) + 'px';
+        // いつも見出しの下に開く。画面の下に入りきらないときは、値の一覧を短くする
+        pop.style.top = (r.bottom + 4) + 'px';
+        const over = r.bottom + 4 + h - (window.innerHeight - 8);
+        if (over > 0) { const list = pop.querySelector('.sp-pop-list'); list.style.maxHeight = Math.max(80, list.offsetHeight - over) + 'px'; }
+        const boxes = () => [...pop.querySelectorAll('.sp-pop-list label[data-pop-item]:not([hidden]) input')];
+        const all = pop.querySelector('[data-pop-all]');
+        const syncAll = () => { const b = boxes(), n = b.filter(x => x.checked).length; all.checked = b.length > 0 && n === b.length; all.indeterminate = n > 0 && n < b.length; };
+        syncAll();
+        pop.addEventListener('change', e => {
+            if (e.target === all) boxes().forEach(x => { x.checked = all.checked; });
+            syncAll();
+        });
+        pop.querySelector('[data-pop-q]').addEventListener('input', e => {
+            const q = e.target.value.trim().toLowerCase();
+            pop.querySelectorAll('[data-pop-item]').forEach(l => { l.hidden = !!q && !l.dataset.popItem.toLowerCase().includes(q); });
+            syncAll();
+        });
+        pop.addEventListener('click', e => {
+            const s = e.target.closest('[data-pop-sort]');
+            if (s) { v.sort = { key, dir: s.dataset.popSort }; closePop(); render(); return; }
+            const b = e.target.closest('[data-pop]');
+            if (!b) return;
+            if (b.dataset.pop === 'cancel') { closePop(); return; }
+            if (b.dataset.pop === 'clear') { delete v.filters[key]; closePop(); render(); return; }
+            if (b.dataset.pop === 'ok') {
+                // 検索で隠れている値は選ばない（Excelと同じ）。全部選んだときは絞り込みなし
+                const picked = [...pop.querySelectorAll('.sp-pop-list label[data-pop-item]')].filter(l => !l.hidden && l.querySelector('input').checked).map(l => l.dataset.popItem);
+                if (!picked.length) { alert('表示する値を1つ以上選んでください。'); return; }
+                if (picked.length === values.length) delete v.filters[key]; else v.filters[key] = new Set(picked);
+                closePop(); render();
+            }
+        });
+        pop.querySelector('[data-pop-q]').focus();
+    }
+    document.addEventListener('mousedown', e => { if (pop && !pop.contains(e.target) && !e.target.closest('[data-sp-col]')) closePop(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && pop) { e.stopPropagation(); closePop(); } }, true);
+    root.addEventListener('scroll', closePop, true);
     root.addEventListener('click', e => {
+        const th = e.target.closest('[data-sp-col]');
+        if (th && !editing) { if (pop && pop.dataset.col === th.dataset.spCol) closePop(); else { openPop(th); if (pop) pop.dataset.col = th.dataset.spCol; } return; }
         const c = e.target.closest('[data-sp-check]');
         if (c && !editing) { toggleCheck(Number(c.dataset.spCheck)); return; }
         const d = e.target.closest('[data-sp-del]');
