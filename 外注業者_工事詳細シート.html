@@ -638,55 +638,22 @@
     .gt-track { flex: 1; position: relative; min-height: 36px; }
     /* バー：外注先の色の薄い背景＋枠線＋左端の濃い帯（色は gaichu-gantt.js が入れる）。先頭に工程名・機械ユニット・期間。短いバーは文字をバーの外へ続けて出す */
     .gt-bar { position: absolute; top: 6px; height: 24px; box-sizing: border-box; display: flex; align-items: center; gap: 6px; padding: 0 8px 0 10px; border: 1px solid; border-radius: 5px; font-size: 12.5px; line-height: 1; white-space: nowrap; }
-    .gt-bar b, .gt-bar span { flex: none; }
-    .gt-bar span { font-weight: 500; }
+    /* バーの右の文字（工程名・機械ユニット・期間） */
+    .gt-text { position: absolute; top: 6px; height: 24px; display: flex; align-items: center; gap: 6px; font-size: 12.5px; line-height: 1; white-space: nowrap; pointer-events: auto; }
+    .gt-text span { font-weight: 500; }
+    .gt-text.is-done { opacity: .45; }
     .gt-bar.is-done, .gt-mile.is-done { opacity: .45; }
     /* 1日だけの出荷・検査・立会：外注先の色の縦線＋文字（文字は外注先の色を濃くした色） */
     .gt-mile { position: absolute; top: 6px; height: 24px; transform: translateX(-2px); display: flex; align-items: center; gap: 8px; white-space: nowrap; }
     .gt-mile i { width: 4px; height: 16px; border-radius: 2px; flex: none; }
     .gt-mile b { font-size: 12.5px; }
-    /* ガントチャート／カレンダーの切り替えと、週単位・日単位／月の切り替えを並べる行 */
+    /* 週単位・日単位の切り替えと凡例を並べる行 */
     .gantt-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; margin-bottom: 12px; min-height: 36px; }
     .gantt-toolbar .gantt-unit-toggle { margin-bottom: 0; }
     .gantt-toolbar [hidden] { display: none !important; }
-    .gantt-view-toggle { flex: none; display: inline-flex; gap: 2px; padding: 3px; background: #f0f0ee; border: 1px solid #e4e3df; border-radius: 8px; white-space: nowrap; }
-    .gantt-view-btn { appearance: none; border: 0; background: transparent; display: inline-flex; align-items: center; gap: 6px; font-family: inherit; font-size: 12.5px; font-weight: 700; line-height: 1.5; color: #5b6068; padding: 5px 12px; border-radius: 6px; cursor: pointer; white-space: nowrap; transition: background .15s, color .15s; }
-    .gantt-view-btn:hover { color: #2b2f36; background: #fff; }
-    .gantt-view-btn.active { background: #2b2f36; color: #fff; cursor: default; }
-    .gantt-toolbar-sep { flex: none; width: 1px; height: 22px; background: #e4e3df; }
-    .gantt-cal-nav { display: flex; align-items: center; gap: 6px; }
-    .gantt-cal-nav button { appearance: none; height: 32px; min-width: 32px; padding: 0 10px; border: 1px solid #cfd0cc; border-radius: 6px; background: #fff; color: #2b2f36; font-family: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; }
-    .gantt-cal-nav button[data-cal="prev"], .gantt-cal-nav button[data-cal="next"] { font-size: 15px; padding: 0; }
-    .gantt-cal-nav button:hover:not(:disabled) { border-color: #2b2f36; background: #eceef1; }
-    .gantt-cal-nav button:disabled { color: #c9ccd1; cursor: default; }
-    .gantt-cal-nav b { font-size: 17px; margin-left: 8px; }
     .gantt-legend-row { margin-left: auto; display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 12px; color: #5b6068; }
     .gantt-legend-row span { display: inline-flex; align-items: center; gap: 6px; }
     .gantt-legend-row i { width: 14px; height: 9px; border-radius: 2px; flex: none; }
-    /* カレンダー（1か月・日曜始まり）。バー・縦線の形はガントチャートと同じ */
-    .gt--cal { overflow: hidden; }
-    .gc-head, .gc-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
-    .gc-head { background: #f3f3f1; border-bottom: 1px solid #e4e3df; }
-    .gc-head > div { padding: 7px 10px; font-size: 12.5px; font-weight: 700; color: #6b7079; }
-    .gc-head > div.is-we { color: #c0392b; }
-    .gc-week { position: relative; border-top: 1px solid #e4e3df; }
-    .gc-week:first-of-type { border-top: 0; }
-    .gc-day { padding: 6px 0 0 8px; background: #fff; border-left: 1px solid #efefec; }
-    .gc-day:first-child { border-left: 0; }
-    .gc-day span { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; height: 22px; padding: 0 6px; border-radius: 11px; font-size: 13px; font-weight: 700; line-height: 1; color: #2b2f36; }
-    .gc-day.is-we { background: #fbfbfa; }
-    .gc-day.is-we span { color: #c0392b; }
-    .gc-day.is-other { background: #fafaf9; }
-    .gc-day.is-other span { color: #c2c5c9; }
-    .gc-day.is-today { background: rgba(61,90,128,0.08); }
-    .gc-day.is-today span { background: #3d5a80; color: #fff; }
-    .gc-bar { position: absolute; height: 24px; margin-left: 4px; box-sizing: border-box; display: flex; align-items: center; gap: 6px; padding: 0 8px 0 10px; border: 1px solid; font-size: 12.5px; line-height: 1; white-space: nowrap; overflow: hidden; }
-    .gc-bar.is-tail { justify-content: flex-end; padding-left: 8px; }
-    .gc-bar b { flex: none; }
-    .gc-bar span { font-weight: 500; overflow: hidden; text-overflow: ellipsis; }
-    .gc-mile { position: absolute; height: 24px; margin-left: 4px; display: flex; align-items: center; gap: 8px; font-size: 12.5px; white-space: nowrap; }
-    .gc-mile i { width: 4px; height: 16px; border-radius: 2px; flex: none; }
-    .gc-bar.is-done, .gc-mile.is-done { opacity: .45; }
     /* 週単位・日単位の切り替え（外注先の追加・削除画面の切り替えと同じ形） */
     .gantt-unit-toggle { display: inline-flex; gap: 2px; padding: 3px; background: #f0f0ee; border: 1px solid #e4e3df; border-radius: 8px; margin-bottom: 12px; }
     .gantt-unit-btn { appearance: none; border: 0; background: transparent; font-family: inherit; font-size: 12.5px; font-weight: 700; color: #5b6068; padding: 5px 14px; border-radius: 6px; cursor: pointer; transition: background .15s, color .15s; }
@@ -1697,7 +1664,9 @@
     .ov-gt-track { flex: 1; min-width: 0; position: relative; }
     /* バー：会社の色の薄い背景＋枠線＋左端の濃い帯（色は gaichu-overview.js が入れる）。先頭に工程名と期間。短いバーは文字をバーの外へ続けて出す */
     .ov-gt-bar { position: absolute; height: 18px; margin-top: 2px; box-sizing: border-box; display: flex; align-items: center; gap: 5px; padding: 0 6px 0 10px; border: 1px solid; border-radius: 4px; font-size: 11px; font-weight: 500; line-height: 1; white-space: nowrap; }
-    .ov-gt-bar b { font-weight: 700; }
+    .ov-gt-text { position: absolute; height: 18px; margin-top: 2px; display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 500; line-height: 1; white-space: nowrap; }
+    .ov-gt-text b { font-weight: 700; }
+    .ov-gt-text.is-done { opacity: .45; }
     /* 1日だけの行事：会社の色の縦線＋文字 */
     .ov-gt-mile { position: absolute; height: 18px; margin-top: 2px; transform: translateX(-2px); display: flex; align-items: center; gap: 7px; white-space: nowrap; }
     .ov-gt-mile i { width: 4px; height: 16px; border-radius: 2px; flex: none; }
@@ -1810,8 +1779,7 @@
         .gt .gt-row .gt-label { left: 115px; width: 145px; padding: 2px 8px; }
         .gt .gt-row .gt-label span { font-size: 10.5px; }
         .gt-track { min-height: 28px; }
-        .gt-bar, .gt-mile { top: 4px; height: 20px; font-size: 10.5px; }
-        .gantt-view-toggle, .gantt-toolbar-sep, .gantt-cal-nav button { display: none !important; }
+        .gt-bar, .gt-mile, .gt-text { top: 4px; height: 20px; font-size: 10.5px; }
         /* 組立範囲の図面：2枚ずつ並べ、図面の途中で改ページしない。色分け枠は画像に合わせて重ねる（画面用の位置の計算は使わない） */
         .figure-row.scope-figs .figure-card { flex: 0 1 calc(50% - 8px) !important; break-inside: avoid; }
         .figure-row.scope-figs .figure-card:only-child { flex-basis: 70% !important; }
@@ -1953,22 +1921,11 @@
             <h2 class="print-only">工程表</h2>
         </div>
         <div class="card">
-            <!-- 表示の切り替え（gaichu-gantt.js）。ガントチャートのときは週単位・日単位、カレンダーのときは月の切り替えを出す -->
+            <!-- 週単位・日単位の切り替えと凡例（gaichu-gantt.js） -->
             <div class="gantt-toolbar">
-                <div class="gantt-view-toggle" role="group" aria-label="表示の切り替え">
-                    <button class="gantt-view-btn active" data-view="gantt" type="button"><svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" aria-hidden="true"><rect x="1" y="2.5" width="8" height="2.6" rx="1"/><rect x="4" y="6.7" width="9" height="2.6" rx="1"/><rect x="8" y="10.9" width="7" height="2.6" rx="1"/></svg>ガントチャート</button>
-                    <button class="gantt-view-btn" data-view="calendar" type="button"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="1.8" y="2.8" width="12.4" height="11.4" rx="1.6"/><line x1="1.8" y1="6.4" x2="14.2" y2="6.4"/><line x1="5" y1="1.2" x2="5" y2="4"/><line x1="11" y1="1.2" x2="11" y2="4"/></svg>カレンダー</button>
-                </div>
-                <i class="gantt-toolbar-sep" aria-hidden="true"></i>
                 <div class="gantt-unit-toggle">
                     <button class="gantt-unit-btn active" data-unit="week" type="button">週単位</button>
                     <button class="gantt-unit-btn" data-unit="day" type="button">日単位</button>
-                </div>
-                <div class="gantt-cal-nav" id="ganttCalNav" hidden>
-                    <button type="button" data-cal="prev" aria-label="前の月">‹</button>
-                    <button type="button" data-cal="next" aria-label="次の月">›</button>
-                    <button type="button" data-cal="today">今日</button>
-                    <b data-cal-title></b>
                 </div>
                 <div class="gantt-legend-row" id="ganttLegend"></div>
             </div>
@@ -2191,10 +2148,10 @@ window.addEventListener('afterprint', () => {
 <script src="gaichu-admin.js?v=20261026e"></script>
 <script src="gaichu-sheet.js?v=20261026r"></script>
 <script src="gaichu-jobnav.js?v=20261026d"></script>
-<script src="gaichu-overview.js?v=20261027a"></script>
+<script src="gaichu-overview.js?v=20261027b"></script>
 <script src="gaichu-spec.js?v=20261026a"></script>
 <script src="gaichu-scope.js?v=20261023r"></script>
-<script src="gaichu-gantt.js?v=20261027a"></script>
+<script src="gaichu-gantt.js?v=20261027c"></script>
 <script src="org-chart.js?v=20261023s"></script>
 <script src="gaichu-supply.js?v=20261026o"></script>
 
