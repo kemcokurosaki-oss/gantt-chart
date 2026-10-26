@@ -210,9 +210,12 @@
     async function toggleCheck(id) {
         const r = items.find(x => x.id === id);
         if (!r) return;
-        if (r.checked_on && !confirm(`「${r.name}」の✓を外しますか？（${ymdJa(r.checked_on)} にチェックした記録が消えます）`)) return;
+        // 確認なしですぐ付け外しする（間違えたらもう一度押せば戻る）。保存中に同じ行を押しても重ねて保存しない
+        if (r._busy) return;
+        r._busy = true;
         const value = r.checked_on ? null : todayStr();
         const { data, error } = await db().from('gaichu_supply_items').update({ checked_on: value }).eq('id', id).select('*');
+        r._busy = false;
         if (error || !data || !data.length) { alert('保存できませんでした：' + ((error && error.message) || '編集の権限がないか、ログインが切れています')); return; }
         Object.assign(r, data[0]);
         render();
