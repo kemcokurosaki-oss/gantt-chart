@@ -39,6 +39,8 @@
     const BLANK = '（空白）', NOT_YET = '（未入力）', CHECKED = '✓ チェック済み', UNCHECKED = '未チェック';
     let editing = false, draft = null, removed = [];
     let selected = new Set();   // 編集中に選んだ行（一括入力の対象。draft の行そのもの）
+    let selAnchor = null, echeckAnchor = null;   // 編集中の Shift＋クリックの起点（選択の欄・✓）
+    let bulkDate = '';          // 一括入力の支給日の欄に入れた日付（描き直しても残す）
 
     function esc(s) {
         return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -200,9 +202,9 @@
         root.innerHTML = `<div class="sp-summary"><b>${esc(sheet.display)}</b>　${esc(kindLabel[1])}（${esc(kindLabel[2])}から）`
             + (rows.length ? `${editing ? '' : `<span class="sp-hint">${ctrlPick.size ? `<b>${ctrlPick.size} 行を選択中</b>：Ctrlを離すとまとめて${pickWillCheck() ? '✓を付けます' : '✓を外します'}` : 'Shift＋クリックで範囲、Ctrl＋クリックで複数の行をまとめて✓'}</span>`}<span class="sp-prog">チェック済み <b>${p.done}</b> ／ ${p.total}</span>` : '') + `</div>`
             + (editing && rows.length ? `<div class="sp-bulk"><b>選んだ ${selShown.length} 行に</b>
-                <label>支給日 <input type="date" data-sp-bulkdate${hasSupplyDate ? '' : ' disabled'}></label><button type="button" class="spec-btn" data-sp-bulk="date"${selShown.length && hasSupplyDate ? '' : ' disabled'}>支給日を入れる</button><button type="button" class="spec-btn" data-sp-bulk="nodate"${selShown.length && hasSupplyDate ? '' : ' disabled'}>支給日を消す</button>
-                <span class="sp-sep"></span><button type="button" class="spec-btn" data-sp-bulk="check"${selShown.length ? '' : ' disabled'}>✓を付ける</button><button type="button" class="spec-btn" data-sp-bulk="uncheck"${selShown.length ? '' : ' disabled'}>✓を外す</button>
-                <span class="sp-bulk-note">左の欄で行を選びます（見出しの欄ですべて選択）。保存を押すまでは反映されません。</span></div>` : '')
+                <label title="日付を選ぶと、選んだ行にすぐ入ります。カレンダーの「クリア」で選んだ行の支給日を消します">支給日 <input type="date" data-sp-bulkdate value="${esc(bulkDate)}"${selShown.length && hasSupplyDate ? '' : ' disabled'}></label>
+                <span class="sp-sep"></span><button type="button" class="spec-btn" data-sp-bulk="check"${selShown.length ? '' : ' disabled'} title="選んだ行に✓のないものがあれば全部に✓、全部✓済みなら全部外します">${selShown.length && selShown.every(r => r.checked_on) ? '✓を外す' : '✓を付ける'}</button>
+                <span class="sp-bulk-note">左の欄で行を選びます（見出しの欄ですべて選択、Shift＋クリックで範囲）。支給日は日付を選ぶとすぐ入り、カレンダーの「クリア」で消えます。保存を押すまでは反映されません。</span></div>` : '')
             + (empty || `<div class="sp-table-wrap"><table class="sp-table"><thead>${head}</thead><tbody>${body || `<tr><td colspan="${cols.length + 7}" class="sp-none">この条件の行はありません。</td></tr>`}</tbody></table></div>`);
     }
 
@@ -280,6 +282,7 @@
         draft = sheetItems(sheet.id).map(r => ({ ...r }));
         removed = [];
         selected = new Set();
+        selAnchor = null; echeckAnchor = null; bulkDate = '';
         editing = true;
         render();
     }
@@ -673,38 +676,67 @@
     document.addEventListener('keydown', e => { if (e.key === 'Escape' && pop) { e.stopPropagation(); closePop(); } }, true);
     root.addEventListener('scroll', closePop, true);
     // 一括入力・行の選択（編集中）
+    const shownDraft = () => applyView(draft.filter(r => r.kind === kind), kind);
     root.addEventListener('change', e => {
         if (!editing) return;
+        // 支給日の一括入力：日付を選んだらすぐ、クリアしたらすぐ、選んだ行に反映
+        const bd = e.target.closest('[data-sp-bulkdate]');
+        if (bd) {
+            collect();
+            bulkDate = bd.value;
+            shownDraft().filter(r => selected.has(r)).forEach(r => { r.supply_date = bd.value || null; });
+            render();
+            return;
+        }
         const all = e.target.closest('[data-sp-selall]');
-        const one = e.target.closest('[data-sp-sel]');
-        if (!all && !one) return;
+        if (!all) return;
         collect();
-        const shownRows = applyView(draft.filter(r => r.kind === kind), kind);
-        if (all) shownRows.forEach(r => { if (all.checked) selected.add(r); else selected.delete(r); });
-        else { const r = draft[Number(one.dataset.spSel)]; if (one.checked) selected.add(r); else selected.delete(r); }
+        shownDraft().forEach(r => { if (all.checked) selected.add(r); else selected.delete(r); });
         render();
     });
+    // 選択の欄：Shift＋クリックで、起点の行からの範囲をまとめて同じ状態にする
+    function clickSel(box, e) {
+        collect();
+        const r = draft[Number(box.dataset.spSel)], list = shownDraft();
+        const a = selAnchor ? list.indexOf(selAnchor) : -1, b = list.indexOf(r);
+        const on = box.checked;
+        const range = e.shiftKey && a >= 0 && b >= 0 ? list.slice(Math.min(a, b), Math.max(a, b) + 1) : [r];
+        range.forEach(x => { if (on) selected.add(x); else selected.delete(x); });
+        selAnchor = r;
+        render();
+    }
+    // 編集中の✓：Shift＋クリックで、起点の行と同じ状態に範囲をそろえる
+    function clickEcheck(btn, e) {
+        collect();
+        const r = draft[Number(btn.dataset.spEcheck)], list = shownDraft();
+        const a = echeckAnchor ? list.indexOf(echeckAnchor) : -1, b = list.indexOf(r);
+        if (e.shiftKey && a >= 0 && b >= 0) {
+            const on = !!echeckAnchor.checked_on, t = todayStr();
+            list.slice(Math.min(a, b), Math.max(a, b) + 1).forEach(x => { if (on && !x.checked_on) x.checked_on = t; if (!on) x.checked_on = null; });
+        } else {
+            r.checked_on = r.checked_on ? null : todayStr();
+            echeckAnchor = r;
+        }
+        render();
+    }
     function bulk(act) {
         collect();
         const targets = applyView(draft.filter(r => r.kind === kind), kind).filter(r => selected.has(r));
         if (!targets.length) return;
-        if (act === 'date') {
-            const d = root.querySelector('[data-sp-bulkdate]').value;
-            if (!d) { alert('入れる支給日を選んでください。'); return; }
-            targets.forEach(r => { r.supply_date = d; });
-        } else if (act === 'nodate') targets.forEach(r => { r.supply_date = null; });
-        else if (act === 'check') { const t = todayStr(); targets.forEach(r => { if (!r.checked_on) r.checked_on = t; }); }
-        else if (act === 'uncheck') targets.forEach(r => { r.checked_on = null; });
-        const keep = root.querySelector('[data-sp-bulkdate]') && root.querySelector('[data-sp-bulkdate]').value;
+        // ✓：1つでも✓なしがあれば全部に付ける、全部✓済みなら全部外す（1つのボタンで付け外し）
+        if (act === 'check') {
+            if (targets.every(r => r.checked_on)) targets.forEach(r => { r.checked_on = null; });
+            else { const t = todayStr(); targets.forEach(r => { if (!r.checked_on) r.checked_on = t; }); }
+        }
         render();
-        const inp = root.querySelector('[data-sp-bulkdate]');
-        if (inp && keep) inp.value = keep;
     }
     root.addEventListener('click', e => {
         const bk = e.target.closest('[data-sp-bulk]');
         if (bk && editing) { bulk(bk.dataset.spBulk); return; }
+        const sb = e.target.closest('[data-sp-sel]');
+        if (sb && editing) { clickSel(sb, e); return; }
         const ec = e.target.closest('[data-sp-echeck]');
-        if (ec && editing) { collect(); const r = draft[Number(ec.dataset.spEcheck)]; r.checked_on = r.checked_on ? null : todayStr(); render(); return; }
+        if (ec && editing) { clickEcheck(ec, e); return; }
         const th = e.target.closest('[data-sp-col]');
         if (th && !editing) { if (pop && pop.dataset.col === th.dataset.spCol) closePop(); else { openPop(th); if (pop) pop.dataset.col = th.dataset.spCol; } return; }
         const c = e.target.closest('[data-sp-check]');

@@ -1515,6 +1515,8 @@
     .sp-del-col { width: 28px; }
     .sp-sel-col { width: 28px; text-align: center; }
     .sp-sel-col input { width: 16px; height: 16px; cursor: pointer; }
+    .sp-table { user-select: none; }   /* Shift＋クリックで文字が選択されないように（入力欄の中は選べる） */
+    .sp-table input { user-select: text; }
     .sp-table tr.is-sel td { background: #eef3fa; }
     .sp-bulk { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px; margin: 0 0 10px; padding: 8px 12px; background: #f6f6f4; border: 1px solid #e4e3df; border-radius: 8px; font-size: 13px; }
     .sp-bulk label { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; color: #5b6068; }
@@ -2210,7 +2212,7 @@ window.addEventListener('afterprint', () => {
 <script src="gaichu-scope.js?v=20261027a"></script>
 <script src="gaichu-gantt.js?v=20261027d"></script>
 <script src="org-chart.js?v=20261023s"></script>
-<script src="gaichu-supply.js?v=20261026o"></script>
+<script src="gaichu-supply.js?v=20261027a"></script>
 
 </body>
 </html>
