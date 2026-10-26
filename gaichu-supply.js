@@ -562,8 +562,8 @@
         pop = document.createElement('div');
         pop.className = 'sp-pop';
         pop.innerHTML = `
-            <button type="button" class="sp-pop-sort${v.sort && v.sort.key === key && v.sort.dir === 'asc' ? ' is-on' : ''}" data-pop-sort="asc">▲ 昇順で並べ替え</button>
-            <button type="button" class="sp-pop-sort${v.sort && v.sort.key === key && v.sort.dir === 'desc' ? ' is-on' : ''}" data-pop-sort="desc">▼ 降順で並べ替え</button>
+            <button type="button" class="sp-pop-sort${v.sort && v.sort.key === key && v.sort.dir === 'asc' ? ' is-on' : ''}" data-pop-sort="asc">▲ 昇順</button>
+            <button type="button" class="sp-pop-sort${v.sort && v.sort.key === key && v.sort.dir === 'desc' ? ' is-on' : ''}" data-pop-sort="desc">▼ 降順</button>
             <div class="sp-pop-sep"></div>
             <input type="search" class="sp-pop-q" placeholder="検索" data-pop-q>
             <div class="sp-pop-list">
