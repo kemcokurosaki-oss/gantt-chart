@@ -13,7 +13,7 @@
     const GREY = { color: '#b4b7bb', tint: '#f1f1ee', ink: '#6b7079' };
     const WEEKDAY_JA = ['日', '月', '火', '水', '木', '金', '土'];
     const DAY_MS = 86400000;
-    const LABEL_W = 330;
+    const LABEL_W = 345;
     // 印刷のとき：A4横の印刷幅（約1047px）から枠の余白を引いた幅に収める。左の工程名の列も細くする（ページ側の印刷用CSSと合わせる）
     const PRINT_W = 930, PRINT_LABEL_W = 260;
     let printing = false;
