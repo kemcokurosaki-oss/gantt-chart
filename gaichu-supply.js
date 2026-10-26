@@ -26,7 +26,8 @@
     };
     const BASE_FIELDS = ['unit_code', 'doc_no', 'seq', 'drawing_no', 'name', 'material', 'spec', 'qty', 'weight_material', 'weight_finished', 'plan_code', 'maker', 'remark'];
     let hasSupplyDate = true;   // 支給日の列（scripts/gaichu_supply_date_setup.sql）があるか
-    const fields = () => hasSupplyDate ? [...BASE_FIELDS, 'supply_date'] : BASE_FIELDS;
+    // 編集画面で保存する項目（✓は一括で付け外しできるので含める。付けた人はDB側で自動で入る）
+    const fields = () => hasSupplyDate ? [...BASE_FIELDS, 'supply_date', 'checked_on'] : [...BASE_FIELDS, 'checked_on'];
 
     let items = [];          // この工番の全外注先の行
     let loadedPn = null, loadError = null, loading = false;
@@ -37,6 +38,7 @@
     let viewSheetId = null;
     const BLANK = '（空白）', NOT_YET = '（未入力）', CHECKED = '✓ チェック済み', UNCHECKED = '未チェック';
     let editing = false, draft = null, removed = [];
+    let selected = new Set();   // 編集中に選んだ行（一括入力の対象。draft の行そのもの）
 
     function esc(s) {
         return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -150,13 +152,13 @@
 
         if (viewSheetId !== sheet.id) { viewSheetId = sheet.id; Object.values(views).forEach(v => { v.filters = {}; v.sort = null; }); }
         const rows = (editing ? draft : sheetItems(sheet.id)).filter(r => r.kind === kind);
-        const shown = editing ? rows : applyView(rows, kind);
+        const shown = applyView(rows, kind);
         const kindBtns = KINDS.map(([k, label]) => {
             const p = progress(sheetItems(sheet.id, k));
             return `<button type="button" data-sp-kind="${k}"${k === kind ? ' class="is-on"' : ''}>${label}<small>${p.total ? `${p.done}/${p.total}` : '0'}</small></button>`;
         }).join('');
-        const filterSel = editing || !viewActive(kind) ? ''
-            : `<span class="sp-view-note">${shown.length} / ${rows.length} 行を表示</span><button type="button" class="spec-btn" data-sp="clearview">絞り込み・並べ替えを解除</button>`;
+        const filterSel = !viewActive(kind) ? ''
+            : `<span class="sp-view-note">${shown.length} / ${rows.length} 行を表示</span>` + (editing ? '' : `<button type="button" class="spec-btn" data-sp="clearview">絞り込み・並べ替えを解除</button>`);
         const tools = !st.isAdmin ? '' : editing
             ? `<span class="spec-spacer"></span><span class="scope-editing-tag">編集中</span><button type="button" class="spec-btn" data-sp="add">＋ 行を追加</button><button type="button" class="spec-btn" data-sp="cancel">キャンセル</button><button type="button" class="spec-btn spec-btn--primary" data-sp="save">保存</button>`
             : `<span class="spec-spacer"></span><button type="button" class="spec-btn spec-btn--primary" data-sp="import">読み込む</button><button type="button" class="spec-btn" data-sp="edit"${rows.length ? '' : ' disabled'}>編集</button>`;
@@ -173,7 +175,9 @@
             return `<th${cls}><button type="button" class="sp-th${on || s ? ' is-on' : ''}" data-sp-col="${key}" title="絞り込み・並べ替え">${label}<i>${s === 'asc' ? '▲' : s === 'desc' ? '▼' : ''}${on ? '<b>▽</b>' : s ? '' : '▾'}</i></button></th>`;
         };
         const vc = viewCols(kind);
-        const head = `<tr>${editing ? '<th class="sp-del-col"></th>' : ''}${vc.map(th).join('')}</tr>`;
+        const selShown = shown.filter(r => selected.has(r));
+        const allSel = shown.length > 0 && selShown.length === shown.length;
+        const head = `<tr>${editing ? `<th class="sp-del-col"></th><th class="sp-sel-col"><input type="checkbox" data-sp-selall title="表示している行をすべて選ぶ"${allSel ? ' checked' : ''}></th>` : ''}${vc.map(th).join('')}</tr>`;
         const cellView = (r, [k, , type]) => {
             const v = r[k];
             if (type === 'num' || type === 'int') return `<td class="sp-num">${esc(num(v))}</td>`;
@@ -183,9 +187,9 @@
         const body = shown.map(r => {
             const i = editing ? draft.indexOf(r) : -1;
             const chk = editing
-                ? `<td class="sp-chk-col"><span class="sp-chk${r.checked_on ? ' is-on' : ''}">${r.checked_on ? '✓' : ''}</span></td><td><input type="date" class="sp-in sp-in--date" data-i="${i}" data-k="supply_date" value="${esc(r.supply_date || '')}"${hasSupplyDate ? '' : ' disabled title="支給日の列がまだありません（scripts/gaichu_supply_date_setup.sql を実行してください）"'}></td>`
+                ? `<td class="sp-sel-col"><input type="checkbox" data-sp-sel="${i}"${selected.has(r) ? ' checked' : ''}></td><td class="sp-chk-col"><button type="button" class="sp-chk${r.checked_on ? ' is-on' : ''}" data-sp-echeck="${i}" title="押すと✓を付け外し（保存するまで反映されません）">${r.checked_on ? '✓' : ''}</button></td><td><input type="date" class="sp-in sp-in--date" data-i="${i}" data-k="supply_date" value="${esc(r.supply_date || '')}"${hasSupplyDate ? '' : ' disabled title="支給日の列がまだありません（scripts/gaichu_supply_date_setup.sql を実行してください）"'}></td>`
                 : `<td class="sp-chk-col"><button type="button" class="sp-chk${r.checked_on ? ' is-on' : ''}" data-sp-check="${r.id}"${st.isAdmin ? '' : ' disabled'} title="${r.checked_on ? `${ymdJa(r.checked_on)} にチェック${r.checked_by ? '（' + esc(r.checked_by) + '）' : ''}` : '事前チェックが済んだら✓'}">${r.checked_on ? '✓' : ''}</button></td><td class="sp-date">${r.supply_date ? md(r.supply_date) : ''}</td>`;
-            return `<tr class="${r.checked_on ? 'is-done' : ''}">${editing ? `<td class="sp-del-col"><button type="button" class="sp-del" data-sp-del="${i}" title="この行を削除">✕</button></td>` : ''}${chk}`
+            return `<tr class="${r.checked_on ? 'is-done' : ''}${editing && selected.has(r) ? ' is-sel' : ''}">${editing ? `<td class="sp-del-col"><button type="button" class="sp-del" data-sp-del="${i}" title="この行を削除">✕</button></td>` : ''}${chk}`
                 + (editing ? `<td><input class="sp-in sp-in--unit" data-i="${i}" data-k="unit_code" value="${esc(r.unit_code || '')}"></td>` : `<td>${esc(r.unit_code || '')}</td>`)
                 + cols.map(c => editing ? cellEdit(r, i, c) : cellView(r, c)).join('')
                 + (editing ? `<td><input class="sp-in sp-in--doc" data-i="${i}" data-k="doc_no" value="${esc(r.doc_no || '')}"></td>` : `<td class="sp-doc">${esc(r.doc_no || '')}</td>`) + `</tr>`;
@@ -195,7 +199,11 @@
             ? `<p class="spec-msg">${esc(kindLabel[1])}の行はまだありません。${st.isAdmin ? `上の「読み込む」から、${esc(kindLabel[2])}をClaudeで読み取った結果やExcelの表を貼り付けると作成できます。` : ''}</p>` : '';
         root.innerHTML = `<div class="sp-summary"><b>${esc(sheet.display)}</b>　${esc(kindLabel[1])}（${esc(kindLabel[2])}から）`
             + (rows.length ? `<span class="sp-prog">チェック済み <b>${p.done}</b> ／ ${p.total}</span>` : '') + `</div>`
-            + (empty || `<div class="sp-table-wrap"><table class="sp-table"><thead>${head}</thead><tbody>${body || `<tr><td colspan="${cols.length + 5}" class="sp-none">この条件の行はありません。</td></tr>`}</tbody></table></div>`);
+            + (editing && rows.length ? `<div class="sp-bulk"><b>選んだ ${selShown.length} 行に</b>
+                <label>支給日 <input type="date" data-sp-bulkdate${hasSupplyDate ? '' : ' disabled'}></label><button type="button" class="spec-btn" data-sp-bulk="date"${selShown.length && hasSupplyDate ? '' : ' disabled'}>支給日を入れる</button><button type="button" class="spec-btn" data-sp-bulk="nodate"${selShown.length && hasSupplyDate ? '' : ' disabled'}>支給日を消す</button>
+                <span class="sp-sep"></span><button type="button" class="spec-btn" data-sp-bulk="check"${selShown.length ? '' : ' disabled'}>✓を付ける</button><button type="button" class="spec-btn" data-sp-bulk="uncheck"${selShown.length ? '' : ' disabled'}>✓を外す</button>
+                <span class="sp-bulk-note">左の欄で行を選びます（見出しの欄ですべて選択）。保存を押すまでは反映されません。</span></div>` : '')
+            + (empty || `<div class="sp-table-wrap"><table class="sp-table"><thead>${head}</thead><tbody>${body || `<tr><td colspan="${cols.length + 7}" class="sp-none">この条件の行はありません。</td></tr>`}</tbody></table></div>`);
     }
 
     // ===== ✓ =====
@@ -215,6 +223,7 @@
         const sheet = GS.state.currentSheet;
         draft = sheetItems(sheet.id).map(r => ({ ...r }));
         removed = [];
+        selected = new Set();
         editing = true;
         render();
     }
@@ -608,7 +617,39 @@
     document.addEventListener('mousedown', e => { if (pop && !pop.contains(e.target) && !e.target.closest('[data-sp-col]')) closePop(); });
     document.addEventListener('keydown', e => { if (e.key === 'Escape' && pop) { e.stopPropagation(); closePop(); } }, true);
     root.addEventListener('scroll', closePop, true);
+    // 一括入力・行の選択（編集中）
+    root.addEventListener('change', e => {
+        if (!editing) return;
+        const all = e.target.closest('[data-sp-selall]');
+        const one = e.target.closest('[data-sp-sel]');
+        if (!all && !one) return;
+        collect();
+        const shownRows = applyView(draft.filter(r => r.kind === kind), kind);
+        if (all) shownRows.forEach(r => { if (all.checked) selected.add(r); else selected.delete(r); });
+        else { const r = draft[Number(one.dataset.spSel)]; if (one.checked) selected.add(r); else selected.delete(r); }
+        render();
+    });
+    function bulk(act) {
+        collect();
+        const targets = applyView(draft.filter(r => r.kind === kind), kind).filter(r => selected.has(r));
+        if (!targets.length) return;
+        if (act === 'date') {
+            const d = root.querySelector('[data-sp-bulkdate]').value;
+            if (!d) { alert('入れる支給日を選んでください。'); return; }
+            targets.forEach(r => { r.supply_date = d; });
+        } else if (act === 'nodate') targets.forEach(r => { r.supply_date = null; });
+        else if (act === 'check') { const t = todayStr(); targets.forEach(r => { if (!r.checked_on) r.checked_on = t; }); }
+        else if (act === 'uncheck') targets.forEach(r => { r.checked_on = null; });
+        const keep = root.querySelector('[data-sp-bulkdate]') && root.querySelector('[data-sp-bulkdate]').value;
+        render();
+        const inp = root.querySelector('[data-sp-bulkdate]');
+        if (inp && keep) inp.value = keep;
+    }
     root.addEventListener('click', e => {
+        const bk = e.target.closest('[data-sp-bulk]');
+        if (bk && editing) { bulk(bk.dataset.spBulk); return; }
+        const ec = e.target.closest('[data-sp-echeck]');
+        if (ec && editing) { collect(); const r = draft[Number(ec.dataset.spEcheck)]; r.checked_on = r.checked_on ? null : todayStr(); render(); return; }
         const th = e.target.closest('[data-sp-col]');
         if (th && !editing) { if (pop && pop.dataset.col === th.dataset.spCol) closePop(); else { openPop(th); if (pop) pop.dataset.col = th.dataset.spCol; } return; }
         const c = e.target.closest('[data-sp-check]');
@@ -618,6 +659,7 @@
             collect();
             const r = draft[Number(d.dataset.spDel)];
             if (r.id) removed.push(r.id);
+            selected.delete(r);
             draft.splice(Number(d.dataset.spDel), 1);
             render();
         }

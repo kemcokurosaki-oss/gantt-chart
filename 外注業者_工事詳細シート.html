@@ -1454,6 +1454,14 @@
     .sp-chk:disabled { cursor: default; }
     .sp-none { text-align: center; color: #6b7079; padding: 18px !important; }
     .sp-del-col { width: 28px; }
+    .sp-sel-col { width: 28px; text-align: center; }
+    .sp-sel-col input { width: 16px; height: 16px; cursor: pointer; }
+    .sp-table tr.is-sel td { background: #eef3fa; }
+    .sp-bulk { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px; margin: 0 0 10px; padding: 8px 12px; background: #f6f6f4; border: 1px solid #e4e3df; border-radius: 8px; font-size: 13px; }
+    .sp-bulk label { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; color: #5b6068; }
+    .sp-bulk input[type=date] { font: inherit; font-size: 12.5px; padding: 4px 6px; border: 1px solid #cfd0cc; border-radius: 5px; }
+    .sp-bulk .spec-btn { padding: 5px 12px; font-size: 12.5px; }
+    .sp-bulk-note { flex-basis: 100%; font-size: 11.5px; color: #6b7079; }
     .sp-del { border: 0; background: none; color: #c0392b; font-size: 14px; cursor: pointer; padding: 2px 4px; }
     .sp-in { font: inherit; font-size: 12.5px; padding: 3px 6px; border: 1px solid #cfd0cc; border-radius: 4px; width: 100%; min-width: 70px; box-sizing: border-box; }
     .sp-in--num { min-width: 56px; text-align: right; }
@@ -2124,7 +2132,7 @@ window.addEventListener('afterprint', () => {
 <script src="gaichu-scope.js?v=20261023r"></script>
 <script src="gaichu-gantt.js?v=20261026r"></script>
 <script src="org-chart.js?v=20261023s"></script>
-<script src="gaichu-supply.js?v=20261026h"></script>
+<script src="gaichu-supply.js?v=20261026i"></script>
 
 </body>
 </html>
