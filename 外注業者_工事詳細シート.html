@@ -1439,6 +1439,13 @@
     .sp-dup { font-size: 11px; font-weight: 700; color: #7a6000; background: #fef9e7; border: 1px solid #f5d76e; border-radius: 999px; padding: 1px 8px; white-space: nowrap; }
     .sp-warn { margin: 0 0 8px; padding: 6px 10px; border-radius: 6px; background: #fdecea; color: #922b21; font-size: 12.5px; font-weight: 700; }
     .sp-busy { margin: 6px 0 0; font-size: 13px; font-weight: 700; color: #3d5a80; }
+    .sp-im-tabs { display: inline-flex; gap: 2px; padding: 3px; margin-bottom: 12px; background: #f0f0ee; border: 1px solid #e4e3df; border-radius: 8px; }
+    .sp-im-tabs button { appearance: none; border: 0; background: transparent; font: inherit; font-size: 13px; font-weight: 700; color: #5b6068; padding: 6px 14px; border-radius: 6px; cursor: pointer; }
+    .sp-im-tabs button.is-on { background: #2b2f36; color: #fff; }
+    .sp-im-steps { margin: 0 0 8px; padding-left: 20px; font-size: 13px; line-height: 1.7; color: #2b2f36; }
+    .sp-im-copy { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .sp-im-copy span { font-size: 12.5px; font-weight: 700; color: #27ae60; }
+    .sp-im-text { font: inherit; font-family: Consolas, 'Courier New', monospace; font-size: 12px; padding: 8px; border: 1px solid #cfd0cc; border-radius: 4px; width: 100%; box-sizing: border-box; resize: vertical; }
     .sp-pv-head { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 10px; }
     .ga-modal.sp-modal { width: min(1100px, 96vw); }
     .sp-table--pv td { padding: 3px 4px; }
@@ -2095,7 +2102,7 @@ window.addEventListener('afterprint', () => {
 <script src="gaichu-scope.js?v=20261023r"></script>
 <script src="gaichu-gantt.js?v=20261026r"></script>
 <script src="org-chart.js?v=20261023s"></script>
-<script src="gaichu-supply.js?v=20261026d"></script>
+<script src="gaichu-supply.js?v=20261026e"></script>
 
 </body>
 </html>
