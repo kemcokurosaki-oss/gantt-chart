@@ -1541,7 +1541,7 @@
     .ov-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-left: auto; }
     .ov-chip { font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 999px; white-space: nowrap; }
     /* 概要の工程表：月単位。工程ごとに、会社ごとのバーを1本ずつ。期間はいつもバーの右 */
-    .ov-gt { --lab: 200px; border: 1px solid #e4e3df; border-radius: 8px; overflow: hidden; background: #fff; }
+    .ov-gt { --lab: 320px; border: 1px solid #e4e3df; border-radius: 8px; overflow: hidden; background: #fff; }
     .ov-gt-head, .ov-gt-row { display: flex; }
     .ov-gt-head { background: #f3f3f1; border-bottom: 1px solid #e4e3df; }
     .ov-gt-lab { position: relative; z-index: 1; flex: none; box-sizing: border-box; width: var(--lab); padding: 4px 14px; background: #fff; border-right: 1px solid #e4e3df; display: flex; align-items: center; }
@@ -1561,12 +1561,17 @@
     .ov-gt-mile { position: absolute; height: 22px; transform: translateX(-7px); display: flex; align-items: center; gap: 9px; white-space: nowrap; }
     .ov-gt-mile i { width: 13px; height: 13px; transform: rotate(45deg); background: #2b2f36; flex: none; }
     .ov-gt-mile b { font-size: 12.5px; }
-    .ov-gt-where { font-style: normal; font-size: 12px; font-weight: 500; color: #5b6068; margin-right: 8px; }
-    .ov-gt-mile .ov-gt-where { margin: 0 0 0 2px; }
+    /* 工程名の右の機械・ユニット名：右の段（LANE＝22px、上5px）と高さをそろえる */
+    /* 詳細の工程表と同じく、工程名の列と機械・ユニットの列に分ける */
+    .ov-gt-row .ov-gt-lab { align-items: stretch; padding: 0; }
+    .ov-gt-row .ov-gt-lab > b { flex: none; box-sizing: border-box; width: 110px; padding: 0 14px; display: flex; align-items: center; background: #f3f3f1; border-right: 1px solid #e4e3df; }
+    .ov-gt-units { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 5px 12px 0; }
+    .ov-gt-units > span { height: 22px; line-height: 22px; font-size: 12px; color: #5b6068; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ov-gt-units b { font-size: 13px; color: #2b2f36; margin-right: 6px; }
+    .ov-gt-units i { font-style: normal; margin: 0 4px; }
     /* 右端に近い◆は、文字を◆の左側に出す */
     .ov-gt-mile.is-left { flex-direction: row-reverse; transform: translateX(calc(-100% + 7px)); }
-    .ov-gt-mile.is-left .ov-gt-where { margin: 0 2px 0 0; order: 1; }
-    @media (max-width: 700px) { .ov-gt { --lab: 110px; } }
+    @media (max-width: 700px) { .ov-gt { --lab: 160px; } }
     @media print { .ov-gt-row { break-inside: avoid; } .ov-gt-bar, .ov-gt-band, .ov-gt-now, .ov-gt-mile i, .gt-bar, .gt-band, .gt-we, .gt-now, .gt-gname { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
     .ov-legend { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 4px 16px; margin-bottom: 6px; font-size: 12px; color: #5b6068; }
     .ov-legend span { display: inline-flex; align-items: center; gap: 6px; }
@@ -2019,7 +2024,7 @@ window.addEventListener('afterprint', () => {
 <script src="gaichu-admin.js?v=20261026d"></script>
 <script src="gaichu-sheet.js?v=20261026f"></script>
 <script src="gaichu-jobnav.js?v=20261022b"></script>
-<script src="gaichu-overview.js?v=20261026k"></script>
+<script src="gaichu-overview.js?v=20261026m"></script>
 <script src="gaichu-spec.js?v=20261026a"></script>
 <script src="gaichu-scope.js?v=20261023r"></script>
 <script src="gaichu-gantt.js?v=20261026h"></script>
