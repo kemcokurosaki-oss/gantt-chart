@@ -196,6 +196,20 @@
     });
     el.scope.addEventListener('mouseleave', () => highlight(null));
 
+    // バーの文字：まずバーの中（先頭）に置き、バーの幅に入りきらないときだけバーの右に出す。
+    //   実際の幅で測るので、表示したあと・画面の大きさが変わったとき（資料を開いたときも含む）に合わせ直す
+    function fitLabels(box) {
+        if (!box) return;
+        box.querySelectorAll('[data-lbl-out]').forEach(t => {
+            const bar = t.previousElementSibling;
+            if (!bar || !bar.offsetWidth) return;   // 隠れていて測れないときはそのまま（開いたときに合わせ直す）
+            const out = t.offsetWidth + 18 > bar.offsetWidth;
+            t.style.left = out ? t.dataset.lblOut : t.dataset.lblIn;
+            t.classList.toggle('is-out', out);
+        });
+    }
+
+    window.addEventListener('resize', () => fitLabels(el.schedule));
     // ===== 2 工程表 =====
     // 月単位の短い工程表（工程ごと・会社ごとに1本のバー、今日は紺の線）。期間は最初の工程の月の初めから最後の工程の翌月末まで
     // バーは会社の色の薄い背景＋左端の濃い帯。文字（工程名 開始日〜終了日）はいつもバーの右。1日だけの行事は縦線＋文字（詳細の工程表と同じ）
@@ -251,13 +265,14 @@
                 if (n === 1 && v.ts.every(t => /出荷|検査|立会/.test(t.text))) return `<span class="ov-gt-mile${done}" style="left:${pos(s)};top:${top}px;color:${esc(ink)}" title="${esc(title)}"><i style="background:${esc(v.color)}"></i><b>${esc(v.ts[0].text)} ${md(s)}</b></span>`;
                 const l = pct(s), w = Math.max(0.8, n * DAY / span * 100);
                 const label = n === 1 ? md(s) : `${md(s)}〜${md(e)}`;
-                // 文字はバーの長さにかかわらず、いつもバーの右に出す
+                // 文字はバーの中。入りきらないときだけバーの右（fitLabels）
                 return `<span class="ov-gt-bar${done}" style="left:${l.toFixed(2)}%;width:${w.toFixed(2)}%;top:${top}px;background:${esc(mix(v.color, 0.86))};border-color:${esc(mix(v.color, 0.55))};box-shadow:inset 4px 0 0 ${esc(v.color)}" title="${esc(title)}"></span>`
-                    + `<span class="ov-gt-text${done}" style="left:calc(${(l + w).toFixed(2)}% + 6px);top:${top}px;color:${esc(ink)}" title="${esc(title)}"><b>${esc(g.name)}</b>${label}</span>`;
+                    + `<span class="ov-gt-text${done}" data-lbl-in="calc(${l.toFixed(2)}% + 9px)" data-lbl-out="calc(${(l + w).toFixed(2)}% + 6px)" style="left:calc(${l.toFixed(2)}% + 9px);top:${top}px;color:${esc(ink)}" title="${esc(title)}"><b>${esc(g.name)}</b>${label}</span>`;
             }).join('');
             return `<div class="ov-gt-row"><div class="ov-gt-lab"><b>${esc(g.name)}</b></div><div class="ov-gt-track" style="height:${by.size * LANE + 6}px">${lanes}</div></div>`;
         }).join('');
         el.schedule.innerHTML = `${legend}<div class="ov-gt">${head}<div class="ov-gt-body"><div class="ov-gt-bg">${bands}${now}</div>${rowsHtml}</div></div>`;
+        fitLabels(el.schedule);
     }
 
 

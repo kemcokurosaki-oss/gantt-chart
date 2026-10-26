@@ -638,7 +638,7 @@
     .gt-track { flex: 1; position: relative; min-height: 36px; }
     /* バー：外注先の色の薄い背景＋枠線＋左端の濃い帯（色は gaichu-gantt.js が入れる）。先頭に工程名・機械ユニット・期間。短いバーは文字をバーの外へ続けて出す */
     .gt-bar { position: absolute; top: 6px; height: 24px; box-sizing: border-box; display: flex; align-items: center; gap: 6px; padding: 0 8px 0 10px; border: 1px solid; border-radius: 5px; font-size: 12.5px; line-height: 1; white-space: nowrap; }
-    /* バーの右の文字（工程名・機械ユニット・期間） */
+    /* バーの文字（工程名・機械ユニット・期間）。バーの中に置き、入りきらないときだけバーの右（gaichu-gantt.js の fitLabels） */
     .gt-text { position: absolute; top: 6px; height: 24px; display: flex; align-items: center; gap: 6px; font-size: 12.5px; line-height: 1; white-space: nowrap; pointer-events: auto; }
     .gt-text span { font-weight: 500; }
     .gt-text.is-done { opacity: .45; }
@@ -2148,10 +2148,10 @@ window.addEventListener('afterprint', () => {
 <script src="gaichu-admin.js?v=20261026e"></script>
 <script src="gaichu-sheet.js?v=20261026r"></script>
 <script src="gaichu-jobnav.js?v=20261026d"></script>
-<script src="gaichu-overview.js?v=20261027b"></script>
+<script src="gaichu-overview.js?v=20261027d"></script>
 <script src="gaichu-spec.js?v=20261026a"></script>
 <script src="gaichu-scope.js?v=20261023r"></script>
-<script src="gaichu-gantt.js?v=20261027c"></script>
+<script src="gaichu-gantt.js?v=20261027d"></script>
 <script src="org-chart.js?v=20261023s"></script>
 <script src="gaichu-supply.js?v=20261026o"></script>
 

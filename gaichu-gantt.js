@@ -97,6 +97,19 @@
         box.innerHTML = items.map(([n, c]) => `<span><i style="background:${esc(c)}"></i>${esc(n)}</span>`).join('');
     }
 
+    // バーの文字：まずバーの中（先頭）に置き、バーの幅に入りきらないときだけバーの右に出す。
+    //   実際の幅で測るので、表示したあと・画面の大きさが変わったとき（資料を開いたときも含む）に合わせ直す
+    function fitLabels(box) {
+        if (!box) return;
+        box.querySelectorAll('[data-lbl-out]').forEach(t => {
+            const bar = t.previousElementSibling;
+            if (!bar || !bar.offsetWidth) return;   // 隠れていて測れないときはそのまま（開いたときに合わせ直す）
+            const out = t.offsetWidth + 18 > bar.offsetWidth;
+            t.style.left = out ? t.dataset.lblOut : t.dataset.lblIn;
+            t.classList.toggle('is-out', out);
+        });
+    }
+
     function render() {
         container.className = 'gt' + (unit === 'day' ? ' is-day' : '');
         if (!loaded) { container.innerHTML = '<div class="gt-empty">読込中…</div>'; return; }
@@ -164,7 +177,7 @@
             const body = days === 1 && /出荷|検査|立会/.test(t.text)
                 ? mileHtml('gt-mile' + done, `left:${left}%`, look, `${t.text} ${mdStr(t.start)}`, title)
                 : `<div class="gt-bar${done}" style="left:${left}%;width:${width}%;${barStyle(look)}" title="${esc(title)}"></div>`
-                  + `<div class="gt-text${done}" style="left:calc(${left + width}% + 8px);color:${look.ink}" title="${esc(title)}"><b>${esc(gname)}</b><span>${esc(where)}${where ? '　' : ''}${period}</span></div>`;
+                  + `<div class="gt-text${done}" data-lbl-in="calc(${left}% + 10px)" data-lbl-out="calc(${left + width}% + 8px)" style="left:calc(${left}% + 10px);color:${look.ink}" title="${esc(title)}"><b>${esc(gname)}</b><span>${esc(where)}${where ? '　' : ''}${period}</span></div>`;
             return `<div class="gt-row${look.grey ? ' is-grey' : ''}">
                 <div class="gt-label"><b>${esc(t.machine || '')}</b><span>${esc(t.unit || '')}</span></div>
                 <div class="gt-track">${body}</div></div>`;
@@ -175,6 +188,7 @@
 
         container.innerHTML = `<div class="gt-inner" style="min-width:${printing ? 0 : labW + cols.length * colW}px">${head}
             <div class="gt-body"><div class="gt-bg" style="left:${labW}px">${bands}${now}</div>${groups.map(groupHtml).join('')}</div></div>`;
+        fitLabels(container);
     }
 
     container.addEventListener('click', e => {
@@ -191,6 +205,7 @@
         });
     });
     document.addEventListener('gaichusheetchange', () => { if (!loaded) load(); else { pickTasks(); render(); } });
+    window.addEventListener('resize', () => fitLabels(container));
     window.addEventListener('beforeprint', () => { printing = true; render(); });
     window.addEventListener('afterprint', () => { printing = false; render(); });
 
