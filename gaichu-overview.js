@@ -34,6 +34,13 @@
     const ymd = d => `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
     const days = (a, b) => Math.round((b - a) / DAY) + 1;
     const muted = t => `<p class="ov-muted">${t}</p>`;
+    // 色を白（t>0）・黒（t<0）に寄せる。工程表のバーの背景・枠線・文字の色に使う
+    function mix(hex, t) {
+        const m = /^#?([0-9a-f]{6})$/i.exec(hex || '');
+        if (!m) return hex;
+        const n = parseInt(m[1], 16);
+        return '#' + [n >> 16, (n >> 8) & 255, n & 255].map(c => Math.round(t >= 0 ? c + (255 - c) * t : c * (1 + t)).toString(16).padStart(2, '0')).join('');
+    }
 
     // ===== 読み込み（工番ごとに1回） =====
     async function loadAll() {
@@ -191,6 +198,8 @@
 
     // ===== 2 工程表 =====
     // 月単位の短い工程表（工程ごと・会社ごとに1本のバー、今日は紺の線）。期間は最初の工程の月の初めから最後の工程の翌月末まで
+    // バーは会社の色の薄い背景＋左端の濃い帯。バーの先頭に「工程名 開始日〜終了日」。1日だけの行事は縦線＋文字（詳細の工程表と同じ）
+    // 概要はガントチャートだけ（カレンダーは詳細で切り替える）
     function renderSchedule() {
         const sh = GS.state.currentSheet;
         const conv = t => ({ ...t, start: toDate(t.start_date), end: toDate(t.end_date) });
@@ -239,12 +248,12 @@
                 // 終わった工程（終了日が今日より前）は薄く出す
                 const done = e < t0 ? ' is-done' : '';
                 // 大事な日（1日だけの出荷・外観検査・客先立会）は◆
-                if (n === 1 && v.ts.every(t => /出荷|検査|立会/.test(t.text))) return `<span class="ov-gt-mile${done}" style="left:${pos(s)};top:${top}px" title="${esc(title)}"><i style="background:${esc(v.color)}"></i><b>${esc(v.ts[0].text)} ${md(s)}</b></span>`;
+                const ink = mix(v.color, -0.45);
+                if (n === 1 && v.ts.every(t => /出荷|検査|立会/.test(t.text))) return `<span class="ov-gt-mile${done}" style="left:${pos(s)};top:${top}px;color:${esc(ink)}" title="${esc(title)}"><i style="background:${esc(v.color)}"></i><b>${esc(v.ts[0].text)} ${md(s)}</b></span>`;
                 const l = pct(s), w = Math.max(0.8, n * DAY / span * 100);
-                const label = `${n === 1 ? md(s) : `${md(s)}〜${md(e)}`}（${n}日）`;
-                const textPos = `left:calc(${(l + w).toFixed(2)}% + 8px)`;   // 期間はいつもバーの右
-                return `<i class="ov-gt-bar${done}" style="left:${l.toFixed(2)}%;width:${w.toFixed(2)}%;top:${top}px;background:${esc(v.color)}" title="${esc(title)}"></i>`
-                    + `<span class="ov-gt-text${done}" style="${textPos};top:${top}px" title="${esc(title)}">${label}</span>`;
+                const label = n === 1 ? md(s) : `${md(s)}〜${md(e)}`;
+                // バーが短くても文字は切らず、バーの外へ続けて出す
+                return `<span class="ov-gt-bar${done}" style="left:${l.toFixed(2)}%;width:${w.toFixed(2)}%;top:${top}px;background:${esc(mix(v.color, 0.86))};border-color:${esc(mix(v.color, 0.55))};box-shadow:inset 4px 0 0 ${esc(v.color)};color:${esc(ink)}" title="${esc(title)}"><b>${esc(g.name)}</b>${label}</span>`;
             }).join('');
             return `<div class="ov-gt-row"><div class="ov-gt-lab"><b>${esc(g.name)}</b></div><div class="ov-gt-track" style="height:${by.size * LANE + 6}px">${lanes}</div></div>`;
         }).join('');
