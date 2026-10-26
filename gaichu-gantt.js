@@ -25,8 +25,9 @@
         const vid = GS.state.currentSheet ? GS.state.currentSheet.vendor_id : null;
         const withDate = t => t.start_date && t.end_date;
         const conv = t => ({ ...t, start: toDate(t.start_date), end: toDate(t.end_date) });
-        tasks = allTasks.filter(t => GS.isOutsource(t.owner) && withDate(t)).map(conv)
-            .concat(GS.trialTasksFor(allTasks, null).filter(withDate).map(t => ({ ...conv(t), _kusakabe: true })))
+        // 外注先を選んでいるときは、その外注先のバーだけ出す（ほかの外注先・外注先企業が未入力のタスクは出さない）
+        tasks = allTasks.filter(t => GS.isOutsource(t.owner) && withDate(t) && (vid == null || t.vendor_id === vid)).map(conv)
+            .concat(GS.trialTasksFor(allTasks, vid).filter(withDate).map(t => ({ ...conv(t), _kusakabe: true })))
             .sort((a, b) => a.start - b.start);
     }
     let loaded = false;
