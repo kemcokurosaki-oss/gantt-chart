@@ -221,7 +221,7 @@
         const legendItems = [...new Map(list.map(t => [nameOf(t), colorOf(t)])).entries()]
             .map(([n, c]) => `<span><i style="background:${esc(c)}"></i>${esc(n)}</span>`).join('');
         const legend = `<div class="ov-legend">${legendItems}</div>`;
-        const LANE = 34;   // 1社ぶんの段の高さ（px）
+        const LANE = 22;   // 1社ぶんの段の高さ（px）
         const rowsHtml = GS.processGroups(list).map(g => {
             // 同じ工程を複数の会社が担当するときは、会社ごとにバーを1本ずつ（最初の作業の開始〜最後の作業の終了）
             const by = new Map();
@@ -229,14 +229,14 @@
                 if (!by.has(k)) by.set(k, { name: nameOf(t), color: colorOf(t), ts: [] });
                 by.get(k).ts.push(t); });
             const lanes = [...by.values()].map((v, i) => {
-                const s = new Date(Math.min(...v.ts.map(t => t.start))), e = new Date(Math.max(...v.ts.map(t => t.end))), n = days(s, e), top = 10 + i * LANE;
+                const s = new Date(Math.min(...v.ts.map(t => t.start))), e = new Date(Math.max(...v.ts.map(t => t.end))), n = days(s, e), top = 5 + i * LANE;
                 const title = `${g.name} ${v.name} ${md(s)}〜${md(e)}（${n}日）`;
-                if (n === 1 && v.ts.every(t => /出荷/.test(t.text))) return `<span class="ov-gt-mile" style="left:${pos(s)};top:${top}px" title="${esc(title)}"><i></i><b>${esc(v.ts[0].text)} ${md(s)}</b></span>`;
+                if (n === 1 && v.ts.every(t => /出荷/.test(t.text))) return `<span class="ov-gt-mile" style="left:${pos(s)};top:${top}px" title="${esc(title)}"><i style="background:${esc(v.color)}"></i><b>${esc(v.ts[0].text)} ${md(s)}</b></span>`;
                 const l = pct(s), w = Math.max(0.8, n * DAY / span * 100);
                 return `<i class="ov-gt-bar" style="left:${l.toFixed(2)}%;width:${w.toFixed(2)}%;top:${top}px;background:${esc(v.color)}" title="${esc(title)}"></i>`
                     + `<span class="ov-gt-text" style="left:calc(${(l + w).toFixed(2)}% + 8px);top:${top}px">${esc(v.name)}　${n === 1 ? md(s) : `${md(s)}〜${md(e)}`}（${n}日）</span>`;
             }).join('');
-            return `<div class="ov-gt-row"><div class="ov-gt-lab"><b>${esc(g.name)}</b></div><div class="ov-gt-track" style="height:${by.size * LANE + 16}px">${lanes}</div></div>`;
+            return `<div class="ov-gt-row"><div class="ov-gt-lab"><b>${esc(g.name)}</b></div><div class="ov-gt-track" style="height:${by.size * LANE + 6}px">${lanes}</div></div>`;
         }).join('');
         el.schedule.innerHTML = `${legend}<div class="ov-gt">${head}<div class="ov-gt-body"><div class="ov-gt-bg">${bands}${now}</div>${rowsHtml}</div></div>`;
     }
