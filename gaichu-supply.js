@@ -172,7 +172,7 @@
             const cls = type === 'check' ? ' class="sp-chk-col"' : '';
             if (editing) return `<th${cls}>${label}</th>`;
             const on = !!v.filters[key], s = v.sort && v.sort.key === key ? v.sort.dir : '';
-            return `<th${cls}><button type="button" class="sp-th${on || s ? ' is-on' : ''}" data-sp-col="${key}" title="絞り込み・並べ替え">${label}<i>${s === 'asc' ? '▲' : s === 'desc' ? '▼' : ''}${on ? '<b>▽</b>' : s ? '' : '▾'}</i></button></th>`;
+            return `<th${cls}><button type="button" class="sp-th${on || s ? ' is-on' : ''}" data-sp-col="${key}" title="絞り込み・並べ替え">${label}<i>${s === 'asc' ? '▲' : '▼'}</i></button></th>`;
         };
         const vc = viewCols(kind);
         const selShown = shown.filter(r => selected.has(r));
@@ -571,7 +571,6 @@
                 ${values.map(d => `<label data-pop-item="${esc(d)}"><input type="checkbox" value="${esc(d)}"${!cur || cur.has(d) ? ' checked' : ''}><span>${esc(d)}</span><small>${counts.get(d)}</small></label>`).join('')}
             </div>
             <div class="sp-pop-foot">
-                <button type="button" class="spec-btn" data-pop="clear"${cur ? '' : ' disabled'}>この列の絞り込みを解除</button>
                 <span class="spec-spacer"></span>
                 <button type="button" class="spec-btn" data-pop="cancel">キャンセル</button>
                 <button type="button" class="spec-btn spec-btn--primary" data-pop="ok">OK</button>
@@ -603,7 +602,6 @@
             const b = e.target.closest('[data-pop]');
             if (!b) return;
             if (b.dataset.pop === 'cancel') { closePop(); return; }
-            if (b.dataset.pop === 'clear') { delete v.filters[key]; closePop(); render(); return; }
             if (b.dataset.pop === 'ok') {
                 // 検索で隠れている値は選ばない（Excelと同じ）。全部選んだときは絞り込みなし
                 const picked = [...pop.querySelectorAll('.sp-pop-list label[data-pop-item]')].filter(l => !l.hidden && l.querySelector('input').checked).map(l => l.dataset.popItem);
