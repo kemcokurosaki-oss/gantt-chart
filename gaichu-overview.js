@@ -230,11 +230,17 @@
                 by.get(k).ts.push(t); });
             const lanes = [...by.values()].map((v, i) => {
                 const s = new Date(Math.min(...v.ts.map(t => t.start))), e = new Date(Math.max(...v.ts.map(t => t.end))), n = days(s, e), top = 5 + i * LANE;
-                const title = `${g.name} ${v.name} ${md(s)}〜${md(e)}（${n}日）`;
-                if (n === 1 && v.ts.every(t => /出荷/.test(t.text))) return `<span class="ov-gt-mile" style="left:${pos(s)};top:${top}px" title="${esc(title)}"><i style="background:${esc(v.color)}"></i><b>${esc(v.ts[0].text)} ${md(s)}</b></span>`;
+                // 機械・ユニット名（同じ会社で複数あるときは「、」でつなぐ）
+                const where = [...new Set(v.ts.map(t => [t.machine, t.unit].filter(Boolean).join(' ')).filter(Boolean))].join('、');
+                const title = `${g.name}${where ? '（' + where + '）' : ''} ${v.name} ${md(s)}〜${md(e)}（${n}日）`;
+                const whereHtml = where ? `<em class="ov-gt-where">${esc(where)}</em>` : '';
+                if (n === 1 && v.ts.every(t => /出荷/.test(t.text))) return `<span class="ov-gt-mile${pct(s) > 75 ? ' is-left' : ''}" style="left:${pos(s)};top:${top}px" title="${esc(title)}"><i style="background:${esc(v.color)}"></i><b>${esc(v.ts[0].text)} ${md(s)}</b>${whereHtml}</span>`;
                 const l = pct(s), w = Math.max(0.8, n * DAY / span * 100);
+                const label = `${whereHtml}${n === 1 ? md(s) : `${md(s)}〜${md(e)}`}（${n}日）`;
+                // 右端に近いバーは、文字が枠からはみ出さないようバーの左側に出す
+                const textPos = l + w > 62 ? `right:calc(${(100 - l).toFixed(2)}% + 8px)` : `left:calc(${(l + w).toFixed(2)}% + 8px)`;
                 return `<i class="ov-gt-bar" style="left:${l.toFixed(2)}%;width:${w.toFixed(2)}%;top:${top}px;background:${esc(v.color)}" title="${esc(title)}"></i>`
-                    + `<span class="ov-gt-text" style="left:calc(${(l + w).toFixed(2)}% + 8px);top:${top}px">${n === 1 ? md(s) : `${md(s)}〜${md(e)}`}（${n}日）</span>`;
+                    + `<span class="ov-gt-text" style="${textPos};top:${top}px" title="${esc(title)}">${label}</span>`;
             }).join('');
             return `<div class="ov-gt-row"><div class="ov-gt-lab"><b>${esc(g.name)}</b></div><div class="ov-gt-track" style="height:${by.size * LANE + 6}px">${lanes}</div></div>`;
         }).join('');
