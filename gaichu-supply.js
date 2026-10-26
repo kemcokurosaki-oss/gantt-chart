@@ -158,7 +158,7 @@
             return `<button type="button" data-sp-kind="${k}"${k === kind ? ' class="is-on"' : ''}>${label}<small>${p.total ? `${p.done}/${p.total}` : '0'}</small></button>`;
         }).join('');
         const filterSel = !viewActive(kind) ? ''
-            : `<span class="sp-view-note">${shown.length} / ${rows.length} 行を表示</span>` + (editing ? '' : `<button type="button" class="spec-btn" data-sp="clearview">絞り込み・並べ替えを解除</button>`);
+            : `<span class="sp-view-note">${shown.length} / ${rows.length} 行を表示</span>`;
         const tools = !st.isAdmin ? '' : editing
             ? `<span class="spec-spacer"></span><span class="scope-editing-tag">編集中</span><button type="button" class="spec-btn" data-sp="add">＋ 行を追加</button><button type="button" class="spec-btn" data-sp="cancel">キャンセル</button><button type="button" class="spec-btn spec-btn--primary" data-sp="save">保存</button>`
             : `<span class="spec-spacer"></span><button type="button" class="spec-btn spec-btn--primary" data-sp="import">読み込む</button><button type="button" class="spec-btn" data-sp="edit"${rows.length ? '' : ' disabled'}>編集</button>`;
@@ -601,7 +601,8 @@
         });
         pop.addEventListener('click', e => {
             const s = e.target.closest('[data-pop-sort]');
-            if (s) { v.sort = { key, dir: s.dataset.popSort }; closePop(); render(); return; }
+            // 並べ替え：選んでいる方をもう一度押すと解除
+            if (s) { v.sort = v.sort && v.sort.key === key && v.sort.dir === s.dataset.popSort ? null : { key, dir: s.dataset.popSort }; closePop(); render(); return; }
             const b = e.target.closest('[data-pop]');
             if (!b) return;
             if (b.dataset.pop === 'cancel') { closePop(); return; }
