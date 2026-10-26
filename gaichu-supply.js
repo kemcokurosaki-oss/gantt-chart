@@ -1,9 +1,9 @@
-// 外注先用シート：4 支給品チェックリスト（外注先ごと・加工品／購入品）
+// 外注先用シート：支給品チェックリスト（管理者だけが使う機能。左下の管理者メニューから開く。外注先ごと・加工品／購入品）
 //   ・工事企画表（加工品）・購入部品表（購入品）のPDFを読み込むと、AI（Edge Function gaichu-supply-extract）が表を読み取る。
 //     読み取った行は画面で確認・修正してから保存する（gaichu_supply_items）。PDFは図面と同じ保存場所に残す（gaichu_supply_docs）
 //   ・納品を受けたら行ごとに✓。✓を付けた日が支給日になり、支給日で絞り込める。✓を付けた人はDB側で自動で入る
 //   ・作成・編集・✓は体制表の管理者（org_chart_admins）だけ。閲覧は外注先用シートを見られる人
-//   ・概要ページの「4 支給品チェックリスト」に外注先ごとの進み具合を出す（#ovSupply）
+//   ・概要ページに #ovSupply があれば外注先ごとの進み具合を出す（今は概要には置いていない）
 // 読み込み前に gaichu-sheet.js・gaichu-admin.js を読み込み、ページに #supplyRoot・#supplyBar を置いておくこと。
 (function () {
     const root = document.getElementById('supplyRoot');
@@ -92,6 +92,7 @@
         const st = GS.state;
         if (!st.ready || loading) { setBar(''); root.innerHTML = '<p class="spec-msg">読込中…</p>'; return; }
         if (!st.loggedIn) { setBar(''); root.innerHTML = '<p class="spec-msg">支給品チェックリストは、社内のアカウントでログインすると表示されます。</p>'; return; }
+        if (!st.isAdmin) { setBar(''); root.innerHTML = '<p class="spec-msg">支給品チェックリストは管理者だけが使える機能です。</p>'; return; }
         if (loadError) {
             setBar('');
             root.innerHTML = `<p class="spec-msg">${notFoundTable(loadError) ? '支給品チェックリストの準備ができていません。管理者が Supabase で scripts/gaichu_supply_setup.sql を実行してください。' : '読み込めませんでした：' + esc(loadError.message)}</p>`;

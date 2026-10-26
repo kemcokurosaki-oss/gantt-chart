@@ -1401,6 +1401,7 @@
     #panel-order-spec .card { overflow: visible; }
     /* 4 支給品チェックリスト */
     #panel-supply .card { overflow: visible; }
+    .sp-admin-tag { margin-left: 10px; font-size: 11px; font-weight: 700; color: #6b7079; background: #ebebe8; border-radius: 999px; padding: 2px 9px; vertical-align: middle; }
     .supply-bar .spec-tabs { gap: 6px 8px; }
     .sp-sep { width: 1px; align-self: stretch; background: #d6d6d2; margin: 0 4px; }
     .sp-kinds { display: inline-flex; gap: 2px; padding: 3px; background: #f0f0ee; border: 1px solid #e4e3df; border-radius: 8px; }
@@ -1787,7 +1788,6 @@
         <button type="button" class="toc-btn" data-doc="scope"><span>1</span>組立範囲</button>
         <button type="button" class="toc-btn" data-doc="schedule"><span>2</span>工程表</button>
         <button type="button" class="toc-btn" data-doc="trial"><span>3</span>体制表</button>
-        <button type="button" class="toc-btn" data-doc="supply"><span>4</span>支給品チェックリスト</button>
         <button type="button" class="toc-btn" data-doc="order-spec"><span class="toc-nonum">仕</span>組立発注仕様書</button>
     </div>
     <div class="job-nav-foot" id="jobNavAdmin"></div>
@@ -1812,7 +1812,6 @@
                 <label><input type="checkbox" data-print-pick="scope" checked><span>1</span>組立範囲</label>
                 <label><input type="checkbox" data-print-pick="schedule" checked><span>2</span>工程表</label>
                 <label><input type="checkbox" data-print-pick="trial" checked><span>3</span>体制表</label>
-                <label><input type="checkbox" data-print-pick="supply" checked><span>4</span>支給品チェックリスト</label>
                 <label><input type="checkbox" data-print-pick="order-spec" checked><span></span>組立発注仕様書</label>
                 <hr>
                 <button type="button" class="print-go" id="printGo">印刷／PDF保存</button>
@@ -1843,10 +1842,6 @@
         <section class="ov-chapter" data-ch="3">
             <div class="ov-head"><span class="ov-num">3</span><h2>体制表</h2><button type="button" class="ov-open" data-doc="trial">体制表を開く →</button></div>
             <div class="ov-body" id="ovTrial"><p class="ov-muted">読込中…</p></div>
-        </section>
-        <section class="ov-chapter" data-ch="4">
-            <div class="ov-head"><span class="ov-num">4</span><h2>支給品チェックリスト</h2><button type="button" class="ov-open" data-doc="supply">チェックリストを開く →</button></div>
-            <div class="ov-body" id="ovSupply"><p class="ov-muted">読込中…</p></div>
         </section>
     </div>
 
@@ -1928,9 +1923,9 @@
         </div><!-- /.sub-body -->
     </section>
 
-    <!-- 4. 支給品チェックリスト -->
+    <!-- 支給品チェックリスト（管理者だけ。左下の管理者メニューから開く） -->
     <section class="sub-panel" id="panel-supply">
-        <div class="sub-bar"><h2><span class="sub-num">4</span>支給品チェックリスト</h2><button type="button" class="doc-print-btn" data-newtab title="この資料だけを新しいタブで開きます（画面を並べて見比べるときに）">別タブで開く ↗</button><button type="button" class="doc-print-btn" data-print="supply">この資料を印刷／PDF保存</button><button type="button" class="sub-close" data-close-doc>✕ 閉じる</button></div>
+        <div class="sub-bar"><h2>支給品チェックリスト<span class="sp-admin-tag">管理者のみ</span></h2><button type="button" class="doc-print-btn" data-newtab title="この資料だけを新しいタブで開きます（画面を並べて見比べるときに）">別タブで開く ↗</button><button type="button" class="doc-print-btn" data-print="supply">この資料を印刷／PDF保存</button><button type="button" class="sub-close" data-close-doc>✕ 閉じる</button></div>
         <div class="sub-body">
         <div class="panel-head">
             <h2 class="print-only">支給品チェックリスト</h2>
@@ -2094,13 +2089,13 @@ window.addEventListener('afterprint', () => {
 <!-- gaichu-*.js / org-chart.js を変更したら ?v= の番号を上げる（ブラウザに古いファイルが残って動かなくなるのを防ぐ） -->
 <script src="gaichu-admin.js?v=20261026e"></script>
 <script src="gaichu-sheet.js?v=20261026r"></script>
-<script src="gaichu-jobnav.js?v=20261022b"></script>
+<script src="gaichu-jobnav.js?v=20261026d"></script>
 <script src="gaichu-overview.js?v=20261026r"></script>
 <script src="gaichu-spec.js?v=20261026a"></script>
 <script src="gaichu-scope.js?v=20261023r"></script>
 <script src="gaichu-gantt.js?v=20261026r"></script>
 <script src="org-chart.js?v=20261023s"></script>
-<script src="gaichu-supply.js?v=20261026c"></script>
+<script src="gaichu-supply.js?v=20261026d"></script>
 
 </body>
 </html>
