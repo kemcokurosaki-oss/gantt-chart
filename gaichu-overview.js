@@ -212,7 +212,7 @@
             return `<i class="ov-gt-band" style="left:${pos(m.d)};width:${(pct(nx) - pct(m.d)).toFixed(2)}%;background:${i % 2 ? '#f8f8f6' : 'transparent'}"></i>`; }).join('');
         const showNow = t0 >= min && t0 <= max;
         const now = showNow ? `<i class="ov-gt-now" style="left:${pos(t0)}"></i>` : '';
-        const head = `<div class="ov-gt-head"><div class="ov-gt-lab">工程 ／ 機械・ユニット</div><div class="ov-gt-scale">${months.map(m => `<span style="left:${pos(m.d)}">${m.label}</span>`).join('')}</div></div>`;
+        const head = `<div class="ov-gt-head"><div class="ov-gt-lab">工程</div><div class="ov-gt-scale">${months.map(m => `<span style="left:${pos(m.d)}">${m.label}</span>`).join('')}</div></div>`;
         // 場所だけ借りる電気艤装・試運転・出荷準備のタスクは、場所に入っている会社の色（入っていなければ未定）
         const sheetOf = t => t._kusakabe ? GS.sheetByPlace(t.test_run_location) : vendorOf(t);
         const colorOf = t => sheetOf(t) ? sheetOf(t).color : '#7b8088';
@@ -228,15 +228,11 @@
             g.tasks.forEach(t => { const s = sheetOf(t), k = s ? s.id : '_none';
                 if (!by.has(k)) by.set(k, { name: nameOf(t), color: colorOf(t), ts: [] });
                 by.get(k).ts.push(t); });
-            const units = [];   // 段ごとの機械・ユニット名（左の工程名の右に、段の高さをそろえて出す）
             const lanes = [...by.values()].map((v, i) => {
                 const s = new Date(Math.min(...v.ts.map(t => t.start))), e = new Date(Math.max(...v.ts.map(t => t.end))), n = days(s, e), top = 5 + i * LANE;
                 // 機械・ユニット名（同じ会社で複数あるときは「、」でつなぐ）
                 const where = [...new Set(v.ts.map(t => [t.machine, t.unit].filter(Boolean).join(' ')).filter(Boolean))].join('、');
                 const title = `${g.name}${where ? '（' + where + '）' : ''} ${v.name} ${md(s)}〜${md(e)}（${n}日）`;
-                // 詳細の工程表と同じく、機械は太字、ユニットはその右に
-                const pairs = [...new Map(v.ts.map(t => [`${t.machine || ''}|${t.unit || ''}`, t])).values()];
-                units.push(`<span title="${esc(where)}">${pairs.map(t => `<b>${esc(t.machine || '')}</b>${esc(t.unit || '')}`).join('<i>、</i>') || '―'}</span>`);
                 if (n === 1 && v.ts.every(t => /出荷/.test(t.text))) return `<span class="ov-gt-mile${pct(s) > 75 ? ' is-left' : ''}" style="left:${pos(s)};top:${top}px" title="${esc(title)}"><i style="background:${esc(v.color)}"></i><b>${esc(v.ts[0].text)} ${md(s)}</b></span>`;
                 const l = pct(s), w = Math.max(0.8, n * DAY / span * 100);
                 const label = `${n === 1 ? md(s) : `${md(s)}〜${md(e)}`}（${n}日）`;
@@ -245,7 +241,7 @@
                 return `<i class="ov-gt-bar" style="left:${l.toFixed(2)}%;width:${w.toFixed(2)}%;top:${top}px;background:${esc(v.color)}" title="${esc(title)}"></i>`
                     + `<span class="ov-gt-text" style="${textPos};top:${top}px" title="${esc(title)}">${label}</span>`;
             }).join('');
-            return `<div class="ov-gt-row"><div class="ov-gt-lab"><b>${esc(g.name)}</b><span class="ov-gt-units">${units.join('')}</span></div><div class="ov-gt-track" style="height:${by.size * LANE + 6}px">${lanes}</div></div>`;
+            return `<div class="ov-gt-row"><div class="ov-gt-lab"><b>${esc(g.name)}</b></div><div class="ov-gt-track" style="height:${by.size * LANE + 6}px">${lanes}</div></div>`;
         }).join('');
         el.schedule.innerHTML = `${legend}<div class="ov-gt">${head}<div class="ov-gt-body"><div class="ov-gt-bg">${bands}${now}</div>${rowsHtml}</div></div>`;
     }

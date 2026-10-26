@@ -611,7 +611,7 @@
     .gt-empty { padding: 20px; color: #6b7079; }
     .gt-inner { position: relative; }
     .gt-head { display: flex; background: #f3f3f1; border-bottom: 1px solid #e4e3df; }
-    .gt-head .gt-label { position: sticky; left: 0; z-index: 3; flex: none; box-sizing: border-box; width: 240px; padding: 8px 14px; background: #f3f3f1; border-right: 1px solid #e4e3df; font-size: 12.5px; font-weight: 700; color: #6b7079; display: flex; align-items: flex-end; }
+    .gt-head .gt-label { position: sticky; left: 0; z-index: 3; flex: none; box-sizing: border-box; width: 330px; padding: 8px 14px; background: #f3f3f1; border-right: 1px solid #e4e3df; font-size: 12.5px; font-weight: 700; color: #6b7079; display: flex; align-items: flex-end; white-space: nowrap; }
     .gt-scale { flex: 1; display: flex; flex-direction: column; min-width: 0; }
     .gt-months, .gt-cols { display: flex; }
     .gt-months > div { min-width: 0; padding: 7px 10px 0; font-size: 14px; font-weight: 700; color: #2b2f36; white-space: nowrap; overflow: hidden; }
@@ -620,17 +620,18 @@
     .gt-cols > div small { display: block; font-size: 10.5px; font-weight: 400; }
     .gt-cols > div.is-we { color: #c0392b; }
     .gt-body { position: relative; }
-    .gt-bg { position: absolute; top: 0; bottom: 0; left: 240px; right: 0; pointer-events: none; }
+    .gt-bg { position: absolute; top: 0; bottom: 0; left: 330px; right: 0; pointer-events: none; }
     .gt-band { position: absolute; top: 0; bottom: 0; background: #f6f6f4; }
     .gt-we { position: absolute; top: 0; bottom: 0; background: #f3f3f1; }
     .gt-now { position: absolute; top: 0; bottom: 0; background: rgba(61,90,128,0.12); border-left: 2px solid #3d5a80; }
     .gt-group { position: relative; display: flex; border-bottom: 1px solid #e4e3df; }
     .gt-group:last-child { border-bottom: 0; }
-    .gt-gname { position: sticky; left: 0; z-index: 2; flex: none; box-sizing: border-box; width: 90px; padding: 6px 14px; background: #f3f3f1; border-right: 1px solid #e4e3df; font-size: 15px; font-weight: 700; color: #2b2f36; }
+    .gt-gname { position: sticky; left: 0; z-index: 2; flex: none; box-sizing: border-box; width: 150px; padding: 6px 14px; background: #f3f3f1; border-right: 1px solid #e4e3df; font-size: 15px; font-weight: 700; color: #2b2f36; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .gt-grows { flex: 1; min-width: 0; display: flex; flex-direction: column; }
     .gt-row { display: flex; border-top: 1px solid #f0f0ed; }
     .gt-row:first-child { border-top: 0; }
-    .gt-row .gt-label { position: sticky; left: 90px; z-index: 2; flex: none; box-sizing: border-box; width: 150px; padding: 2px 12px; background: #fff; border-right: 1px solid #e4e3df; display: flex; flex-direction: column; justify-content: center; line-height: 1.35; }
+    .gt-row .gt-label { position: sticky; left: 150px; z-index: 2; flex: none; box-sizing: border-box; width: 180px; padding: 2px 12px; background: #fff; border-right: 1px solid #e4e3df; display: flex; flex-direction: column; justify-content: center; line-height: 1.35; }
+    .gt-row .gt-label b, .gt-row .gt-label span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .gt-row .gt-label b { font-size: 13px; line-height: 1.2; color: #2b2f36; }
     .gt-row .gt-label span { font-size: 11.5px; line-height: 1.2; color: #5b6068; }
     .gt-row.is-grey .gt-label b, .gt-row.is-grey .gt-label span { color: #9a9ea5; }
@@ -1541,7 +1542,7 @@
     .ov-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-left: auto; }
     .ov-chip { font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 999px; white-space: nowrap; }
     /* 概要の工程表：月単位。工程ごとに、会社ごとのバーを1本ずつ。期間はいつもバーの右 */
-    .ov-gt { --lab: 320px; border: 1px solid #e4e3df; border-radius: 8px; overflow: hidden; background: #fff; }
+    .ov-gt { --lab: 200px; border: 1px solid #e4e3df; border-radius: 8px; overflow: hidden; background: #fff; }
     .ov-gt-head, .ov-gt-row { display: flex; }
     .ov-gt-head { background: #f3f3f1; border-bottom: 1px solid #e4e3df; }
     .ov-gt-lab { position: relative; z-index: 1; flex: none; box-sizing: border-box; width: var(--lab); padding: 4px 14px; background: #fff; border-right: 1px solid #e4e3df; display: flex; align-items: center; }
@@ -1562,16 +1563,9 @@
     .ov-gt-mile i { width: 13px; height: 13px; transform: rotate(45deg); background: #2b2f36; flex: none; }
     .ov-gt-mile b { font-size: 12.5px; }
     /* 工程名の右の機械・ユニット名：右の段（LANE＝22px、上5px）と高さをそろえる */
-    /* 詳細の工程表と同じく、工程名の列と機械・ユニットの列に分ける */
-    .ov-gt-row .ov-gt-lab { align-items: stretch; padding: 0; }
-    .ov-gt-row .ov-gt-lab > b { flex: none; box-sizing: border-box; width: 110px; padding: 0 14px; display: flex; align-items: center; background: #f3f3f1; border-right: 1px solid #e4e3df; }
-    .ov-gt-units { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 5px 12px 0; }
-    .ov-gt-units > span { height: 22px; line-height: 22px; font-size: 12px; color: #5b6068; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .ov-gt-units b { font-size: 13px; color: #2b2f36; margin-right: 6px; }
-    .ov-gt-units i { font-style: normal; margin: 0 4px; }
     /* 右端に近い◆は、文字を◆の左側に出す */
     .ov-gt-mile.is-left { flex-direction: row-reverse; transform: translateX(calc(-100% + 7px)); }
-    @media (max-width: 700px) { .ov-gt { --lab: 160px; } }
+    @media (max-width: 700px) { .ov-gt { --lab: 110px; } }
     @media print { .ov-gt-row { break-inside: avoid; } .ov-gt-bar, .ov-gt-band, .ov-gt-now, .ov-gt-mile i, .gt-bar, .gt-band, .gt-we, .gt-now, .gt-gname { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
     .ov-legend { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 4px 16px; margin-bottom: 6px; font-size: 12px; color: #5b6068; }
     .ov-legend span { display: inline-flex; align-items: center; gap: 6px; }
@@ -1671,9 +1665,10 @@
         .ov-tcell { padding: 3px 6px !important; }
         .ov-gtrack { overflow: hidden; }
         .gantt-unit-toggle, .gt-toggle-hint { display: none !important; }
-        .gt-head .gt-label { width: 180px; }
-        .gt .gt-gname { width: 70px; padding: 4px 10px; font-size: 13px; }
-        .gt .gt-row .gt-label { left: 70px; width: 110px; padding: 2px 10px; }
+        .gt-head .gt-label { width: 260px; }
+        .gt .gt-gname { width: 115px; padding: 4px 8px; font-size: 12px; }
+        .gt .gt-row .gt-label { left: 115px; width: 145px; padding: 2px 8px; }
+        .gt .gt-row .gt-label span { font-size: 10.5px; }
         .gt-track { min-height: 28px; }
         .gt-bar { top: 7px; bottom: 7px; }
         /* 組立範囲の図面：2枚ずつ並べ、図面の途中で改ページしない。色分け枠は画像に合わせて重ねる（画面用の位置の計算は使わない） */
@@ -2024,10 +2019,10 @@ window.addEventListener('afterprint', () => {
 <script src="gaichu-admin.js?v=20261026d"></script>
 <script src="gaichu-sheet.js?v=20261026f"></script>
 <script src="gaichu-jobnav.js?v=20261022b"></script>
-<script src="gaichu-overview.js?v=20261026m"></script>
+<script src="gaichu-overview.js?v=20261026n"></script>
 <script src="gaichu-spec.js?v=20261026a"></script>
 <script src="gaichu-scope.js?v=20261023r"></script>
-<script src="gaichu-gantt.js?v=20261026h"></script>
+<script src="gaichu-gantt.js?v=20261026n"></script>
 <script src="org-chart.js?v=20261023s"></script>
 
 </body>
