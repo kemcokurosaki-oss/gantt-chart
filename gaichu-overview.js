@@ -234,7 +234,7 @@
                 if (n === 1 && v.ts.every(t => /出荷/.test(t.text))) return `<span class="ov-gt-mile" style="left:${pos(s)};top:${top}px" title="${esc(title)}"><i style="background:${esc(v.color)}"></i><b>${esc(v.ts[0].text)} ${md(s)}</b></span>`;
                 const l = pct(s), w = Math.max(0.8, n * DAY / span * 100);
                 return `<i class="ov-gt-bar" style="left:${l.toFixed(2)}%;width:${w.toFixed(2)}%;top:${top}px;background:${esc(v.color)}" title="${esc(title)}"></i>`
-                    + `<span class="ov-gt-text" style="left:calc(${(l + w).toFixed(2)}% + 8px);top:${top}px">${esc(v.name)}　${n === 1 ? md(s) : `${md(s)}〜${md(e)}`}（${n}日）</span>`;
+                    + `<span class="ov-gt-text" style="left:calc(${(l + w).toFixed(2)}% + 8px);top:${top}px">${n === 1 ? md(s) : `${md(s)}〜${md(e)}`}（${n}日）</span>`;
             }).join('');
             return `<div class="ov-gt-row"><div class="ov-gt-lab"><b>${esc(g.name)}</b></div><div class="ov-gt-track" style="height:${by.size * LANE + 6}px">${lanes}</div></div>`;
         }).join('');
