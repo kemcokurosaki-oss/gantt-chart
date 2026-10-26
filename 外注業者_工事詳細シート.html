@@ -606,66 +606,47 @@
     .gantt-legend .sw { width: 16px; height: 10px; border-radius: 2px; }
 
     /* 工程表（外注先ごとにまとめて表示） */
-    .gt { display: block; overflow-x: auto; border: 1px solid #e4e3df; border-radius: 6px; background: #fff; font-size: 13px; }
+    /* 工程表（詳細）：工程ごとにまとめ、左に工程名と機械・ユニット。バーは外注先の色、期間はいつもバーの右 */
+    .gt { display: block; overflow-x: auto; border: 1px solid #e4e3df; border-radius: 8px; background: #fff; font-size: 13px; }
     .gt-empty { padding: 20px; color: #6b7079; }
-    .gt-head, .gt-row, .gt-ghead { display: flex; }
-    .gt-head { border-bottom: 1px solid #e4e3df; background: #fff; }
-    .gt-label { position: sticky; left: 0; z-index: 2; flex: none; width: 250px; background: #fff; border-right: 1px solid #e4e3df; }
+    .gt-inner { position: relative; }
+    .gt-head { display: flex; background: #f3f3f1; border-bottom: 1px solid #e4e3df; }
+    .gt-head .gt-label { position: sticky; left: 0; z-index: 3; flex: none; box-sizing: border-box; width: 240px; padding: 8px 14px; background: #f3f3f1; border-right: 1px solid #e4e3df; font-size: 12.5px; font-weight: 700; color: #6b7079; display: flex; align-items: flex-end; }
     .gt-scale { flex: 1; display: flex; flex-direction: column; min-width: 0; }
     .gt-months, .gt-cols { display: flex; }
-    .gt-months > div { min-width: 0; padding: 6px 8px 2px; font-size: 13px; font-weight: 700; color: #2b2f36; border-left: 1px solid #dcdcd8; white-space: nowrap; overflow: hidden; }
-    .gt-cols > div { flex: 1 0 0; min-width: 0; text-align: center; padding: 2px 0 5px; font-size: 11px; color: #5b6068; line-height: 1.25; }
-    .gt-cols > div small { display: block; font-size: 9.5px; }
+    .gt-months > div { min-width: 0; padding: 7px 10px 0; font-size: 14px; font-weight: 700; color: #2b2f36; white-space: nowrap; overflow: hidden; }
+    .gt-cols > div { flex: 1 0 0; min-width: 0; padding: 2px 0 7px 8px; font-size: 12.5px; color: #5b6068; white-space: nowrap; }
+    .gt.is-day .gt-cols > div { padding: 2px 0 5px; text-align: center; line-height: 1.2; font-size: 12px; font-weight: 700; }
+    .gt-cols > div small { display: block; font-size: 10.5px; font-weight: 400; }
     .gt-cols > div.is-we { color: #c0392b; }
     .gt-body { position: relative; }
-    .gt-bg { position: absolute; top: 0; bottom: 0; left: 250px; right: 0; pointer-events: none; }
-    .gt-we { position: absolute; top: 0; bottom: 0; background: #f5f5f3; }
-    .gt-mline { position: absolute; top: 0; bottom: 0; border-left: 1px solid #e4e4e0; }
-    .gt-ghead { position: relative; z-index: 1; border-bottom: 1px solid #e4e3df; }
-    .gt-ghead.is-toggle { cursor: pointer; }
-    .gt-ghead.is-toggle:hover { filter: brightness(.98); }
-    .gt-gname { position: sticky; left: 0; display: flex; align-items: center; gap: 8px; padding: 7px 14px; font-size: 13px; font-weight: 700; white-space: nowrap; }
-    .gt-gdots { display: inline-flex; flex-wrap: wrap; gap: 4px 12px; margin-left: 12px; font-weight: 500; }
-    .gt-gdot { display: inline-flex; align-items: center; gap: 5px; }
-    .gt-gdot i { width: 10px; height: 10px; border-radius: 2px; flex: none; }
-    .gt-gname i { width: 10px; height: 10px; border-radius: 50%; }
-    .gt-gname small { font-weight: 400; font-size: 12px; color: #5b6068; }
-    .gt-caret { font-size: 11px; width: 12px; color: #5b6068; }
-    .gt-row { position: relative; border-bottom: 1px solid #efefec; }
-    .gt-row .gt-label { padding: 8px 14px; display: flex; align-items: baseline; gap: 8px; }
-    .gt-row .gt-label b { font-size: 13.5px; color: #2b2f36; white-space: nowrap; }
-    .gt-row .gt-label span { font-size: 11.5px; color: #6b7079; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .gt-row.is-grey .gt-label b { color: #6b7079; }
-    .gt-track { flex: 1; position: relative; min-height: 38px; }
-    .gt-bar { position: absolute; top: 7px; bottom: 7px; border: 1.5px solid; border-radius: 999px; display: flex; align-items: center; gap: 8px; padding: 0 12px; overflow: hidden; white-space: nowrap; box-sizing: border-box; }
-    .gt-bar b { font-size: 12px; }
-    .gt-bar span { font-size: 11px; opacity: .85; }
-    .gt-period { position: absolute; top: 50%; transform: translateY(-50%); font-size: 11.5px; color: #5b6068; white-space: nowrap; }
-    .gt-mile { position: absolute; top: 50%; transform: translate(-2px, -50%); display: flex; align-items: center; gap: 8px; white-space: nowrap; color: #c0392b; }
-    .gt-mile i { width: 14px; height: 14px; transform: rotate(45deg); background: currentColor; flex: none; }
-    .gt-mile b { font-size: 12px; }
-    .gt-mile.is-grey { color: #6b7079; }
-    .gantt-unit-toggle {
-        display: inline-flex;
-        background: #efefec;
-        border-radius: 8px;
-        padding: 3px;
-        margin-bottom: 12px;
-    }
-    .gantt-unit-btn {
-        appearance: none;
-        border: none;
-        background: transparent;
-        font-family: inherit;
-        font-size: 13px;
-        font-weight: 700;
-        color: #5b6068;
-        padding: 7px 18px;
-        border-radius: 6px;
-        cursor: pointer;
-        transition: background .15s, color .15s;
-    }
-    .gantt-unit-btn.active { background: #fff; color: #2b2f36; box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
+    .gt-bg { position: absolute; top: 0; bottom: 0; left: 240px; right: 0; pointer-events: none; }
+    .gt-band { position: absolute; top: 0; bottom: 0; background: #f6f6f4; }
+    .gt-we { position: absolute; top: 0; bottom: 0; background: #f3f3f1; }
+    .gt-now { position: absolute; top: 0; bottom: 0; background: rgba(61,90,128,0.12); border-left: 2px solid #3d5a80; }
+    .gt-group { position: relative; display: flex; border-bottom: 1px solid #e4e3df; }
+    .gt-group:last-child { border-bottom: 0; }
+    .gt-gname { position: sticky; left: 0; z-index: 2; flex: none; box-sizing: border-box; width: 90px; padding: 12px 14px; background: #f3f3f1; border-right: 1px solid #e4e3df; font-size: 15px; font-weight: 700; color: #2b2f36; }
+    .gt-grows { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+    .gt-row { display: flex; border-top: 1px solid #f0f0ed; }
+    .gt-row:first-child { border-top: 0; }
+    .gt-row .gt-label { position: sticky; left: 90px; z-index: 2; flex: none; box-sizing: border-box; width: 150px; padding: 6px 12px; background: #fff; border-right: 1px solid #e4e3df; display: flex; flex-direction: column; justify-content: center; line-height: 1.35; }
+    .gt-row .gt-label b { font-size: 14px; color: #2b2f36; }
+    .gt-row .gt-label span { font-size: 12.5px; color: #5b6068; }
+    .gt-row.is-grey .gt-label b, .gt-row.is-grey .gt-label span { color: #9a9ea5; }
+    .gt-track { flex: 1; position: relative; min-height: 52px; }
+    .gt-bar { position: absolute; top: 14px; bottom: 14px; border-radius: 6px; }
+    .gt-period { position: absolute; top: 50%; transform: translateY(-50%); font-size: 13px; font-weight: 700; color: #2b2f36; white-space: nowrap; }
+    .gt-row.is-grey .gt-period { color: #8b9097; font-weight: 500; }
+    .gt-mile { position: absolute; top: 50%; transform: translate(-9px, -50%); display: flex; align-items: center; gap: 9px; white-space: nowrap; color: #2b2f36; }
+    .gt-mile i { width: 18px; height: 18px; transform: rotate(45deg); background: currentColor; flex: none; }
+    .gt-mile b { font-size: 14px; }
+    .gt-mile.is-grey { color: #8b9097; }
+    /* 週単位・日単位の切り替え（外注先の追加・削除画面の切り替えと同じ形） */
+    .gantt-unit-toggle { display: inline-flex; gap: 2px; padding: 3px; background: #f0f0ee; border: 1px solid #e4e3df; border-radius: 8px; margin-bottom: 12px; }
+    .gantt-unit-btn { appearance: none; border: 0; background: transparent; font-family: inherit; font-size: 12.5px; font-weight: 700; color: #5b6068; padding: 5px 14px; border-radius: 6px; cursor: pointer; transition: background .15s, color .15s; }
+    .gantt-unit-btn:hover { color: #2b2f36; background: #fff; }
+    .gantt-unit-btn.active { background: #2b2f36; color: #fff; box-shadow: none; cursor: default; }
     .mg-head.weekend { color: #e05a5a; }
     .mg-head .mg-date { display: block; width: 100%; }
     .mg-head small { font-size: 9.5px; display: block; width: 100%; }
@@ -1559,26 +1540,32 @@
     .ov-unit-name b { margin-right: 8px; }
     .ov-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-left: auto; }
     .ov-chip { font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 999px; white-space: nowrap; }
-    .ov-gantt { display: flex; flex-direction: column; gap: 6px; }
-    .ov-grow { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 12px; align-items: center; }
-    .ov-ghead { margin-bottom: 2px; }
-    .ov-gmonths { position: relative; height: 30px; font-size: 11.5px; color: #6b7079; }
-    .ov-gmonths > span { position: absolute; top: 12px; height: 18px; padding-left: 4px; border-left: 1px solid #e4e3df; white-space: nowrap; }
-    .ov-today { position: absolute; top: 0; transform: translateX(-50%); font-size: 11px; font-weight: 700; color: #c0392b; background: #fff; padding: 0 3px; }
-    .ov-glabel { font-size: 13px; min-width: 0; }
-    .ov-glabel b { margin-right: 8px; }
-    .ov-glabel span { font-size: 12px; color: #5b6068; }
-    .ov-gtrack { position: relative; height: 22px; background: #f7f7f5; border-radius: 4px; }
-    .ov-mline { position: absolute; top: 0; bottom: 0; width: 1px; background: #e4e3df; }
-    .ov-gbar { position: absolute; top: 4px; bottom: 4px; border-radius: 3px; }
-    .ov-gtext { position: absolute; top: 0; padding-left: 6px; font-size: 11.5px; line-height: 22px; color: #2b2f36; white-space: nowrap; }
-    .ov-legend { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 4px 16px; margin-bottom: 2px; font-size: 12px; color: #5b6068; }
+    /* 概要の工程表：月単位。工程ごとに、会社ごとのバーを1本ずつ。期間はいつもバーの右 */
+    .ov-gt { --lab: 200px; border: 1px solid #e4e3df; border-radius: 8px; overflow: hidden; background: #fff; }
+    .ov-gt-head, .ov-gt-row { display: flex; }
+    .ov-gt-head { background: #f3f3f1; border-bottom: 1px solid #e4e3df; }
+    .ov-gt-lab { position: relative; z-index: 1; flex: none; box-sizing: border-box; width: var(--lab); padding: 10px 14px; background: #fff; border-right: 1px solid #e4e3df; display: flex; align-items: center; }
+    .ov-gt-head .ov-gt-lab { background: #f3f3f1; font-size: 12.5px; font-weight: 700; color: #6b7079; }
+    .ov-gt-lab b { font-size: 15px; }
+    .ov-gt-scale { flex: 1; min-width: 0; position: relative; height: 38px; }
+    .ov-gt-scale > span { position: absolute; top: 0; bottom: 0; display: flex; align-items: center; padding-left: 10px; border-left: 1px solid #e4e3df; font-size: 14px; font-weight: 700; white-space: nowrap; }
+    .ov-gt-body { position: relative; }
+    .ov-gt-bg { position: absolute; top: 0; bottom: 0; left: var(--lab); right: 0; pointer-events: none; }
+    .ov-gt-band { position: absolute; top: 0; bottom: 0; border-left: 1px solid #e4e3df; }
+    .ov-gt-now { position: absolute; top: 0; bottom: 0; width: 2px; background: #3d5a80; }
+    .ov-gt-row { position: relative; border-bottom: 1px solid #e4e3df; }
+    .ov-gt-row:last-child { border-bottom: 0; }
+    .ov-gt-track { flex: 1; min-width: 0; position: relative; }
+    .ov-gt-bar { position: absolute; height: 28px; border-radius: 6px; }
+    .ov-gt-text { position: absolute; line-height: 28px; font-size: 13px; font-weight: 700; color: #2b2f36; white-space: nowrap; }
+    .ov-gt-mile { position: absolute; height: 28px; transform: translateX(-9px); display: flex; align-items: center; gap: 9px; white-space: nowrap; }
+    .ov-gt-mile i { width: 18px; height: 18px; transform: rotate(45deg); background: #2b2f36; flex: none; }
+    .ov-gt-mile b { font-size: 14px; }
+    @media (max-width: 700px) { .ov-gt { --lab: 110px; } }
+    @media print { .ov-gt-row { break-inside: avoid; } .ov-gt-bar, .ov-gt-band, .ov-gt-now, .ov-gt-mile i, .gt-bar, .gt-band, .gt-we, .gt-now, .gt-gname { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+    .ov-legend { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 4px 16px; margin-bottom: 6px; font-size: 12px; color: #5b6068; }
     .ov-legend span { display: inline-flex; align-items: center; gap: 6px; }
-    .ov-legend i { width: 14px; height: 8px; border-radius: 2px; flex: none; }
-    .ov-gmile { position: absolute; top: 50%; transform: translate(-6px, -50%); z-index: 1; display: flex; align-items: center; gap: 7px; white-space: nowrap; color: #c0392b; }
-    .ov-gmile i { width: 11px; height: 11px; transform: rotate(45deg); background: currentColor; flex: none; }
-    .ov-gmile b { font-size: 11.5px; }
-    .ov-now { position: absolute; top: -3px; bottom: -3px; width: 2px; background: #c0392b; z-index: 1; }
+    .ov-legend i { width: 14px; height: 9px; border-radius: 2px; flex: none; }
     .ov-facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 20px; font-size: 13px; }
     .ov-facts .ov-k { display: block; }
     .ov-facts a { color: #3d5a80; }
@@ -1674,8 +1661,11 @@
         .ov-tcell { padding: 3px 6px !important; }
         .ov-gtrack { overflow: hidden; }
         .gantt-unit-toggle, .gt-toggle-hint { display: none !important; }
-        .gt .gt-label { width: 180px; }
-        .gt .gt-row .gt-label { padding: 6px 10px; }
+        .gt-head .gt-label { width: 180px; }
+        .gt .gt-gname { width: 70px; padding: 8px 10px; font-size: 13px; }
+        .gt .gt-row .gt-label { left: 70px; width: 110px; padding: 4px 10px; }
+        .gt-track { min-height: 40px; }
+        .gt-bar { top: 11px; bottom: 11px; }
         /* 組立範囲の図面：2枚ずつ並べ、図面の途中で改ページしない。色分け枠は画像に合わせて重ねる（画面用の位置の計算は使わない） */
         .figure-row.scope-figs .figure-card { flex: 0 1 calc(50% - 8px) !important; break-inside: avoid; }
         .figure-row.scope-figs .figure-card:only-child { flex-basis: 70% !important; }
@@ -2024,10 +2014,10 @@ window.addEventListener('afterprint', () => {
 <script src="gaichu-admin.js?v=20261026d"></script>
 <script src="gaichu-sheet.js?v=20261026f"></script>
 <script src="gaichu-jobnav.js?v=20261022b"></script>
-<script src="gaichu-overview.js?v=20261026d"></script>
+<script src="gaichu-overview.js?v=20261026g"></script>
 <script src="gaichu-spec.js?v=20261026a"></script>
 <script src="gaichu-scope.js?v=20261023r"></script>
-<script src="gaichu-gantt.js?v=20261026d"></script>
+<script src="gaichu-gantt.js?v=20261026g"></script>
 <script src="org-chart.js?v=20261023s"></script>
 
 </body>

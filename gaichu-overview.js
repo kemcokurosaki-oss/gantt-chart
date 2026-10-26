@@ -190,7 +190,7 @@
     el.scope.addEventListener('mouseleave', () => highlight(null));
 
     // ===== 2 工程表 =====
-    // 月の目盛り（縦の線）と今日の線を入れた短い工程表。期間は最初の工程の月の初めから最後の工程の翌月末まで
+    // 月単位の短い工程表（工程ごと・会社ごとに1本のバー、今日は紺の線）。期間は最初の工程の月の初めから最後の工程の翌月末まで
     function renderSchedule() {
         const sh = GS.state.currentSheet;
         const conv = t => ({ ...t, start: toDate(t.start_date), end: toDate(t.end_date) });
@@ -207,10 +207,12 @@
         for (let d = new Date(min); d <= max; d = new Date(d.getFullYear(), d.getMonth() + 1, 1)) {
             months.push({ d, label: (months.length === 0 || d.getMonth() === 0 ? `${d.getFullYear()}年` : '') + `${d.getMonth() + 1}月` });
         }
-        const grid = months.map(m => `<i class="ov-mline" style="left:${pos(m.d)}"></i>`).join('');
+        // 月ごとに背景を交互に塗る。今日は紺の線
+        const bands = months.map((m, i) => { const nx = i + 1 < months.length ? months[i + 1].d : new Date(max.getTime() + DAY);
+            return `<i class="ov-gt-band" style="left:${pos(m.d)};width:${(pct(nx) - pct(m.d)).toFixed(2)}%;background:${i % 2 ? '#f8f8f6' : 'transparent'}"></i>`; }).join('');
         const showNow = t0 >= min && t0 <= max;
-        const now = showNow ? `<i class="ov-now" style="left:${pos(t0)}"></i>` : '';
-        const head = `<div class="ov-grow ov-ghead"><span></span><span class="ov-gmonths">${months.map(m => `<span style="left:${pos(m.d)}">${m.label}</span>`).join('')}${showNow ? `<b class="ov-today" style="left:${pos(t0)}">今日</b>` : ''}</span></div>`;
+        const now = showNow ? `<i class="ov-gt-now" style="left:${pos(t0)}"></i>` : '';
+        const head = `<div class="ov-gt-head"><div class="ov-gt-lab">工程</div><div class="ov-gt-scale">${months.map(m => `<span style="left:${pos(m.d)}">${m.label}</span>`).join('')}</div></div>`;
         // 場所だけ借りる電気艤装・試運転・出荷準備のタスクは、場所に入っている会社の色（入っていなければ未定）
         const sheetOf = t => t._kusakabe ? GS.sheetByPlace(t.test_run_location) : vendorOf(t);
         const colorOf = t => sheetOf(t) ? sheetOf(t).color : '#7b8088';
@@ -219,32 +221,24 @@
         const legendItems = [...new Map(list.map(t => [nameOf(t), colorOf(t)])).entries()]
             .map(([n, c]) => `<span><i style="background:${esc(c)}"></i>${esc(n)}</span>`).join('');
         const legend = `<div class="ov-legend">${legendItems}</div>`;
-        const LANE = 18, CH = 0.75;   // 1段の高さ（px）、文字1つぶんの幅の目安（表の幅に対する%）
+        const LANE = 34;   // 1社ぶんの段の高さ（px）
         const rowsHtml = GS.processGroups(list).map(g => {
-            // バー（＋右の文字）が重ならないように段を分ける
-            const lanes = [];
-            const items = g.tasks.map(t => {
-                const n = days(t.start, t.end), mile = n === 1 && /出荷/.test(t.text);
-                const text = mile ? md(t.start) : `${md(t.start)}〜${md(t.end)}`;
-                const l = pct(t.start), w = mile ? 0 : Math.max(0.8, n * DAY / span * 100);
-                const end = l + w + 1 + [...text].length * CH;
-                let lane = lanes.findIndex(x => x <= l);
-                if (lane < 0) { lane = lanes.length; lanes.push(0); }
-                lanes[lane] = end + 0.5;
-                return { t, n, mile, text, l, w, lane };
-            });
-            const h = Math.max(1, lanes.length) * LANE + 4;
-            const marks = items.map(({ t, n, mile, text, l, w, lane }) => {
-                const top = 2 + lane * LANE, where = [t.machine, t.unit].filter(Boolean).join(' ');
-                const title = `${g.name}（${where}） ${nameOf(t)} ${md(t.start)}〜${md(t.end)}（${n}日）`;
-                if (mile) return `<span class="ov-gmile" style="left:${l.toFixed(2)}%;top:${top + LANE / 2}px" title="${esc(title)}"><i></i><b>${esc(text)}</b></span>`;
-                return `<i class="ov-gbar" style="left:${l.toFixed(2)}%;width:${w.toFixed(2)}%;top:${top + 3}px;height:${LANE - 6}px;bottom:auto;background:${esc(colorOf(t))}" title="${esc(title)}"></i>`
-                    + `<span class="ov-gtext" style="left:calc(${(l + w).toFixed(2)}%);top:${top}px;line-height:${LANE}px" title="${esc(title)}">${esc(text)}</span>`;
+            // 同じ工程を複数の会社が担当するときは、会社ごとにバーを1本ずつ（最初の作業の開始〜最後の作業の終了）
+            const by = new Map();
+            g.tasks.forEach(t => { const s = sheetOf(t), k = s ? s.id : '_none';
+                if (!by.has(k)) by.set(k, { name: nameOf(t), color: colorOf(t), ts: [] });
+                by.get(k).ts.push(t); });
+            const lanes = [...by.values()].map((v, i) => {
+                const s = new Date(Math.min(...v.ts.map(t => t.start))), e = new Date(Math.max(...v.ts.map(t => t.end))), n = days(s, e), top = 10 + i * LANE;
+                const title = `${g.name} ${v.name} ${md(s)}〜${md(e)}（${n}日）`;
+                if (n === 1 && v.ts.every(t => /出荷/.test(t.text))) return `<span class="ov-gt-mile" style="left:${pos(s)};top:${top}px" title="${esc(title)}"><i></i><b>${esc(v.ts[0].text)} ${md(s)}</b></span>`;
+                const l = pct(s), w = Math.max(0.8, n * DAY / span * 100);
+                return `<i class="ov-gt-bar" style="left:${l.toFixed(2)}%;width:${w.toFixed(2)}%;top:${top}px;background:${esc(v.color)}" title="${esc(title)}"></i>`
+                    + `<span class="ov-gt-text" style="left:calc(${(l + w).toFixed(2)}% + 8px);top:${top}px">${esc(v.name)}　${n === 1 ? md(s) : `${md(s)}〜${md(e)}`}（${n}日）</span>`;
             }).join('');
-            return `<div class="ov-grow"><span class="ov-glabel"><b>${esc(g.name)}</b><span>${g.tasks.length}件</span></span>`
-                + `<span class="ov-gtrack" style="height:${h}px">${grid}${now}${marks}</span></div>`;
+            return `<div class="ov-gt-row"><div class="ov-gt-lab"><b>${esc(g.name)}</b></div><div class="ov-gt-track" style="height:${by.size * LANE + 16}px">${lanes}</div></div>`;
         }).join('');
-        el.schedule.innerHTML = `${legend}<div class="ov-gantt">${head}${rowsHtml}</div>`;
+        el.schedule.innerHTML = `${legend}<div class="ov-gt">${head}<div class="ov-gt-body"><div class="ov-gt-bg">${bands}${now}</div>${rowsHtml}</div></div>`;
     }
 
 
