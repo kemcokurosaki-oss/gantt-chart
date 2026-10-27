@@ -88,6 +88,12 @@
                 title: '入出荷予定一覧を別タブで開く（ログインはリンク先で行います）',
                 disabled: false,
             },
+            gaichu: {
+                // 外注先用 工事詳細シート（同じリポジトリのページ）。工事一覧で外注用シートのある工番を選んでいれば、その工番を開く
+                url: new URL('外注業者_工事詳細シート.html', location.href).href,
+                title: '外注用シートを別タブで開く',
+                disabled: false,
+            },
             viewer3d: {
                 url: 'https://kemcokurosaki-oss.github.io/3d-viewer/',
                 title: '3Dモデルビューアを別タブで開く',
@@ -102,11 +108,12 @@
             if (key === 'operations') return 'dept_link_operations';
             if (key === 'delivery') return 'dept_link_delivery';
             if (key === 'viewer3d') return 'dept_link_viewer3d';
+            if (key === 'gaichu') return 'dept_link_gaichu';
             return '';
         }
 
         function updateDeptScheduleLinkButtons() {
-            ['approval', 'design', 'assembly', 'operations', 'delivery', 'viewer3d'].forEach(function (key) {
+            ['approval', 'design', 'assembly', 'operations', 'delivery', 'gaichu', 'viewer3d'].forEach(function (key) {
                 const cfg = DEPT_SCHEDULE_LINK_CONFIG[key];
                 const btnId = _deptLinkButtonId(key);
                 const btn = btnId ? document.getElementById(btnId) : null;
@@ -120,6 +127,10 @@
         function openDeptScheduleLink(key) {
             const cfg = DEPT_SCHEDULE_LINK_CONFIG[key];
             if (!cfg || cfg.disabled || !cfg.url) return;
+            if (key === 'gaichu') {
+                const pn = (typeof currentFilter !== 'undefined' && currentFilter) ? String(currentFilter) : '';
+                if (pn && window.hasGaichuSheet && window.hasGaichuSheet(pn)) { window.openGaichuSheet(pn); return; }
+            }
             window.open(cfg.url, '_blank', 'noopener,noreferrer');
         }
 

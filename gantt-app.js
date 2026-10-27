@@ -99,9 +99,26 @@
             _specFolderUrlMap = nextMap;
         }
 
+        // 外注用シート（外注先用 工事詳細シート）がある工番。見られない工番（社内公開オフで管理者でない）は入らない
+        let _gaichuSheetPns = new Set();
+        async function loadGaichuSheetPns() {
+            try {
+                const { data, error } = await supabaseClient.from('gaichu_sheets').select('project_number');
+                if (error) { _gaichuSheetPns = new Set(); return; }
+                _gaichuSheetPns = new Set((data || []).map(r => String(r.project_number || '').trim()).filter(Boolean));
+            } catch (e) { _gaichuSheetPns = new Set(); }
+        }
+        window.hasGaichuSheet = pn => _gaichuSheetPns.has(String(pn || '').trim());
+        window.openGaichuSheet = pn => {
+            const u = new URL('外注業者_工事詳細シート.html', location.href);
+            if (pn) u.searchParams.set('pn', String(pn).trim());
+            window.open(u.href, '_blank', 'noopener,noreferrer');
+        };
+
         async function fetchTasks(options) {
             await loadSpecFolderUrlMap();
             await loadSalesPersonMap();
+            await loadGaichuSheetPns();
             const useCache = !!(options && options.useCache);
             // スクロール位置を記憶
             const scrollPos = gantt.getScrollState();
@@ -1551,7 +1568,7 @@
         window._buildProjectKindMap = _buildProjectKindMap;
 
         /** 工事一覧ホバー用ツールチップ（ラベル＋行ごと色分けで種別を判別しやすく） */
-        function fillProjectListTooltip(tooltipEl, info, salesPerson) {
+        function fillProjectListTooltip(tooltipEl, info, salesPerson, pn) {
             tooltipEl.replaceChildren();
             const rows = [
                 { label: "客先名", value: (info.customer || "").trim(), kind: "customer" },
@@ -1572,6 +1589,15 @@
                 row.appendChild(val);
                 tooltipEl.appendChild(row);
             });
+            // 一番下：外注用シート（押すとその工番の外注用シートを別タブで開く）
+            if (pn && window.hasGaichuSheet(pn)) {
+                const row = document.createElement("button");
+                row.type = "button";
+                row.className = "custom-tooltip-row custom-tooltip-row--gaichu custom-tooltip-link";
+                row.innerHTML = '<span class="custom-tooltip-label">外注用</span><span class="custom-tooltip-value">外注用シートを開く ↗</span>';
+                row.addEventListener("click", e => { e.stopPropagation(); window.openGaichuSheet(pn); tooltipEl.style.display = "none"; });
+                tooltipEl.appendChild(row);
+            }
         }
 
         function updateProjectList(tasks) {
@@ -1613,6 +1639,11 @@
             tooltip.style.pointerEvents = 'none';
             document.body.appendChild(tooltip);
             tooltip.style.display = 'none';
+            // 外注用シートの行を押せるように、工番から吹き出しへマウスを移す間は少し待ってから消す
+            let _tipHideTimer = null;
+            const hideTip = () => { clearTimeout(_tipHideTimer); _tipHideTimer = setTimeout(() => { tooltip.style.display = 'none'; tooltip.style.pointerEvents = 'none'; }, 250); };
+            tooltip.onmouseenter = () => clearTimeout(_tipHideTimer);
+            tooltip.onmouseleave = hideTip;
             projects.forEach(p => {
                 const item = document.createElement('div');
                 item.className = `project-item ${currentFilter === p ? 'active' : ''}`;
@@ -1624,11 +1655,20 @@
                     item.classList.add('project-item--trip-only');
                 }
                 item.appendChild(numEl);
+                const hasGaichu = window.hasGaichuSheet(p);
+                if (hasGaichu) {
+                    // 外注用シートがある工番：右上に小さな丸
+                    const dot = document.createElement('span');
+                    dot.className = 'project-item__gaichu-dot';
+                    item.appendChild(dot);
+                }
                 const info = projectInfoMap[p];
                 const salesPerson = _salesPersonMap[p] || "";
-                if (info.customer || info.details || salesPerson) {
+                if (info.customer || info.details || salesPerson || hasGaichu) {
                     numEl.onmouseenter = (e) => {
-                        fillProjectListTooltip(tooltip, info, salesPerson);
+                        clearTimeout(_tipHideTimer);
+                        fillProjectListTooltip(tooltip, info, salesPerson, p);
+                        tooltip.style.pointerEvents = hasGaichu ? 'auto' : 'none';
                         tooltip.style.display = 'block';
 
                         const rect = numEl.getBoundingClientRect();
@@ -1645,7 +1685,7 @@
                         tooltip.style.left = x + 'px';
                         tooltip.style.top = y + 'px';
                     };
-                    numEl.onmouseleave = () => tooltip.style.display = 'none';
+                    numEl.onmouseleave = () => { if (hasGaichu) hideTip(); else tooltip.style.display = 'none'; };
                 }
                 item.onclick = () => filterByProject(p);
                 listEl.appendChild(item);
