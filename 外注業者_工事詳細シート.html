@@ -1538,6 +1538,25 @@
     .sp-im-copy { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
     .sp-im-copy span { font-size: 12.5px; font-weight: 700; color: #27ae60; }
     .sp-im-text { font: inherit; font-family: Consolas, 'Courier New', monospace; font-size: 12px; padding: 8px; border: 1px solid #cfd0cc; border-radius: 4px; width: 100%; box-sizing: border-box; resize: vertical; }
+    /* OneDrive のファイルの一覧 */
+    .sp-od-list { margin-top: 10px; max-height: 340px; overflow-y: auto; }
+    .sp-od { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    .sp-od th { text-align: left; font-size: 11.5px; color: #6b7079; padding: 5px 8px; border-bottom: 1px solid #e4e3df; background: #f6f6f4; position: sticky; top: 0; }
+    .sp-od td { padding: 6px 8px; border-bottom: 1px solid #efefec; vertical-align: middle; }
+    .sp-od td b { font-weight: 700; }
+    .sp-od td small { display: block; color: #8b9097; font-size: 11px; }
+    .sp-od tr.is-other td { color: #a3a7ad; }
+    .sp-od-new { font-weight: 700; color: #3d5a80; }
+    .sp-od-upd { display: inline-block; margin-left: 4px; font-size: 11px; font-weight: 700; color: #7a6000; background: #fef9e7; border: 1px solid #f5d76e; border-radius: 999px; padding: 0 7px; }
+    /* 変更の印（訂正・追加・削除） */
+    .sp-flag-col { white-space: nowrap; }
+    .sp-flag { display: inline-block; font-size: 11px; font-weight: 700; border-radius: 999px; padding: 1px 8px; cursor: help; }
+    .sp-flag--fix { color: #922b21; background: #fdecea; border: 1px solid #f1948a; }
+    .sp-flag--add { color: #1f4e79; background: #e8eef6; border: 1px solid #9fb6d4; }
+    .sp-flag--del { color: #6b7079; background: #f0f0ee; border: 1px solid #cfd0cc; }
+    .sp-flag-prev { display: block; margin-top: 2px; font-size: 11px; color: #922b21; white-space: normal; max-width: 180px; }
+    .sp-table tr.is-removed td { color: #a3a7ad; text-decoration: line-through; }
+    .sp-table tr.is-removed td.sp-flag-col, .sp-table tr.is-removed td.sp-chk-col { text-decoration: none; }
     .sp-pv-head { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 10px; }
     .ga-modal.sp-modal { width: min(1100px, 96vw); }
     .sp-table--pv td { padding: 3px 4px; }
@@ -2213,7 +2232,7 @@ window.addEventListener('afterprint', () => {
 <script src="gaichu-scope.js?v=20261027b"></script>
 <script src="gaichu-gantt.js?v=20261027d"></script>
 <script src="org-chart.js?v=20261023s"></script>
-<script src="gaichu-supply.js?v=20261027a"></script>
+<script src="gaichu-supply.js?v=20261027b"></script>
 
 </body>
 </html>

@@ -4,6 +4,7 @@
 //     読み取った行は画面で確認・修正してから保存する（gaichu_supply_items・gaichu_supply_docs）
 //   ・支給の前の事前チェックとして行ごとに✓。✓を付けた日と人は自動で残る（checked_on・checked_by。✓にマウスを乗せると出る）
 //   ・支給日は✓とは別に、編集画面で入力する（supply_date）
+//   ・ふだんは OneDrive の「ユニット外注」フォルダーのチェック表（Excel）を読み込む。読み直すと前の内容と比べて「訂正」「追加」「削除」の印を付ける
 //   ・作成・編集・✓は体制表の管理者（org_chart_admins）だけ。閲覧は外注先用シートを見られる人
 //   ・概要ページに #ovSupply があれば外注先ごとの進み具合を出す（今は概要には置いていない）
 // 読み込み前に gaichu-sheet.js・gaichu-admin.js を読み込み、ページに #supplyRoot・#supplyBar を置いておくこと。
@@ -50,10 +51,11 @@
     function todayStr() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
     const num = v => (v == null || v === '' ? '' : String(Number(v)));
     // 絞り込み・並べ替えに使う列（表の列の順と同じ。✓はチェック済み／未チェック）
-    const viewCols = k => [['checked_on', '✓', 'check'], ['supply_date', '支給日', 'date'], ['unit_code', 'ユニット', 'text'], ...COLS[k], ['doc_no', '資料', 'text']];
+    const viewCols = k => [['checked_on', '✓', 'check'], ['supply_date', '支給日', 'date'], ['change_flag', '変更', 'flag'], ['unit_code', 'ユニット', 'text'], ...COLS[k], ['doc_no', '資料', 'text']];
     function dispOf(r, key, type) {
         const v = r[key];
         if (type === 'check') return v ? CHECKED : UNCHECKED;
+        if (type === 'flag') return v || '（なし）';
         if (type === 'date') return v ? ymdJa(v) : NOT_YET;
         if (v == null || String(v).trim() === '') return BLANK;
         return type === 'num' || type === 'int' ? num(v) : String(v);
@@ -86,11 +88,13 @@
         if (!st.ready || !st.loggedIn || !st.pn) return;
         if (!force && loadedPn === st.pn) return;
         loading = true;
-        const [{ data, error }, probe] = await Promise.all([
+        const [{ data, error }, probe, probe2] = await Promise.all([
             db().from('gaichu_supply_items').select('*').eq('project_number', st.pn).order('sort_order').order('id'),
             db().from('gaichu_supply_items').select('supply_date').limit(1),
+            db().from('gaichu_supply_items').select('source_file, change_flag, prev').limit(1),
         ]);
         hasSupplyDate = !probe.error;
+        hasSyncCols = !probe2.error;
         loading = false;
         loadedPn = st.pn;
         loadError = error || null;
@@ -191,7 +195,7 @@
             const chk = editing
                 ? `<td class="sp-sel-col"><input type="checkbox" data-sp-sel="${i}"${selected.has(r) ? ' checked' : ''}></td><td class="sp-chk-col"><button type="button" class="sp-chk${r.checked_on ? ' is-on' : ''}" data-sp-echeck="${i}" title="押すと✓を付け外し（保存するまで反映されません）">${r.checked_on ? '✓' : ''}</button></td><td><input type="date" class="sp-in sp-in--date" data-i="${i}" data-k="supply_date" value="${esc(r.supply_date || '')}"${hasSupplyDate ? '' : ' disabled title="支給日の列がまだありません（scripts/gaichu_supply_date_setup.sql を実行してください）"'}></td>`
                 : `<td class="sp-chk-col"><button type="button" class="sp-chk${r.checked_on ? ' is-on' : ''}" data-sp-check="${r.id}"${st.isAdmin ? '' : ' disabled'} title="${r.checked_on ? `${ymdJa(r.checked_on)} にチェック${r.checked_by ? '（' + esc(r.checked_by) + '）' : ''}` : '事前チェックが済んだら✓'}">${r.checked_on ? '✓' : ''}</button></td><td class="sp-date">${r.supply_date ? md(r.supply_date) : ''}</td>`;
-            return `<tr class="${r.checked_on ? 'is-done' : ''}${(editing && selected.has(r)) || (!editing && ctrlPick.has(r.id)) ? ' is-sel' : ''}">${editing ? `<td class="sp-del-col"><button type="button" class="sp-del" data-sp-del="${i}" title="この行を削除">✕</button></td>` : ''}${chk}`
+            return `<tr class="${r.checked_on ? 'is-done' : ''}${r.change_flag === '削除' ? ' is-removed' : ''}${(editing && selected.has(r)) || (!editing && ctrlPick.has(r.id)) ? ' is-sel' : ''}">${editing ? `<td class="sp-del-col"><button type="button" class="sp-del" data-sp-del="${i}" title="この行を削除">✕</button></td>` : ''}${chk}${flagCell(r)}`
                 + (editing ? `<td><input class="sp-in sp-in--unit" data-i="${i}" data-k="unit_code" value="${esc(r.unit_code || '')}"></td>` : `<td>${esc(r.unit_code || '')}</td>`)
                 + cols.map(c => editing ? cellEdit(r, i, c) : cellView(r, c)).join('')
                 + (editing ? `<td><input class="sp-in sp-in--doc" data-i="${i}" data-k="doc_no" value="${esc(r.doc_no || '')}"></td>` : `<td class="sp-doc">${esc(r.doc_no || '')}</td>`) + `</tr>`;
@@ -205,7 +209,7 @@
                 <label title="日付を選ぶと、選んだ行にすぐ入ります。カレンダーの「クリア」で選んだ行の支給日を消します">支給日 <input type="date" data-sp-bulkdate value="${esc(bulkDate)}"${selShown.length && hasSupplyDate ? '' : ' disabled'}></label>
                 <span class="sp-sep"></span><button type="button" class="spec-btn" data-sp-bulk="check"${selShown.length ? '' : ' disabled'} title="選んだ行に✓のないものがあれば全部に✓、全部✓済みなら全部外します">${selShown.length && selShown.every(r => r.checked_on) ? '✓を外す' : '✓を付ける'}</button>
                 <span class="sp-bulk-note">左の欄で行を選びます（見出しの欄ですべて選択、Shift＋クリックで範囲）。支給日は日付を選ぶとすぐ入り、カレンダーの「クリア」で消えます。保存を押すまでは反映されません。</span></div>` : '')
-            + (empty || `<div class="sp-table-wrap"><table class="sp-table"><thead>${head}</thead><tbody>${body || `<tr><td colspan="${cols.length + 7}" class="sp-none">この条件の行はありません。</td></tr>`}</tbody></table></div>`);
+            + (empty || `<div class="sp-table-wrap"><table class="sp-table"><thead>${head}</thead><tbody>${body || `<tr><td colspan="${cols.length + 8}" class="sp-none">この条件の行はありません。</td></tr>`}</tbody></table></div>`);
     }
 
     // ===== ✓ =====
@@ -220,6 +224,14 @@
         if (!targets.length || bulkBusy) return;
         bulkBusy = true;
         const { data, error } = await db().from('gaichu_supply_items').update({ checked_on: on ? todayStr() : null }).in('id', targets.map(r => r.id)).select('*');
+        // ✓を付けた行の「訂正」「追加」の印を消す
+        if (!error && on && hasSyncCols) {
+            const flagged = targets.filter(r => r.change_flag === '訂正' || r.change_flag === '追加').map(r => r.id);
+            if (flagged.length) {
+                const r2 = await db().from('gaichu_supply_items').update({ change_flag: null, prev: null }).in('id', flagged).select('*');
+                if (!r2.error) (r2.data || []).forEach(d => { const x = (data || []).find(y => y.id === d.id); if (x) Object.assign(x, d); });
+            }
+        }
         bulkBusy = false;
         if (error || !data || !data.length) { alert('保存できませんでした：' + ((error && error.message) || '編集の権限がないか、ログインが切れています')); return; }
         data.forEach(d => { const r = items.find(x => x.id === d.id); if (r) Object.assign(r, d); });
@@ -262,6 +274,20 @@
     // Shift＋クリックで文字が選択されないようにする
     root.addEventListener('mousedown', e => { if (e.shiftKey && e.target.closest('[data-sp-check]')) e.preventDefault(); });
 
+    // 変更の印（訂正は前の値も出す）
+    function flagCell(r) {
+        const f = r.change_flag;
+        if (!f) return '<td class="sp-flag-col"></td>';
+        const prev = r.prev && typeof r.prev === 'object' ? Object.entries(r.prev).map(([k, o]) => `${FIELD_LABEL[k] || k} ${o == null || o === '' ? '（空）' : (typeof o === 'number' ? num(o) : o)}→${r[k] == null || r[k] === '' ? '（空）' : (typeof r[k] === 'number' ? num(r[k]) : r[k])}`).join('、') : '';
+        const cls = f === '訂正' ? 'fix' : f === '追加' ? 'add' : 'del';
+        const tip = f === '訂正' ? `訂正図面で変わりました：${prev}。確かめて✓を付けると印が消えます`
+            : f === '追加' ? 'Excel を読み直したときに増えた部品です。確かめて✓を付けると印が消えます'
+            : 'Excel を読み直したときになくなった部品です。不要なら編集画面で削除してください';
+        return `<td class="sp-flag-col"><span class="sp-flag sp-flag--${cls}" title="${esc(tip)}">${f}</span>${prev ? `<small class="sp-flag-prev">${esc(prev)}</small>` : ''}</td>`;
+    }
+    // ✓を付けたら「訂正」「追加」の印を消す（確かめたことになるため）
+    const clearFlagPatch = r => (hasSyncCols && r && (r.change_flag === '訂正' || r.change_flag === '追加') ? { change_flag: null, prev: null } : {});
+
     async function toggleCheck(id) {
         const r = items.find(x => x.id === id);
         if (!r) return;
@@ -269,7 +295,7 @@
         if (r._busy) return;
         r._busy = true;
         const value = r.checked_on ? null : todayStr();
-        const { data, error } = await db().from('gaichu_supply_items').update({ checked_on: value }).eq('id', id).select('*');
+        const { data, error } = await db().from('gaichu_supply_items').update({ checked_on: value, ...(value ? clearFlagPatch(r) : {}) }).eq('id', id).select('*');
         r._busy = false;
         if (error || !data || !data.length) { alert('保存できませんでした：' + ((error && error.message) || '編集の権限がないか、ログインが切れています')); return; }
         Object.assign(r, data[0]);
@@ -310,6 +336,7 @@
             for (const [i, r] of draft.entries()) {
                 const rec = { sort_order: i };
                 fields().forEach(k => { rec[k] = r[k] == null ? null : r[k]; });
+                if (hasSyncCols && r.checked_on && (r.change_flag === '訂正' || r.change_flag === '追加')) { rec.change_flag = null; rec.prev = null; r.change_flag = null; }   // ✓を付けたら印を消す
                 if (r.id) {
                     const o = orig.get(r.id);
                     if (o && o.sort_order === i && fields().every(k => (o[k] == null ? null : o[k]) == rec[k])) continue;   // 変わっていない行は書かない
@@ -359,8 +386,14 @@
     function openImport() {
         const sheet = GS.state.currentSheet;
         const m = ADM().modal(`支給品を読み込む（${sheet.display}）`, `
-            <div class="sp-im-tabs"><button type="button" class="is-on" data-im="paste">貼り付けて読み込む</button><button type="button" data-im="auto">PDFから自動で読み取る</button></div>
-            <div data-im-pane="paste">
+            <div class="sp-im-tabs"><button type="button" class="is-on" data-im="od">OneDriveから読み込む</button><button type="button" data-im="paste">貼り付けて読み込む</button><button type="button" data-im="auto">PDFから自動で読み取る</button></div>
+            <div data-im-pane="od">
+                <p class="ga-note" style="margin:0 0 10px">OneDrive の「${OD_FOLDER}」フォルダーにある、工番 ${esc(GS.state.pn)} のチェック表（Excel）を、<b>${esc(sheet.display)}</b> のリストに読み込みます。読み直したときは、前の内容と比べて「訂正」「追加」「削除」の印を付けます（付けた✓や支給日はそのまま残ります）。</p>
+                <button type="button" class="ga-btn" data-od-show>OneDrive のファイルを表示</button>
+                <div class="sp-od-list" data-od-list></div>
+                <p class="sp-busy" data-od-status></p>
+            </div>
+            <div data-im-pane="paste" hidden>
                 <ol class="sp-im-steps">
                     <li>下の「Claudeへの依頼文をコピー」を押します。</li>
                     <li>デスクトップアプリなどのClaudeに、工事企画表または購入部品表のPDFを添付し、コピーした依頼文を貼り付けて送ります。</li>
@@ -375,9 +408,12 @@
                 <label class="ga-field"><span>PDFファイル</span><input type="file" accept="application/pdf,.pdf" data-sp-file></label>
             </div>`, [
             { label: 'キャンセル', ghost: true, onClick: () => m.close() },
-            { label: '読み込む', primary: true, onClick: () => (m.el.querySelector('[data-im-pane="auto"]').hidden ? runPaste(m) : runExtract(m)) },
+            { label: '読み込む', primary: true, onClick: () => (!m.el.querySelector('[data-im-pane="od"]').hidden ? runOd(m) : !m.el.querySelector('[data-im-pane="paste"]').hidden ? runPaste(m) : runExtract(m)) },
         ], 'ga-modal--add');
+        // Microsoft のサインインの仕組みを先に読み込んでおく（ボタンを押したときにサインインの画面を開けるように）。サインイン済みならすぐ一覧を出す
+        loadMsal().then(inst => { if (inst.getAllAccounts().length && !m.el.querySelector('[data-im-pane="od"]').hidden) openOdPane(m); }).catch(() => {});
         m.el.addEventListener('click', async e => {
+            if (e.target.closest('[data-od-show]')) { openOdPane(m); return; }
             const t = e.target.closest('[data-im]');
             if (t) {
                 m.el.querySelectorAll('[data-im]').forEach(b => b.classList.toggle('is-on', b === t));
@@ -392,6 +428,288 @@
             }
         });
     }
+    // ===== OneDrive（森村さんの「ユニット外注」フォルダー）のチェック表（Excel）を読み込む =====
+    //   ・サインインとファイルの読み取りは、3Dモデルアプリと同じ Microsoft のアプリの登録（Files.Read.All・委任）を使う
+    //   ・「ユニット外注」フォルダーの中の、工番で始まるフォルダー（例：2820RV）にある「…支給チェック表.xlsx」を一覧に出す
+    //   ・Excel はブラウザの中だけで読む（社外には送らない）。加工品・購入品のシートの表を、貼り付けと同じしくみで行にする
+    //   ・読み直したときは、同じファイルから読んだ行と比べて反映する（変わらない行はそのまま、変わった行は「訂正」、
+    //     増えた行は「追加」、なくなった行は「削除」の印。✓を付けると「訂正」「追加」の印は消える）
+    const MSAL_CONFIG = {
+        auth: {
+            clientId: 'a947a172-1208-4f57-8960-1a1956240adb',
+            authority: 'https://login.microsoftonline.com/b825147d-5f85-4b12-bda8-8e3108196121',
+            redirectUri: new URL('msal-redirect.html', location.href).href,   // ポップアップの戻り先（何も表示しないページ）
+        },
+        cache: { cacheLocation: 'localStorage' },
+    };
+    const GRAPH_SCOPES = ['Files.Read.All'];
+    const OD_FOLDER = 'ユニット外注';   // 共有されているチェック表のフォルダー
+    let msalReady = null;
+    function loadMsal() {
+        if (!msalReady) msalReady = import('https://cdn.jsdelivr.net/npm/@azure/msal-browser@3.30.0/+esm').then(async m => {
+            const inst = new m.PublicClientApplication(MSAL_CONFIG);
+            await inst.initialize();
+            return inst;
+        });
+        return msalReady;
+    }
+    async function graphToken() {
+        const inst = await loadMsal();
+        let acc = inst.getActiveAccount() || inst.getAllAccounts()[0];
+        if (!acc) { const r = await inst.loginPopup({ scopes: GRAPH_SCOPES, prompt: 'select_account' }); acc = r.account; }
+        inst.setActiveAccount(acc);
+        try { return (await inst.acquireTokenSilent({ scopes: GRAPH_SCOPES, account: acc })).accessToken; }
+        catch (e) { return (await inst.acquireTokenPopup({ scopes: GRAPH_SCOPES, account: acc })).accessToken; }
+    }
+    async function graph(path, { raw } = {}) {
+        const token = await graphToken();
+        const res = await fetch(path.startsWith('http') ? path : 'https://graph.microsoft.com/v1.0' + path, { headers: { Authorization: 'Bearer ' + token } });
+        if (!res.ok) { const e = new Error(`OneDrive の読み取りに失敗しました（${res.status}）`); e.status = res.status; throw e; }
+        return raw ? res.arrayBuffer() : res.json();
+    }
+    // 「ユニット外注」フォルダーを探す：共有されたアイテム →（自分の OneDrive にある場合）デスクトップの下
+    let odRoot = null;
+    async function findOdRoot() {
+        if (odRoot) return odRoot;
+        const shared = await graph('/me/drive/sharedWithMe?$top=500').catch(() => ({ value: [] }));
+        const hit = (shared.value || []).find(x => x.name === OD_FOLDER && (x.folder || (x.remoteItem && x.remoteItem.folder)));
+        if (hit) {
+            const ri = hit.remoteItem || hit;
+            odRoot = { driveId: ri.parentReference.driveId, id: ri.id };
+            return odRoot;
+        }
+        // 「デスクトップ」ごと共有されているとき
+        const desk = (shared.value || []).find(x => /^(デスクトップ|Desktop)$/i.test(x.name) && (x.folder || (x.remoteItem && x.remoteItem.folder)));
+        if (desk) {
+            const ri = desk.remoteItem || desk;
+            const kids = await graph(`/drives/${ri.parentReference.driveId}/items/${ri.id}/children?$top=500`);
+            const f = (kids.value || []).find(x => x.name === OD_FOLDER && x.folder);
+            if (f) { odRoot = { driveId: ri.parentReference.driveId, id: f.id }; return odRoot; }
+        }
+        // 自分の OneDrive（森村さん本人）
+        for (const p of ['デスクトップ', 'Desktop']) {
+            try {
+                const it = await graph(`/me/drive/root:/${encodeURIComponent(p)}/${encodeURIComponent(OD_FOLDER)}`);
+                if (it && it.id) { odRoot = { driveId: it.parentReference.driveId, id: it.id }; return odRoot; }
+            } catch (e) { /* 次の候補へ */ }
+        }
+        throw new Error(`OneDrive の「${OD_FOLDER}」フォルダーが見つかりません。共有されているか確認してください。`);
+    }
+    // 工番で始まるフォルダー（と「ユニット外注」の直下）にある Excel の一覧
+    async function listOdFiles(pn) {
+        const root = await findOdRoot();
+        const kids = (await graph(`/drives/${root.driveId}/items/${root.id}/children?$top=500`)).value || [];
+        const isXlsx = x => x.file && /\.xlsx$/i.test(x.name) && !x.name.startsWith('~$');
+        const files = kids.filter(x => isXlsx(x) && x.name.startsWith(pn)).map(x => ({ ...x, folder: '' }));
+        for (const f of kids.filter(x => x.folder && x.name.startsWith(pn))) {
+            const sub = (await graph(`/drives/${root.driveId}/items/${f.id}/children?$top=500`)).value || [];
+            sub.filter(isXlsx).forEach(x => files.push({ ...x, folder: f.name }));
+        }
+        return files.map(x => ({ id: x.id, driveId: (x.parentReference && x.parentReference.driveId) || root.driveId, name: x.name, folder: x.folder, modified: x.lastModifiedDateTime }))
+            .sort((a, b) => a.folder.localeCompare(b.folder, 'ja') || a.name.localeCompare(b.name, 'ja', { numeric: true }));
+    }
+
+    // ---- Excel（.xlsx）をブラウザの中で読む（zip を開いて、シートの表を文字の2次元配列にする） ----
+    async function unzip(buf) {
+        const dv = new DataView(buf), u8 = new Uint8Array(buf);
+        let eocd = -1;
+        for (let i = u8.length - 22; i >= Math.max(0, u8.length - 65557); i--) if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+        if (eocd < 0) throw new Error('Excel ファイルを開けませんでした（.xlsx ではないか、壊れています）');
+        const count = dv.getUint16(eocd + 10, true);
+        let p = dv.getUint32(eocd + 16, true);
+        const files = {};
+        const dec = new TextDecoder();
+        for (let n = 0; n < count; n++) {
+            const method = dv.getUint16(p + 10, true), csize = dv.getUint32(p + 20, true);
+            const nlen = dv.getUint16(p + 28, true), elen = dv.getUint16(p + 30, true), clen = dv.getUint16(p + 32, true), off = dv.getUint32(p + 42, true);
+            const name = dec.decode(u8.subarray(p + 46, p + 46 + nlen));
+            files[name] = { method, csize, off };
+            p += 46 + nlen + elen + clen;
+        }
+        return async name => {
+            const f = files[name];
+            if (!f) return null;
+            const start = f.off + 30 + dv.getUint16(f.off + 26, true) + dv.getUint16(f.off + 28, true);
+            const data = u8.subarray(start, start + f.csize);
+            if (f.method === 0) return dec.decode(data);
+            const ds = new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+            return await new Response(ds).text();
+        };
+    }
+    async function readXlsx(buf) {
+        const get = await unzip(buf);
+        const parse = s => new DOMParser().parseFromString(s || '', 'application/xml');
+        const wb = parse(await get('xl/workbook.xml'));
+        const rels = parse(await get('xl/_rels/workbook.xml.rels'));
+        const relMap = {};
+        [...rels.getElementsByTagName('Relationship')].forEach(r => { relMap[r.getAttribute('Id')] = r.getAttribute('Target'); });
+        const ssDoc = parse(await get('xl/sharedStrings.xml'));
+        // 文字（ふりがな＝rPh の中の文字は除く）
+        const textOf = el => [...el.getElementsByTagName('t')].filter(t => !(t.parentNode && t.parentNode.nodeName === 'rPh')).map(t => t.textContent).join('');
+        const ss = [...ssDoc.getElementsByTagName('si')].map(textOf);
+        const sheets = [];
+        for (const s of wb.getElementsByTagName('sheet')) {
+            const rid = s.getAttribute('r:id') || s.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'id');
+            let target = relMap[rid] || '';
+            target = target.startsWith('/') ? target.slice(1) : 'xl/' + target.replace(/^\.\//, '');
+            const doc = parse(await get(target));
+            const grid = [];
+            for (const row of doc.getElementsByTagName('row')) {
+                const ri = Number(row.getAttribute('r')) - 1;
+                for (const c of row.getElementsByTagName('c')) {
+                    const ref = c.getAttribute('r') || '';
+                    const col = ref.replace(/\d+/g, '').split('').reduce((a, ch) => a * 26 + ch.charCodeAt(0) - 64, 0) - 1;
+                    const t = c.getAttribute('t');
+                    const vEl = c.getElementsByTagName('v')[0];
+                    let v = vEl ? vEl.textContent : '';
+                    if (t === 's') v = ss[Number(v)] || '';
+                    else if (t === 'inlineStr') v = textOf(c);
+                    if (v === '') continue;
+                    (grid[ri] = grid[ri] || [])[col] = v;
+                }
+            }
+            sheets.push({ name: s.getAttribute('name'), grid });
+        }
+        return sheets;
+    }
+    // チェック表の Excel → { machined: [...], purchased: [...] }（シート名に「加工」「購入」が入っているシートを読む）
+    function rowsFromWorkbook(sheets) {
+        const out = { machined: [], purchased: [] };
+        sheets.forEach(sh => {
+            const kindOf = /加工/.test(sh.name) ? 'machined' : /購入/.test(sh.name) ? 'purchased' : null;
+            if (!kindOf) return;
+            const text = sh.grid.map(r => (r || []).map(v => String(v == null ? '' : v).replace(/[\t\r\n]+/g, ' ')).join('\t')).join('\n');
+            try { out[kindOf] = parseTable(text).rows; } catch (e) { /* 見出しのないシートは飛ばす */ }
+        });
+        return out;
+    }
+
+    // ---- 読み直したときの比べ方 ----
+    const CMP_FIELDS = ['name', 'drawing_no', 'spec', 'material', 'qty', 'maker', 'plan_code', 'weight_material', 'weight_finished', 'seq', 'remark', 'doc_no'];
+    const CHANGE_FIELDS = ['name', 'drawing_no', 'spec', 'material', 'qty', 'maker'];   // 変わったら「訂正」にして✓を外す項目（数量・型番など）
+    const FIELD_LABEL = { name: '品名', drawing_no: '図面番号', spec: '寸法・型式', material: '材質', qty: '数量', maker: 'メーカー' };
+    const norm = v => String(v == null ? '' : v).normalize('NFKC').replace(/\s+/g, '').toUpperCase();
+    const sameVal = (a, b) => norm(a) === norm(b);
+    const syncKey = (k, r) => [k, norm(r.unit_code), k === 'machined' ? norm(r.drawing_no || r.name) : norm(r.name) + '|' + norm(r.spec)].join('#');
+    let hasSyncCols = true;   // scripts/gaichu_supply_sync_setup.sql を実行済みか
+    // 1つのファイルを、選んでいる外注先のリストに反映する。戻り値：{ added, changed, removed, same, first }
+    async function syncFile(file, parsed) {
+        const st = GS.state, sheet = st.currentSheet;
+        const res = { added: 0, changed: 0, removed: 0, same: 0, first: false };
+        const fromFile = items.filter(r => r.sheet_id === sheet.id && r.source_file === file.id);
+        res.first = fromFile.length === 0;
+        // 貼り付けで作った行（読み込み元が空）も、同じ部品なら引き継ぐ
+        const pool = items.filter(r => r.sheet_id === sheet.id && (r.source_file === file.id || !r.source_file));
+        const byKey = new Map();
+        pool.forEach(r => { const k = syncKey(r.kind, r); if (!byKey.has(k)) byKey.set(k, r); });
+        const matched = new Set();
+        const inserts = [], updates = [];
+        let order = sheetItems(sheet.id).reduce((mx, r) => Math.max(mx, r.sort_order || 0), -1) + 1;
+        for (const kind of ['machined', 'purchased']) {
+            for (const r of parsed[kind]) {
+                const rec = {
+                    unit_code: r.unit_code || null, doc_no: r.doc_no || null, seq: r.seq == null ? null : r.seq, drawing_no: r.drawing_no || null,
+                    name: String(r.name).trim(), material: r.material || null, spec: r.spec || null, qty: r.qty == null ? null : r.qty,
+                    weight_material: r.weight_material == null ? null : r.weight_material, weight_finished: r.weight_finished == null ? null : r.weight_finished,
+                    plan_code: r.plan_code || null, maker: r.maker || null, remark: r.remark || null,
+                };
+                const old = byKey.get(syncKey(kind, rec));
+                if (old && !matched.has(old)) {
+                    matched.add(old);
+                    const diff = CMP_FIELDS.filter(f => !sameVal(old[f], rec[f]));
+                    const bigDiff = CHANGE_FIELDS.filter(f => diff.includes(f));
+                    const patch = { ...rec, source_file: file.id };
+                    if (bigDiff.length) {
+                        patch.change_flag = '訂正';
+                        patch.prev = Object.fromEntries(bigDiff.map(f => [f, old[f] == null ? null : old[f]]));
+                        patch.checked_on = null;
+                        res.changed++;
+                    } else {
+                        if (old.change_flag === '削除') { patch.change_flag = null; patch.prev = null; }   // いったん消えた部品が戻ってきた
+                        if (!diff.length && old.source_file === file.id && old.change_flag !== '削除') { res.same++; continue; }
+                        res.same++;
+                    }
+                    updates.push({ id: old.id, patch });
+                } else {
+                    inserts.push({ ...rec, sheet_id: sheet.id, project_number: st.pn, kind, sort_order: order++, source_file: file.id, change_flag: res.first ? null : '追加' });
+                    if (!res.first) res.added++;
+                }
+            }
+        }
+        // ファイルからなくなった部品（このファイルから読んだ行だけが対象）
+        fromFile.filter(r => !matched.has(r) && r.change_flag !== '削除').forEach(r => { updates.push({ id: r.id, patch: { change_flag: '削除' } }); res.removed++; });
+        for (const u of updates) {
+            const { data, error } = await db().from('gaichu_supply_items').update(u.patch).eq('id', u.id).select('id');
+            if (error) throw error;
+            if (!data || !data.length) throw new Error('保存できませんでした（編集の権限がないか、ログインが切れています）');
+        }
+        if (inserts.length) {
+            const { error } = await db().from('gaichu_supply_items').insert(inserts);
+            if (error) throw error;
+        }
+        if (res.first) res.added = inserts.length;
+        await db().from('gaichu_supply_docs').insert({ sheet_id: sheet.id, project_number: st.pn, doc_no: null, file_name: (file.folder ? file.folder + '/' : '') + file.name, file_path: file.id, rows_added: inserts.length, source_modified: file.modified || null });
+        return res;
+    }
+    // 読み込んだファイルの記録（どの外注先に・いつ読み込んだか）
+    async function loadDocs() {
+        const { data } = await db().from('gaichu_supply_docs').select('*').eq('project_number', GS.state.pn).order('uploaded_at', { ascending: false });
+        return data || [];
+    }
+    async function openOdPane(m) {
+        const pane = m.el.querySelector('[data-im-pane="od"]');
+        const list = pane.querySelector('[data-od-list]');
+        if (!hasSyncCols) { list.innerHTML = '<p class="sp-warn">先に Supabase で scripts/gaichu_supply_sync_setup.sql を実行してください。</p>'; return; }
+        list.innerHTML = '<p class="sp-busy">OneDrive のファイルを探しています…</p>';
+        try {
+            const [files, docs] = await Promise.all([listOdFiles(GS.state.pn), loadDocs()]);
+            if (!files.length) { list.innerHTML = `<p class="ga-note">「${OD_FOLDER}」フォルダーに、工番 ${esc(GS.state.pn)} で始まるフォルダー・Excel が見つかりませんでした。</p>`; return; }
+            const sheet = GS.state.currentSheet;
+            const sheetName = id => { const s = GS.state.sheets.find(x => x.id === id); return s ? s.short : '（削除済みの外注先）'; };
+            list.innerHTML = `<table class="sp-od"><thead><tr><th></th><th>ファイル</th><th>OneDrive の更新</th><th>読み込み</th></tr></thead><tbody>${files.map(f => {
+                const last = docs.find(d => d.file_path === f.id);
+                const mine = last && last.sheet_id === sheet.id;
+                const updated = last && f.modified && (!last.source_modified || new Date(f.modified) > new Date(last.source_modified));
+                const state = !last ? '<span class="sp-od-new">未読み込み</span>'
+                    : `${esc(sheetName(last.sheet_id))} に ${ymdJa(String(last.uploaded_at).slice(0, 10))}${updated ? ' <span class="sp-od-upd">更新あり</span>' : ''}`;
+                return `<tr${last && !mine ? ' class="is-other"' : ''}><td><input type="checkbox" data-od-file="${esc(f.id)}"${(!last || (mine && updated)) && !(last && !mine) ? ' checked' : ''}></td>
+                    <td><b>${esc(f.name)}</b>${f.folder ? `<small>${esc(f.folder)}</small>` : ''}</td><td>${f.modified ? ymdJa(f.modified.slice(0, 10)) : ''}</td><td>${state}</td></tr>`;
+            }).join('')}</tbody></table>`;
+            pane._files = files;
+        } catch (e) {
+            list.innerHTML = `<p class="sp-warn">${esc(e.message || String(e))}</p>`
+                + (/popup|interaction|redirect|AADSTS/i.test(String(e.message || e)) ? '<p class="ga-note">Microsoft のサインインの画面が開かなかったか、戻り先の設定がまだの可能性があります。もう一度「OneDrive のファイルを表示」を押してください。</p>' : '');
+        }
+    }
+    async function runOd(m) {
+        const pane = m.el.querySelector('[data-im-pane="od"]');
+        const files = (pane._files || []).filter(f => pane.querySelector(`[data-od-file="${CSS.escape(f.id)}"]`)?.checked);
+        if (!files.length) { m.err('読み込むファイルにチェックを入れてください。'); return; }
+        const btns = [...m.el.querySelectorAll('.ga-foot .ga-btn')];
+        btns.forEach(b => { b.disabled = true; });
+        m.err('');
+        const status = pane.querySelector('[data-od-status]');
+        const results = [];
+        try {
+            for (const f of files) {
+                status.textContent = `${f.name} を読み込んでいます…`;
+                const buf = await graph(`/drives/${f.driveId}/items/${f.id}/content`, { raw: true });
+                const parsed = rowsFromWorkbook(await readXlsx(buf));
+                if (!parsed.machined.length && !parsed.purchased.length) { results.push(`${f.name}：加工品・購入品の表が見つかりませんでした`); continue; }
+                const r = await syncFile(f, parsed);
+                await load(true);   // 次のファイルと比べるときに最新の行を使う
+                results.push(r.first ? `${f.name}：${r.added} 行を作成` : `${f.name}：追加 ${r.added}・訂正 ${r.changed}・削除 ${r.removed}・変わらず ${r.same}`);
+            }
+            m.close();
+            alert('読み込みました。\n\n' + results.join('\n') + '\n\n「訂正」「追加」「削除」の印が付いた行を確かめてください。');
+        } catch (e) {
+            btns.forEach(b => { b.disabled = false; });
+            status.textContent = '';
+            m.err((results.length ? results.join(' ／ ') + ' ／ ' : '') + (e.message || String(e)));
+            load(true);
+        }
+    }
+
     // 貼り付けた文字を読む：JSON（Claudeの結果）か、見出し行つきの表（タブ区切り。Excel・表計算からのコピー）
     function runPaste(m) {
         const text = m.el.querySelector('[data-im-text]').value.trim();
@@ -614,7 +932,7 @@
         const base = sheetItems(sheet.id, kind).filter(r => viewCols(kind).every(([k2, , t2]) => !others[k2] || others[k2].has(dispOf(r, k2, t2))));
         const counts = new Map();
         base.forEach(r => { const d = dispOf(r, key, type); counts.set(d, (counts.get(d) || 0) + 1); });
-        const special = new Set([BLANK, NOT_YET, UNCHECKED]);
+        const special = new Set([BLANK, NOT_YET, UNCHECKED, '（なし）']);
         const raw = new Map(base.map(r => [dispOf(r, key, type), r[key]]));
         const values = [...counts.keys()].sort((a, b) => (special.has(a) - special.has(b)) || cmpVal(raw.get(a), raw.get(b), type));
         const cur = v.filters[key];
@@ -761,6 +1079,8 @@
     document.addEventListener('gaichusheetchange', () => { if (GS.state.ready && loadedPn !== GS.state.pn) load(); else render(); });
     window.addEventListener('beforeunload', e => { if (editing) { e.preventDefault(); e.returnValue = ''; } });
 
+    // 動作確認用（Excel の読み取りだけを外から試せるようにする）
+    window.GaichuSupplyTest = { readXlsx, rowsFromWorkbook };
     // gaichu-sheet.js の読み込みが終わるのを待つ
     (function wait() {
         if (GS.state.ready) { if (GS.state.loggedIn) load(); else render(); return; }
