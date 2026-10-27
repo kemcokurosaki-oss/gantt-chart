@@ -1,7 +1,5 @@
 // 外注先用シート：支給品チェックリスト（管理者だけが使う機能。左下の管理者メニューから開く。外注先ごと・加工品／購入品）
-//   ・工事企画表（加工品）・購入部品表（購入品）は、デスクトップアプリなどのClaudeで読み取った結果（JSON）か、Excelの表を貼り付けて作る。
-//     APIキー（有料）を登録していれば、PDFから自動で読み取ることもできる（Edge Function gaichu-supply-extract。PDFは図面と同じ保存場所に残す）
-//     読み取った行は画面で確認・修正してから保存する（gaichu_supply_items・gaichu_supply_docs）
+//   ・行は OneDrive の「ユニット外注」フォルダーのチェック表（Excel。デスクトップアプリで作成）を読み込んで作る（gaichu_supply_items・gaichu_supply_docs）
 //   ・支給の前の事前チェックとして行ごとに✓。✓を付けた日と人は自動で残る（checked_on・checked_by。✓にマウスを乗せると出る）
 //   ・支給日は✓とは別に、編集画面で入力する（supply_date）
 //   ・ふだんは OneDrive の「ユニット外注」フォルダーのチェック表（Excel）を読み込む。読み直すと前の内容と比べて「訂正」「追加」「削除」の印を付ける
@@ -15,7 +13,6 @@
     const GS = window.GaichuSheet;
     if (!root || !GS) return;
     const db = () => GS.client;
-    const BUCKET = 'gaichu-figures';
 
     const KINDS = [['machined', '加工品', '工事企画表'], ['purchased', '購入品', '購入部品表']];
     // 表の列 [key, 見出し, 入力の種類]（✓・支給日・ユニット・資料は全部の表に付ける）
@@ -202,7 +199,7 @@
         }).join('');
         const kindLabel = KINDS.find(x => x[0] === kind);
         const empty = !rows.length
-            ? `<p class="spec-msg">${esc(kindLabel[1])}の行はまだありません。${st.isAdmin ? `上の「読み込む」から、${esc(kindLabel[2])}をClaudeで読み取った結果やExcelの表を貼り付けると作成できます。` : ''}</p>` : '';
+            ? `<p class="spec-msg">${esc(kindLabel[1])}の行はまだありません。${st.isAdmin ? `上の「読み込む」から、OneDrive のチェック表（Excel）を読み込むと作成できます。` : ''}</p>` : '';
         root.innerHTML = `<div class="sp-summary"><b>${esc(sheet.display)}</b>　${esc(kindLabel[1])}（${esc(kindLabel[2])}から）`
             + (rows.length ? `${editing ? '' : `<span class="sp-hint">${ctrlPick.size ? `<b>${ctrlPick.size} 行を選択中</b>：Ctrlを離すとまとめて${pickWillCheck() ? '✓を付けます' : '✓を外します'}` : 'Shift＋クリックで範囲、Ctrl＋クリックで複数の行をまとめて✓'}</span>`}<span class="sp-prog">チェック済み <b>${p.done}</b> ／ ${p.total}</span>` : '') + `</div>`
             + (editing && rows.length ? `<div class="sp-bulk"><b>選んだ ${selShown.length} 行に</b>
@@ -356,78 +353,25 @@
         await load(true);
     }
 
-    // ===== 読み込む（貼り付け／PDFの自動読み取り） =====
-    //   ふだんは「貼り付け」：デスクトップアプリなどのClaudeにPDFと依頼文を渡し、返ってきたJSONを貼り付ける（費用は今の契約の中）。
-    //   Excelのチェック表や表計算からのコピー（見出し行つき）も貼り付けられる。
-    //   「PDFから自動で読み取る」は Edge Function（gaichu-supply-extract）を使う。APIキー（有料）を登録したときだけ使える
+    // ===== 読み込む（OneDrive のチェック表だけ） =====
     const ADM = () => window.GaichuAdmin;
-    const CLAUDE_PROMPT = `添付のPDFは、日下部電機の「工事企画表（MANUFACTURING PARTS LIST）」または「購入部品表（COMMERCIAL PARTS LIST）」です。
-外注先へ支給する部品のチェックリストを作るため、表の行を読み取り、次の形のJSONだけを \`\`\`json のコードブロックで出力してください（説明の文章は不要です）。
-
-{
-  "doc_type": "machined",        // 工事企画表なら "machined"（加工品）、購入部品表なら "purchased"（購入品）
-  "project_number": "2820",      // 工事番号
-  "unit_code": "RVOF2",          // ORDER No.（工事番号欄の下の段）
-  "doc_no": "2820RVOF2-C03",     // 右下の Doc No.
-  "rows": [
-    { "seq": 1, "drawing_no": "AR1W102N01", "name": "レール", "material": "市販品", "spec": null, "qty": 2,
-      "weight_material": null, "weight_finished": null, "plan_code": "A", "schedule_note": "完成品支給 10/30", "maker": null, "remark": "協伸電業" }
-  ]
-}
-
-読み取りのきまり：
-- 工事企画表（加工品）：図面番号・品番 → drawing_no、品名 → name、材質 → material、個数 → qty、単重量（kg）の素材 → weight_material・仕上 → weight_finished（全重量ではない）、工程計画の先頭の記号（A、A1 など）→ plan_code、工程計画の残りの文字 → schedule_note、備考 → remark、表の左の行番号 → seq。spec と maker は null。
-- 購入部品表（購入品）：通番 → seq、品名 → name、寸法・型式 → spec、個数 → qty、メーカー → maker（メーカー欄の右の小さな記号「在」「イ」などは読まない）、備考 → remark。drawing_no・material・重量・plan_code・schedule_note は null。
-- 部品図（図面）のページは読まない。同じ表が2回入っている（押印や手書きの書き込みがある写しなど）ときは1回分だけにする。
-- 表に印字された文字だけを使い、手書きの書き込みや押印は読まない。読めない欄は null にし、推測で埋めない。数字は半角にする。
-- 空の行は入れない。行は表の上から順にする。
-- JSONの中に // のコメントは入れない。`;
-
     function openImport() {
         const sheet = GS.state.currentSheet;
-        const m = ADM().modal(`支給品を読み込む（${sheet.display}）`, `
-            <div class="sp-im-tabs"><button type="button" class="is-on" data-im="od">OneDriveから読み込む</button><button type="button" data-im="paste">貼り付けて読み込む</button><button type="button" data-im="auto">PDFから自動で読み取る</button></div>
+        const m = ADM().modal(`支給品を OneDrive から読み込む（${sheet.display}）`, `
             <div data-im-pane="od">
                 <p class="ga-note" style="margin:0 0 10px">OneDrive の「${OD_FOLDER}」フォルダーにある、工番 ${esc(GS.state.pn)} のチェック表（Excel）を、<b>${esc(sheet.display)}</b> のリストに読み込みます。読み直したときは、前の内容と比べて「訂正」「追加」「削除」の印を付けます（付けた✓や支給日はそのまま残ります）。</p>
                 <button type="button" class="ga-btn" data-od-show>OneDrive のファイルを表示</button>
                 <div class="sp-od-list" data-od-list></div>
                 <p class="sp-busy" data-od-status></p>
-            </div>
-            <div data-im-pane="paste" hidden>
-                <ol class="sp-im-steps">
-                    <li>下の「Claudeへの依頼文をコピー」を押します。</li>
-                    <li>デスクトップアプリなどのClaudeに、工事企画表または購入部品表のPDFを添付し、コピーした依頼文を貼り付けて送ります。</li>
-                    <li>返ってきたJSON（\`\`\`json で始まる部分）をコピーして、下の欄に貼り付け、「読み込む」を押します。</li>
-                </ol>
-                <p class="ga-note" style="margin:0 0 8px">Excelのチェック表や表計算の表を、見出しの行ごとコピーして貼り付けることもできます。</p>
-                <div class="sp-im-copy"><button type="button" class="ga-btn" data-im-copy>Claudeへの依頼文をコピー</button><span data-im-copied></span></div>
-                <label class="ga-field"><span>Claudeの結果、またはコピーした表</span><textarea class="sp-im-text" data-im-text rows="9" placeholder='{"doc_type": "machined", "rows": [ ... ] }'></textarea></label>
-            </div>
-            <div data-im-pane="auto" hidden>
-                <p class="ga-note" style="margin:0 0 10px">PDFを選ぶと、AIが表を自動で読み取ります（30秒〜1分ほど）。<b>AnthropicのAPIキー（有料）を Supabase に登録しているときだけ使えます。</b>登録していないときは「貼り付けて読み込む」を使ってください。</p>
-                <label class="ga-field"><span>PDFファイル</span><input type="file" accept="application/pdf,.pdf" data-sp-file></label>
             </div>`, [
             { label: 'キャンセル', ghost: true, onClick: () => m.close() },
-            { label: '読み込む', primary: true, onClick: () => (!m.el.querySelector('[data-im-pane="od"]').hidden ? runOd(m) : !m.el.querySelector('[data-im-pane="paste"]').hidden ? runPaste(m) : runExtract(m)) },
+            { label: '読み込む', primary: true, onClick: () => runOd(m) },
         ], 'ga-modal--add');
         // Microsoft のサインインの仕組みを先に読み込んでおく（ボタンを押したときにサインインの画面を開けるように）。サインイン済みならすぐ一覧を出す
-        loadMsal().then(inst => { if (inst.getAllAccounts().length && !m.el.querySelector('[data-im-pane="od"]').hidden) openOdPane(m); }).catch(() => {});
-        m.el.addEventListener('click', async e => {
-            if (e.target.closest('[data-od-show]')) { openOdPane(m); return; }
-            const t = e.target.closest('[data-im]');
-            if (t) {
-                m.el.querySelectorAll('[data-im]').forEach(b => b.classList.toggle('is-on', b === t));
-                m.el.querySelectorAll('[data-im-pane]').forEach(p => { p.hidden = p.dataset.imPane !== t.dataset.im; });
-                m.err('');
-                return;
-            }
-            if (e.target.closest('[data-im-copy]')) {
-                const note = m.el.querySelector('[data-im-copied]');
-                try { await navigator.clipboard.writeText(CLAUDE_PROMPT); note.textContent = 'コピーしました。Claudeに貼り付けてください。'; }
-                catch (err) { note.textContent = 'コピーできませんでした。'; }
-            }
-        });
+        loadMsal().then(inst => { if (inst.getAllAccounts().length) openOdPane(m); }).catch(() => {});
+        m.el.addEventListener('click', e => { if (e.target.closest('[data-od-show]')) openOdPane(m); });
     }
+
     // ===== OneDrive（森村さんの「ユニット外注」フォルダー）のチェック表（Excel）を読み込む =====
     //   ・サインインとファイルの読み取りは、3Dモデルアプリと同じ Microsoft のアプリの登録（Files.Read.All・委任）を使う
     //   ・「ユニット外注」フォルダーの中の、工番で始まるフォルダー（例：2820RV）にある「…支給チェック表.xlsx」を一覧に出す
@@ -710,47 +654,7 @@
         }
     }
 
-    // 貼り付けた文字を読む：JSON（Claudeの結果）か、見出し行つきの表（タブ区切り。Excel・表計算からのコピー）
-    function runPaste(m) {
-        const text = m.el.querySelector('[data-im-text]').value.trim();
-        if (!text) { m.err('Claudeの結果、またはコピーした表を貼り付けてください。'); return; }
-        let result;
-        try { result = parseJsonResult(text) || parseTable(text); }
-        catch (e) { m.err(e.message || String(e)); return; }
-        if (!result || !result.rows.length) { m.err('読み込める行が見つかりませんでした。Claudeの結果（JSON）か、見出しの行がついた表を貼り付けてください。'); return; }
-        m.close();
-        openPreview(result, { path: null, fileName: null });
-    }
-    function parseJsonResult(text) {
-        const fence = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
-        let body = (fence ? fence[1] : text).trim();
-        if (!/^[\[{]/.test(body)) {
-            const a = body.indexOf('{');
-            if (a < 0) return null;
-            body = body.slice(a, body.lastIndexOf('}') + 1);
-        }
-        let obj;
-        try { obj = JSON.parse(body); }
-        catch (e) {
-            // // のコメントが入っていても読めるように外して、もう一度試す
-            try { obj = JSON.parse(body.replace(/^\s*\/\/.*$/gm, '').replace(/([^:"'\\])\/\/[^"\n]*$/gm, '$1')); }
-            catch (e2) { if (/^\s*[\[{]/.test(text)) throw new Error('JSONの形が正しくありません。Claudeの結果のコードブロックの中身をそのまま貼り付けてください。'); return null; }
-        }
-        if (Array.isArray(obj)) obj = { rows: obj };
-        if (!obj || !Array.isArray(obj.rows)) return null;
-        const n = v => (v == null || v === '' ? null : (Number.isNaN(Number(String(v).replace(/[^\d.\-]/g, ''))) ? null : Number(String(v).replace(/[^\d.\-]/g, ''))));
-        const s = v => (v == null || String(v).trim() === '' ? null : String(v).trim());
-        return {
-            doc_type: obj.doc_type === 'purchased' ? 'purchased' : obj.doc_type === 'machined' ? 'machined' : 'unknown',
-            project_number: s(obj.project_number), unit_code: s(obj.unit_code), doc_no: s(obj.doc_no), note: s(obj.note),
-            rows: obj.rows.filter(r => r && s(r.name)).map(r => ({
-                seq: n(r.seq), drawing_no: s(r.drawing_no), name: s(r.name), material: s(r.material), spec: s(r.spec), qty: n(r.qty),
-                weight_material: n(r.weight_material), weight_finished: n(r.weight_finished), plan_code: s(r.plan_code),
-                schedule_note: s(r.schedule_note), maker: s(r.maker), remark: s(r.remark),
-            })),
-        };
-    }
-    // 見出しの名前 → 項目（Excelのチェック表・工事企画表・購入部品表の見出しに合わせる）
+    // 見出しの名前 → 項目（Excelのチェック表の見出しに合わせる）
     const HEADS = [
         [/^(図面(番号|№|no\.?)|図面番号・品番|drawing)/i, 'drawing_no'], [/^(品名|description)/i, 'name'], [/^(材質|mat)/i, 'material'],
         [/^(品番・規格|寸法・型式|寸法|型式|規格|dimension)/i, 'spec'], [/^(数量|個数|qty)/i, 'qty'], [/^素材重量|^素材/, 'weight_material'],
@@ -782,118 +686,6 @@
             })),
         };
     }
-    async function runExtract(m) {
-        const st = GS.state, sheet = st.currentSheet;
-        const file = m.el.querySelector('[data-sp-file]').files[0];
-        if (!file) { m.err('PDFファイルを選んでください。'); return; }
-        if (!/\.pdf$/i.test(file.name) && file.type !== 'application/pdf') { m.err('PDFファイルを選んでください。'); return; }
-        if (file.size > 20 * 1024 * 1024) { m.err('PDFが大きすぎます（20MBまで）。'); return; }
-        const btns = [...m.el.querySelectorAll('.ga-foot .ga-btn')];
-        btns.forEach(b => { b.disabled = true; });
-        m.err('');
-        const status = document.createElement('p');
-        status.className = 'sp-busy';
-        status.textContent = 'PDFをアップロードしています…';
-        m.el.querySelector('.ga-body').appendChild(status);
-        try {
-            const path = `${st.pn}/supply/${sheet.id}/${Date.now()}.pdf`;
-            const up = await db().storage.from(BUCKET).upload(path, file, { contentType: 'application/pdf' });
-            if (up.error) throw new Error('アップロードできませんでした：' + up.error.message);
-            status.textContent = 'AIで表を読み取っています…（30秒〜1分ほどかかります）';
-            const { data, error } = await db().functions.invoke('gaichu-supply-extract', { body: { path } });
-            if (error) {
-                let msg = error.message;
-                try { const body = await error.context.json(); if (body && body.error) msg = body.error; } catch (e) { /* 本文が読めなければそのまま */ }
-                throw new Error(msg);
-            }
-            if (!data || !data.result) throw new Error((data && data.error) || '読み取り結果がありませんでした');
-            m.close();
-            openPreview(data.result, { path, fileName: file.name });
-        } catch (e) {
-            status.remove();
-            btns.forEach(b => { b.disabled = false; });
-            m.err(e.message || String(e));
-        }
-    }
-    // 同じ行がすでにあるか（加工品は図面番号、購入品は品名＋寸法・型式で比べる）
-    const keyOf = (k, r) => String(k === 'machined' ? (r.drawing_no || r.name) : `${r.name}|${r.spec || ''}`).normalize('NFKC').replace(/\s/g, '').toUpperCase();
-    function openPreview(result, { path, fileName }) {
-        const st = GS.state, sheet = st.currentSheet;
-        let k = result.doc_type === 'purchased' ? 'purchased' : 'machined';
-        const rows = (result.rows || []).map(r => ({
-            ...r,
-            remark: [r.schedule_note, r.remark].filter(x => x && String(x).trim()).join('／') || null,
-            include: true,
-        }));
-        const unitDefault = result.unit_code || '';
-        const docDefault = result.doc_no || '';
-        const m = ADM().modal(`読み取り結果を確認（${sheet.display}）`, `<div class="sp-pv"></div>`, [
-            { label: 'キャンセル', ghost: true, onClick: () => { if (confirm('読み取った内容を保存せずに閉じますか？')) m.close(); } },
-            { label: '保存', primary: true, onClick: () => savePreview() },
-        ], 'ga-modal--add sp-modal');
-        const box = m.el.querySelector('.sp-pv');
-        function draw() {
-            const existing = new Set(sheetItems(sheet.id, k).map(r => keyOf(k, r)));
-            const cols = COLS[k];
-            box.innerHTML = `
-                ${result.doc_type === 'unknown' ? '<p class="sp-warn">工事企画表・購入部品表のどちらか判断できませんでした。種類を選んでください。</p>' : ''}
-                ${result.project_number && String(result.project_number) !== String(st.pn) ? `<p class="sp-warn">PDFの工事番号（${esc(result.project_number)}）が、この工番（${esc(st.pn)}）と違います。PDFを確かめてください。</p>` : ''}
-                <div class="sp-pv-head">
-                    <label class="ga-field"><span>種類</span><select data-pv-kind>${KINDS.map(([kk, label, src]) => `<option value="${kk}"${kk === k ? ' selected' : ''}>${label}（${src}）</option>`).join('')}</select></label>
-                    <label class="ga-field"><span>ユニット（ORDER No.）</span><input data-pv-unit value="${esc(unitDefault)}"></label>
-                    <label class="ga-field"><span>資料の番号（Doc No.）</span><input data-pv-doc value="${esc(docDefault)}"></label>
-                </div>
-                <p class="ga-note" style="margin:4px 0 8px">読み取った ${rows.length} 行です。PDFと見比べて、違うところは直してください。チェックを外した行は保存しません。${result.note ? `<br>AIからのメモ：${esc(result.note)}` : ''}</p>
-                <div class="sp-table-wrap"><table class="sp-table sp-table--pv"><thead><tr><th>保存</th>${cols.map(c => `<th>${c[1]}</th>`).join('')}<th></th></tr></thead><tbody>
-                ${rows.map((r, i) => {
-                    const dup = existing.has(keyOf(k, r));
-                    return `<tr class="${r.include ? '' : 'is-off'}"><td class="sp-chk-col"><input type="checkbox" data-pv-inc="${i}"${r.include ? ' checked' : ''}></td>`
-                        + cols.map(([kk, , type]) => `<td><input class="sp-in sp-in--${kk}${type !== 'text' ? ' sp-in--num' : ''}" data-pv-i="${i}" data-pv-k="${kk}" value="${esc(type === 'text' ? (r[kk] || '') : num(r[kk]))}"></td>`).join('')
-                        + `<td>${dup ? '<span class="sp-dup" title="同じ行がすでに登録されています">登録済み</span>' : ''}</td></tr>`;
-                }).join('')}
-                </tbody></table></div>`;
-        }
-        function collectPv() {
-            box.querySelectorAll('[data-pv-i]').forEach(inp => {
-                const r = rows[Number(inp.dataset.pvI)], kk = inp.dataset.pvK, v = inp.value.trim();
-                const type = (COLS[k].find(c => c[0] === kk) || [])[2];
-                r[kk] = v === '' ? null : (type === 'num' ? Number(v.replace(/[^\d.\-]/g, '')) : type === 'int' ? parseInt(v, 10) : v);
-                if ((type === 'num' || type === 'int') && Number.isNaN(r[kk])) r[kk] = null;
-            });
-        }
-        // 最初に、すでに登録済みの行はチェックを外しておく（同じPDFを2回読み込んだときなど）
-        (() => { const ex = new Set(sheetItems(sheet.id, k).map(r => keyOf(k, r))); rows.forEach(r => { if (ex.has(keyOf(k, r))) r.include = false; }); })();
-        draw();
-        box.addEventListener('change', e => {
-            if (e.target.matches('[data-pv-kind]')) { collectPv(); k = e.target.value; draw(); return; }
-            const inc = e.target.closest('[data-pv-inc]');
-            if (inc) { rows[Number(inc.dataset.pvInc)].include = inc.checked; inc.closest('tr').classList.toggle('is-off', !inc.checked); }
-        });
-        async function savePreview() {
-            collectPv();
-            const unit = box.querySelector('[data-pv-unit]').value.trim() || null;
-            const doc = box.querySelector('[data-pv-doc]').value.trim() || null;
-            const pick = rows.filter(r => r.include);
-            if (!pick.length) { m.err('保存する行がありません。'); return; }
-            if (pick.some(r => !String(r.name || '').trim())) { m.err('品名が空の行があります。品名を入れるか、チェックを外してください。'); return; }
-            const base = sheetItems(sheet.id).reduce((mx, r) => Math.max(mx, r.sort_order || 0), -1) + 1;
-            const recs = pick.map((r, i) => ({
-                sheet_id: sheet.id, project_number: st.pn, kind: k, unit_code: r.unit_code || unit, doc_no: r.doc_no || doc, sort_order: base + i,
-                seq: r.seq == null ? null : r.seq, drawing_no: r.drawing_no || null, name: String(r.name).trim(),
-                material: r.material || null, spec: r.spec || null, qty: r.qty == null ? null : r.qty,
-                weight_material: r.weight_material == null ? null : r.weight_material, weight_finished: r.weight_finished == null ? null : r.weight_finished,
-                plan_code: r.plan_code || null, maker: r.maker || null, remark: r.remark || null,
-            }));
-            m.el.querySelectorAll('.ga-foot .ga-btn').forEach(b => { b.disabled = true; });
-            const { error } = await db().from('gaichu_supply_items').insert(recs);
-            if (error) { m.el.querySelectorAll('.ga-foot .ga-btn').forEach(b => { b.disabled = false; }); m.err('保存できませんでした：' + error.message); return; }
-            await db().from('gaichu_supply_docs').insert({ sheet_id: sheet.id, project_number: st.pn, kind: k, doc_no: doc, file_name: fileName || '（貼り付け）', file_path: path, rows_added: recs.length });
-            m.close();
-            kind = k;
-            await load(true);
-        }
-    }
-
     // ===== 操作 =====
     if (bar) bar.addEventListener('click', e => {
         const kb = e.target.closest('[data-sp-kind]');
