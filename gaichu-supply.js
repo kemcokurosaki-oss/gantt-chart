@@ -445,16 +445,20 @@
         err.needUrl = true;
         throw err;
     }
-    // 工番で始まるフォルダー（と「ユニット外注」の直下）にある Excel の一覧
+    // 工番で始まるフォルダー（例：2820RV、2816）の中のチェック表（ファイル名に「支給チェック」が入った Excel）の一覧。
+    //   外注先ごとにフォルダーを分けている工番（例：2816 ＞ 2816TR(DF前)）もあるので、工番のフォルダーの下は 2 段まで探す
     async function listOdFiles(pn) {
         const root = await findOdRoot();
-        const kids = (await graph(`/drives/${root.driveId}/items/${root.id}/children?$top=500`)).value || [];
-        const isXlsx = x => x.file && /\.xlsx$/i.test(x.name) && !x.name.startsWith('~$');
-        const files = kids.filter(x => isXlsx(x) && x.name.startsWith(pn)).map(x => ({ ...x, folder: '' }));
-        for (const f of kids.filter(x => x.folder && x.name.startsWith(pn))) {
-            const sub = (await graph(`/drives/${root.driveId}/items/${f.id}/children?$top=500`)).value || [];
-            sub.filter(isXlsx).forEach(x => files.push({ ...x, folder: f.name }));
+        const children = async id => (await graph(`/drives/${root.driveId}/items/${id}/children?$top=500`)).value || [];
+        const isList = x => x.file && /\.xlsx$/i.test(x.name) && !x.name.startsWith('~$') && /支給チェック/.test(x.name);
+        const kids = await children(root.id);
+        const files = kids.filter(x => isList(x) && x.name.startsWith(pn)).map(x => ({ ...x, folder: '' }));
+        async function walk(folder, path, depth) {
+            const sub = await children(folder.id);
+            sub.filter(isList).forEach(x => files.push({ ...x, folder: path }));
+            if (depth < 2) for (const f of sub.filter(x => x.folder)) await walk(f, path + '／' + f.name, depth + 1);
         }
+        for (const f of kids.filter(x => x.folder && x.name.startsWith(pn))) await walk(f, f.name, 1);
         return files.map(x => ({ id: x.id, driveId: (x.parentReference && x.parentReference.driveId) || root.driveId, name: x.name, folder: x.folder, modified: x.lastModifiedDateTime }))
             .sort((a, b) => a.folder.localeCompare(b.folder, 'ja') || a.name.localeCompare(b.name, 'ja', { numeric: true }));
     }
@@ -614,7 +618,7 @@
         list.innerHTML = '<p class="sp-busy">OneDrive のファイルを探しています…</p>';
         try {
             const [files, docs] = await Promise.all([listOdFiles(GS.state.pn), loadDocs()]);
-            if (!files.length) { list.innerHTML = `<p class="ga-note">「${OD_FOLDER}」フォルダーに、工番 ${esc(GS.state.pn)} で始まるフォルダー・Excel が見つかりませんでした。</p>`; return; }
+            if (!files.length) { list.innerHTML = `<p class="ga-note">「${OD_FOLDER}」フォルダーの中の、工番 ${esc(GS.state.pn)} で始まるフォルダーに、チェック表（ファイル名に「支給チェック」が入った Excel）が見つかりませんでした。</p>`; return; }
             const sheet = GS.state.currentSheet;
             const sheetName = id => { const s = GS.state.sheets.find(x => x.id === id); return s ? s.short : '（削除済みの外注先）'; };
             list.innerHTML = `<table class="sp-od"><thead><tr><th></th><th>ファイル</th><th>OneDrive の更新</th><th>読み込み</th></tr></thead><tbody>${files.map(f => {
