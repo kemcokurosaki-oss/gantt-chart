@@ -18,6 +18,9 @@
     const LABEL_W = 360;
     // 印刷のとき：A4横の印刷幅（約1047px）から枠の余白を引いた幅に収める。左の工程名の列も細くする（ページ側の印刷用CSSと合わせる）
     const PRINT_W = 930, PRINT_LABEL_W = 260;
+    // 週単位（画面）：横スクロールなしで枠の幅に収める。左の列を細くし、週の列幅は枠の幅から割り出す（細くなりすぎるときだけスクロール）
+    const WEEK_LABEL_W = 250, WEEK_MIN_COL_W = 22;
+    let fitW = 0;            // 週単位で表示したときの枠の幅（画面の大きさが変わったら描き直す）
     let printing = false;
 
     let tasks = [];          // [{ ...task, start: Date, end: Date }]（外注のタスク＋それにかかる試運転のタスク）
@@ -111,7 +114,7 @@
     }
 
     function render() {
-        container.className = 'gt' + (unit === 'day' ? ' is-day' : '');
+        container.className = 'gt' + (unit === 'day' ? ' is-day' : printing ? '' : ' is-week');
         if (!loaded) { container.innerHTML = '<div class="gt-empty">読込中…</div>'; return; }
         if (!tasks.length) { container.innerHTML = '<div class="gt-empty">担当が「外注」のタスクが見つかりませんでした。</div>'; return; }
         const vid = GS.state.currentSheet ? GS.state.currentSheet.vendor_id : null;
@@ -134,10 +137,19 @@
             start = startOfWeekMon(minStart); end = startOfWeekMon(maxEnd); end.setDate(end.getDate() + (printing ? 49 : 34)); colW = 70;
             for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 7)) cols.push(new Date(d));
         }
-        const labW = printing ? PRINT_LABEL_W : LABEL_W;
+        const weekFit = unit === 'week' && !printing;
+        const labW = printing ? PRINT_LABEL_W : weekFit ? WEEK_LABEL_W : LABEL_W;
         if (printing) colW = (PRINT_W - labW) / cols.length;
+        let fits = false;
+        if (weekFit) {
+            fitW = container.clientWidth;
+            const fit = (fitW - labW) / cols.length;
+            fits = fit >= WEEK_MIN_COL_W;
+            colW = fits ? fit : WEEK_MIN_COL_W;
+        }
+        container.classList.toggle('is-fit', fits);
         // 列が細くて目盛りの日付が重なるときは、何列かおきに表示する
-        const step = Math.max(1, Math.ceil((unit === 'day' ? 20 : 40) / colW));
+        const step = Math.max(1, Math.ceil((unit === 'day' ? 20 : 36) / colW));
         const T = Math.round((end - start) / DAY_MS) + 1;
         const pct = d => Math.round((d - start) / DAY_MS) / T * 100;
 
@@ -179,14 +191,14 @@
                 : `<div class="gt-bar${done}" style="left:${left}%;width:${width}%;${barStyle(look)}" title="${esc(title)}"></div>`
                   + `<div class="gt-text${done}" data-lbl-in="calc(${left}% + 10px)" data-lbl-out="calc(${left + width}% + 8px)" style="left:calc(${left}% + 10px);color:${look.ink}" title="${esc(title)}"><b>${esc(gname)}</b><span>${esc(where)}${where ? '　' : ''}${period}</span></div>`;
             return `<div class="gt-row${look.grey ? ' is-grey' : ''}">
-                <div class="gt-label"><b>${esc(t.machine || '')}</b><span>${esc(t.unit || '')}</span></div>
+                <div class="gt-label" title="${esc(where)}"><b>${esc(t.machine || '')}</b><span>${esc(t.unit || '')}</span></div>
                 <div class="gt-track">${body}</div></div>`;
         }
         // 工程ごとのまとまり：工程名を左の列にまとめ、その右に機械・ユニットの行
         const groups = GS.processGroups(tasks);
-        const groupHtml = g => `<div class="gt-group"><div class="gt-gname">${esc(g.name)}</div><div class="gt-grows">${g.tasks.map(t => rowHtml(t, g.name)).join('')}</div></div>`;
+        const groupHtml = g => `<div class="gt-group"><div class="gt-gname" title="${esc(g.name)}">${esc(g.name)}</div><div class="gt-grows">${g.tasks.map(t => rowHtml(t, g.name)).join('')}</div></div>`;
 
-        container.innerHTML = `<div class="gt-inner" style="min-width:${printing ? 0 : labW + cols.length * colW}px">${head}
+        container.innerHTML = `<div class="gt-inner" style="min-width:${printing || fits ? 0 : labW + cols.length * colW}px">${head}
             <div class="gt-body"><div class="gt-bg" style="left:${labW}px">${bands}${now}</div>${groups.map(groupHtml).join('')}</div></div>`;
         fitLabels(container);
     }
@@ -205,7 +217,11 @@
         });
     });
     document.addEventListener('gaichusheetchange', () => { if (!loaded) load(); else { pickTasks(); render(); } });
-    window.addEventListener('resize', () => fitLabels(container));
+    // 週単位は枠の幅で列幅が変わるので描き直す（資料を開いたときも resize が来る）
+    window.addEventListener('resize', () => {
+        if (loaded && tasks.length && unit === 'week' && !printing && container.clientWidth !== fitW) render();
+        else fitLabels(container);
+    });
     window.addEventListener('beforeprint', () => { printing = true; render(); });
     window.addEventListener('afterprint', () => { printing = false; render(); });
 

@@ -643,6 +643,16 @@
     .gt-text span { font-weight: 500; }
     .gt-text.is-done { opacity: .45; }
     .gt-bar.is-done, .gt-mile.is-done { opacity: .45; }
+    /* 週単位：横スクロールなしで1画面に収める（左の列を細く、週の列幅は gaichu-gantt.js が枠の幅から割り出す） */
+    .gt.is-week.is-fit { overflow-x: hidden; }
+    .gt.is-week .gt-head .gt-label { width: 250px; padding: 8px 10px; font-size: 12px; }
+    .gt.is-week .gt-bg { left: 250px; }
+    .gt.is-week .gt-gname { width: 100px; padding: 6px 10px; font-size: 14px; }
+    .gt.is-week .gt-row .gt-label { left: 100px; width: 150px; padding: 2px 8px; }
+    .gt.is-week .gt-row .gt-label b { font-size: 14px; }
+    .gt.is-week .gt-row .gt-label span { font-size: 12.5px; }
+    .gt.is-week .gt-months > div { padding: 7px 6px 0; font-size: 13px; }
+    .gt.is-week .gt-cols > div { padding: 2px 0 7px 4px; font-size: 12px; }
     /* 1日だけの出荷・検査・立会：外注先の色の縦線＋文字（文字は外注先の色を濃くした色） */
     .gt-mile { position: absolute; top: calc(50% - 15px); height: 30px; transform: translateX(-2px); display: flex; align-items: center; gap: 8px; white-space: nowrap; }
     .gt-mile i { width: 4px; height: 22px; border-radius: 2px; flex: none; }
@@ -1511,10 +1521,9 @@
     .sp-table tr.is-done td.sp-name { color: #5b6068; }
     .sp-table tr.is-off td { opacity: .45; }
     /* PlanCode が S2（外注先手配・支給しない）の行は灰色 */
-    .sp-table tr.is-s2 td { background: #efefed; color: #8b9097; }
-    .sp-table tr.is-s2 td.sp-name { font-weight: 500; }
-    .sp-s2-tag { display: inline-block; font-size: 10.5px; font-weight: 700; color: #6b7079; background: #e2e2df; border-radius: 999px; padding: 1px 7px; white-space: nowrap; }
-    .sp-s2-key { display: inline-block; width: 12px; height: 12px; margin-right: 4px; vertical-align: -2px; background: #efefed; border: 1px solid #cfd0cc; border-radius: 2px; }
+    .sp-table tr.is-s2 td { background: #dcdcd8; }   /* 背景だけ変える（文字の色はそのまま） */
+    .sp-s2-tag { display: inline-block; font-size: 10.5px; font-weight: 700; color: #4b4f56; background: #c9c9c4; border-radius: 999px; padding: 1px 7px; white-space: nowrap; }
+    .sp-s2-key { display: inline-block; width: 12px; height: 12px; margin-right: 4px; vertical-align: -2px; background: #dcdcd8; border: 1px solid #cfd0cc; border-radius: 2px; }
     .sp-loaded { font-size: 12px; color: #8b9097; margin-right: 4px; }
     .sp-files { margin-top: 10px; font-size: 11.5px; color: #8b9097; line-height: 1.7; }
     .sp-files span { margin-right: 12px; }
@@ -2245,9 +2254,9 @@ window.addEventListener('afterprint', () => {
 <script src="gaichu-overview.js?v=20261027e"></script>
 <script src="gaichu-spec.js?v=20261026a"></script>
 <script src="gaichu-scope.js?v=20261027b"></script>
-<script src="gaichu-gantt.js?v=20261027d"></script>
+<script src="gaichu-gantt.js?v=20261027e"></script>
 <script src="org-chart.js?v=20261023s"></script>
-<script src="gaichu-supply.js?v=20261027q"></script>
+<script src="gaichu-supply.js?v=20261027r"></script>
 
 </body>
 </html>
