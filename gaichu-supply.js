@@ -2,7 +2,7 @@
 //   ・表示だけ。OneDrive の「ユニット外注」フォルダーのチェック表（Excel）を、開くたびに読み込んで表示する（保存はしない）
 //   ・✓・支給日を含め、直すのはすべて Excel。Excel を保存してからこのページを開き直す（または「最新を読む」）と反映される
 //   ・Excel のファイルと外注先は、ファイル名（工番＋機械記号_外注先の略称_部品リスト支給チェック表.xlsx）の外注先の名前で結び付ける
-//   ・PlanCode が S2 の部品は外注先が手配する（支給しない）。灰色の行で出し、チェックの数には入れない
+//   ・PlanCode が S2 の部品は外注先が手配する（支給しない）。薄いオレンジの行で出し、チェックの数には入れない
 //   ・並び順：加工品は 企画表（C01, C02…）→ 図面№、購入品は 機械 → 通番（見出しのメニューで変えられる）
 // 読み込み前に gaichu-sheet.js を読み込み、ページに #supplyRoot・#supplyBar を置いておくこと。
 (function () {
@@ -209,7 +209,6 @@
 
         const cols = COLS[kind];
         const p = progress(rows);
-        const s2 = rows.filter(isS2).length;
         const v = views[kind];
         const th = ([key, label, type]) => {
             const cls = type === 'check' ? ' class="sp-chk-col"' : '';
@@ -230,8 +229,7 @@
         const kindLabel = KINDS.find(x => x[0] === kind);
         const empty = !rows.length ? `<p class="spec-msg">${esc(kindLabel[1])}の行はありません。OneDrive の「${OD_FOLDER}」＞工番のフォルダー＞「${LIST_FOLDER}」にチェック表（Excel）を置いてください。</p>` : '';
         root.innerHTML = ''
-            + (rows.length ? `<div class="sp-bulk"><span class="sp-hint">表示だけです。✓・支給日などは OneDrive の Excel で入力し、保存してからこのページを開き直してください。${s2 ? `　<span class="sp-s2-key"></span>灰色の行（${s2} 行）は PlanCode が S2 の外注先手配の部品で、支給しません。` : ''}</span>
-                <span class="sp-prog">チェック済み <b>${p.done}</b> ／ ${p.total}</span></div>` : '')
+            + (rows.length ? `<div class="sp-bulk"><span class="sp-prog">チェック済み <b>${p.done}</b> ／ ${p.total}</span></div>` : '')
             + (empty || `<div class="sp-table-wrap"><table class="sp-table"><thead><tr>${cols.map(th).join('')}</tr></thead><tbody>${body || `<tr><td colspan="${cols.length}" class="sp-none">この条件の行はありません。</td></tr>`}</tbody></table></div>`)
             + filesNote(sheet.id);
         fitTable();
