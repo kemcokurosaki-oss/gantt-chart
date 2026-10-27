@@ -1457,9 +1457,12 @@
     /* 仕様書：外注先の切り替え・編集ボタンの行は、スクロールしても見出しの帯の下に止めて押せるようにする（枠の横スクロールは止めないとこの固定が効かない） */
     #panel-order-spec .card { overflow: visible; }
     /* 4 支給品チェックリスト */
-    #panel-supply .card { overflow: visible; }
+    #panel-supply .card { overflow: visible; padding-top: 12px; padding-bottom: 12px; }   /* 上の余白を詰める */
+    .sp-bulk .sp-hint { margin-left: 4px; }
+    .sp-bulk .sp-prog { margin-left: auto; }
     .sp-admin-tag { margin-left: 10px; font-size: 11px; font-weight: 700; color: #6b7079; background: #ebebe8; border-radius: 999px; padding: 2px 9px; vertical-align: middle; }
     .supply-bar .spec-tabs { gap: 6px 8px; }
+    .spec-bar.supply-bar { margin-bottom: 8px; }
     .sp-sep { width: 1px; align-self: stretch; background: #d6d6d2; margin: 0 4px; }
     .sp-kinds { display: inline-flex; gap: 2px; padding: 3px; background: #f0f0ee; border: 1px solid #e4e3df; border-radius: 8px; }
     .sp-kinds button { appearance: none; border: 0; background: transparent; font: inherit; font-size: 13px; font-weight: 700; color: #5b6068; padding: 5px 14px; border-radius: 6px; cursor: pointer; white-space: nowrap; }
@@ -2230,7 +2233,7 @@ window.addEventListener('afterprint', () => {
 <script src="gaichu-scope.js?v=20261027b"></script>
 <script src="gaichu-gantt.js?v=20261027d"></script>
 <script src="org-chart.js?v=20261023s"></script>
-<script src="gaichu-supply.js?v=20261027i"></script>
+<script src="gaichu-supply.js?v=20261027j"></script>
 
 </body>
 </html>

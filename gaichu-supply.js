@@ -191,13 +191,14 @@
         const kindLabel = KINDS.find(x => x[0] === kind);
         const empty = !rows.length
             ? `<p class="spec-msg">${esc(kindLabel[1])}の行はまだありません。上の「読み込む」から、OneDrive のチェック表（Excel）を読み込むと作成できます。</p>` : '';
-        root.innerHTML = `<div class="sp-summary">`
-            + (rows.length ? `${ctrlPick.size ? `<span class="sp-hint"><b>${ctrlPick.size} 行を選択中</b>：Ctrlを離すとまとめて${pickWillCheck() ? '✓を付けます' : '✓を外します'}</span>`  : ''}<span class="sp-prog">チェック済み <b>${p.done}</b> ／ ${p.total}</span>` : '') + `</div>`
+        root.innerHTML = ''
             + (rows.length ? `<div class="sp-bulk"><b>選んだ ${selShown.length} 行に</b>
                 <label title="日付を選ぶと、選んだ行にすぐ入ります。カレンダーの「クリア」で選んだ行の支給日を消します">支給日 <input type="date" data-sp-bulkdate value="${esc(bulkDate)}"${selShown.length && hasSupplyDate ? '' : ' disabled'}></label>
                 <span class="sp-sep"></span><button type="button" class="spec-btn" data-sp-bulk="check"${selShown.length ? '' : ' disabled'} title="選んだ行に✓のないものがあれば全部に✓、全部✓済みなら全部外します">${selShown.length && selShown.every(r => r.checked_on) ? '✓を外す' : '✓を付ける'}</button>
                 <span class="sp-sep"></span><button type="button" class="spec-btn sp-btn-danger" data-sp-bulk="delete"${selShown.length ? '' : ' disabled'} title="選んだ行をリストから消します（OneDrive の Excel に残っている部品は、次に読み込んだときに「追加」として戻ります）">削除</button>
-                ${selShown.length ? '<button type="button" class="spec-btn" data-sp-bulk="clearsel">選択を解除</button>' : ''}</div>` : '')
+                ${selShown.length ? '<button type="button" class="spec-btn" data-sp-bulk="clearsel">選択を解除</button>' : ''}
+                ${ctrlPick.size ? `<span class="sp-hint"><b>${ctrlPick.size} 行を選択中</b>：Ctrlを離すとまとめて${pickWillCheck() ? '✓を付けます' : '✓を外します'}</span>` : ''}
+                <span class="sp-prog">チェック済み <b>${p.done}</b> ／ ${p.total}</span></div>` : '')
             + (empty || `<div class="sp-table-wrap"><table class="sp-table"><thead>${head}</thead><tbody>${body || `<tr><td colspan="${cols.length + 6}" class="sp-none">この条件の行はありません。</td></tr>`}</tbody></table></div>`);
         fitTable();
     }
