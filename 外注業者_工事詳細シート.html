@@ -1521,7 +1521,7 @@
     .sp-table { width: 100%; border-collapse: collapse; font-size: 13px; }
     .sp-table th { position: sticky; top: 0; z-index: 2; background: #f3f3f1; color: #5b6068; font-size: 12px; font-weight: 700; text-align: left; padding: 7px 6px; border-bottom: 1px solid #e4e3df; white-space: nowrap; }
     .sp-table td { padding: 5px 6px; border-bottom: 1px solid #efefec; vertical-align: middle; white-space: nowrap; }
-    .sp-table td.sp-name { white-space: normal; min-width: 100px; font-weight: 700; }
+    .sp-table td.sp-name { white-space: nowrap; font-weight: 700; }   /* 品名は折り返さない（表は横にスクロール） */
     .sp-table .sp-num { text-align: right; font-variant-numeric: tabular-nums; }
     .sp-table .sp-doc, .sp-table .sp-date { color: #6b7079; font-size: 12px; }
     .sp-table tr.is-done td { background: #efefed; }   /* チェック済み＝薄いグレー */
@@ -1537,8 +1537,8 @@
     .sp-files span.is-warn { color: #922b21; font-weight: 700; }
     .sp-chk-col { width: 34px; text-align: center; }
     .sp-chk { width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; border: 1.5px solid #b4b7bb; border-radius: 5px; background: #fff; color: #fff; font-size: 15px; font-weight: 700; line-height: 1; padding: 0; cursor: pointer; }
-    .sp-chk:hover:not(:disabled) { border-color: #27ae60; }
-    .sp-chk.is-on { background: #27ae60; border-color: #27ae60; }
+    .sp-chk:hover:not(:disabled) { border-color: #8b9097; }
+    .sp-chk.is-on { background: #8b9097; border-color: #8b9097; }   /* チェック済みの印はグレー */
     .sp-chk:disabled { cursor: default; }
     .sp-none { text-align: center; color: #6b7079; padding: 18px !important; }
     .sp-del-col { width: 28px; }
