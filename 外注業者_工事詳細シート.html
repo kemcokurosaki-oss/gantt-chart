@@ -1510,6 +1510,15 @@
     .sp-table tr.is-done td { background: #f6fbf7; }
     .sp-table tr.is-done td.sp-name { color: #5b6068; }
     .sp-table tr.is-off td { opacity: .45; }
+    /* PlanCode が S2（外注先手配・支給しない）の行は灰色 */
+    .sp-table tr.is-s2 td { background: #efefed; color: #8b9097; }
+    .sp-table tr.is-s2 td.sp-name { font-weight: 500; }
+    .sp-s2-tag { display: inline-block; font-size: 10.5px; font-weight: 700; color: #6b7079; background: #e2e2df; border-radius: 999px; padding: 1px 7px; white-space: nowrap; }
+    .sp-s2-key { display: inline-block; width: 12px; height: 12px; margin-right: 4px; vertical-align: -2px; background: #efefed; border: 1px solid #cfd0cc; border-radius: 2px; }
+    .sp-loaded { font-size: 12px; color: #8b9097; margin-right: 4px; }
+    .sp-files { margin-top: 10px; font-size: 11.5px; color: #8b9097; line-height: 1.7; }
+    .sp-files span { margin-right: 12px; }
+    .sp-files span.is-warn { color: #922b21; font-weight: 700; }
     .sp-chk-col { width: 34px; text-align: center; }
     .sp-chk { width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; border: 1.5px solid #b4b7bb; border-radius: 5px; background: #fff; color: #fff; font-size: 15px; font-weight: 700; line-height: 1; padding: 0; cursor: pointer; }
     .sp-chk:hover:not(:disabled) { border-color: #27ae60; }
@@ -1576,7 +1585,7 @@
     .sp-ov-bar i { display: block; height: 100%; }
     .sp-ov-done { font-style: normal; margin-left: 8px; font-size: 11px; font-weight: 700; color: #1e8449; background: #e9f7ef; border-radius: 999px; padding: 1px 8px; }
     .sp-ov-none { color: #a3a7ad; }
-    @media print { .supply-bar, .sp-bulk, .sp-hint, .sp-sel-col { display: none !important; } .sp-table-wrap { max-height: none !important; overflow: visible !important; border: 0; } .sp-table th { position: static; } .sp-chk, .sp-table tr.is-done td, .sp-ov-bar i { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+    @media print { .supply-bar, .sp-bulk, .sp-hint, .sp-sel-col { display: none !important; } .sp-table-wrap { max-height: none !important; overflow: visible !important; border: 0; } .sp-table th { position: static; } .sp-chk, .sp-table tr.is-done td, .sp-table tr.is-s2 td, .sp-s2-tag, .sp-ov-bar i { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
     .spec-bar { position: sticky; top: var(--spec-top, 52px); z-index: 5; margin: -16px -32px 12px; padding: 10px 32px; background: #f3f3f1; border-bottom: 1px solid #e4e3df; }
     .spec-bar:empty { display: none; }
     /* 体制表の行：左に外注先の切り替え、右に編集ボタン。編集中は道具の行を下の段いっぱいに出す */
@@ -2061,10 +2070,10 @@
         <div class="panel-head">
             <h2 class="print-only">支給品チェックリスト</h2>
         </div>
-        <!-- 外注先・加工品／購入品の切り替え、支給日の絞り込み、PDFの読み込み（gaichu-supply.js）。枠の外に置き、スクロールしても止める -->
+        <!-- 外注先・加工品／購入品の切り替え、最新を読む（gaichu-supply.js）。枠の外に置き、スクロールしても止める -->
         <div class="spec-bar supply-bar" id="supplyBar"></div>
         <div class="card">
-            <!-- 行は gaichu-supply.js が支給品（gaichu_supply_items）から表示する -->
+            <!-- 行は gaichu-supply.js が OneDrive のチェック表（Excel）を読んで表示する（表示だけ。編集は Excel で） -->
             <div id="supplyRoot"></div>
         </div>
         </div><!-- /.sub-body -->
@@ -2238,7 +2247,7 @@ window.addEventListener('afterprint', () => {
 <script src="gaichu-scope.js?v=20261027b"></script>
 <script src="gaichu-gantt.js?v=20261027d"></script>
 <script src="org-chart.js?v=20261023s"></script>
-<script src="gaichu-supply.js?v=20261027o"></script>
+<script src="gaichu-supply.js?v=20261027q"></script>
 
 </body>
 </html>
