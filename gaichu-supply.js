@@ -183,7 +183,9 @@
         const body = shown.map(r => `<tr class="${r.checked_on ? 'is-done' : ''}${r.change_flag === '削除' ? ' is-removed' : ''}${selected.has(r.id) || ctrlPick.has(r.id) ? ' is-sel' : ''}">`
             + `<td class="sp-sel-col"><input type="checkbox" data-sp-sel="${r.id}"${selected.has(r.id) ? ' checked' : ''}></td>`
             + `<td class="sp-chk-col"><button type="button" class="sp-chk${r.checked_on ? ' is-on' : ''}" data-sp-check="${r.id}" title="${r.checked_on ? `${ymdJa(r.checked_on)} にチェック${r.checked_by ? '（' + esc(r.checked_by) + '）' : ''}` : '事前チェックが済んだら✓'}">${r.checked_on ? '✓' : ''}</button></td>`
-            + `<td class="sp-date-col"><input type="date" class="sp-in sp-in--date${r.supply_date ? '' : ' is-empty'}" data-sp-date="${r.id}" value="${esc(r.supply_date || '')}"${dateOff}></td>`
+            // 支給日は月日だけを出し、押すとカレンダーを開く（日付の入力欄そのものは隠して使う）
+            + `<td class="sp-date-col"><button type="button" class="sp-date-btn${r.supply_date ? '' : ' is-empty'}" data-sp-datebtn="${r.id}"${hasSupplyDate ? '' : ' disabled'} title="${r.supply_date ? ymdJa(r.supply_date) + '（押すと変更）' : '押すと支給日を入力'}">${r.supply_date ? md(r.supply_date) : '＋'}</button>`
+            + `<input type="date" class="sp-date-pick" data-sp-date="${r.id}" value="${esc(r.supply_date || '')}" tabindex="-1" aria-hidden="true"${dateOff}></td>`
             + flagCell(r)
             + `<td>${esc(r.unit_code || '')}</td>`
             + cols.map(c => cellView(r, c)).join('')
@@ -844,6 +846,12 @@
         }
         const sb = e.target.closest('[data-sp-sel]');
         if (sb) { clickSel(sb, e); return; }
+        const db1 = e.target.closest('[data-sp-datebtn]');
+        if (db1) {
+            const inp = root.querySelector(`.sp-date-pick[data-sp-date="${db1.dataset.spDatebtn}"]`);
+            if (inp) { try { inp.showPicker(); } catch (err) { inp.focus(); inp.click(); } }
+            return;
+        }
         const th = e.target.closest('[data-sp-col]');
         if (th) { if (pop && pop.dataset.col === th.dataset.spCol) closePop(); else { openPop(th); if (pop) pop.dataset.col = th.dataset.spCol; } return; }
         const c = e.target.closest('[data-sp-check]');
