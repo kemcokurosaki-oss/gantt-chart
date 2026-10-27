@@ -434,8 +434,11 @@
     .se-fig-zones { display: flex; align-items: center; flex-wrap: wrap; gap: 2px; font-size: 11.5px; color: #6b7079; }
     .se-fig-zones b { margin-right: 4px; }
     .se-fig-zones .party-chip { font-size: 11.5px; padding: 1px 8px; }
-    .se-ov-btn { margin-left: auto; font-size: 11.5px; padding: 1px 8px; color: #6b7079; }
-    .se-ov-btn.is-on { background: #fef9e7; border-color: #f5d76e; color: #7a6000; font-weight: 700; }
+    /* 概要に載せる図面のオン・オフ（上で選んでいる 全体・各外注先 に対して切り替える） */
+    .se-ov-toggle { position: relative; width: 32px; height: 18px; margin-left: 8px; padding: 0; border: 0; border-radius: 999px; background: #cfd0cc; cursor: pointer; flex-shrink: 0; transition: background .15s; }
+    .se-ov-toggle.is-on { background: #2b2f36; }
+    .se-ov-knob { position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,0.3); transition: left .15s; }
+    .se-ov-toggle.is-on .se-ov-knob { left: 16px; }
     .se-fig-btns { display: flex; align-items: center; gap: 4px; }
     .se-draw { display: inline-flex; align-items: center; gap: 5px; padding: 4px 12px; font-size: 12px; }
     .se-del { font-size: 12px; font-weight: 700; padding: 2px 4px; }
@@ -2256,7 +2259,7 @@ window.addEventListener('afterprint', () => {
 <script src="gaichu-jobnav.js?v=20261026d"></script>
 <script src="gaichu-overview.js?v=20261027f"></script>
 <script src="gaichu-spec.js?v=20261026a"></script>
-<script src="gaichu-scope.js?v=20261027c"></script>
+<script src="gaichu-scope.js?v=20261027d"></script>
 <script src="gaichu-gantt.js?v=20261027e"></script>
 <script src="org-chart.js?v=20261023s"></script>
 <script src="gaichu-supply.js?v=20261027t"></script>
