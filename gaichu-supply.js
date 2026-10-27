@@ -191,7 +191,7 @@
         const kindLabel = KINDS.find(x => x[0] === kind);
         const empty = !rows.length
             ? `<p class="spec-msg">${esc(kindLabel[1])}の行はまだありません。上の「読み込む」から、OneDrive のチェック表（Excel）を読み込むと作成できます。</p>` : '';
-        root.innerHTML = `<div class="sp-summary"><b>${esc(sheet.display)}</b>　${esc(kindLabel[1])}（${esc(kindLabel[2])}から）`
+        root.innerHTML = `<div class="sp-summary">`
             + (rows.length ? `<span class="sp-hint">${ctrlPick.size ? `<b>${ctrlPick.size} 行を選択中</b>：Ctrlを離すとまとめて${pickWillCheck() ? '✓を付けます' : '✓を外します'}` : '✓は Shift＋クリックで範囲、Ctrl＋クリックで複数の行をまとめて付け外し'}</span><span class="sp-prog">チェック済み <b>${p.done}</b> ／ ${p.total}</span>` : '') + `</div>`
             + (rows.length ? `<div class="sp-bulk"><b>選んだ ${selShown.length} 行に</b>
                 <label title="日付を選ぶと、選んだ行にすぐ入ります。カレンダーの「クリア」で選んだ行の支給日を消します">支給日 <input type="date" data-sp-bulkdate value="${esc(bulkDate)}"${selShown.length && hasSupplyDate ? '' : ' disabled'}></label>
@@ -200,7 +200,18 @@
                 ${selShown.length ? '<button type="button" class="spec-btn" data-sp-bulk="clearsel">選択を解除</button>' : ''}
                 <span class="sp-bulk-note">左の欄で行を選びます（見出しの欄で表示中の行をすべて選択、Shift＋クリックで範囲）。見出しの絞り込みと組み合わせて使えます。入力はすぐ保存されます。</span></div>` : '')
             + (empty || `<div class="sp-table-wrap"><table class="sp-table"><thead>${head}</thead><tbody>${body || `<tr><td colspan="${cols.length + 6}" class="sp-none">この条件の行はありません。</td></tr>`}</tbody></table></div>`);
+        fitTable();
     }
+    // 表は中でスクロールさせ、上の操作の行・一括入力・列の見出しは止めておく（表の高さを画面の下までにする）
+    function fitTable() {
+        const wrap = root.querySelector('.sp-table-wrap');
+        if (!wrap) return;
+        const panel = root.closest('.sub-panel');
+        if (!panel || !panel.classList.contains('open')) return;   // 閉じているときは測れないので、開いたときに合わせる
+        const top = wrap.getBoundingClientRect().top + (panel.scrollTop || 0);
+        wrap.style.maxHeight = Math.max(240, window.innerHeight - top - 28) + 'px';
+    }
+    window.addEventListener('resize', fitTable);
 
     // ===== ✓ =====
     // ===== まとめて✓（Shift＋クリック：範囲／Ctrl＋クリック：選んでCtrlを離したとき） =====
