@@ -493,10 +493,11 @@
         const rels = parse(await get('xl/_rels/workbook.xml.rels'));
         const relMap = {};
         [...rels.getElementsByTagName('Relationship')].forEach(r => { relMap[r.getAttribute('Id')] = r.getAttribute('Target'); });
-        const ssDoc = parse(await get('xl/sharedStrings.xml'));
+        const ssXml = await get('xl/sharedStrings.xml');   // 文字を各マスに直接持つファイル（Excel 以外で作ったもの）にはない
+        const ssDoc = ssXml ? parse(ssXml) : null;
         // 文字（ふりがな＝rPh の中の文字は除く）
         const textOf = el => [...el.getElementsByTagName('t')].filter(t => !(t.parentNode && t.parentNode.nodeName === 'rPh')).map(t => t.textContent).join('');
-        const ss = [...ssDoc.getElementsByTagName('si')].map(textOf);
+        const ss = ssDoc ? [...ssDoc.getElementsByTagName('si')].map(textOf) : [];
         const sheets = [];
         for (const s of wb.getElementsByTagName('sheet')) {
             const rid = s.getAttribute('r:id') || s.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'id');
