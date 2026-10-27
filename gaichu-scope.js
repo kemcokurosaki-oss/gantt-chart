@@ -196,14 +196,16 @@
         const selLabel = sh ? (sh.short || GS.shortName(sh.display)) : '全体';
         const figs = d.figures.map((f, i) => {
             const ps = [...new Set((f.zones || []).map(z => String(z.party)))];
-            const ok = ovKeys(f), on = ok.includes(ovKey(vid));
+            // 1枚の図面を載せられるのは1つの表示だけ。ほかの表示でオンになっていれば、ここではオンにできない
+            const ok = ovKeys(f), on = ok.includes(ovKey(vid)), other = !on && ok.length > 0;
+            const otherLabel = other ? (ok[0] === 'all' ? '全体' : (partyInfo(ok[0]).short || GS.shortName(partyInfo(ok[0]).label))) : '';
             const ovChips = ok.map(k => (k === 'all' ? GS.chipHtml('全体', '#7f8c8d') : partyChip(k))).join('');
             return `<div class="figure-card se-fig" data-fi="${i}">
                 <div class="se-fig-img">${imgWrap(f, i)}<span class="se-fig-no">${i + 1}</span></div>
                 <div class="se-fig-body">
                     <input type="text" class="spec-input" data-cap="${i}" value="${esc(f.caption)}" placeholder="図面の見出し（例：【全体図】ライン全体の俯瞰図）">
                     <div class="se-fig-zones"><b>枠</b>${ps.length ? ps.map(partyChip).join('') : '<span class="se-muted">まだ描いていません</span>'}</div>
-                    <div class="se-fig-zones se-fig-ov"><b>概要</b>${ovChips || '<span class="se-muted">載せていません</span>'}${figSrc(f) ? `<button type="button" class="se-ov-toggle${on ? ' is-on' : ''}" role="switch" aria-checked="${on}" data-sc="ovpick" data-i="${i}" title="${on ? `「${esc(selLabel)}」の概要ページに載せています。オフにすると外れます（外すと自動で選びます）` : `オンにすると「${esc(selLabel)}」を選んでいるときの概要ページに、この図面を載せます`}"><span class="se-ov-knob"></span></button>` : ''}</div>
+                    <div class="se-fig-zones se-fig-ov"><b>概要</b>${ovChips || '<span class="se-muted">載せていません</span>'}${figSrc(f) ? `<button type="button" class="se-ov-toggle${on ? ' is-on' : ''}" role="switch" aria-checked="${on}" data-sc="ovpick" data-i="${i}"${other ? ' disabled' : ''} title="${on ? `「${esc(selLabel)}」の概要ページに載せています。オフにすると外れます（外すと自動で選びます）` : other ? `「${esc(otherLabel)}」の概要に載せているため、オンにできません（「${esc(otherLabel)}」を選んでオフにすると切り替えられます）` : `オンにすると「${esc(selLabel)}」を選んでいるときの概要ページに、この図面を載せます`}"><span class="se-ov-knob"></span></button>` : ''}</div>
                     <div class="se-fig-btns">${figSrc(f) ? `<button type="button" class="spec-btn spec-btn--primary se-draw" data-sc="draw" data-i="${i}">${PENCIL}色分け枠を描く</button>` : ''}<span class="spec-spacer"></span><button type="button" class="se-mini" data-sc="figleft" data-i="${i}" title="左へ"${i === 0 ? ' disabled' : ''}>◀</button><button type="button" class="se-mini" data-sc="figright" data-i="${i}" title="右へ"${i === n - 1 ? ' disabled' : ''}>▶</button><button type="button" class="spec-del se-del" data-sc="figdel" data-i="${i}" title="この図面を削除">✕ 削除</button></div>
                 </div></div>`;
         }).join('');
@@ -472,8 +474,9 @@
             case 'ovpick': {
                 // 選んでいる表示（全体・各外注先）ごとに1枚だけ。ほかの図面に付いていた同じ選択は外す
                 const k = ovKey(vendorFilter()), on = ovKeys(draft.figures[i]).includes(k);
+                if (!on && ovKeys(draft.figures[i]).length) return;   // ほかの表示でオンになっている図面はオンにできない
                 draft.figures.forEach(f => { f.overview = ovKeys(f).filter(x => x !== k); });
-                if (!on) draft.figures[i].overview.push(k);
+                if (!on) draft.figures[i].overview = [k];
                 break;
             }
             case 'figleft': move(draft.figures, i, -1); break;
