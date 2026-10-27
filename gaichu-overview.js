@@ -156,9 +156,11 @@
         // 概要の表は 機械組立・電気艤装・据付（列があれば）だけ。試運転・試運転場所などは詳細の担当範囲一覧で見る
         const cols = scope.columns, pcols = cols.filter(c => c.type === 'party' && (c.key === 'assembly' || c.key === 'electrical' || /据付/.test(c.label || '')));
         const rows = scope.rows.filter(r => vid == null || pcols.some(c => (r[c.key] || []).some(k => String(k) === String(vid))));
-        // 概要に出す図面：全体のときは先頭の図面。外注先を選んでいるときは、その外注先の色分け枠が入っている最初の図面（なければ先頭）
+        // 概要に出す図面：組立範囲の編集で、いま選んでいる表示（全体・各外注先）の概要に載せる図面を選んであればそれ。
+        // なければ、全体のときは先頭の図面。外注先を選んでいるときは、その外注先の色分け枠が入っている最初の図面（なければ先頭）
         const figs = scope.figures.filter(f => f.path);
-        const f0 = (vid != null && figs.find(f => (f.zones || []).some(z => String(z.party) === String(vid)))) || figs[0] || {};
+        const ovk = vid == null ? 'all' : String(vid);
+        const f0 = figs.find(f => Array.isArray(f.overview) && f.overview.map(String).includes(ovk)) || (vid != null && figs.find(f => (f.zones || []).some(z => String(z.party) === String(vid)))) || figs[0] || {};
         const figUrl = figUrls[f0.path] || '';
         const zones = (f0.zones || []).filter(z => vid == null || String(z.party) === String(vid) || z.party === KUSAKABE);
         const svg = zones.map(z => {

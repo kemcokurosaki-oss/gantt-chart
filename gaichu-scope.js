@@ -67,6 +67,9 @@
     }
     const vendorFilter = () => (GS.state.currentSheet ? GS.state.currentSheet.vendor_id : null);
     const keysOf = v => (Array.isArray(v) ? v : []);
+    // 概要ページに載せる図面：図面ごとに「どの選択（全体＝'all'／外注先＝vendor_id）の概要に載せるか」を overview に持つ
+    const ovKey = vid => (vid == null ? 'all' : String(vid));
+    const ovKeys = f => (Array.isArray(f.overview) ? f.overview.map(String) : []);
     // 外注先の絞り込みに使う列（試運転場所は除く：以前と同じく、作業の担当で絞り込む）
     const isFilterCol = c => c.type === 'party' && c.key !== 'trial_place';
     function rowVisible(row, cols) {
@@ -108,8 +111,10 @@
     const figSrc = f => f.dataUrl || urls[f.path] || '';
 
     // ===== 図面ビューア（閲覧中のみ） =====
-    // 最初に出す図面：外注先を選んでいるときは、その外注先の色分け枠が入っている最初の図面（概要ページと同じ）。全体なら先頭
+    // 最初に出す図面：概要に載せる図面に選んであればそれ。なければ、外注先を選んでいるときは、その外注先の色分け枠が入っている最初の図面（概要ページと同じ）。全体なら先頭
     function defaultViewIdx(d, vid) {
+        const oi = d.figures.findIndex(f => figSrc(f) && ovKeys(f).includes(ovKey(vid)));
+        if (oi >= 0) return oi;
         if (vid != null) {
             const i = d.figures.findIndex(f => figSrc(f) && (f.zones || []).some(z => String(z.party) === String(vid)));
             if (i >= 0) return i;
@@ -186,13 +191,19 @@
     // ===== 編集中：① 図面（番号付きのカード）と ② 担当範囲一覧（マウスを乗せると＋が出る）を上下に並べる =====
     function editHtml(d, cols) {
         const n = d.figures.length;
+        // 概要に載せる図面は、上のボタン（全体・各外注先）で選んでいるものごとに1枚選べる
+        const vid = vendorFilter(), sh = GS.state.currentSheet;
+        const selLabel = sh ? (sh.short || GS.shortName(sh.display)) : '全体';
         const figs = d.figures.map((f, i) => {
             const ps = [...new Set((f.zones || []).map(z => String(z.party)))];
+            const ok = ovKeys(f), on = ok.includes(ovKey(vid));
+            const ovChips = ok.map(k => (k === 'all' ? GS.chipHtml('全体', '#7f8c8d') : partyChip(k))).join('');
             return `<div class="figure-card se-fig" data-fi="${i}">
                 <div class="se-fig-img">${imgWrap(f, i)}<span class="se-fig-no">${i + 1}</span></div>
                 <div class="se-fig-body">
                     <input type="text" class="spec-input" data-cap="${i}" value="${esc(f.caption)}" placeholder="図面の見出し（例：【全体図】ライン全体の俯瞰図）">
                     <div class="se-fig-zones"><b>枠</b>${ps.length ? ps.map(partyChip).join('') : '<span class="se-muted">まだ描いていません</span>'}</div>
+                    <div class="se-fig-zones se-fig-ov"><b>概要</b>${ovChips || '<span class="se-muted">載せていません</span>'}${figSrc(f) ? `<button type="button" class="se-mini se-ov-btn${on ? ' is-on' : ''}" data-sc="ovpick" data-i="${i}" title="${on ? 'もう一度押すと外れます（外すと自動で選びます）' : `「${esc(selLabel)}」を選んでいるときの概要ページに、この図面を載せます`}">${on ? `★ ${esc(selLabel)}の概要に表示中` : `☆ ${esc(selLabel)}の概要に載せる`}</button>` : ''}</div>
                     <div class="se-fig-btns">${figSrc(f) ? `<button type="button" class="spec-btn spec-btn--primary se-draw" data-sc="draw" data-i="${i}">${PENCIL}色分け枠を描く</button>` : ''}<span class="spec-spacer"></span><button type="button" class="se-mini" data-sc="figleft" data-i="${i}" title="左へ"${i === 0 ? ' disabled' : ''}>◀</button><button type="button" class="se-mini" data-sc="figright" data-i="${i}" title="右へ"${i === n - 1 ? ' disabled' : ''}>▶</button><button type="button" class="spec-del se-del" data-sc="figdel" data-i="${i}" title="この図面を削除">✕ 削除</button></div>
                 </div></div>`;
         }).join('');
@@ -308,7 +319,7 @@
     document.addEventListener('click', e => { if (e.target.closest('.view-toggle-btn')) setTimeout(layoutThumbZones, 0); });
 
     // ===== 編集 =====
-    const strip = d => JSON.stringify({ figures: d.figures.map(f => ({ path: f.path, caption: f.caption || '', zones: f.zones || [] })), rows: d.rows, columns: columnsOf(d) });
+    const strip = d => JSON.stringify({ figures: d.figures.map(f => ({ path: f.path, caption: f.caption || '', zones: f.zones || [], overview: ovKeys(f) })), rows: d.rows, columns: columnsOf(d) });
     function startEdit() {
         draft = clone(data);
         if (!draft.columns.length) draft.columns = clone(DEFAULT_COLUMNS);
@@ -365,7 +376,7 @@
             const cols = draft.columns.length ? draft.columns : DEFAULT_COLUMNS;
             const rec = {
                 project_number: pn,
-                figures: draft.figures.map(f => ({ path: f.path, caption: (f.caption || '').trim(), zones: f.zones || [] })),
+                figures: draft.figures.map(f => ({ path: f.path, caption: (f.caption || '').trim(), zones: f.zones || [], overview: ovKeys(f) })),
                 rows: cleanRows(draft.rows, cols),
                 columns: cols,
                 updated_at: new Date().toISOString(),
@@ -458,6 +469,13 @@
             case 'save': save(); return;
             case 'view': viewIdx = i; render(); return;
             case 'draw': openLightbox(i, true); return;
+            case 'ovpick': {
+                // 選んでいる表示（全体・各外注先）ごとに1枚だけ。ほかの図面に付いていた同じ選択は外す
+                const k = ovKey(vendorFilter()), on = ovKeys(draft.figures[i]).includes(k);
+                draft.figures.forEach(f => { f.overview = ovKeys(f).filter(x => x !== k); });
+                if (!on) draft.figures[i].overview.push(k);
+                break;
+            }
             case 'figleft': move(draft.figures, i, -1); break;
             case 'figright': move(draft.figures, i, 1); break;
             case 'figdel':

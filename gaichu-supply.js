@@ -177,7 +177,8 @@
         if (!st.sheets.length) { setBar(''); root.innerHTML = '<p class="spec-msg">この工事には外注先が登録されていません。</p>'; return; }
         const sheet = st.currentSheet;
         const tabs = st.sheets.map(s => `<button type="button" class="vendor-switch-btn${sheet && sheet.id === s.id ? ' active' : ''}" data-v="${s.id}"><span class="dot" style="background:${esc(s.color)}"></span>${esc(s.short)}</button>`).join('');
-        const reload = `<span class="spec-spacer"></span>${loadedAt && !loading ? `<span class="sp-loaded">${hm(loadedAt)} に読み込み</span>` : ''}<button type="button" class="spec-btn" data-sp="reload"${loading ? ' disabled' : ''} title="OneDrive の Excel をもう一度読みます">最新を読む</button>`;
+        const reloadBtn = `${loadedAt && !loading ? `<span class="sp-loaded">${hm(loadedAt)} に読み込み</span>` : ''}<button type="button" class="spec-btn" data-sp="reload"${loading ? ' disabled' : ''} title="OneDrive の Excel をもう一度読みます">最新を読む</button>`;
+        const reload = `<span class="spec-spacer"></span>${reloadBtn}`;
         if (loading && !data) { setBar(`<div class="spec-tabs">${tabs}${reload}</div>`); root.innerHTML = '<p class="spec-msg">OneDrive のチェック表（Excel）を読んでいます…</p>'; return; }
         if (needSignIn) {
             setBar(`<div class="spec-tabs">${tabs}</div>`);
@@ -205,10 +206,11 @@
             return `<button type="button" data-sp-kind="${k}"${k === kind ? ' class="is-on"' : ''}>${label}<small>${p.total ? `${p.done}/${p.total}` : '0'}</small></button>`;
         }).join('');
         const filterSel = !viewActive(kind) ? '' : `<span class="sp-view-note">${shown.length} / ${rows.length} 行を表示</span><button type="button" class="spec-btn" data-sp="clearview">絞り込み・並べ替えを解除</button>`;
-        setBar(`<div class="spec-tabs">${tabs}<span class="sp-sep"></span><span class="sp-kinds">${kindBtns}</span>${filterSel}${reload}</div>`);
+        const p = progress(rows);
+        const prog = rows.length ? `<span class="sp-prog">チェック済み <b>${p.done}</b> ／ ${p.total}</span>` : '';
+        setBar(`<div class="spec-tabs">${tabs}<span class="sp-sep"></span><span class="sp-kinds">${kindBtns}</span>${filterSel}<span class="spec-spacer"></span>${prog}${reloadBtn}</div>`);
 
         const cols = COLS[kind];
-        const p = progress(rows);
         const v = views[kind];
         const th = ([key, label, type]) => {
             const cls = type === 'check' ? ' class="sp-chk-col"' : '';
@@ -229,7 +231,6 @@
         const kindLabel = KINDS.find(x => x[0] === kind);
         const empty = !rows.length ? `<p class="spec-msg">${esc(kindLabel[1])}の行はありません。OneDrive の「${OD_FOLDER}」＞工番のフォルダー＞「${LIST_FOLDER}」にチェック表（Excel）を置いてください。</p>` : '';
         root.innerHTML = ''
-            + (rows.length ? `<div class="sp-bulk"><span class="sp-prog">チェック済み <b>${p.done}</b> ／ ${p.total}</span></div>` : '')
             + (empty || `<div class="sp-table-wrap"><table class="sp-table"><thead><tr>${cols.map(th).join('')}</tr></thead><tbody>${body || `<tr><td colspan="${cols.length}" class="sp-none">この条件の行はありません。</td></tr>`}</tbody></table></div>`)
             + filesNote(sheet.id);
         fitTable();
