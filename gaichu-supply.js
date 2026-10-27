@@ -369,7 +369,10 @@
         ], 'ga-modal--add');
         // Microsoft のサインインの仕組みを先に読み込んでおく（ボタンを押したときにサインインの画面を開けるように）。サインイン済みならすぐ一覧を出す
         loadMsal().then(inst => { if (inst.getAllAccounts().length) openOdPane(m); }).catch(() => {});
-        m.el.addEventListener('click', e => { if (e.target.closest('[data-od-show]')) openOdPane(m); });
+        m.el.addEventListener('click', e => {
+            if (e.target.closest('[data-od-show]')) openOdPane(m);
+            if (e.target.closest('[data-od-url-save]')) saveFolderAndRetry(m);
+        });
     }
 
     // ===== OneDrive（森村さんの「ユニット外注」フォルダー）のチェック表（Excel）を読み込む =====
@@ -411,10 +414,47 @@
         if (!res.ok) { const e = new Error(`OneDrive の読み取りに失敗しました（${res.status}）`); e.status = res.status; throw e; }
         return raw ? res.arrayBuffer() : res.json();
     }
-    // 「ユニット外注」フォルダーを探す：共有されたアイテム →（自分の OneDrive にある場合）デスクトップの下
+    // 「ユニット外注」フォルダーを探す：登録したフォルダーのリンク → 共有されたアイテム →（自分の OneDrive にある場合）デスクトップの下
+    //   フォルダーのリンクは外注先用シートの設定（gaichu_settings の key=supply_onedrive_folder, value={url}）に1つだけ持つ（全工番共通）
     let odRoot = null;
+    const SETTING_KEY = 'supply_onedrive_folder';
+    async function savedFolderUrl() {
+        const { data } = await db().from('gaichu_settings').select('value').eq('key', SETTING_KEY).maybeSingle();
+        return data && data.value && data.value.url ? data.value.url : '';
+    }
+    async function saveFolderUrl(url) {
+        const { data: { session } } = await db().auth.getSession();
+        const { error } = await db().from('gaichu_settings').upsert({ key: SETTING_KEY, value: { url }, updated_at: new Date().toISOString(), updated_by: session && session.user.email }, { onConflict: 'key' });
+        if (error) throw new Error('フォルダーのリンクを保存できませんでした：' + error.message);
+    }
+    // ブラウザのアドレス（…/my?id=/personal/…/Documents/…）は、そのフォルダーの直接のURLに直す
+    function normalizeFolderUrl(raw) {
+        const u = new URL(String(raw).trim());
+        const id = u.searchParams.get('id');
+        if (id && id.startsWith('/')) return u.origin + id;
+        return u.href;
+    }
+    async function resolveFolderUrl(raw) {
+        const url = normalizeFolderUrl(raw);
+        // 1) 共有リンク・直接のURL（Graph の shares）
+        const enc = 'u!' + btoa(unescape(encodeURIComponent(url))).replace(/=+$/, '').replace(/\//g, '_').replace(/\+/g, '-');
+        try {
+            const it = await graph(`/shares/${enc}/driveItem`);
+            if (it && it.id && it.folder) return { driveId: it.parentReference.driveId, id: it.id };
+        } catch (e) { /* 次の方法へ */ }
+        // 2) 個人の OneDrive の直接のURL（https://…-my.sharepoint.com/personal/ユーザー/Documents/フォルダー）
+        const m = decodeURIComponent(new URL(url).pathname).match(/^\/personal\/([^/]+)\/Documents\/(.+?)\/?$/);
+        if (m) {
+            const drive = await graph(`/sites/${new URL(url).host}:/personal/${m[1]}:/drive`);
+            const it = await graph(`/drives/${drive.id}/root:/${m[2].split('/').map(encodeURIComponent).join('/')}`);
+            if (it && it.id) return { driveId: drive.id, id: it.id };
+        }
+        throw new Error('登録したリンクからフォルダーを開けませんでした。OneDrive でフォルダーの「リンクをコピー」で作ったリンクを貼り付けてください。');
+    }
     async function findOdRoot() {
         if (odRoot) return odRoot;
+        const saved = await savedFolderUrl().catch(() => '');
+        if (saved) { odRoot = await resolveFolderUrl(saved); return odRoot; }
         const shared = await graph('/me/drive/sharedWithMe?$top=500').catch(() => ({ value: [] }));
         const hit = (shared.value || []).find(x => x.name === OD_FOLDER && (x.folder || (x.remoteItem && x.remoteItem.folder)));
         if (hit) {
@@ -437,7 +477,11 @@
                 if (it && it.id) { odRoot = { driveId: it.parentReference.driveId, id: it.id }; return odRoot; }
             } catch (e) { /* 次の候補へ */ }
         }
-        throw new Error(`OneDrive の「${OD_FOLDER}」フォルダーが見つかりません。共有されているか確認してください。`);
+        const names = (shared.value || []).filter(x => x.folder || (x.remoteItem && x.remoteItem.folder)).map(x => x.name).slice(0, 15);
+        const err = new Error(`OneDrive の「${OD_FOLDER}」フォルダーが見つかりませんでした。下にフォルダーのリンクを貼り付けて登録してください。`
+            + (names.length ? `（共有されているフォルダー：${names.join('、')}）` : ''));
+        err.needUrl = true;
+        throw err;
     }
     // 工番で始まるフォルダー（と「ユニット外注」の直下）にある Excel の一覧
     async function listOdFiles(pn) {
@@ -622,8 +666,27 @@
             pane._files = files;
         } catch (e) {
             list.innerHTML = `<p class="sp-warn">${esc(e.message || String(e))}</p>`
-                + (/popup|interaction|redirect|AADSTS/i.test(String(e.message || e)) ? '<p class="ga-note">Microsoft のサインインの画面が開かなかったか、戻り先の設定がまだの可能性があります。もう一度「OneDrive のファイルを表示」を押してください。</p>' : '');
+                + (/popup|interaction|redirect|AADSTS/i.test(String(e.message || e)) ? '<p class="ga-note">Microsoft のサインインの画面が開かなかったか、戻り先の設定がまだの可能性があります。もう一度「OneDrive のファイルを表示」を押してください。</p>' : '')
+                + (e.needUrl || /登録したリンク/.test(String(e.message)) ? folderUrlForm() : '');
         }
+    }
+    // フォルダーのリンクの登録（見つからなかったとき・リンクから開けなかったとき）
+    function folderUrlForm() {
+        return `<div class="sp-od-url">
+            <p class="ga-note" style="margin:0 0 6px">OneDrive（ブラウザ）で「${OD_FOLDER}」フォルダーを開き、フォルダーの「…」→「リンクをコピー」で作ったリンク（または、そのフォルダーを開いたときのアドレスバーのURL）を貼り付けてください。一度登録すれば、次からはこのフォルダーを読みます。</p>
+            <div class="sp-od-url-row"><input type="url" data-od-url placeholder="https://kemcojp-my.sharepoint.com/..."><button type="button" class="ga-btn ga-btn--primary" data-od-url-save>登録して探す</button></div></div>`;
+    }
+    async function saveFolderAndRetry(m) {
+        const inp = m.el.querySelector('[data-od-url]');
+        const raw = inp && inp.value.trim();
+        if (!raw) { m.err('フォルダーのリンクを貼り付けてください。'); return; }
+        try {
+            const root = await resolveFolderUrl(raw);   // 開けることを確かめてから保存する
+            await saveFolderUrl(raw);
+            odRoot = root;
+            m.err('');
+            openOdPane(m);
+        } catch (e) { m.err(e.message || String(e)); }
     }
     async function runOd(m) {
         const pane = m.el.querySelector('[data-im-pane="od"]');
