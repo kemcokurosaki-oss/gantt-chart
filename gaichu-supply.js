@@ -15,13 +15,17 @@
     const db = () => GS.client;
 
     const KINDS = [['machined', '加工品', '工事企画表'], ['purchased', '購入品', '購入部品表']];
-    // 表の列 [key, 見出し, 入力の種類]（✓・支給日・ユニット・資料は全部の表に付ける）
+    // 表の列 [key, 見出し, 種類]。Excel のチェック表（2820 の形・組立図は除く）と同じ並び・見出しに固定する。
+    //   ✓・支給日は Excel の「支給日」の列の位置。Excel にない「変更」（訂正・追加・削除の印）は見落とさないよう左端
     const COLS = {
-        machined: [['drawing_no', '図面番号', 'text'], ['name', '品名', 'text'], ['material', '材質', 'text'], ['qty', '数量', 'num'],
-            ['weight_material', '素材重量', 'num'], ['weight_finished', '仕上重量', 'num'], ['plan_code', '工程計画', 'text'], ['remark', '備考', 'text']],
-        purchased: [['seq', '通番', 'int'], ['name', '品名', 'text'], ['spec', '寸法・型式', 'text'], ['qty', '数量', 'num'],
-            ['maker', 'メーカー', 'text'], ['remark', '備考', 'text']],
+        machined: [['change_flag', '変更', 'flag'], ['unit_code', '機械', 'unit'], ['drawing_no', '図面№', 'text'], ['seq', '通番', 'int'], ['name', '品名', 'text'],
+            ['material', '材質', 'text'], ['qty', '数量', 'num'], ['weight_material', '素材重量', 'num'], ['weight_finished', '仕上重量', 'num'], ['plan_code', 'PlanCode', 'text'],
+            ['checked_on', '✓', 'check'], ['supply_date', '支給日', 'date'], ['remark', 'Comment', 'text'], ['doc_no', '企画表', 'doc']],
+        purchased: [['change_flag', '変更', 'flag'], ['unit_code', '機械', 'unit'], ['seq', '通番', 'int'], ['name', '品名', 'text'], ['spec', '品番・規格', 'text'],
+            ['qty', '数量', 'num'], ['maker', 'Maker', 'text'], ['checked_on', '✓', 'check'], ['supply_date', '支給日', 'date'], ['remark', 'Comment', 'text']],
     };
+    // 機械の列：先頭に工番が付いていたら外す（2820 の Excel は「2820RVCD」、今後は「RVCD」）
+    const unitLabel = v => { const s = String(v || ''), pn = String(GS.state.pn || ''); return pn && s.startsWith(pn) && s.length > pn.length ? s.slice(pn.length) : s; };
     // 画面で変えられるのは✓と支給日だけ（品名・数量などは OneDrive の Excel を直して読み直す。Excel とずれないように）。行は選んで一括削除できる
     let hasSupplyDate = true;   // 支給日の列（scripts/gaichu_supply_date_setup.sql）があるか
 
@@ -44,11 +48,12 @@
     function todayStr() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
     const num = v => (v == null || v === '' ? '' : String(Number(v)));
     // 絞り込み・並べ替えに使う列（表の列の順と同じ。✓はチェック済み／未チェック）
-    const viewCols = k => [['checked_on', '✓', 'check'], ['supply_date', '支給日', 'date'], ['change_flag', '変更', 'flag'], ['unit_code', 'ユニット', 'text'], ...COLS[k], ['doc_no', '資料', 'text']];
+    const viewCols = k => COLS[k];
     function dispOf(r, key, type) {
         const v = r[key];
         if (type === 'check') return v ? CHECKED : UNCHECKED;
         if (type === 'flag') return v || '（なし）';
+        if (type === 'unit') return unitLabel(v) || BLANK;
         if (type === 'date') return v ? ymdJa(v) : NOT_YET;
         if (v == null || String(v).trim() === '') return BLANK;
         return type === 'num' || type === 'int' ? num(v) : String(v);
@@ -160,7 +165,7 @@
         const tools = `<span class="spec-spacer"></span><button type="button" class="spec-btn spec-btn--primary" data-sp="import">読み込む</button>`;
         setBar(`<div class="spec-tabs">${tabs}<span class="sp-sep"></span><span class="sp-kinds">${kindBtns}</span>${filterSel}${tools}</div>`);
 
-        const cols = COLS[kind];
+        const cols = COLS[kind];   // 表の列（並び・見出しとも固定）
         const p = progress(rows);
         // 見出し：押すと絞り込み・並べ替えのメニュー
         const v = views[kind];
@@ -180,16 +185,21 @@
             return `<td${k === 'name' ? ' class="sp-name"' : ''}>${esc(v || '')}</td>`;
         };
         const dateOff = hasSupplyDate ? '' : ' disabled title="支給日の列がまだありません（scripts/gaichu_supply_date_setup.sql を実行してください）"';
+        // 列の種類ごとのマス
+        const cellOf = (r, c) => {
+            const t = c[2];
+            if (t === 'check') return `<td class="sp-chk-col"><button type="button" class="sp-chk${r.checked_on ? ' is-on' : ''}" data-sp-check="${r.id}" title="${r.checked_on ? `${ymdJa(r.checked_on)} にチェック${r.checked_by ? '（' + esc(r.checked_by) + '）' : ''}` : '事前チェックが済んだら✓'}">${r.checked_on ? '✓' : ''}</button></td>`;
+            // 支給日は月日だけを出し、押すとカレンダーを開く（日付の入力欄そのものは隠して使う）
+            if (t === 'date') return `<td class="sp-date-col"><button type="button" class="sp-date-btn${r.supply_date ? '' : ' is-empty'}" data-sp-datebtn="${r.id}"${hasSupplyDate ? '' : ' disabled'} title="${r.supply_date ? ymdJa(r.supply_date) + '（押すと変更）' : '押すと支給日を入力'}">${r.supply_date ? md(r.supply_date) : '＋'}</button>`
+                + `<input type="date" class="sp-date-pick" data-sp-date="${r.id}" value="${esc(r.supply_date || '')}" tabindex="-1" aria-hidden="true"${dateOff}></td>`;
+            if (t === 'flag') return flagCell(r);
+            if (t === 'unit') return `<td>${esc(unitLabel(r.unit_code))}</td>`;
+            if (t === 'doc') return `<td class="sp-doc">${esc(r.doc_no || '')}</td>`;
+            return cellView(r, c);
+        };
         const body = shown.map(r => `<tr class="${r.checked_on ? 'is-done' : ''}${r.change_flag === '削除' ? ' is-removed' : ''}${selected.has(r.id) || ctrlPick.has(r.id) ? ' is-sel' : ''}">`
             + `<td class="sp-sel-col"><input type="checkbox" data-sp-sel="${r.id}"${selected.has(r.id) ? ' checked' : ''}></td>`
-            + `<td class="sp-chk-col"><button type="button" class="sp-chk${r.checked_on ? ' is-on' : ''}" data-sp-check="${r.id}" title="${r.checked_on ? `${ymdJa(r.checked_on)} にチェック${r.checked_by ? '（' + esc(r.checked_by) + '）' : ''}` : '事前チェックが済んだら✓'}">${r.checked_on ? '✓' : ''}</button></td>`
-            // 支給日は月日だけを出し、押すとカレンダーを開く（日付の入力欄そのものは隠して使う）
-            + `<td class="sp-date-col"><button type="button" class="sp-date-btn${r.supply_date ? '' : ' is-empty'}" data-sp-datebtn="${r.id}"${hasSupplyDate ? '' : ' disabled'} title="${r.supply_date ? ymdJa(r.supply_date) + '（押すと変更）' : '押すと支給日を入力'}">${r.supply_date ? md(r.supply_date) : '＋'}</button>`
-            + `<input type="date" class="sp-date-pick" data-sp-date="${r.id}" value="${esc(r.supply_date || '')}" tabindex="-1" aria-hidden="true"${dateOff}></td>`
-            + flagCell(r)
-            + `<td>${esc(r.unit_code || '')}</td>`
-            + cols.map(c => cellView(r, c)).join('')
-            + `<td class="sp-doc">${esc(r.doc_no || '')}</td></tr>`).join('');
+            + cols.map(c => cellOf(r, c)).join('') + `</tr>`).join('');
         const kindLabel = KINDS.find(x => x[0] === kind);
         const empty = !rows.length
             ? `<p class="spec-msg">${esc(kindLabel[1])}の行はまだありません。上の「読み込む」から、OneDrive のチェック表（Excel）を読み込むと作成できます。</p>` : '';
@@ -201,7 +211,7 @@
                 ${selShown.length ? '<button type="button" class="spec-btn" data-sp-bulk="clearsel">選択を解除</button>' : ''}
                 ${ctrlPick.size ? `<span class="sp-hint"><b>${ctrlPick.size} 行を選択中</b>：Ctrlを離すとまとめて${pickWillCheck() ? '✓を付けます' : '✓を外します'}</span>` : ''}
                 <span class="sp-prog">チェック済み <b>${p.done}</b> ／ ${p.total}</span></div>` : '')
-            + (empty || `<div class="sp-table-wrap"><table class="sp-table"><thead>${head}</thead><tbody>${body || `<tr><td colspan="${cols.length + 6}" class="sp-none">この条件の行はありません。</td></tr>`}</tbody></table></div>`);
+            + (empty || `<div class="sp-table-wrap"><table class="sp-table"><thead>${head}</thead><tbody>${body || `<tr><td colspan="${cols.length + 1}" class="sp-none">この条件の行はありません。</td></tr>`}</tbody></table></div>`);
         fitTable();
     }
     // 表は中でスクロールさせ、上の操作の行・一括入力・列の見出しは止めておく（表の高さを画面の下までにする）
@@ -527,7 +537,7 @@
     // ---- 読み直したときの比べ方 ----
     const CMP_FIELDS = ['name', 'drawing_no', 'spec', 'material', 'qty', 'maker', 'plan_code', 'weight_material', 'weight_finished', 'seq', 'remark', 'doc_no'];
     const CHANGE_FIELDS = ['name', 'drawing_no', 'spec', 'material', 'qty', 'maker'];   // 変わったら「訂正」にして✓を外す項目（数量・型番など）
-    const FIELD_LABEL = { name: '品名', drawing_no: '図面番号', spec: '寸法・型式', material: '材質', qty: '数量', maker: 'メーカー' };
+    const FIELD_LABEL = { name: '品名', drawing_no: '図面№', spec: '品番・規格', material: '材質', qty: '数量', maker: 'Maker' };
     const norm = v => String(v == null ? '' : v).normalize('NFKC').replace(/\s+/g, '').toUpperCase();
     const sameVal = (a, b) => norm(a) === norm(b);
     const syncKey = (k, r) => [k, norm(r.unit_code), k === 'machined' ? norm(r.drawing_no || r.name) : norm(r.name) + '|' + norm(r.spec)].join('#');
