@@ -110,6 +110,7 @@
         }
         window.hasGaichuSheet = pn => _gaichuSheetPns.has(String(pn || '').trim());
         window.openGaichuSheet = pn => {
+            if (!window.GAICHU_LINK_ENABLED) return;
             const u = new URL('外注業者_工事詳細シート.html', location.href);
             if (pn) u.searchParams.set('pn', String(pn).trim());
             window.open(u.href, '_blank', 'noopener,noreferrer');
@@ -1594,7 +1595,8 @@
                 const row = document.createElement("button");
                 row.type = "button";
                 row.className = "custom-tooltip-row custom-tooltip-row--gaichu custom-tooltip-link";
-                row.innerHTML = '<span class="custom-tooltip-label">外注用</span><span class="custom-tooltip-value">外注用シートを開く ↗</span>';
+                if (!window.GAICHU_LINK_ENABLED) { row.disabled = true; row.classList.add('is-disabled'); }
+                row.innerHTML = '<span class="custom-tooltip-label">外注用</span><span class="custom-tooltip-value">' + (window.GAICHU_LINK_ENABLED ? '外注用シートを開く ↗' : '外注用シートあり（準備中）') + '</span>';
                 row.addEventListener("click", e => { e.stopPropagation(); window.openGaichuSheet(pn); tooltipEl.style.display = "none"; });
                 tooltipEl.appendChild(row);
             }

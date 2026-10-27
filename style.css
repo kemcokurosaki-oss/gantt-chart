@@ -1548,6 +1548,8 @@
         /* 吹き出しの一番下の「外注用シートを開く」（押せる行） */
         .custom-tooltip-link { width: 100%; border: 0; border-left: 3px solid #e67e22; color: #fff; font: inherit; text-align: left; cursor: pointer; background: rgba(230, 126, 34, 0.18); }
         .custom-tooltip-link:hover { background: rgba(230, 126, 34, 0.4); }
+        .custom-tooltip-link.is-disabled { cursor: default; opacity: .75; }
+        .custom-tooltip-link.is-disabled:hover { background: rgba(230, 126, 34, 0.18); }
 
         .custom-tooltip-label {
             font-size: 10px;
