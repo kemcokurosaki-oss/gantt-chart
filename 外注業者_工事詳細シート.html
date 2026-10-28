@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>外注先用 工事詳細シート</title>
+<title>委託先用 工事詳細シート</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
 <script src="supabase.min.js"></script>
 <style>
@@ -1931,7 +1931,7 @@
         <span class="job-nav-mark" aria-hidden="true">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1"/><line x1="8.5" y1="10" x2="15.5" y2="10"/><line x1="8.5" y1="13.5" x2="15.5" y2="13.5"/><line x1="8.5" y1="17" x2="12.5" y2="17"/></svg>
         </span>
-        <div class="job-nav-title">工事番号別<small>外注範囲詳細シート</small></div>
+        <div class="job-nav-title">工事番号別<small>組立範囲詳細シート</small></div>
         <button type="button" class="job-nav-toggle" id="jobNavToggle" title="工事の一覧をたたむ" aria-label="工事の一覧を開閉">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
         </button>
@@ -1957,10 +1957,10 @@
         <div>
             <!-- 工番・工事名称・外注先・客先・出荷納期は gaichu-sheet.js が工程表と外注先シートから自動表示する -->
             <h1><span class="job-no" id="sheetJobNo"></span><span id="sheetTitle">読込中…</span></h1>
-            <p class="vendor-line">外注先：<strong id="sheetVendors">―</strong><span class="meta"><span class="meta-k">客先</span><span id="customerName">取得中…</span></span><span class="meta"><span class="meta-k">出荷納期</span><span id="shipDate">取得中…</span></span></p>
+            <p class="vendor-line">委託先：<strong id="sheetVendors">―</strong><span class="meta"><span class="meta-k">客先</span><span id="customerName">取得中…</span></span><span class="meta"><span class="meta-k">出荷納期</span><span id="shipDate">取得中…</span></span></p>
         </div>
         <!-- 外注先の切り替え（gaichu-sheet.js）。選ぶと概要・詳細のすべてがその外注先の表示になる -->
-        <div class="vendor-switch" id="vendorSwitch" aria-label="表示する外注先"></div>
+        <div class="vendor-switch" id="vendorSwitch" aria-label="表示する委託先"></div>
         <div class="print-menu">
             <button type="button" class="doc-print-btn" id="printMenuBtn" aria-haspopup="true" aria-expanded="false">印刷／PDF保存 ▾</button>
             <div class="print-menu-list" id="printMenuList" hidden>
