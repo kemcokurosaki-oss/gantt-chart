@@ -181,7 +181,7 @@
                 return `<span class="ov-chip" data-party="${esc(k)}" style="${GS.chipStyle(p.color)}">${esc(p.short || GS.shortName(p.label))}</span>`;
             }).join('') || '<span class="ov-none">―</span>'}</span>`).join('')}</div>`;
         }).join('') + `</div>`
-            : muted(scope.rows.length ? 'この外注先が担当に入っている行はありません。' : '担当範囲一覧はまだ入力されていません。');
+            : muted(scope.rows.length ? 'この委託先が担当に入っている行はありません。' : '担当範囲一覧はまだ入力されていません。');
         el.scope.innerHTML = `<div class="ov-scope">${fig}<div class="ov-units"><span class="ov-k">${sh ? esc(sh.display) + 'の担当' : '担当範囲（全体）'}　<span class="ov-hint">バッジや図面の枠にマウスを乗せると、同じ担当先を強調します</span></span>${list}</div></div>`;
     }
     function highlight(keys) {
@@ -284,7 +284,7 @@
         const st = GS.state, sh = st.currentSheet;
         if (!sh) {
             el.spec.innerHTML = st.sheets.length ? `<div class="ov-vlist">${st.sheets.map(s => `<div><span class="ov-vname"><i style="background:${esc(s.color)}"></i>${esc(s.display)}</span><span class="ov-sub">改訂 ${esc((s.spec && s.spec.revision) || '未入力')}</span></div>`).join('')}</div>`
-                : muted('この工事には外注先が登録されていません。');
+                : muted('この工事には委託先が登録されていません。');
             return;
         }
         const s = sh.spec || {};
@@ -306,7 +306,7 @@
         const st = GS.state, sh = st.currentSheet;
         if (!sh) {
             el.trial.innerHTML = st.sheets.length ? `<div class="ov-vlist">${st.sheets.map(s => `<div><span class="ov-vname"><i style="background:${esc(s.color)}"></i>${esc(s.display)}</span><span class="ov-sub">体制表 ${orgBySheet.has(s.id) && orgBySheet.get(s.id).length ? '作成済み' : '未作成'}</span></div>`).join('')}</div>`
-                : muted('この工事には外注先が登録されていません。');
+                : muted('この工事には委託先が登録されていません。');
             return;
         }
         const people = flatten(orgBySheet.get(sh.id), []);
@@ -316,7 +316,7 @@
             + `<div id="ovTrialPeriod"><span class="ov-k">試運転期間</span>計算中…</div>`
             + `<div><span class="ov-k">責任者</span>${top ? `${esc(top.name || '')}${top.tel ? `　<a href="tel:${esc(top.tel)}">${esc(top.tel)}</a>` : ''}` : '―'}</div>`
             + `<div><span class="ov-k">メンバー</span>${others.length ? esc(others.slice(0, 4).map(n => n.name).filter(Boolean).join('・')) + (others.length > 4 ? ' ほか' : '') + `（${others.length}名）` : '―'}</div>`
-            + `</div>` + (people.length ? '' : muted('この外注先の体制表はまだ作成されていません。'));
+            + `</div>` + (people.length ? '' : muted('この委託先の体制表はまだ作成されていません。'));
         const r = await GS.trialPeriod(sh);
         const box = $('ovTrialPeriod');
         if (box && GS.state.currentSheet === sh) box.innerHTML = `<span class="ov-k">試運転期間</span>${r && r.start ? `${ymd(toDate(r.start))} ～ ${ymd(toDate(r.end))}` : '―'}`;
