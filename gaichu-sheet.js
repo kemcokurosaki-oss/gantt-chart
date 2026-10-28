@@ -128,7 +128,7 @@
         $('shipDate').textContent = fmtDate(si.date);
         $('sheetVendors').textContent = state.sheets.length ? state.sheets.map(s => s.display).join(' ／ ')
             : (state.loggedIn ? '（未登録）' : '（ログインすると表示されます）');
-        document.title = `外注先用 工事詳細シート｜${state.pn} ${state.project.name || ''}`.trim();
+        document.title = `${state.pn} ${state.project.name || ''}`.trim() + '｜組立範囲詳細シート';   // タブは幅が狭いので、工番・工事名を先に出す
         window.dispatchEvent(new Event('resize'));   // ヘッダーの高さが変わるとサイドメニュー・右パネルの位置を合わせ直す
     }
     function renderSwitch() {
