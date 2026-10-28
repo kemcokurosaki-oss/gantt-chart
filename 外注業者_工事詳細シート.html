@@ -1473,7 +1473,7 @@
     /* 仕様書：外注先の切り替え・編集ボタンの行は、スクロールしても見出しの帯の下に止めて押せるようにする（枠の横スクロールは止めないとこの固定が効かない） */
     #panel-order-spec .card { overflow: visible; }
     /* 4 支給品チェックリスト */
-    #panel-supply .card { overflow: visible; padding-top: 12px; padding-bottom: 12px; }   /* 上の余白を詰める */
+    #panel-supply .card, #panel-drawing .card { overflow: visible; padding-top: 12px; padding-bottom: 12px; }   /* 上の余白を詰める */
     .sp-bulk .sp-hint { margin-left: 4px; }
     .sp-bulk .sp-prog { margin-left: auto; }
     .sp-admin-tag { margin-left: 10px; font-size: 11px; font-weight: 700; color: #6b7079; background: #ebebe8; border-radius: 999px; padding: 2px 9px; vertical-align: middle; }
@@ -2095,6 +2095,22 @@
         </div><!-- /.sub-body -->
     </section>
 
+    <!-- 組図配布チェックリスト（管理者だけ。左下の管理者メニューから開く） -->
+    <section class="sub-panel" id="panel-drawing">
+        <div class="sub-bar"><h2>組図配布チェックリスト<span class="sp-admin-tag">管理者のみ</span></h2><button type="button" class="doc-print-btn" data-newtab title="この資料だけを新しいタブで開きます（画面を並べて見比べるときに）">別タブで開く ↗</button><button type="button" class="doc-print-btn" data-print="drawing">この資料を印刷／PDF保存</button><button type="button" class="sub-close" data-close-doc>✕ 閉じる</button></div>
+        <div class="sub-body">
+        <div class="panel-head">
+            <h2 class="print-only">組図配布チェックリスト</h2>
+        </div>
+        <!-- 外注先の切り替え、最新を読む（gaichu-drawing.js）。枠の外に置き、スクロールしても止める -->
+        <div class="spec-bar supply-bar" id="drawBar"></div>
+        <div class="card">
+            <!-- 行は gaichu-drawing.js が工程表（設計の詳細タスク）と組立範囲の担当範囲一覧から作る。支給日だけ入力できる -->
+            <div id="drawRoot"></div>
+        </div>
+        </div><!-- /.sub-body -->
+    </section>
+
     </main>
 </div><!-- /.layout-wrap -->
 
@@ -2157,7 +2173,7 @@ const SOLO = new URLSearchParams(location.search).has('solo');
 document.body.classList.toggle('solo', SOLO);
 
 // 最初のページは概要（4つの章の簡易表示）。各章の「詳しく見る →」で詳細を概要の上に重ねて表示し、URL の &doc= に残す（リンクの共有・ブラウザの「戻る」に対応）
-const DOCS = ['scope', 'schedule', 'order-spec', 'trial', 'supply'];
+const DOCS = ['scope', 'schedule', 'order-spec', 'trial', 'supply', 'drawing'];
 function setParam(key, value, push) {
     const url = new URL(location.href);
     if (value) url.searchParams.set(key, value); else url.searchParams.delete(key);
@@ -2203,7 +2219,7 @@ window.addEventListener('popstate', readUrl);
 readUrl();
 
 // 印刷：選んだもの（概要と4つの資料の詳細）を、この順番で資料ごとにページを分けて印刷する
-const PRINT_ORDER = ['overview', 'scope', 'schedule', 'trial', 'supply', 'order-spec'];   // 印刷の順（体制表・支給品の次に仕様書）
+const PRINT_ORDER = ['overview', 'scope', 'schedule', 'trial', 'supply', 'drawing', 'order-spec'];   // 印刷の順（体制表・支給品・組図配布の次に仕様書）
 function printDocs(list) {
     const picked = PRINT_ORDER.filter(k => list.includes(k));
     if (!picked.length) return;
@@ -2257,13 +2273,14 @@ window.addEventListener('afterprint', () => {
 <!-- gaichu-*.js / org-chart.js を変更したら ?v= の番号を上げる（ブラウザに古いファイルが残って動かなくなるのを防ぐ） -->
 <script src="gaichu-admin.js?v=20261026e"></script>
 <script src="gaichu-sheet.js?v=20261026r"></script>
-<script src="gaichu-jobnav.js?v=20261026d"></script>
+<script src="gaichu-jobnav.js?v=20261028a"></script>
 <script src="gaichu-overview.js?v=20261027f"></script>
 <script src="gaichu-spec.js?v=20261026a"></script>
 <script src="gaichu-scope.js?v=20261027e"></script>
 <script src="gaichu-gantt.js?v=20261027e"></script>
 <script src="org-chart.js?v=20261023s"></script>
 <script src="gaichu-supply.js?v=20261027u"></script>
+<script src="gaichu-drawing.js?v=20261028a"></script>
 
 </body>
 </html>

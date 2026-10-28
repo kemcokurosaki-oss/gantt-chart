@@ -1,7 +1,7 @@
 // 外注先用シート：左の工事番号一覧
 //   ・外注先シート（gaichu_sheets＋gaichu_vendors）が登録されている工番を並べ、選ぶとその工番のシートを右側に表示する（?pn= を変えて読み込み直す）
 //   ・工事名称・出荷納期（工場出荷）は工程表（tasks）から。出荷済みの工番は下にまとめて、たためる
-//   ・管理者（org_chart_admins）には外注先シートの追加と外注先マスタの管理のボタンを出す（画面は gaichu-admin.js）
+//   ・管理者（org_chart_admins）には外注先シートの追加と外注先マスタの管理のボタンを出す（画面は gaichu-admin.js）。支給品・組図配布チェックリストもここから開く
 //   ・?pn= なしで開いたときは、前回見ていた工番（なければ一覧の先頭）を開く
 //   ・一覧は折りたためる（工番だけの細い列になる）。開閉の状態はブラウザに覚えておく
 // 読み込み前に gaichu-sheet.js（と gaichu-admin.js）を読み込み、ページに #jobNav を置いておくこと。
@@ -125,6 +125,7 @@
         admin.innerHTML = isAdmin && window.GaichuAdmin
             ? `<span class="jn-foot-label">管理者メニュー</span><button type="button" class="jn-btn" data-jn="add">＋ 外注先シートを追加</button><button type="button" class="jn-btn" data-jn="vendors">外注先マスタの管理</button>`
               + (cur ? `<button type="button" class="jn-btn" data-jn="supply" title="表示中の工番（${esc(cur)}）の支給品チェックリストを開きます">支給品チェックリスト</button>` : '')
+              + (cur ? `<button type="button" class="jn-btn" data-jn="drawing" title="表示中の工番（${esc(cur)}）の組図配布チェックリストを開きます">組図配布チェックリスト</button>` : '')
               // 一覧をたたんだときは、社内公開のオン／オフだけを小さく出す（押すと切り替え）
               + (cur ? `<button type="button" class="jn-pub-mini${pub ? ' on' : ''}" data-jn="public" title="${esc(cur)} の社内公開：${pub ? 'オン' : 'オフ'}（押すと切り替え）">${pub ? 'オン' : 'オフ'}</button>` : '')
               + (cur ? `<button type="button" class="jn-btn jn-public${pub ? ' on' : ''}" data-jn="public" title="表示中の工番（${esc(cur)}）の社内公開のオン／オフを切り替えます"><i></i>${esc(cur)} の社内公開：${pub ? 'オン' : 'オフ'}</button>` : '')
@@ -159,6 +160,7 @@
         else if (act === 'add') GaichuAdmin.openAdd({ onDone: () => location.reload() });
         else if (act === 'vendors') GaichuAdmin.openVendors({ onDone: () => location.reload() });
         else if (act === 'supply' && typeof openDoc === 'function') openDoc(document.body.classList.contains('sub-open') && document.getElementById('panel-supply').classList.contains('open') ? '' : 'supply', true);
+        else if (act === 'drawing' && typeof openDoc === 'function') openDoc(document.body.classList.contains('sub-open') && document.getElementById('panel-drawing').classList.contains('open') ? '' : 'drawing', true);
         else if (act === 'public') togglePublic();
     });
 
