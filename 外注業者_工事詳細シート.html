@@ -1523,8 +1523,10 @@
     .sp-table td { padding: 5px 6px; border-bottom: 1px solid #efefec; vertical-align: middle; white-space: nowrap; }
     .sp-table td.sp-name { white-space: nowrap; font-weight: 700; }   /* 品名は折り返さない（表は横にスクロール） */
     .sp-table .sp-num { text-align: right; font-variant-numeric: tabular-nums; }
-    /* 組図配布チェックリスト：列の幅は中身の文字数に合わせて詰め、表全体を左に寄せる */
+    /* 組図配布チェックリスト：列の幅は中身の文字数に合わせて詰め、表全体を左に寄せる（白い枠も表の幅に合わせる） */
     .sp-table.dd-table { width: auto; }
+    #panel-drawing .card { width: fit-content; max-width: 100%; box-sizing: border-box; }
+    #panel-drawing .sp-table-wrap { width: fit-content; max-width: 100%; }
     .sp-table.dd-table th, .sp-table.dd-table td { padding-right: 12px; }
     .sp-table .sp-doc, .sp-table .sp-date { color: #6b7079; font-size: 12px; }
     .sp-table tr.is-done td { background: #efefed; }   /* チェック済み＝薄いグレー */
