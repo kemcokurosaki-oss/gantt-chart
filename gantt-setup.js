@@ -426,7 +426,7 @@
                 const locVendor = node.querySelector('.loc_vendor');
                 const curLoc = String((task && task.test_run_location) || '').trim();
                 const escHtml = function(v) { return String(v).replace(/[&<>"']/g, function(c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
-                const names = (_gaichuVendors || []).filter(function(v) { return v.active !== false || v.name === curLoc; }).map(function(v) { return v.name || v.display_name || ''; }).filter(Boolean);
+                const names = (_gaichuVendors || []).map(function(v) { return v.name || v.display_name || ''; }).filter(Boolean);
                 locVendor.innerHTML = "<option value=''>（会社を選ぶ）</option>"
                     + names.map(function(n) { return `<option value='${escHtml(n)}'${n === curLoc ? ' selected' : ''}>${escHtml(n)}</option>`; }).join('')
                     + (curLoc && names.indexOf(curLoc) < 0 ? `<option value='${escHtml(curLoc)}' selected>${escHtml(curLoc)}（以前の入力）</option>` : '');
@@ -931,7 +931,6 @@
                 const vendors = _gaichuVendors || [];
                 const cur = task.vendor_id != null ? String(task.vendor_id) : '';
                 sel.innerHTML = "<option value=''>（未選択）</option>" + vendors
-                    .filter(function(v) { return v.active !== false || String(v.id) === cur; })
                     .map(function(v) {
                         const label = (v.name || v.display_name || '').replace(/[&<>"]/g, function(c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; });
                         return `<option value='${v.id}'${String(v.id) === cur ? ' selected' : ''}>${label}</option>`;

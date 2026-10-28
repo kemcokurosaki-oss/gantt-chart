@@ -134,11 +134,10 @@
 .ga-vcard-head { display: flex; align-items: center; gap: 10px; padding: 8px 14px; border-bottom: 1px solid #efefec; }
 .ga-vcard-no { font-size: 12px; font-weight: 700; color: #6b7079; font-variant-numeric: tabular-nums; }
 .ga-vcard-title { font-size: 14px; color: #2b2f36; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-.ga-vcard-tag { flex: none; font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 3px; background: #eceef1; color: #2b2f36; }
 .ga-vcard-color { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; color: #5b6068; }
 .ga-vcard-color i { width: 14px; height: 14px; border-radius: 50%; border: 1px solid rgba(0,0,0,0.12); }
 .ga-vcard-color i.is-none { border-style: dashed; }
-.ga-vcard-toggle { margin-left: auto; flex: none; display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px; color: #5b6068; }
+.ga-vcard-del { margin-left: auto; flex: none; padding: 3px 12px; font-size: 12px; }
 .ga-vcard-main { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) 76px; gap: 12px; padding: 12px 14px; }
 .ga-vcard-main .ga-field small { font-weight: 400; color: #6b7079; }
 .ga-vcard input.ga-vname { font-size: 14.5px; font-weight: 700; }
@@ -183,15 +182,6 @@
 .ga-rep-grid { display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.4fr); gap: 10px; }
 .ga-rep .ga-field > span { font-size: 11.5px; color: #6b7079; }
 .ga-modal--form .ga-rep input[type=text] { font-size: 13.5px; padding: 6px 10px; }
-.ga-vcard.is-off .ga-vcard-head { background: #efefec; }
-.ga-vcard.is-off { background: #f3f3f1; }
-.ga-vcard.is-off .ga-vcard-title { color: #6b7079; }
-.ga-vcard.is-off .ga-vcard-tag { background: #e4e3df; color: #6b7079; }
-.ga-switch { appearance: none; -webkit-appearance: none; position: relative; flex: none; width: 40px; height: 22px; margin: 0; border-radius: 999px; background: #cfd0cc; cursor: pointer; transition: background .15s; }
-.ga-switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: left .15s; }
-.ga-switch:checked { background: #2b2f36; }
-.ga-switch:checked::after { left: 20px; }
-.ga-switch:focus-visible { outline: 2px solid #2b2f36; outline-offset: 2px; }
 .ga-addrow { font: inherit; font-size: 13px; font-weight: 700; padding: 10px; border-radius: 8px; border: 1px dashed #aaadb1; background: transparent; color: #2b2f36; cursor: pointer; }
 .ga-addrow:hover { background: #fff; border-color: #2b2f36; }
 .ga-status { margin-right: auto; display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: #2b2f36; }
@@ -303,7 +293,7 @@
         const usedPns = new Set(ctx.sheets.map(s => s.pn));
         const candidates = [...jobMap.keys()].filter(pn => !usedPns.has(pn) && !donePns.has(pn)).sort().map(pn => ({ pn, ...jobMap.get(pn) }));
         const here = fixedPn ? ctx.sheets.filter(s => s.pn === fixedPn).map(s => s.vendor_id) : [];
-        const vendorOpts = ctx.vendors.filter(v => v.active !== false && !here.includes(v.id));
+        const vendorOpts = ctx.vendors.filter(v => !here.includes(v.id));
         const m = modal(fixedPn ? `${fixedPn} に外注先を追加` : '外注先シートを追加', `
             <div class="ga-sec">
                 <div class="ga-sechead"><b>工番</b><small>${fixedPn ? 'この工番に追加します' : '入力するか、候補から選びます'}</small></div>
@@ -311,7 +301,7 @@
                 ${fixedPn ? '' : '<p class="ga-hint">すでにシートがある工番に外注先を足すときは、その工番の「外注先の追加・削除」から追加してください。</p>'}
             </div>
             <div class="ga-sec">
-                <div class="ga-sechead"><b>外注先</b><small>外注先マスタで「使用」になっている会社が出ます</small></div>
+                <div class="ga-sechead"><b>外注先</b><small>外注先マスタに登録している会社が出ます</small></div>
                 <div class="ga-vpick">
                     <input type="hidden" data-f="vendor" value="">
                     <button type="button" class="ga-pick" aria-haspopup="listbox"><span class="ga-pick-main"></span><i></i></button>
@@ -474,7 +464,7 @@
         }));
     }
 
-    // ===== 外注先マスタの管理（正式社名・略称・並び順・使用・代表者の変更と追加。使っている外注先があるため削除はしない） =====
+    // ===== 外注先マスタの管理（正式社名・略称・並び順・代表者の変更と追加・削除。外注先シートで使っている会社は削除できない） =====
     //   略称は DB の display_name 列に入れる（空欄なら正式社名から「株式会社」などを外して自動で作る）
     //   代表者は個人情報なので別テーブル gaichu_vendor_contacts に持つ。仕様書のご担当者（工事ごとの入力が空欄のとき）と体制表のカードの選択肢に使う
     const REP_FIELDS = ['title', 'name', 'tel', 'email'];
@@ -524,13 +514,13 @@
             <div class="ga-caution">
                 <div class="ga-caution-head"><span>注意</span><b>保存する前に確認してください</b></div>
                 <ul>
-                    <li><b>「使用」をオフ</b>にすると、外注先シートを追加するときの選択肢に出なくなります。登録済みのシートはそのまま残ります。</li>
+                    <li><b>削除</b>はすぐに反映され、元に戻せません。外注先シートで使っている会社は、その外注先シートを先に削除してください。</li>
                     <li><b>担当者</b>は、仕様書の「ご担当者」（工事ごとに入力していないとき）に役職と氏名が表示され、体制表のカードを追加するときの選択肢にも出ます。</li>
                 </ul>
             </div>
             <div class="ga-vlist"></div>
             <button type="button" class="ga-addrow" data-addv>＋ 外注先を追加</button>`, [
-            { label: '閉じる', ghost: true, onClick: () => m.close() },
+            { label: '閉じる', ghost: true, onClick: () => { m.close(); if (deleted && onDone) onDone(); } },
             { label: '保存', primary: true, onClick: async () => {
                 collect();
                 if (rows.some(r => !String(r.name || '').trim())) {
@@ -539,7 +529,7 @@
                 }
                 try {
                     for (const r of rows) {
-                        const rec = { name: r.name.trim(), display_name: String(r.display_name || '').trim() || null, sort_order: Number(r.sort_order) || 0, active: !!r.active, updated_at: new Date().toISOString() };
+                        const rec = { name: r.name.trim(), display_name: String(r.display_name || '').trim() || null, sort_order: Number(r.sort_order) || 0, active: true, updated_at: new Date().toISOString() };
                         if ('tel' in r) rec.tel = String(r.tel || '').trim() || null;   // 代表電話（SQLで列を追加したとき）
                         if ('address' in r) rec.address = joinAddress(r.zip, r.addr);   // 住所の列（SQLで追加）があるときだけ。「〒000-0000　住所」で保存
                         const q = r.id ? db().from('gaichu_vendors').update(rec).eq('id', r.id) : db().from('gaichu_vendors').insert(rec);
@@ -565,6 +555,7 @@
             } },
         ], 'ga-modal--form ga-modal--wide');
         const list = m.el.querySelector('.ga-vlist');
+        let deleted = false;   // 削除したら、閉じるときも画面を読み込み直す
         const head = m.el.querySelector('.ga-head');
         const count = document.createElement('span');
         count.className = 'ga-head-count';
@@ -574,18 +565,16 @@
         status.hidden = true;
         status.innerHTML = '<i></i><span>保存していない変更があります</span>';
         m.el.querySelector('.ga-foot').prepend(status);
-        const drawCount = () => { count.textContent = `${rows.length}社（使用 ${rows.filter(r => r.active !== false).length}社）`; };
+        const drawCount = () => { count.textContent = `${rows.length}社`; };
         const titleOf = r => String(r.display_name || '').trim() || autoShort(r.name) || String(r.name || '').trim() || '（新しい外注先）';
         const dispPh = r => autoShort(r.name) ? `空欄なら「${autoShort(r.name)}」` : '空欄なら自動';
         const card = (r, i) => {
-            const on = r.active !== false;
-            return `<div class="ga-vcard${on ? '' : ' is-off'}" data-i="${i}">
+            return `<div class="ga-vcard" data-i="${i}">
                 <div class="ga-vcard-head">
                     <span class="ga-vcard-no">${String(i + 1).padStart(2, '0')}</span>
                     <b class="ga-vcard-title">${esc(titleOf(r))}</b>
                     ${(() => { const c = r.id ? vendorColor(ctx, r.id) : null; return `<span class="ga-vcard-color" title="${c ? '色分けの色 ' + esc(c) : '色は外注先シートを追加するときに自動で決まります'}"><i style="background:${esc(c || '#fff')}"${c ? '' : ' class="is-none"'}></i>${c ? '色' : '色 未設定'}</span>`; })()}
-                    <span class="ga-vcard-tag">${on ? '使用中' : '使用しない'}</span>
-                    <label class="ga-vcard-toggle"><span>選択肢に出す</span><input type="checkbox" class="ga-switch" data-f="active"${on ? ' checked' : ''}></label>
+                    <button type="button" class="ga-btn ga-btn--danger ga-vcard-del" data-delv>削除</button>
                 </div>
                 <div class="ga-vcard-main">
                     <label class="ga-field"><span>正式社名 <em>*</em></span><input type="text" class="ga-vname" data-f="name" autocomplete="off" value="${esc(r.name)}" placeholder="例：株式会社〇〇工業"></label>
@@ -610,9 +599,35 @@
         const draw = () => { list.innerHTML = rows.map(card).join(''); drawCount(); };
         const collect = () => list.querySelectorAll('.ga-vcard').forEach(el => {
             const r = rows[el.dataset.i];
-            el.querySelectorAll('[data-f]').forEach(inp => { r[inp.dataset.f] = inp.type === 'checkbox' ? inp.checked : inp.value; });
+            el.querySelectorAll('[data-f]').forEach(inp => { r[inp.dataset.f] = inp.value; });
         });
-        // 入力に合わせて、カードの見出し・使用の表示・件数・未保存の表示を更新する
+        // 削除：まだ保存していない会社はカードを消すだけ。登録済みの会社はすぐ DB から削除する（担当者も一緒に消える）
+        //   外注先シートで使っている会社は削除できない（DB の外部キーでも止まる）。工程表のタスクで選んでいる場合は空欄になる
+        list.addEventListener('click', async e => {
+            const b = e.target.closest('[data-delv]');
+            if (!b) return;
+            collect();
+            const i = Number(b.closest('.ga-vcard').dataset.i), r = rows[i];
+            const label = String(r.name || '').trim() || titleOf(r);
+            if (r.id) {
+                const pns = [...new Set(ctx.sheets.filter(s => s.vendor_id === r.id).map(s => s.pn))].sort();
+                if (pns.length) return m.err(`「${label}」は外注先シートで使っているため削除できません（工番 ${pns.join('、')}）。先にその工番の外注先シートを削除してください。`);
+                if (!confirm(`「${label}」を外注先マスタから削除します。
+担当者の登録も削除され、元に戻せません。工程表のタスクでこの会社を選んでいる場合は空欄になります。
+よろしいですか？`)) return;
+                try {
+                    const { data, error } = await db().from('gaichu_vendors').delete().eq('id', r.id).select('id');
+                    if (error) throw new Error(/foreign key|violates/i.test(error.message) ? '外注先シートで使っているため削除できません' : error.message);
+                    if (!data || !data.length) throw new Error('編集の権限がないか、ログインが切れています');
+                } catch (err) { return m.err('削除できませんでした：' + (err.message || err)); }
+                ctx.vendors = ctx.vendors.filter(v => v.id !== r.id);
+                deleted = true;
+            }
+            rows.splice(i, 1);
+            draw();
+            m.err('');
+        });
+        // 入力に合わせて、カードの見出し・件数・未保存の表示を更新する
         // 「住所を検索」：郵便番号から住所を入れる（入力済みの住所は上書きしてよいか確かめる）
         list.addEventListener('click', async e => {
             const b = e.target.closest('[data-zip]');
@@ -640,11 +655,6 @@
             if (e.target.dataset.f === 'name') {
                 el.querySelector('[data-f=display_name]').placeholder = dispPh(r);
                 if (e.target.value.trim()) e.target.classList.remove('is-err');
-            }
-            if (e.target.dataset.f === 'active') {
-                el.classList.toggle('is-off', !r.active);
-                el.querySelector('.ga-vcard-tag').textContent = r.active ? '使用中' : '使用しない';
-                drawCount();
             }
             status.hidden = false;
             m.err('');

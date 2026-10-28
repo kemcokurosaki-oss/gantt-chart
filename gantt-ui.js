@@ -320,7 +320,7 @@
                         const outCb = box.querySelector('input[type=checkbox][value="' + OUTSOURCE_LOCATION + '-' + OUTSOURCE_LOCATION + '"]');
                         const vendors = (typeof window.ensureGaichuVendors === 'function') ? await window.ensureGaichuVendors() : [];
                         const cur = String(task.test_run_location || '').trim();
-                        const names = (vendors || []).filter(function(v) { return v.active !== false || v.name === cur; }).map(function(v) { return v.name || v.display_name || ''; }).filter(Boolean);
+                        const names = (vendors || []).map(function(v) { return v.name || v.display_name || ''; }).filter(Boolean);
                         const sel = document.createElement('select');
                         sel.id = 'inline-edit-loc-vendor';
                         sel.style.cssText = 'margin:4px 0 2px 22px; height:26px; font-size:12.5px; max-width:220px;';
