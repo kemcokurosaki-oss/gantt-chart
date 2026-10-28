@@ -93,7 +93,7 @@
             },
             gaichu: {
                 // 外注先用 工事詳細シート（同じリポジトリのページ）。工事一覧で外注用シートのある工番を選んでいれば、その工番を開く
-                url: new URL('外注業者_工事詳細シート.html', location.href).href,
+                url: new URL('組立範囲詳細シート.html', location.href).href,
                 title: '外注用シートは準備中です（公開後に有効化します）',
                 disabled: !window.GAICHU_LINK_ENABLED,
             },

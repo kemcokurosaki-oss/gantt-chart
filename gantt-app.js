@@ -111,7 +111,7 @@
         window.hasGaichuSheet = pn => _gaichuSheetPns.has(String(pn || '').trim());
         window.openGaichuSheet = pn => {
             if (!window.GAICHU_LINK_ENABLED) return;
-            const u = new URL('外注業者_工事詳細シート.html', location.href);
+            const u = new URL('組立範囲詳細シート.html', location.href);
             if (pn) u.searchParams.set('pn', String(pn).trim());
             window.open(u.href, '_blank', 'noopener,noreferrer');
         };
