@@ -119,20 +119,20 @@
             // 全体：外注先ごとに、社名・住所・代表電話・担当者名だけの小さなカードを並べる
             const cards = st.sheets.map(s => {
                 const r = repOf(s);
-                return `<div class="ov-card ov-vcard" style="border-top-color:${esc(s.color)}"><span class="ov-k">外注先企業</span><b class="ov-name">${esc(s.display)}</b>`
+                return `<div class="ov-card ov-vcard" style="border-top-color:${esc(s.color)}"><span class="ov-k">委託先企業</span><b class="ov-name">${esc(s.display)}</b>`
                     + `<small>${esc(s.address) || '<span class="ov-none">住所 未登録</span>'}</small>`
                     + `<div class="ov-vfoot"><div class="ov-line">`
                     + (s.tel ? `<span><span class="ov-k">代表</span>${telLink(s.tel)}</span>` : '')
                     + `<span><span class="ov-k">担当</span>${r && r.name ? `<b>${esc(r.name)}</b>` : '<span class="ov-none">未登録</span>'}</span></div>`
                     + `<button type="button" class="ov-spec-btn ov-spec-btn--sm" data-ov-spec="${s.id}" title="${esc(s.display)}の組立発注仕様書を開く（${revOf(s)}）"><span>仕様書を開く</span>→</button></div></div>`;
             }).join('');
-            el.band.innerHTML = `<div class="ov-band ov-band--all">${shipCard}${cards || `<div class="ov-card">${muted('外注先が登録されていません。')}</div>`}${contact}</div>`;
+            el.band.innerHTML = `<div class="ov-band ov-band--all">${shipCard}${cards || `<div class="ov-card">${muted('委託先が登録されていません。')}</div>`}${contact}</div>`;
             return;
         }
-        const vendorCard = `<div class="ov-card ov-vendor" style="border-top-color:${esc(sh.color)}"><span class="ov-k">外注先企業</span><b class="ov-name">${esc(sh.display)}</b>`
+        const vendorCard = `<div class="ov-card ov-vendor" style="border-top-color:${esc(sh.color)}"><span class="ov-k">委託先企業</span><b class="ov-name">${esc(sh.display)}</b>`
             + `<small>${esc(sh.address) || '住所 未登録'}</small>${sh.tel ? `<div class="ov-line ov-foot"><span class="ov-k">代表</span>${telLink(sh.tel)}</div>` : ''}</div>`;
         const r = repOf(sh);
-        const repCard = `<div class="ov-card" style="border-top-color:${esc(sh.color)}"><span class="ov-k">外注先担当者</span>`
+        const repCard = `<div class="ov-card" style="border-top-color:${esc(sh.color)}"><span class="ov-k">委託先担当者</span>`
             + (r ? `<b class="ov-name">${esc(r.name || '―')}</b><small>${esc(r.title || '')}</small><div class="ov-foot">${telLink(r.tel)}</div>` : '<b>―</b><small>外注先マスタの管理で登録できます</small>') + `</div>`;
         const specCard = `<div class="ov-card ov-speccard" style="border-top-color:${esc(sh.color)}"><span class="ov-k">組立発注仕様書</span><b>${revOf(sh)}</b>`
             + `<div class="ov-spec-wrap"><button type="button" class="ov-spec-btn ov-spec-btn--primary" data-ov-spec="${sh.id}"><span>仕様書を開く</span>→</button></div></div>`;
