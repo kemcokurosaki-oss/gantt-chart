@@ -133,7 +133,7 @@
             + `<small>${esc(sh.address) || '住所 未登録'}</small>${sh.tel ? `<div class="ov-line ov-foot"><span class="ov-k">代表</span>${telLink(sh.tel)}</div>` : ''}</div>`;
         const r = repOf(sh);
         const repCard = `<div class="ov-card" style="border-top-color:${esc(sh.color)}"><span class="ov-k">委託先担当者</span>`
-            + (r ? `<b class="ov-name">${esc(r.name || '―')}</b><small>${esc(r.title || '')}</small><div class="ov-foot">${telLink(r.tel)}</div>` : '<b>―</b><small>外注先マスタの管理で登録できます</small>') + `</div>`;
+            + (r ? `<b class="ov-name">${esc(r.name || '―')}</b><small>${esc(r.title || '')}</small><div class="ov-foot">${telLink(r.tel)}</div>` : `<b>―</b><small>${st.isAdmin ? '外注先マスタの管理で登録できます' : '未登録'}</small>`) + `</div>`;
         const specCard = `<div class="ov-card ov-speccard" style="border-top-color:${esc(sh.color)}"><span class="ov-k">組立発注仕様書</span><b>${revOf(sh)}</b>`
             + `<div class="ov-spec-wrap"><button type="button" class="ov-spec-btn ov-spec-btn--primary" data-ov-spec="${sh.id}"><span>仕様書を開く</span>→</button></div></div>`;
         el.band.innerHTML = `<div class="ov-band">${shipCard}${vendorCard}${repCard}${specCard}${contact}</div>`;
