@@ -1596,7 +1596,7 @@
                 row.type = "button";
                 row.className = "custom-tooltip-row custom-tooltip-row--gaichu custom-tooltip-link";
                 if (!window.GAICHU_LINK_ENABLED) { row.disabled = true; row.classList.add('is-disabled'); }
-                row.innerHTML = '<span class="custom-tooltip-label">外注組立</span><span class="custom-tooltip-value">' + (window.GAICHU_LINK_ENABLED ? '外注組立シートを開く ↗' : '外注組立シートあり（準備中）') + '</span>';
+                row.innerHTML = '<span class="custom-tooltip-label">外注組立</span><span class="custom-tooltip-value">' + (window.GAICHU_LINK_ENABLED ? 'シートを開く ↗' : 'シートあり（準備中）') + '</span>';
                 row.addEventListener("click", e => { e.stopPropagation(); window.openGaichuSheet(pn); tooltipEl.style.display = "none"; });
                 tooltipEl.appendChild(row);
             }
