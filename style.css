@@ -340,7 +340,7 @@
         .project-item--trip-only .project-item__num { color: #9EC5A6; }
         .project-item--trip-only.active .project-item__num { color: #2e7d32; }
         .project-item__num { flex: 1; min-width: 0; width: 100%; text-align: center; line-height: 1.2; transform: translateX(-5px); }
-        /* 外注用シートがある工番：右上の小さな丸 */
+        /* 外注組立シートがある工番：右上の小さな丸 */
         .project-item__gaichu-dot { position: absolute; top: 4px; right: 6px; width: 7px; height: 7px; border-radius: 50%; background: #e67e22; box-shadow: 0 0 0 1.5px rgba(0,0,0,0.25); pointer-events: none; }
         .gantt-main-wrap { flex: 1; min-height: 0; width: 100%; position: relative; display: flex; flex-direction: column; }
         .gantt-main-wrap #gantt_here { flex: 1; min-height: 0; width: 100%; }
@@ -1545,7 +1545,7 @@
         .custom-tooltip-row--project { border-left-color: #4ade80; }
         .custom-tooltip-row--sales { border-left-color: #fbbf24; }
         .custom-tooltip-row--gaichu { border-left-color: #e67e22; }
-        /* 吹き出しの一番下の「外注用シートを開く」（押せる行） */
+        /* 吹き出しの一番下の「外注組立シートを開く」（押せる行） */
         .custom-tooltip-link { width: 100%; border: 0; border-left: 3px solid #e67e22; color: #fff; font: inherit; text-align: left; cursor: pointer; background: rgba(230, 126, 34, 0.18); }
         .custom-tooltip-link:hover { background: rgba(230, 126, 34, 0.4); }
         .custom-tooltip-link.is-disabled { cursor: default; opacity: .75; }

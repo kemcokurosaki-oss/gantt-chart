@@ -99,7 +99,7 @@
             _specFolderUrlMap = nextMap;
         }
 
-        // 外注用シート（外注先用 工事詳細シート）がある工番。見られない工番（社内公開オフで管理者でない）は入らない
+        // 外注組立シート（外注先用 工事詳細シート）がある工番。見られない工番（社内公開オフで管理者でない）は入らない
         let _gaichuSheetPns = new Set();
         async function loadGaichuSheetPns() {
             try {
@@ -1590,13 +1590,13 @@
                 row.appendChild(val);
                 tooltipEl.appendChild(row);
             });
-            // 一番下：外注用シート（押すとその工番の外注用シートを別タブで開く）
+            // 一番下：外注組立シート（押すとその工番の外注組立シートを別タブで開く）
             if (pn && window.hasGaichuSheet(pn)) {
                 const row = document.createElement("button");
                 row.type = "button";
                 row.className = "custom-tooltip-row custom-tooltip-row--gaichu custom-tooltip-link";
                 if (!window.GAICHU_LINK_ENABLED) { row.disabled = true; row.classList.add('is-disabled'); }
-                row.innerHTML = '<span class="custom-tooltip-label">外注用</span><span class="custom-tooltip-value">' + (window.GAICHU_LINK_ENABLED ? '外注用シートを開く ↗' : '外注用シートあり（準備中）') + '</span>';
+                row.innerHTML = '<span class="custom-tooltip-label">外注組立</span><span class="custom-tooltip-value">' + (window.GAICHU_LINK_ENABLED ? '外注組立シートを開く ↗' : '外注組立シートあり（準備中）') + '</span>';
                 row.addEventListener("click", e => { e.stopPropagation(); window.openGaichuSheet(pn); tooltipEl.style.display = "none"; });
                 tooltipEl.appendChild(row);
             }
@@ -1641,7 +1641,7 @@
             tooltip.style.pointerEvents = 'none';
             document.body.appendChild(tooltip);
             tooltip.style.display = 'none';
-            // 外注用シートの行を押せるように、工番から吹き出しへマウスを移す間は少し待ってから消す
+            // 外注組立シートの行を押せるように、工番から吹き出しへマウスを移す間は少し待ってから消す
             let _tipHideTimer = null;
             const hideTip = () => { clearTimeout(_tipHideTimer); _tipHideTimer = setTimeout(() => { tooltip.style.display = 'none'; tooltip.style.pointerEvents = 'none'; }, 250); };
             tooltip.onmouseenter = () => clearTimeout(_tipHideTimer);
@@ -1659,7 +1659,7 @@
                 item.appendChild(numEl);
                 const hasGaichu = window.hasGaichuSheet(p);
                 if (hasGaichu) {
-                    // 外注用シートがある工番：右上に小さな丸
+                    // 外注組立シートがある工番：右上に小さな丸
                     const dot = document.createElement('span');
                     dot.className = 'project-item__gaichu-dot';
                     item.appendChild(dot);
