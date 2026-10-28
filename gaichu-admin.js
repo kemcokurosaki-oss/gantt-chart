@@ -611,7 +611,8 @@
             const label = String(r.name || '').trim() || titleOf(r);
             if (r.id) {
                 const pns = [...new Set(ctx.sheets.filter(s => s.vendor_id === r.id).map(s => s.pn))].sort();
-                if (pns.length) return m.err(`「${label}」は外注先シートで使っているため削除できません（工番 ${pns.join('、')}）。先にその工番の外注先シートを削除してください。`);
+                if (pns.length) return alert(`「${label}」は外注先シートで使っているため削除できません（工番 ${pns.join('、')}）。
+先にその工番の外注先シートを削除してください。`);
                 if (!confirm(`「${label}」を外注先マスタから削除します。
 担当者の登録も削除され、元に戻せません。工程表のタスクでこの会社を選んでいる場合は空欄になります。
 よろしいですか？`)) return;
@@ -619,10 +620,10 @@
                     const { data, error } = await db().from('gaichu_vendors').delete().eq('id', r.id).select('id');
                     if (error) throw new Error(/foreign key|violates/i.test(error.message) ? '外注先シートで使っているため削除できません' : error.message);
                     if (!data || !data.length) throw new Error('編集の権限がないか、ログインが切れています');
-                } catch (err) { return m.err('削除できませんでした：' + (err.message || err)); }
+                } catch (err) { return alert('削除できませんでした：' + (err.message || err)); }
                 ctx.vendors = ctx.vendors.filter(v => v.id !== r.id);
                 deleted = true;
-            }
+            } else if (!confirm(`「${label}」（まだ保存していない外注先）を一覧から外します。よろしいですか？`)) return;
             rows.splice(i, 1);
             draw();
             m.err('');
