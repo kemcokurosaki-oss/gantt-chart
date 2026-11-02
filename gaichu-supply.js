@@ -3,7 +3,7 @@
 //   ・✓・納入予定日・支給日を含め、直すのはすべて Excel。Excel を保存してからこのページを開き直す（または「最新を読む」）と反映される
 //   ・Excel のファイルと外注先は、ファイル名（工番＋機械記号_外注先の略称_部品リスト支給チェック表.xlsx）の外注先の名前で結び付ける
 //   ・行の色：未チェック＝白、チェック済み＝薄いグレー、PlanCode が S2 または Excel の✓の列が「-」（外注先手配・支給しない）＝ごく薄い緑で✓の列は「-」（該当なし）。チェックの数に入れない
-//   ・抹消（Comment に「抹消」がある行。訂正連絡書で部品がなくなった）＝取り消し線・文字を薄く。チェックの数に入れない
+//   ・抹消（Comment に「抹消」がある行。訂正連絡書で部品がなくなった）＝Comment 以外を取り消し線・文字を薄く。チェックの数に入れない
 //   ・並び順：加工品は 企画表（C01, C02…）→ 図面№、購入品は 機械 → 通番（見出しのメニューで変えられる）
 // 読み込み前に gaichu-sheet.js を読み込み、ページに #supplyRoot・#supplyBar を置いておくこと。
 (function () {
@@ -230,7 +230,7 @@
             if (t === 'unit') return `<td>${esc(unitLabel(val))}</td>`;
             if (t === 'doc') return `<td class="sp-doc">${esc(val || '')}</td>`;
             if (t === 'num' || t === 'int') return `<td class="sp-num">${esc(num(val))}</td>`;
-            return `<td${k === 'name' ? ' class="sp-name"' : ''}>${esc(val || '')}</td>`;
+            return `<td${k === 'name' ? ' class="sp-name"' : k === 'remark' ? ' class="sp-remark"' : ''}>${esc(val || '')}</td>`;
         };
         const body = shown.map(r => `<tr class="${[isS2(r) ? 'is-s2' : r.checked ? 'is-done' : '', isDel(r) ? 'is-del' : ''].filter(Boolean).join(' ')}">${cols.map(c => cellOf(r, c)).join('')}</tr>`).join('');
         const kindLabel = KINDS.find(x => x[0] === kind);
