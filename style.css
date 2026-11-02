@@ -352,9 +352,9 @@
         .gaichu-open-menu__item:hover { background: #fff3e6; }
         .gaichu-open-menu__pn { font-weight: bold; color: #a06030; min-width: 3.5em; }
         .gaichu-open-menu__customer { color: #607d8b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .gaichu-open-btn { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: bold; background: #fff8f0; border-color: #e0a060; color: #a06030; }
+        .zoom-btn.gaichu-open-btn { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: bold; background: #fff8f0; border-color: #e0a060; color: #a06030; }
         .gaichu-open-btn svg { width: 15px; height: 15px; flex-shrink: 0; margin: -2px 0; }
-        .gaichu-open-btn:disabled { background: #f0f0f0; border-color: #c4c4c4; color: #616161; font-weight: normal; cursor: default; filter: none; transform: none; }
+        .zoom-btn.gaichu-open-btn:disabled { background: #f0f0f0; border-color: #c4c4c4; color: #616161; font-weight: normal; cursor: default; filter: none; transform: none; }
         .gantt-main-wrap { flex: 1; min-height: 0; width: 100%; position: relative; display: flex; flex-direction: column; }
         .gantt-main-wrap #gantt_here { flex: 1; min-height: 0; width: 100%; }
         .gantt-main-wrap .shanai-empty-notice {
