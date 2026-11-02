@@ -211,18 +211,20 @@
         }).join('');
         const addFig = '<label class="figure-card figure-add se-fig-add"><input type="file" accept="image/*" multiple data-sc-file hidden><span class="se-add-circle">＋</span><b>図面を追加</b><small>画像ファイルを選ぶか、Ctrl+V で貼り付け</small></label>';
         const plusCol = ci => `<button type="button" class="se-plus se-plus--col" data-sc="addcol" data-i="${ci + 1}" title="この右に列を追加">＋</button><span class="se-tip se-tip--col">この右に列を追加</span>`;
+        // 一番上の行：列ごとの ◀ ▶ ✕（右端の列の ↑ ↓ ✕ と同じ）。固定の列も削除できる（最後の1列だけは残す）
+        const ctl = cols.map((c, ci) => `<th class="se-colctl-cell"><span class="scope-row-btns"><button type="button" data-sc="colleft" data-i="${ci}" title="左へ"${ci === 0 ? ' disabled' : ''}>◀</button><button type="button" data-sc="colright" data-i="${ci}" title="右へ"${ci === cols.length - 1 ? ' disabled' : ''}>▶</button><button type="button" class="spec-del" data-sc="coldel" data-i="${ci}" title="この列を削除"${cols.length === 1 ? ' disabled' : ''}>✕</button></span>${plusCol(ci)}</th>`).join('');
         const head = cols.map((c, ci) => c.fixed
-            ? `<th>${esc(c.label)}${plusCol(ci)}</th>`
-            : `<th class="scope-col-edit"><span class="se-col-name"><input type="text" class="spec-input" data-colname="${ci}" value="${esc(c.label)}" placeholder="列の名前"><span class="se-col-btns"><button type="button" class="se-mini" data-sc="colleft" data-i="${ci}" title="左へ">◀</button><button type="button" class="se-mini" data-sc="colright" data-i="${ci}" title="右へ">▶</button><button type="button" class="spec-del" data-sc="coldel" data-i="${ci}" title="この列を削除">✕</button></span></span>${plusCol(ci)}</th>`).join('');
+            ? `<th>${esc(c.label)}</th>`
+            : `<th class="scope-col-edit"><span class="se-col-name"><input type="text" class="spec-input" data-colname="${ci}" value="${esc(c.label)}" placeholder="列の名前"></span></th>`).join('');
         const body = d.rows.length ? d.rows.map((r, ri) => `<tr><td class="se-gutter"><button type="button" class="se-plus se-plus--row" data-sc="addrow" data-i="${ri + 1}" title="この下に行を追加">＋</button><span class="se-tip se-tip--row">この下に行を追加</span></td>`
                 + cols.map(c => cellEdit(r, ri, c)).join('')
                 + `<td class="scope-row-btns"><button type="button" data-sc="rowup" data-i="${ri}" title="上へ">↑</button><button type="button" data-sc="rowdown" data-i="${ri}" title="下へ">↓</button><button type="button" class="spec-del" data-sc="rowdel" data-i="${ri}" title="この行を削除">✕</button></td></tr>`).join('')
             : `<tr><td class="se-gutter"></td><td colspan="${cols.length + 1}" class="spec-empty">（未入力）表にマウスを乗せると出る「＋ 行を追加」から入力してください</td></tr>`;
         return `<div class="se-head"><span class="se-title">① 図面</span><span class="se-hint">「色分け枠を描く」を押すと、その図面を拡大して担当先の枠を描けます</span></div>
             <div class="se-figs">${figs}${addFig}</div>
-            <div class="se-head"><span class="se-title">② 担当範囲一覧</span><span class="se-hint">行や見出しにマウスを乗せると「＋」が出ます。担当のマスをクリックすると会社を選べます</span></div>
+            <div class="se-head"><span class="se-title">② 担当範囲一覧</span><span class="se-hint">行や一番上の段にマウスを乗せると「＋」が出ます。列の ◀ ▶ ✕ は一番上の段、行の ↑ ↓ ✕ は右端にあります。担当のマスをクリックすると会社を選べます</span></div>
             <div class="se-table-area">
-                <table class="data-table scope-table is-editing"><thead><tr><th class="se-gutter"></th>${head}<th class="se-actions-h"></th></tr></thead><tbody>${body}</tbody></table>
+                <table class="data-table scope-table is-editing"><thead><tr class="se-colctl"><th class="se-gutter"></th>${ctl}<th class="se-actions-h"></th></tr><tr><th class="se-gutter"></th>${head}<th class="se-actions-h"></th></tr></thead><tbody>${body}</tbody></table>
                 <button type="button" class="se-edge se-edge--col" data-sc="addcol" data-i="${cols.length}" title="右端に列を追加"><span>＋</span><small>列を追加</small></button>
                 <button type="button" class="se-edge se-edge--row" data-sc="addrow" data-i="${d.rows.length}" title="最後に行を追加"><span>＋</span>行を追加</button>
             </div>`;
@@ -494,7 +496,7 @@
             case 'colleft': move(draft.columns, i, -1); break;
             case 'colright': move(draft.columns, i, 1); break;
             case 'coldel':
-                if (!confirm(`「${draft.columns[i].label}」の列を削除しますか？（この列に入力した内容も消えます）`)) return;
+                if (draft.columns.length <= 1) return;   // 列が0本になると既定の列に戻ってしまうため、最後の1列は残す
                 draft.columns.splice(i, 1);
                 break;
             default: return;
