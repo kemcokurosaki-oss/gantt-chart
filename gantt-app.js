@@ -101,12 +101,28 @@
 
         // 外注組立シート（外注先用 工事詳細シート）がある工番。見られない工番（社内公開オフで管理者でない）は入らない
         let _gaichuSheetPns = new Set();
+        // 工番ごとの外注先の略称（全表示のプルダウンに「大洋金属・ニッシン」のように出す）
+        let _gaichuVendorsByPn = {};
+        // 略称が未入力のときの代わり（gaichu-sheet.js の shortName と同じ：正式社名から「殿」「株式会社」「㈱」などを外す）
+        const _gaichuShortName = s => String(s || '').normalize('NFKC').replace(/殿$/, '').replace(/株式会社|有限会社|\(株\)|\(有\)/g, '').trim() || String(s || '');
         async function loadGaichuSheetPns() {
             try {
-                const { data, error } = await supabaseClient.from('gaichu_sheets').select('project_number');
-                if (error) { _gaichuSheetPns = new Set(); return; }
-                _gaichuSheetPns = new Set((data || []).map(r => String(r.project_number || '').trim()).filter(Boolean));
-            } catch (e) { _gaichuSheetPns = new Set(); }
+                const { data, error } = await supabaseClient.from('gaichu_sheets').select('project_number, sort_order, gaichu_vendors(name, display_name)').order('sort_order');
+                if (error) { _gaichuSheetPns = new Set(); _gaichuVendorsByPn = {}; return; }
+                const pns = new Set(), vendors = {};
+                (data || []).forEach(r => {
+                    const pn = String(r.project_number || '').trim();
+                    if (!pn) return;
+                    pns.add(pn);
+                    const v = r.gaichu_vendors;
+                    const short = v ? (String(v.display_name || '').trim() || _gaichuShortName(v.name)) : '';
+                    if (!short) return;
+                    vendors[pn] = vendors[pn] || [];
+                    if (!vendors[pn].includes(short)) vendors[pn].push(short);
+                });
+                _gaichuSheetPns = pns;
+                _gaichuVendorsByPn = vendors;
+            } catch (e) { _gaichuSheetPns = new Set(); _gaichuVendorsByPn = {}; }
         }
         window.hasGaichuSheet = pn => _gaichuSheetPns.has(String(pn || '').trim());
         window.openGaichuSheet = pn => {
@@ -116,8 +132,9 @@
             window.open(u.href, '_blank', 'noopener,noreferrer');
         };
         // ヘッダー「出張予定」の右の外注組立シートボタン（常に表示。選んでいる工番に合わせて表示を変える）
-        //   全表示：「外注組立シート ▾」（出張予定と同じ青）→ シートがある工番の一覧から選んで開く
-        //   シートがある工番：「外注組立シートを開く ↗」／シートがない工番：「外注組立シートなし」（押せない）
+        //   色はツールバーの外注組立シートのアイコンと同じスレートで固定。いま押せるかはラベルと塗りで示す
+        //   全表示：「外注組立シート ▾」（縁取り）→ シートがある工番と外注先の略称の一覧から選んで開く
+        //   シートがある工番：「2816 外注組立シートを開く ↗」（塗り）／シートがない工番：「外注組立シートなし」（グレーで押せない）
         //   準備中（GAICHU_LINK_ENABLED が false）の間はグレーで押せない。見られるシートが1件もない人には出さない
         let _gaichuProjectInfo = {};
         window.updateGaichuOpenBtn = function (projectInfo) {
@@ -136,7 +153,7 @@
                 title = enabled ? 'シートがある工番を選んで開きます' : '外注組立シートは準備中です';
                 canPress = enabled;
             } else if (window.hasGaichuSheet(pn)) {
-                label = enabled ? '外注組立シートを開く ↗' : '外注組立シートあり（準備中）';
+                label = enabled ? `${pn} 外注組立シートを開く ↗` : '外注組立シートあり（準備中）';
                 title = enabled ? `工番 ${pn} の外注組立シートを別タブで開きます` : '外注組立シートは準備中です';
                 canPress = enabled;
             } else {
@@ -145,13 +162,22 @@
                 canPress = false;
             }
             btn.disabled = !canPress;
-            btn.classList.toggle('is-all', !pn);   // 全表示は出張予定と同じ青、工番を選んだときだけオレンジ
+            btn.classList.toggle('is-ready', !!pn && canPress);   // シートがある工番を選んでいて開けるときだけ塗り
             btn.querySelector('.gaichu-open-btn__label').textContent = label;
             btn.title = title;
         };
         function closeGaichuMenu() {
             const menu = document.getElementById('gaichu_open_menu');
             if (menu) menu.hidden = true;
+            setGaichuMenuBtnOpen(false);
+        }
+        // 一覧を開いている間はボタンを少し濃い地にして ▾ → ▴
+        function setGaichuMenuBtnOpen(open) {
+            const btn = document.getElementById('gaichu_open_btn');
+            if (!btn) return;
+            btn.classList.toggle('is-open', open);
+            const lbl = btn.querySelector('.gaichu-open-btn__label');
+            if (lbl) lbl.textContent = lbl.textContent.replace(open ? /▾$/ : /▴$/, open ? '▴' : '▾');
         }
         function openGaichuMenu() {
             const menu = document.getElementById('gaichu_open_menu');
@@ -165,14 +191,15 @@
                 const num = document.createElement('span');
                 num.className = 'gaichu-open-menu__pn';
                 num.textContent = p;
-                const cust = document.createElement('span');
-                cust.className = 'gaichu-open-menu__customer';
-                cust.textContent = (_gaichuProjectInfo[p] && _gaichuProjectInfo[p].customer) || '';
-                item.append(num, cust);
+                const vendor = document.createElement('span');
+                vendor.className = 'gaichu-open-menu__vendor';
+                vendor.textContent = (_gaichuVendorsByPn[p] || []).join('・');
+                item.append(num, vendor);
                 item.addEventListener('click', e => { e.stopPropagation(); closeGaichuMenu(); window.openGaichuSheet(p); });
                 menu.appendChild(item);
             });
             menu.hidden = false;
+            setGaichuMenuBtnOpen(true);
         }
         window.onGaichuOpenBtnClick = function (e) {
             if (e) e.stopPropagation();
