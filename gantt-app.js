@@ -115,6 +115,23 @@
             if (pn) u.searchParams.set('pn', String(pn).trim());
             window.open(u.href, '_blank', 'noopener,noreferrer');
         };
+        // 「今日へ移動」の右のボタン：選んだ工番に外注組立シートがあるときだけ出す（全表示・シートなしの工番では隠す）
+        //   準備中（GAICHU_LINK_ENABLED が false）の間は、押せないグレーの「外注組立シートあり（準備中）」にする
+        window.updateGaichuOpenBtn = function () {
+            const btn = document.getElementById('gaichu_open_btn');
+            if (!btn) return;
+            const pn = (typeof currentFilter !== 'undefined' && currentFilter) ? String(currentFilter) : '';
+            const has = !!pn && window.hasGaichuSheet(pn);
+            btn.style.display = has ? 'inline-flex' : 'none';
+            if (!has) return;
+            const enabled = !!window.GAICHU_LINK_ENABLED;
+            btn.disabled = !enabled;
+            btn.querySelector('.gaichu-open-btn__label').textContent = enabled ? '外注組立シートを開く ↗' : '外注組立シートあり（準備中）';
+            btn.title = enabled ? `工番 ${pn} の外注組立シートを別タブで開きます` : '外注組立シートは準備中です';
+        };
+        window.openGaichuSheetForCurrent = function () {
+            if (typeof currentFilter !== 'undefined' && currentFilter) window.openGaichuSheet(currentFilter);
+        };
 
         async function fetchTasks(options) {
             await loadSpecFolderUrlMap();
@@ -1569,7 +1586,7 @@
         window._buildProjectKindMap = _buildProjectKindMap;
 
         /** 工事一覧ホバー用ツールチップ（ラベル＋行ごと色分けで種別を判別しやすく） */
-        function fillProjectListTooltip(tooltipEl, info, salesPerson, pn) {
+        function fillProjectListTooltip(tooltipEl, info, salesPerson) {
             tooltipEl.replaceChildren();
             const rows = [
                 { label: "客先名", value: (info.customer || "").trim(), kind: "customer" },
@@ -1590,16 +1607,6 @@
                 row.appendChild(val);
                 tooltipEl.appendChild(row);
             });
-            // 一番下：外注組立シート（押すとその工番の外注組立シートを別タブで開く）
-            if (pn && window.hasGaichuSheet(pn)) {
-                const row = document.createElement("button");
-                row.type = "button";
-                row.className = "custom-tooltip-row custom-tooltip-row--gaichu custom-tooltip-link";
-                if (!window.GAICHU_LINK_ENABLED) { row.disabled = true; row.classList.add('is-disabled'); }
-                row.innerHTML = '<span class="custom-tooltip-label">外注組立</span><span class="custom-tooltip-value">' + (window.GAICHU_LINK_ENABLED ? 'シートを開く ↗' : 'シートあり（準備中）') + '</span>';
-                row.addEventListener("click", e => { e.stopPropagation(); window.openGaichuSheet(pn); tooltipEl.style.display = "none"; });
-                tooltipEl.appendChild(row);
-            }
         }
 
         function updateProjectList(tasks) {
@@ -1641,11 +1648,8 @@
             tooltip.style.pointerEvents = 'none';
             document.body.appendChild(tooltip);
             tooltip.style.display = 'none';
-            // 外注組立シートの行を押せるように、工番から吹き出しへマウスを移す間は少し待ってから消す
-            let _tipHideTimer = null;
-            const hideTip = () => { clearTimeout(_tipHideTimer); _tipHideTimer = setTimeout(() => { tooltip.style.display = 'none'; tooltip.style.pointerEvents = 'none'; }, 250); };
-            tooltip.onmouseenter = () => clearTimeout(_tipHideTimer);
-            tooltip.onmouseleave = hideTip;
+            tooltip.onmouseenter = null;
+            tooltip.onmouseleave = null;
             projects.forEach(p => {
                 const item = document.createElement('div');
                 item.className = `project-item ${currentFilter === p ? 'active' : ''}`;
@@ -1657,20 +1661,19 @@
                     item.classList.add('project-item--trip-only');
                 }
                 item.appendChild(numEl);
-                const hasGaichu = window.hasGaichuSheet(p);
-                if (hasGaichu) {
-                    // 外注組立シートがある工番：右上に小さな丸
-                    const dot = document.createElement('span');
-                    dot.className = 'project-item__gaichu-dot';
-                    item.appendChild(dot);
+                if (window.hasGaichuSheet(p)) {
+                    // 外注組立シートがある工番：右端にシートのアイコン
+                    const icon = document.createElement('span');
+                    icon.className = 'project-item__gaichu-icon';
+                    icon.title = '外注組立シートあり';
+                    icon.innerHTML = '<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="6" width="16" height="21" rx="2"/><path d="M12 6V4.5h8V6"/><path d="M12 13h8M12 17.5h8M12 22h5"/></svg>';
+                    item.appendChild(icon);
                 }
                 const info = projectInfoMap[p];
                 const salesPerson = _salesPersonMap[p] || "";
-                if (info.customer || info.details || salesPerson || hasGaichu) {
+                if (info.customer || info.details || salesPerson) {
                     numEl.onmouseenter = (e) => {
-                        clearTimeout(_tipHideTimer);
-                        fillProjectListTooltip(tooltip, info, salesPerson, p);
-                        tooltip.style.pointerEvents = hasGaichu ? 'auto' : 'none';
+                        fillProjectListTooltip(tooltip, info, salesPerson);
                         tooltip.style.display = 'block';
 
                         const rect = numEl.getBoundingClientRect();
@@ -1687,12 +1690,13 @@
                         tooltip.style.left = x + 'px';
                         tooltip.style.top = y + 'px';
                     };
-                    numEl.onmouseleave = () => { if (hasGaichu) hideTip(); else tooltip.style.display = 'none'; };
+                    numEl.onmouseleave = () => { tooltip.style.display = 'none'; };
                 }
                 item.onclick = () => filterByProject(p);
                 listEl.appendChild(item);
             });
             if (typeof window._updateShanaiEmptyNotice === 'function') window._updateShanaiEmptyNotice();
+            window.updateGaichuOpenBtn();
         }
 
         const _lastProjectFilterOpenedVirtualIds = new Set();

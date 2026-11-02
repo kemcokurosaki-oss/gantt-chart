@@ -340,8 +340,14 @@
         .project-item--trip-only .project-item__num { color: #9EC5A6; }
         .project-item--trip-only.active .project-item__num { color: #2e7d32; }
         .project-item__num { flex: 1; min-width: 0; width: 100%; text-align: center; line-height: 1.2; transform: translateX(-5px); }
-        /* 外注組立シートがある工番：右上の小さな丸 */
-        .project-item__gaichu-dot { position: absolute; top: 4px; right: 6px; width: 7px; height: 7px; border-radius: 50%; background: #e67e22; box-shadow: 0 0 0 1.5px rgba(0,0,0,0.25); pointer-events: none; }
+        /* 外注組立シートがある工番：右端にシートのアイコン（ツールバーの「外注組立シート」と同じ形）。選択中は文字と同じ色 */
+        .project-item__gaichu-icon { position: absolute; top: 50%; right: 5px; transform: translateY(-50%); display: inline-flex; color: #fff; pointer-events: none; }
+        .project-item__gaichu-icon svg { width: 12px; height: 12px; }
+        .project-item.active .project-item__gaichu-icon { color: #263238; }
+        /* 「今日へ移動」の右：選んだ工番の外注組立シートを開くボタン（オレンジ系は「表示リセット」ボタンと同じ配色） */
+        .gaichu-open-btn { display: inline-flex; align-items: center; gap: 4px; margin-left: 4px; font-size: 12px; font-weight: bold; background: #fff8f0; border-color: #e0a060; color: #a06030; }
+        .gaichu-open-btn svg { width: 13px; height: 13px; flex-shrink: 0; }
+        .gaichu-open-btn:disabled { background: #f0f0f0; border-color: #c4c4c4; color: #616161; font-weight: normal; cursor: default; filter: none; transform: none; }
         .gantt-main-wrap { flex: 1; min-height: 0; width: 100%; position: relative; display: flex; flex-direction: column; }
         .gantt-main-wrap #gantt_here { flex: 1; min-height: 0; width: 100%; }
         .gantt-main-wrap .shanai-empty-notice {
@@ -1544,12 +1550,6 @@
         .custom-tooltip-row--customer { border-left-color: #38bdf8; }
         .custom-tooltip-row--project { border-left-color: #4ade80; }
         .custom-tooltip-row--sales { border-left-color: #fbbf24; }
-        .custom-tooltip-row--gaichu { border-left-color: #e67e22; }
-        /* 吹き出しの一番下の「外注組立シートを開く」（押せる行） */
-        .custom-tooltip-link { width: 100%; border: 0; border-left: 3px solid #e67e22; color: #fff; font: inherit; text-align: left; cursor: pointer; background: rgba(230, 126, 34, 0.18); }
-        .custom-tooltip-link:hover { background: rgba(230, 126, 34, 0.4); }
-        .custom-tooltip-link.is-disabled { cursor: default; opacity: .75; }
-        .custom-tooltip-link.is-disabled:hover { background: rgba(230, 126, 34, 0.18); }
 
         .custom-tooltip-label {
             font-size: 10px;
