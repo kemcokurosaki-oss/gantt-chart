@@ -222,7 +222,7 @@
             : `<tr><td class="se-gutter"></td><td colspan="${cols.length + 1}" class="spec-empty">（未入力）表にマウスを乗せると出る「＋ 行を追加」から入力してください</td></tr>`;
         return `<div class="se-head"><span class="se-title">① 図面</span><span class="se-hint">「色分け枠を描く」を押すと、その図面を拡大して担当先の枠を描けます</span></div>
             <div class="se-figs">${figs}${addFig}</div>
-            <div class="se-head"><span class="se-title">② 担当範囲一覧</span><span class="se-hint">行や一番上の段にマウスを乗せると「＋」が出ます。列の ◀ ▶ ✕ は一番上の段、行の ↑ ↓ ✕ は右端にあります。担当のマスをクリックすると会社を選べます</span></div>
+            <div class="se-head"><span class="se-title">② 担当範囲一覧</span><span class="se-hint">マウスを乗せると出る「＋」で行・列を追加。担当のマスはクリックで会社を選択</span></div>
             <div class="se-table-area">
                 <table class="data-table scope-table is-editing"><thead><tr class="se-colctl"><th class="se-gutter"></th>${ctl}<th class="se-actions-h"></th></tr><tr><th class="se-gutter"></th>${head}<th class="se-actions-h"></th></tr></thead><tbody>${body}</tbody></table>
                 <button type="button" class="se-edge se-edge--col" data-sc="addcol" data-i="${cols.length}" title="右端に列を追加"><span>＋</span><small>列を追加</small></button>
@@ -356,6 +356,8 @@
         reader.onload = () => { draft.figures.push({ path: null, caption: '', zones: [], file, dataUrl: reader.result }); render(); };
         reader.readAsDataURL(file);
     }
+    // マスに何か入っているか（会社を選ぶ列は1社以上、文字の列は空白以外）。削除の確認を出すかの判断に使う
+    const hasVal = v => (Array.isArray(v) ? v.length > 0 : String(v == null ? '' : v).trim() !== '');
     function cleanRows(rows, cols) {
         return rows.filter(r => cols.some(c => c.type === 'party' ? (r[c.key] || []).length : String(r[c.key] || '').trim()));
     }
@@ -456,6 +458,9 @@
         root.querySelectorAll('tr[data-parties]').forEach(n => n.classList.toggle('hl', !!on && n.dataset.parties.split(' ').some(k => on.has(k))));
     }
     root.addEventListener('mouseover', e => {
+        // 「この右に列を追加」の線を表の上から下まで引くため、表の高さを渡す
+        const ctl = editing && e.target.closest('tr.se-colctl th');
+        if (ctl) { const t = ctl.closest('table'); t.style.setProperty('--se-tbl-h', t.offsetHeight + 'px'); }
         if (editing) return;
         const chip = e.target.closest('.party-chip[data-party], polygon[data-party]');
         if (chip) { highlight([chip.dataset.party]); return; }
@@ -491,12 +496,18 @@
             case 'addrow': draft.rows.splice(i, 0, {}); break;
             case 'rowup': move(draft.rows, i, -1); break;
             case 'rowdown': move(draft.rows, i, 1); break;
-            case 'rowdel': draft.rows.splice(i, 1); break;
+            case 'rowdel':
+                // 何か入力している行だけ確認する（空の行はそのまま消す）
+                if (columnsOf(draft).some(c => hasVal(draft.rows[i][c.key])) && !confirm('この行を削除しますか？（入力した内容も消えます）')) return;
+                draft.rows.splice(i, 1);
+                break;
             case 'addcol': addColumn(i); return;
             case 'colleft': move(draft.columns, i, -1); break;
             case 'colright': move(draft.columns, i, 1); break;
             case 'coldel':
                 if (draft.columns.length <= 1) return;   // 列が0本になると既定の列に戻ってしまうため、最後の1列は残す
+                // 何か入力している列だけ確認する（空の列はそのまま消す）
+                if (draft.rows.some(r => hasVal(r[draft.columns[i].key])) && !confirm(`「${draft.columns[i].label}」の列を削除しますか？（この列に入力した内容も消えます）`)) return;
                 draft.columns.splice(i, 1);
                 break;
             default: return;
