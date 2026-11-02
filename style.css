@@ -357,6 +357,8 @@
         .zoom-btn.gaichu-open-btn.is-all { background: #eaf2f8; border-color: #2980b9; color: #1f618d; }   /* 全表示のときは「出張予定」と同じ青 */
         .zoom-btn.gaichu-open-btn.is-all:hover { background: #d8e8f4; filter: none; }
         .gaichu-open-btn.is-all ~ .gaichu-open-menu { border-color: #2980b9; }
+        .gaichu-open-btn.is-all ~ .gaichu-open-menu .gaichu-open-menu__item:hover { background: #eaf2f8; }
+        .gaichu-open-btn.is-all ~ .gaichu-open-menu .gaichu-open-menu__pn { color: #1f618d; }
         .zoom-btn.gaichu-open-btn:disabled { background: #f0f0f0; border-color: #c4c4c4; color: #616161; font-weight: normal; cursor: default; filter: none; transform: none; }
         .gantt-main-wrap { flex: 1; min-height: 0; width: 100%; position: relative; display: flex; flex-direction: column; }
         .gantt-main-wrap #gantt_here { flex: 1; min-height: 0; width: 100%; }
