@@ -3,6 +3,7 @@
 //   ・✓・納入予定日・支給日を含め、直すのはすべて Excel。Excel を保存してからこのページを開き直す（または「最新を読む」）と反映される
 //   ・Excel のファイルと外注先は、ファイル名（工番＋機械記号_外注先の略称_部品リスト支給チェック表.xlsx）の外注先の名前で結び付ける
 //   ・行の色：未チェック＝白、チェック済み＝薄いグレー、PlanCode が S2 または Excel の✓の列が「-」（外注先手配・支給しない）＝ごく薄い緑で✓の列は「-」（該当なし）。チェックの数に入れない
+//   ・抹消（Comment に「抹消」がある行。訂正連絡書で部品がなくなった）＝取り消し線・文字を薄く。チェックの数に入れない
 //   ・並び順：加工品は 企画表（C01, C02…）→ 図面№、購入品は 機械 → 通番（見出しのメニューで変えられる）
 // 読み込み前に gaichu-sheet.js を読み込み、ページに #supplyRoot・#supplyBar を置いておくこと。
 (function () {
@@ -25,6 +26,8 @@
     const unitLabel = v => { const s = String(v || ''), pn = String(GS.state.pn || ''); return pn && s.startsWith(pn) && s.length > pn.length ? s.slice(pn.length) : s; };
     // 該当なし（支給しない）：加工品の PlanCode が S2、または Excel の✓の列が「-」（業者支給・外注先手配）
     const isDashMark = v => /^[-‐‑–—―−－ー]$/.test(String(v == null ? '' : v).normalize('NFKC').trim());
+    // 抹消（訂正連絡書で部品がなくなった）：Comment に「抹消」がある行。Excel でも取り消し線
+    const isDel = r => String(r.remark || '').includes('抹消');
     const isS2 = r => r.na || (r.kind === 'machined' && String(r.plan_code || '').normalize('NFKC').trim().toUpperCase() === 'S2');
 
     // 読み込んだ内容（工番ごと。ページを開き直すと読み直す）
@@ -92,8 +95,8 @@
     }
     const viewActive = k => !!views[k].sort || Object.keys(views[k].filters).length > 0;
     const sheetItems = (sheetId, k) => (data ? data.rows : []).filter(r => r.sheetId === sheetId && (!k || r.kind === k));
-    // チェックの進み具合（S2 は数えない）
-    const progress = list => { const t = list.filter(r => !isS2(r)); return { done: t.filter(r => r.checked).length, total: t.length }; };
+    // チェックの進み具合（S2・抹消は数えない）
+    const progress = list => { const t = list.filter(r => !isS2(r) && !isDel(r)); return { done: t.filter(r => r.checked).length, total: t.length }; };
 
     // ===== ファイル → 外注先 =====
     //   ファイル名「…_大洋金属_部品リスト支給チェック表.xlsx」の外注先の名前と、外注先の正式名・略称を比べる（株式会社・殿などはそろえる）
@@ -229,7 +232,7 @@
             if (t === 'num' || t === 'int') return `<td class="sp-num">${esc(num(val))}</td>`;
             return `<td${k === 'name' ? ' class="sp-name"' : ''}>${esc(val || '')}</td>`;
         };
-        const body = shown.map(r => `<tr class="${isS2(r) ? 'is-s2' : r.checked ? 'is-done' : ''}">${cols.map(c => cellOf(r, c)).join('')}</tr>`).join('');
+        const body = shown.map(r => `<tr class="${[isS2(r) ? 'is-s2' : r.checked ? 'is-done' : '', isDel(r) ? 'is-del' : ''].filter(Boolean).join(' ')}">${cols.map(c => cellOf(r, c)).join('')}</tr>`).join('');
         const kindLabel = KINDS.find(x => x[0] === kind);
         const empty = !rows.length ? `<p class="spec-msg">${esc(kindLabel[1])}の行はありません。OneDrive の「${OD_FOLDER}」＞工番のフォルダー＞「${LIST_FOLDER}」にチェック表（Excel）を置いてください。</p>` : '';
         root.innerHTML = ''
