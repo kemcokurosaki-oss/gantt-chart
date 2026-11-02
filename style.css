@@ -342,11 +342,11 @@
         .project-item__num { flex: 1; min-width: 0; width: 100%; text-align: center; line-height: 1.2; transform: translateX(-5px); }
         /* 外注組立シートがある工番：右端にシートのアイコン（ツールバーの「外注組立シート」と同じ形）。選択中は文字と同じ色 */
         .project-item__gaichu-icon { position: absolute; top: 50%; right: 5px; transform: translateY(-50%); display: inline-flex; color: #fff; pointer-events: none; }
-        .project-item__gaichu-icon svg { width: 12px; height: 12px; }
+        .project-item__gaichu-icon svg { width: 14px; height: 14px; }
         .project-item.active .project-item__gaichu-icon { color: #263238; }
         /* 「今日へ移動」の右：選んだ工番の外注組立シートを開くボタン（オレンジ系は「表示リセット」ボタンと同じ配色） */
         .gaichu-open-btn { display: inline-flex; align-items: center; gap: 4px; margin-left: 4px; font-size: 12px; font-weight: bold; background: #fff8f0; border-color: #e0a060; color: #a06030; }
-        .gaichu-open-btn svg { width: 13px; height: 13px; flex-shrink: 0; }
+        .gaichu-open-btn svg { width: 15px; height: 15px; flex-shrink: 0; margin: -2px 0; }
         .gaichu-open-btn:disabled { background: #f0f0f0; border-color: #c4c4c4; color: #616161; font-weight: normal; cursor: default; filter: none; transform: none; }
         .gantt-main-wrap { flex: 1; min-height: 0; width: 100%; position: relative; display: flex; flex-direction: column; }
         .gantt-main-wrap #gantt_here { flex: 1; min-height: 0; width: 100%; }
