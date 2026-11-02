@@ -344,8 +344,15 @@
         .project-item__gaichu-icon { position: absolute; top: 50%; right: 5px; transform: translateY(calc(-50% - 2px)); display: inline-flex; color: #fff; pointer-events: none; }
         .project-item__gaichu-icon svg { width: 14px; height: 14px; }
         .project-item.active .project-item__gaichu-icon { color: #263238; }
-        /* 「今日へ移動」の右：選んだ工番の外注組立シートを開くボタン（オレンジ系は「表示リセット」ボタンと同じ配色） */
-        .gaichu-open-btn { display: inline-flex; align-items: center; gap: 4px; margin-left: 4px; font-size: 12px; font-weight: bold; background: #fff8f0; border-color: #e0a060; color: #a06030; }
+        /* ヘッダー「出張予定」の右：外注組立シートのボタン（常に表示。オレンジ系は「表示リセット」ボタンと同じ配色）と、全表示のときの工番一覧 */
+        .gaichu-open-wrap { position: relative; display: inline-flex; margin-left: 4px; }
+        .gaichu-open-menu { position: absolute; top: calc(100% + 3px); right: 0; z-index: 3000; min-width: 220px; max-height: 320px; overflow-y: auto; background: #fff; border: 1px solid #e0a060; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.18); padding: 3px 0; }
+        .gaichu-open-menu[hidden] { display: none; }
+        .gaichu-open-menu__item { display: flex; align-items: baseline; gap: 10px; width: 100%; padding: 5px 12px; border: 0; background: none; font: inherit; font-size: 12px; text-align: left; cursor: pointer; color: #37474f; }
+        .gaichu-open-menu__item:hover { background: #fff3e6; }
+        .gaichu-open-menu__pn { font-weight: bold; color: #a06030; min-width: 3.5em; }
+        .gaichu-open-menu__customer { color: #607d8b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .gaichu-open-btn { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: bold; background: #fff8f0; border-color: #e0a060; color: #a06030; }
         .gaichu-open-btn svg { width: 15px; height: 15px; flex-shrink: 0; margin: -2px 0; }
         .gaichu-open-btn:disabled { background: #f0f0f0; border-color: #c4c4c4; color: #616161; font-weight: normal; cursor: default; filter: none; transform: none; }
         .gantt-main-wrap { flex: 1; min-height: 0; width: 100%; position: relative; display: flex; flex-direction: column; }

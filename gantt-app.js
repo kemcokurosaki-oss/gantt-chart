@@ -115,23 +115,73 @@
             if (pn) u.searchParams.set('pn', String(pn).trim());
             window.open(u.href, '_blank', 'noopener,noreferrer');
         };
-        // 「今日へ移動」の右のボタン：選んだ工番に外注組立シートがあるときだけ出す（全表示・シートなしの工番では隠す）
-        //   準備中（GAICHU_LINK_ENABLED が false）の間は、押せないグレーの「外注組立シートあり（準備中）」にする
-        window.updateGaichuOpenBtn = function () {
+        // ヘッダー「出張予定」の右の外注組立シートボタン（常に表示。選んでいる工番に合わせて表示を変える）
+        //   全表示：「外注組立シート ▾」→ シートがある工番の一覧から選んで開く
+        //   シートがある工番：「外注組立シートを開く ↗」／シートがない工番：「外注組立シートなし」（押せない）
+        //   準備中（GAICHU_LINK_ENABLED が false）の間はグレーで押せない。見られるシートが1件もない人には出さない
+        let _gaichuProjectInfo = {};
+        window.updateGaichuOpenBtn = function (projectInfo) {
+            if (projectInfo) _gaichuProjectInfo = projectInfo;
+            const wrap = document.getElementById('gaichu_open_wrap');
             const btn = document.getElementById('gaichu_open_btn');
-            if (!btn) return;
+            if (!wrap || !btn) return;
+            closeGaichuMenu();
+            if (_gaichuSheetPns.size === 0) { wrap.style.display = 'none'; return; }
+            wrap.style.display = 'inline-flex';
             const pn = (typeof currentFilter !== 'undefined' && currentFilter) ? String(currentFilter) : '';
-            const has = !!pn && window.hasGaichuSheet(pn);
-            btn.style.display = has ? 'inline-flex' : 'none';
-            if (!has) return;
             const enabled = !!window.GAICHU_LINK_ENABLED;
-            btn.disabled = !enabled;
-            btn.querySelector('.gaichu-open-btn__label').textContent = enabled ? '外注組立シートを開く ↗' : '外注組立シートあり（準備中）';
-            btn.title = enabled ? `工番 ${pn} の外注組立シートを別タブで開きます` : '外注組立シートは準備中です';
+            let label, title, canPress;
+            if (!pn) {
+                label = enabled ? '外注組立シート ▾' : '外注組立シート（準備中）';
+                title = enabled ? 'シートがある工番を選んで開きます' : '外注組立シートは準備中です';
+                canPress = enabled;
+            } else if (window.hasGaichuSheet(pn)) {
+                label = enabled ? '外注組立シートを開く ↗' : '外注組立シートあり（準備中）';
+                title = enabled ? `工番 ${pn} の外注組立シートを別タブで開きます` : '外注組立シートは準備中です';
+                canPress = enabled;
+            } else {
+                label = '外注組立シートなし';
+                title = `工番 ${pn} には外注組立シートがありません`;
+                canPress = false;
+            }
+            btn.disabled = !canPress;
+            btn.querySelector('.gaichu-open-btn__label').textContent = label;
+            btn.title = title;
         };
-        window.openGaichuSheetForCurrent = function () {
-            if (typeof currentFilter !== 'undefined' && currentFilter) window.openGaichuSheet(currentFilter);
+        function closeGaichuMenu() {
+            const menu = document.getElementById('gaichu_open_menu');
+            if (menu) menu.hidden = true;
+        }
+        function openGaichuMenu() {
+            const menu = document.getElementById('gaichu_open_menu');
+            if (!menu) return;
+            menu.replaceChildren();
+            const pns = [..._gaichuSheetPns].sort();
+            pns.forEach(p => {
+                const item = document.createElement('button');
+                item.type = 'button';
+                item.className = 'gaichu-open-menu__item';
+                const num = document.createElement('span');
+                num.className = 'gaichu-open-menu__pn';
+                num.textContent = p;
+                const cust = document.createElement('span');
+                cust.className = 'gaichu-open-menu__customer';
+                cust.textContent = (_gaichuProjectInfo[p] && _gaichuProjectInfo[p].customer) || '';
+                item.append(num, cust);
+                item.addEventListener('click', e => { e.stopPropagation(); closeGaichuMenu(); window.openGaichuSheet(p); });
+                menu.appendChild(item);
+            });
+            menu.hidden = false;
+        }
+        window.onGaichuOpenBtnClick = function (e) {
+            if (e) e.stopPropagation();
+            const pn = (typeof currentFilter !== 'undefined' && currentFilter) ? String(currentFilter) : '';
+            if (pn) { if (window.hasGaichuSheet(pn)) window.openGaichuSheet(pn); return; }
+            const menu = document.getElementById('gaichu_open_menu');
+            if (menu && !menu.hidden) closeGaichuMenu(); else openGaichuMenu();
         };
+        document.addEventListener('click', e => { if (!e.target.closest || !e.target.closest('#gaichu_open_wrap')) closeGaichuMenu(); });
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') closeGaichuMenu(); });
 
         async function fetchTasks(options) {
             await loadSpecFolderUrlMap();
@@ -1696,7 +1746,7 @@
                 listEl.appendChild(item);
             });
             if (typeof window._updateShanaiEmptyNotice === 'function') window._updateShanaiEmptyNotice();
-            window.updateGaichuOpenBtn();
+            window.updateGaichuOpenBtn(projectInfoMap);
         }
 
         const _lastProjectFilterOpenedVirtualIds = new Set();
