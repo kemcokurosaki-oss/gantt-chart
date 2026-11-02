@@ -2,7 +2,7 @@
 //   ・表示だけ。OneDrive の「ユニット外注」フォルダーのチェック表（Excel）を、開くたびに読み込んで表示する（保存はしない）
 //   ・✓・支給日を含め、直すのはすべて Excel。Excel を保存してからこのページを開き直す（または「最新を読む」）と反映される
 //   ・Excel のファイルと外注先は、ファイル名（工番＋機械記号_外注先の略称_部品リスト支給チェック表.xlsx）の外注先の名前で結び付ける
-//   ・行の色：未チェック＝白、チェック済み＝薄いグレー、PlanCode が S2（外注先手配・支給しない）＝ごく薄い緑で✓の列は「-」（該当なし）。S2 はチェックの数に入れない
+//   ・行の色：未チェック＝白、チェック済み＝薄いグレー、PlanCode が S2 または Excel の✓の列が「-」（外注先手配・支給しない）＝ごく薄い緑で✓の列は「-」（該当なし）。チェックの数に入れない
 //   ・並び順：加工品は 企画表（C01, C02…）→ 図面№、購入品は 機械 → 通番（見出しのメニューで変えられる）
 // 読み込み前に gaichu-sheet.js を読み込み、ページに #supplyRoot・#supplyBar を置いておくこと。
 (function () {
@@ -23,7 +23,9 @@
     };
     // 機械の列：先頭に工番が付いていたら外す（2820 の Excel は「2820RVCD」、今後は「RVCD」）
     const unitLabel = v => { const s = String(v || ''), pn = String(GS.state.pn || ''); return pn && s.startsWith(pn) && s.length > pn.length ? s.slice(pn.length) : s; };
-    const isS2 = r => r.kind === 'machined' && String(r.plan_code || '').normalize('NFKC').trim().toUpperCase() === 'S2';
+    // 該当なし（支給しない）：加工品の PlanCode が S2、または Excel の✓の列が「-」（業者支給・外注先手配）
+    const isDashMark = v => /^[-‐‑–—―−－ー]$/.test(String(v == null ? '' : v).normalize('NFKC').trim());
+    const isS2 = r => r.na || (r.kind === 'machined' && String(r.plan_code || '').normalize('NFKC').trim().toUpperCase() === 'S2');
 
     // 読み込んだ内容（工番ごと。ページを開き直すと読み直す）
     //   files：[{ name, folder, modified, sheetId, error }]、rows：[{ ...行, kind, sheetId, file }]
@@ -33,7 +35,7 @@
     //   filters[key] = 表示する値の Set（値は画面に出す文字。空欄は「（空白）」、支給日の空欄は「（未入力）」）
     const views = { machined: { filters: {}, sort: null }, purchased: { filters: {}, sort: null } };
     let viewSheetId = null;
-    const BLANK = '（空白）', NOT_YET = '（未入力）', CHECKED = '✓ チェック済み', UNCHECKED = '未チェック', OUTSIDE = '外注先手配（S2）';
+    const BLANK = '（空白）', NOT_YET = '（未入力）', CHECKED = '✓ チェック済み', UNCHECKED = '未チェック', OUTSIDE = '外注先手配（-）';
 
     function esc(s) {
         return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -485,7 +487,7 @@
                 seq: num(r.seq), drawing_no: r.drawing_no || null, name: r.name, material: r.material || null, spec: r.spec || null, qty: num(r.qty),
                 weight_material: num(r.weight_material), weight_finished: num(r.weight_finished), plan_code: r.plan_code || null, schedule_note: null,
                 maker: r.maker || null, remark: r.remark || null, unit_code: r.unit_code || null, doc_no: r.doc_no || null,
-                checked: !!(r.checked && String(r.checked).trim()), supply_date: r.supply_date || null,
+                checked: !isDashMark(r.checked) && !!(r.checked && String(r.checked).trim()), na: isDashMark(r.checked), supply_date: r.supply_date || null,
             })),
         };
     }
