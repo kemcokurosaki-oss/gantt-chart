@@ -64,7 +64,7 @@
         /** 各部門工程表（別サイト）。常に別タブで開く。ログイン・閲覧可否はリンク先アプリ側で行う。 */
         // 外注組立シートへのリンクを使えるようにするか（準備中は false：ツールバーのボタンと「今日へ移動」右のボタンは出すが、押しても開かない）
         //   公開するときは true にする（gantt-app.js の updateGaichuOpenBtn もこれを見る）
-        window.GAICHU_LINK_ENABLED = false;
+        window.GAICHU_LINK_ENABLED = true;
         const DEPT_SCHEDULE_LINK_CONFIG = {
             approval: {
                 url: 'https://kemcokurosaki-oss.github.io/approval-flow/',
@@ -94,7 +94,7 @@
             gaichu: {
                 // 外注先用 工事詳細シート（同じリポジトリのページ）。工事一覧で外注組立シートのある工番を選んでいれば、その工番を開く
                 url: new URL('組立範囲詳細シート.html', location.href).href,
-                title: '外注組立シートは準備中です（公開後に有効化します）',
+                title: window.GAICHU_LINK_ENABLED ? '外注組立シートを別タブで開く（工番を選んでいればその工番のシート）' : '外注組立シートは準備中です（公開後に有効化します）',
                 disabled: !window.GAICHU_LINK_ENABLED,
             },
             viewer3d: {
