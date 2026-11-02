@@ -458,7 +458,7 @@
     .se-plus--row { left: -30px; bottom: -12px; }
     .se-tip { position: absolute; z-index: 4; background: #2b2f36; color: #fff; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 4px; white-space: nowrap; pointer-events: none; visibility: hidden; opacity: 0; transition: opacity .12s; }
     .se-tip--col { left: calc(100% + 16px); top: -27px; }
-    .se-tip--row { left: -30px; bottom: 14px; }
+    .se-tip--row { left: -2px; top: calc(100% + 3px); }   /* 線の下に出す（上に出すと、その行の入力欄にかぶって入力しにくい） */
     .scope-table.is-editing thead th:hover .se-plus, .scope-table.is-editing thead th:hover .se-tip,
     .scope-table.is-editing tbody tr:hover .se-plus, .scope-table.is-editing tbody tr:hover .se-tip { visibility: visible; opacity: 1; }
     .scope-table.is-editing thead th:not(.se-gutter):not(.se-actions-h):hover::after { content: ''; position: absolute; right: -1px; top: 0; bottom: 0; width: 2px; background: #2b2f36; z-index: 3; }
@@ -479,7 +479,7 @@
     .se-edge:hover { background: #2b2f36; color: #fff; border-style: solid; }
     .se-edge--col { right: 8px; top: 30px; width: 30px; padding: 6px 0; border-radius: 15px; display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 15px; line-height: 1.2; }
     .se-edge--col small { font-size: 12px; line-height: 1; writing-mode: vertical-rl; letter-spacing: 2px; padding: 2px 0 4px; }   /* 「列を追加」を縦書きで */
-    .se-edge--row { left: 50%; bottom: 8px; transform: translateX(-50%); height: 28px; padding: 0 16px; border-radius: 999px; display: flex; align-items: center; gap: 6px; font-size: 12px; }
+    .se-edge--row { left: 34px; bottom: 8px; height: 28px; padding: 0 16px; border-radius: 999px; display: flex; align-items: center; gap: 6px; font-size: 12px; }
 
     /* 体制表：外注先ごとの案内・自動表示の印（org-chart.js） */
     .oc-empty { padding: 18px 4px; color: #6b7079; font-size: 13.5px; }
