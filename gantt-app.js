@@ -116,7 +116,7 @@
             window.open(u.href, '_blank', 'noopener,noreferrer');
         };
         // ヘッダー「出張予定」の右の外注組立シートボタン（常に表示。選んでいる工番に合わせて表示を変える）
-        //   全表示：「外注組立シート ▾」→ シートがある工番の一覧から選んで開く
+        //   全表示：「外注組立シート ▾」（出張予定と同じ青）→ シートがある工番の一覧から選んで開く
         //   シートがある工番：「外注組立シートを開く ↗」／シートがない工番：「外注組立シートなし」（押せない）
         //   準備中（GAICHU_LINK_ENABLED が false）の間はグレーで押せない。見られるシートが1件もない人には出さない
         let _gaichuProjectInfo = {};
@@ -145,6 +145,7 @@
                 canPress = false;
             }
             btn.disabled = !canPress;
+            btn.classList.toggle('is-all', !pn);   // 全表示は出張予定と同じ青、工番を選んだときだけオレンジ
             btn.querySelector('.gaichu-open-btn__label').textContent = label;
             btn.title = title;
         };
