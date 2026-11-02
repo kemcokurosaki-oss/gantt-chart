@@ -220,7 +220,7 @@
                 + cols.map(c => cellEdit(r, ri, c)).join('')
                 + `<td class="scope-row-btns"><button type="button" data-sc="rowup" data-i="${ri}" title="上へ">↑</button><button type="button" data-sc="rowdown" data-i="${ri}" title="下へ">↓</button><button type="button" class="spec-del" data-sc="rowdel" data-i="${ri}" title="この行を削除">✕</button></td></tr>`).join('')
             : `<tr><td class="se-gutter"></td><td colspan="${cols.length + 1}" class="spec-empty">（未入力）表にマウスを乗せると出る「＋ 行を追加」から入力してください</td></tr>`;
-        return `<div class="se-head"><span class="se-title">① 図面</span><span class="se-hint">「色分け枠を描く」を押すと、その図面を拡大して担当先の枠を描けます</span></div>
+        return `<div class="se-head"><span class="se-title">① 図面</span><span class="se-hint">「図面を追加」で画像を登録。「色分け枠を描く」で担当先の枠を描画</span></div>
             <div class="se-figs">${figs}${addFig}</div>
             <div class="se-head"><span class="se-title">② 担当範囲一覧</span><span class="se-hint">マウスを乗せると出る「＋」で行・列を追加。担当のマスはクリックで会社を選択</span></div>
             <div class="se-table-area">
