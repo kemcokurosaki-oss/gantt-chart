@@ -3,7 +3,7 @@
 //   ・✓・納入予定日・支給日を含め、直すのはすべて Excel。Excel を保存してからこのページを開き直す（または「最新を読む」）と反映される
 //   ・Excel のファイルと外注先は、ファイル名（工番＋機械記号_外注先の略称_部品リスト支給チェック表.xlsx）の外注先の名前で結び付ける
 //   ・行の色：未チェック＝白、チェック済み＝薄い青、抹消＝グレー（いちばん優先）、PlanCode が S2 または Excel の✓の列が「-」（外注先手配・支給しない）＝ごく薄い緑で✓の列は「-」（該当なし）。チェックの数に入れない
-//   ・抹消（Comment に「抹消」がある行。訂正連絡書で部品がなくなった）＝Comment 以外を取り消し線・文字を薄く。チェックの数に入れない
+//   ・抹消（Comment に「抹消」がある行。訂正連絡書で部品がなくなった）＝グレー、Comment 以外を取り消し線・文字を薄く、✓の枠は出さない。チェックの数に入れない
 //   ・並び順：加工品は 企画表（C01, C02…）→ 図面№、購入品は 機械 → 通番（見出しのメニューで変えられる）
 // 読み込み前に gaichu-sheet.js を読み込み、ページに #supplyRoot・#supplyBar を置いておくこと。
 (function () {
@@ -224,6 +224,7 @@
         };
         const cellOf = (r, [k, , t]) => {
             const val = r[k];
+            if (t === 'check' && isDel(r)) return '<td class="sp-chk-col"></td>';   // 抹消：✓の枠を出さない
             if (t === 'check') return isS2(r) ? '<td class="sp-chk-col"><span class="sp-na" title="外注先が手配する部品（支給しない）">-</span></td>'
                 : `<td class="sp-chk-col">${val ? '<span class="sp-chk is-on">✓</span>' : '<span class="sp-chk"></span>'}</td>`;
             if (t === 'date') return `<td class="sp-date">${esc(dateText(val))}</td>`;
