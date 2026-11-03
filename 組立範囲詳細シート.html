@@ -1543,6 +1543,8 @@
     #supplyRoot .sp-table tr.is-done td { background: #eaf2fb; }
     #supplyRoot .sp-table tr.is-done .sp-chk.is-on { background: #7f9cc0; border-color: #7f9cc0; }   /* チェック済みの印も青系 */
     #supplyRoot .sp-table tr.is-del td { background: #efefed; }
+    /* 支給品チェックリスト：画面の下の余白を詰める（表を画面の下ぎりぎりまで伸ばす） */
+    @media screen { #panel-supply .sub-body { padding-bottom: 6px; } #panel-supply .card { margin-bottom: 0; padding-bottom: 8px; } #panel-supply .sp-files { margin-top: 6px; } }
     /* 行の色の凡例（表の上） */
     .sp-legend { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px 16px; margin: 0 0 8px; font-size: 12px; color: #5b6068; }
     .sp-legend span { display: inline-flex; align-items: center; gap: 5px; }
@@ -2304,7 +2306,7 @@ window.addEventListener('afterprint', () => {
 <script src="gaichu-scope.js?v=20261102c"></script>
 <script src="gaichu-gantt.js?v=20261027e"></script>
 <script src="org-chart.js?v=20261023s"></script>
-<script src="gaichu-supply.js?v=20261103h"></script>
+<script src="gaichu-supply.js?v=20261103i"></script>
 <script src="gaichu-drawing.js?v=20261028a"></script>
 
 </body>
