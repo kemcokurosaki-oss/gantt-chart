@@ -236,8 +236,11 @@
         const body = shown.map(r => `<tr class="${[isS2(r) ? 'is-s2' : r.checked ? 'is-done' : '', isDel(r) ? 'is-del' : ''].filter(Boolean).join(' ')}">${cols.map(c => cellOf(r, c)).join('')}</tr>`).join('');
         const kindLabel = KINDS.find(x => x[0] === kind);
         const empty = !rows.length ? `<p class="spec-msg">${esc(kindLabel[1])}の行はありません。OneDrive の「${OD_FOLDER}」＞工番のフォルダー＞「${LIST_FOLDER}」にチェック表（Excel）を置いてください。</p>` : '';
+        // 行の色の凡例（Excel の原紙の凡例と同じ）
+        const legend = `<div class="sp-legend"><span><i></i>未チェック</span><span><i class="is-done"></i>チェック済み（✓）</span>`
+            + `<span><i class="is-s2"></i>外注先手配（${kind === 'machined' ? 'S2・' : ''}-）</span><span class="is-del"><i class="is-del"></i>抹消</span></div>`;
         root.innerHTML = ''
-            + (empty || `<div class="sp-table-wrap"><table class="sp-table"><thead><tr>${cols.map(th).join('')}</tr></thead><tbody>${body || `<tr><td colspan="${cols.length}" class="sp-none">この条件の行はありません。</td></tr>`}</tbody></table></div>`)
+            + (empty || `${legend}<div class="sp-table-wrap"><table class="sp-table"><thead><tr>${cols.map(th).join('')}</tr></thead><tbody>${body || `<tr><td colspan="${cols.length}" class="sp-none">この条件の行はありません。</td></tr>`}</tbody></table></div>`)
             + filesNote(sheet.id);
         fitTable();
     }
