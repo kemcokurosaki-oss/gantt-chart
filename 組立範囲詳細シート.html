@@ -1547,10 +1547,10 @@
     .sp-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 0 0 8px; font-size: 12px; color: #5b6068; }
     .sp-legend span { display: inline-flex; align-items: center; gap: 5px; }
     .sp-legend span.is-del { text-decoration: line-through; }
-    .sp-legend i { display: inline-block; width: 14px; height: 14px; background: #fff; border: 1px solid #cfd0cc; border-radius: 3px; }
-    .sp-legend i.is-done { background: #eaf2fb; }
-    .sp-legend i.is-s2 { background: #f4faf5; }
-    .sp-legend i.is-del { background: #efefed; }
+    .sp-legend i { display: inline-block; width: 14px; height: 14px; background: #fff; border: 1px solid #a9adb3; border-radius: 3px; }   /* 凡例の色は見分けやすいよう表の行より少し濃い */
+    .sp-legend i.is-done { background: #c6dbf2; border-color: #9fbcdc; }
+    .sp-legend i.is-s2 { background: #d3ebd8; border-color: #a9cdb1; }
+    .sp-legend i.is-del { background: #d6d6d3; border-color: #b0b0ac; }
     @media print { .sp-legend i { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
     @media print { #supplyRoot .sp-table tr.is-del td { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
     .sp-s2-tag { display: inline-block; font-size: 10.5px; font-weight: 500; color: #6f9277; background: #e6f2e8; border-radius: 999px; padding: 1px 7px; white-space: nowrap; }
@@ -2304,7 +2304,7 @@ window.addEventListener('afterprint', () => {
 <script src="gaichu-scope.js?v=20261102c"></script>
 <script src="gaichu-gantt.js?v=20261027e"></script>
 <script src="org-chart.js?v=20261023s"></script>
-<script src="gaichu-supply.js?v=20261103e"></script>
+<script src="gaichu-supply.js?v=20261103f"></script>
 <script src="gaichu-drawing.js?v=20261028a"></script>
 
 </body>
