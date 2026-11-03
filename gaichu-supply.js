@@ -262,6 +262,10 @@
         if (!panel || !panel.classList.contains('open')) return;   // 閉じているときは測れないので、開いたときに合わせる
         const top = wrap.getBoundingClientRect().top + (panel.scrollTop || 0);
         wrap.style.maxHeight = Math.max(240, window.innerHeight - top - 28) + 'px';
+        // 表の下の凡例・ファイルの一覧・余白の分まで縮めて、画面全体（パネル）の縦のスクロールバーを出さない（表の中のスクロールはそのまま）
+        const sc = getComputedStyle(panel).overflowY === 'visible' ? document.scrollingElement : panel;
+        const over = sc.scrollHeight - sc.clientHeight;
+        if (over > 0) wrap.style.maxHeight = Math.max(240, parseFloat(wrap.style.maxHeight) - over - 1) + 'px';
     }
     window.addEventListener('resize', fitTable);
 
