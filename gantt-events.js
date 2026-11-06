@@ -821,7 +821,7 @@
                 }
             }
 
-            if (task.text === "工場出荷" && typeof renderFactoryShipmentStars === "function") {
+            if ((task.text === "工場出荷" || task.text === "梱包出荷") && typeof renderFactoryShipmentStars === "function") {
                 if (!_factoryStarsDragRaf) {
                     _factoryStarsDragRaf = requestAnimationFrame(function() {
                         _factoryStarsDragRaf = null;
@@ -837,8 +837,8 @@
             _resizeActiveEdge = null;
             // 見出し行（仮想タスク）は期間リサイズ不可
             if (task.$virtual && mode === gantt.config.drag_mode.resize) return false;
-            // 工場出荷は複数日出荷に対応するため期間リサイズを許可する
-            const milestones = ["外観検査", "客先立会", "出荷確認会議"];
+            // 工場出荷・梱包出荷は複数日出荷に対応するため期間リサイズを許可する
+            const milestones = ["外観検査", "簡易検査", "出荷品確認検査", "客先立会", "出荷確認会議"];
             if (milestones.includes(task.text) && mode === gantt.config.drag_mode.resize) {
                 return false; // リサイズ操作をキャンセル
             }
@@ -867,7 +867,7 @@
         gantt.attachEvent("onTaskDrag", function(id, mode, task, original, e) {
             if (mode === gantt.config.drag_mode.move) {
                 const t = gantt.getTask(id);
-                if (t && t.text === "工場出荷" && typeof renderFactoryShipmentStars === "function") {
+                if (t && (t.text === "工場出荷" || t.text === "梱包出荷") && typeof renderFactoryShipmentStars === "function") {
                     if (!_factoryStarsDragRaf) {
                         _factoryStarsDragRaf = requestAnimationFrame(function() {
                             _factoryStarsDragRaf = null;
@@ -1524,9 +1524,9 @@
             }
 
             if (task.text === "神戸送り開始日") return css + "hidden_bar";
-            if (task.text === "外観検査") return css + "milestone-circle";
+            if (task.text === "外観検査" || task.text === "簡易検査" || task.text === "出荷品確認検査") return css + "milestone-circle";
             if (task.text === "出荷確認会議") return css + "milestone-diamond";
-            if (task.text === "工場出荷") return css + "milestone-factory-ship";
+            if (task.text === "工場出荷" || task.text === "梱包出荷") return css + "milestone-factory-ship";
             if (task.text === "客先立会") return css + "milestone-square";
 
             // 大項目フィルタ（部署別フィルタ）と部署別リソースの両方が有効な時のみ担当者ごとの色を適用
@@ -1785,14 +1785,14 @@
         let _markDragState = null;
         let _rowDragging = false;
 
-        /** 工場出荷：duration 日数ぶん、各日の列の中央に ★ を重ね描画 */
+        /** 工場出荷・梱包出荷：duration 日数ぶん、各日の列の中央に ★ を重ね描画（梱包出荷は色違い） */
         function renderFactoryShipmentStars() {
             document.querySelectorAll('.factory-shipment-star-mark').forEach(function(el) { el.remove(); });
             const container = document.querySelector('.gantt_data_area');
             if (!container) return;
 
             gantt.eachTask(function(task) {
-                if (task.text !== "工場出荷") return;
+                if (task.text !== "工場出荷" && task.text !== "梱包出荷") return;
                 try { if (!gantt.isTaskVisible(task.id)) return; } catch (e) { return; }
                 if (!task.start_date) return;
 
@@ -1818,7 +1818,7 @@
                     if (!pos || pos.width < 0.5) continue;
 
                     const el = document.createElement("div");
-                    el.className = "factory-shipment-star-mark";
+                    el.className = "factory-shipment-star-mark" + (task.text === "梱包出荷" ? " factory-shipment-star-mark--packing" : "");
                     el.setAttribute("aria-hidden", "true");
                     el.textContent = "\u2605";
                     el.style.left = (pos.left + pos.width / 2) + "px";

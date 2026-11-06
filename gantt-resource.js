@@ -73,12 +73,13 @@
         }
 
         /** リソース行の工場出荷バー内に、期間日数ぶん ★ を等間隔で並べる */
-        function buildResourceFactoryShipStarsHtml(duration) {
+        function buildResourceFactoryShipStarsHtml(duration, isPacking) {
             const n = Math.max(1, parseInt(duration, 10) || 1);
+            const starClass = "resource-factory-ship-star" + (isPacking ? " resource-factory-ship-star--packing" : "");
             let inner = "";
             for (let i = 0; i < n; i++) {
                 const pct = ((i + 0.5) / n) * 100;
-                inner += `<span class="resource-factory-ship-star" style="left:${pct}%">\u2605</span>`;
+                inner += `<span class="${starClass}" style="left:${pct}%">\u2605</span>`;
             }
             return `<span class="resource-factory-ship-stars">${inner}</span>`;
         }
@@ -491,11 +492,11 @@
                     // マイルストーン判定（アイコン表示）は維持
                     let milestoneClass = "";
                     let factoryShipStarsHtml = "";
-                    if (t.text === "外観検査") milestoneClass = "milestone-circle";
+                    if (t.text === "外観検査" || t.text === "簡易検査" || t.text === "出荷品確認検査") milestoneClass = "milestone-circle";
                     else if (t.text === "出荷確認会議") milestoneClass = "milestone-diamond";
-                    else if (t.text === "工場出荷") {
+                    else if (t.text === "工場出荷" || t.text === "梱包出荷") {
                         milestoneClass = "milestone-factory-ship-resource";
-                        factoryShipStarsHtml = buildResourceFactoryShipStarsHtml(t.duration);
+                        factoryShipStarsHtml = buildResourceFactoryShipStarsHtml(t.duration, t.text === "梱包出荷");
                     }
                     else if (t.text === "客先立会") milestoneClass = "milestone-square";
                     const partsDeliveryClass = isPartsDeliveryTask ? "parts-delivery-resource" : "";
@@ -608,7 +609,7 @@
             });
         }
 
-        const RESOURCE_BAR_MILESTONE_TEXTS = ["外観検査", "客先立会", "出荷確認会議", "工場出荷"];
+        const RESOURCE_BAR_MILESTONE_TEXTS = ["外観検査", "簡易検査", "出荷品確認検査", "客先立会", "出荷確認会議", "工場出荷", "梱包出荷"];
 
         function resourceBarIsMilestoneTask(task) {
             return !!(task && RESOURCE_BAR_MILESTONE_TEXTS.indexOf(task.text) >= 0);
@@ -1393,7 +1394,7 @@
                 const start = new Date(t.start_date);
                 const end = gantt.calculateEndDate(start, t.duration);
                 const isPartsDeliveryTask = t.text === "神戸送り開始日";
-                const factoryShipStarsHtml = (t.text === "工場出荷") ? buildResourceFactoryShipStarsHtml(t.duration) : "";
+                const factoryShipStarsHtml = (t.text === "工場出荷" || t.text === "梱包出荷") ? buildResourceFactoryShipStarsHtml(t.duration, t.text === "梱包出荷") : "";
                 
                 const left = gantt.posFromDate(start);
                 const right = gantt.posFromDate(end);
@@ -1514,7 +1515,7 @@
                                      style="position: absolute; top: ${topOffset}px; height: ${barHeight}px; left: ${left}px; width: ${width}px; border-radius: 3px; opacity: 0.8; display: flex; align-items: center; justify-content: center; color: #222; font-size: 13px; font-weight: bold; font-family: '游ゴシック','Yu Gothic',YuGothic,sans-serif; overflow: hidden; white-space: nowrap; text-shadow: none; z-index: ${zIndex}; box-sizing: border-box; border: 1px solid rgba(0,0,0,0.15);" 
                                      data-resource-tooltip="${escapeTooltipAttr(title)}">
                                      ${factoryShipStarsHtml}
-                                     <span class="resource-bar-text">${(isPartsDeliveryTask || t.text === "工場出荷") ? "" : `${t.project_number || ""} ${t.machine || ""} ${t.unit || ""}`}</span>
+                                     <span class="resource-bar-text">${(isPartsDeliveryTask || t.text === "工場出荷" || t.text === "梱包出荷") ? "" : `${t.project_number || ""} ${t.machine || ""} ${t.unit || ""}`}</span>
                                 </div>
                             </div>
                             </div>
@@ -1821,9 +1822,9 @@
         // ========================================================
 
         function getResourceTaskClass(task) {
-            if (task.text === "外観検査") return "milestone-circle";
+            if (task.text === "外観検査" || task.text === "簡易検査" || task.text === "出荷品確認検査") return "milestone-circle";
             if (task.text === "出荷確認会議") return "milestone-diamond";
-            if (task.text === "工場出荷") return "milestone-factory-ship-resource";
+            if (task.text === "工場出荷" || task.text === "梱包出荷") return "milestone-factory-ship-resource";
             if (task.text === "客先立会") return "milestone-square";
             switch (task.major_item) {
                 case '設計': return "task-blue";

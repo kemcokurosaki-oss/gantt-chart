@@ -952,6 +952,8 @@
             transform: translate(-50%, -50%);
             font-weight: bold;
         }
+        /* 梱包出荷：工場出荷の ★ の色違い（紫） */
+        .factory-shipment-star-mark.factory-shipment-star-mark--packing { color: #7B1FA2; }
 
         /* 期間リサイズ中：対象行の直上付近に固定表示（変更後の終了日＝グリッドの包含終了日） */
         .gantt-resize-hint {
@@ -1786,6 +1788,8 @@
             text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
             font-weight: bold;
         }
+        .resource-cell-bar.milestone-factory-ship-resource .resource-factory-ship-star--packing,
+        .resource-bar.milestone-factory-ship-resource .resource-factory-ship-star--packing { color: #7B1FA2; }
         .resource-bar.milestone-square { background: none !important; border: none !important; }
         .resource-bar.milestone-square .resource-bar-text { display: none; }
         .resource-bar.milestone-square::before { content: "▲"; color: #FBAD4F; font-size: 20px; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); text-shadow: 1px 1px 2px rgba(0,0,0,0.1); }
@@ -2102,6 +2106,7 @@
         .help-tip .help-tip-mark-shape--tri { color: #FBAD4F; }
         .help-tip .help-tip-mark-shape--dia { color: #1976D2; }
         .help-tip .help-tip-mark-shape--star { color: #2E7D32; }
+        .help-tip .help-tip-mark-shape--star-packing { color: #7B1FA2; }
         .help-tip.tip-visible { opacity: 1; visibility: visible; }
         .help-tip-title { font-weight: bold; font-size: 12px; color: #1565c0; margin-bottom: 3px; }
         .help-tip::before { content: ''; position: absolute; top: -8px; left: 12px; width: 0; height: 0; border-left: 7px solid transparent; border-right: 7px solid transparent; border-bottom: 8px solid #1565c0; }
