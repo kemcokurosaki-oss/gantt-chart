@@ -420,6 +420,13 @@
 
                 } else if (field === 'start_date') {
                     const val = document.getElementById('inline-edit-date-input').value;
+                    if (val && !task.unscheduled && task.start_date) {
+                        // 終了日（包含的な最終日）より後の開始日はエラー（編集欄は開いたまま）
+                        const _endIncl = gantt.calculateEndDate(task.start_date, task.duration);
+                        _endIncl.setDate(_endIncl.getDate() - 1);
+                        const _err = _dateOrderError(val, gantt.date.date_to_str("%Y-%m-%d")(_endIncl), '開始日', '終了日');
+                        if (_err) { _showDateErrorModal(_err); return; }
+                    }
                     if (val) {
                         const [y, m, d] = val.split('-').map(Number);
                         const newStart = new Date(y, m - 1, d); // ローカル時刻で生成
@@ -439,6 +446,11 @@
 
                 } else if (field === 'end_date') {
                     const val = document.getElementById('inline-edit-date-input').value;
+                    if (val && !task.unscheduled && task.start_date) {
+                        // 開始日より前の終了日はエラー（編集欄は開いたまま）
+                        const _err = _dateOrderError(gantt.date.date_to_str("%Y-%m-%d")(task.start_date), val, '開始日', '終了日');
+                        if (_err) { _showDateErrorModal(_err); return; }
+                    }
                     if (val) {
                         const [y, m, d] = val.split('-').map(Number);
                         if (task.unscheduled) {

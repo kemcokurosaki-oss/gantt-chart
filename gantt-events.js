@@ -1157,6 +1157,17 @@
 
         // 保存ボタンが押された瞬間に実行されるイベント
         gantt.attachEvent("onLightboxSave", function(id, item) {
+            // 開始日が終了日より後なら保存せず、編集画面を開いたままエラーを表示
+            {
+                const _lb = gantt.getLightbox && gantt.getLightbox();
+                const _sIn = _lb ? _lb.querySelector('.datepicker-input') : null;
+                const _eIn = _lb ? _lb.querySelector('.datepicker-input-end') : null;
+                const _orderErr = _dateOrderError(_sIn ? _sIn.value : '', _eIn ? _eIn.value : '', '開始日', '終了日');
+                if (_orderErr) {
+                    _showDateErrorModal(_orderErr);
+                    return false;
+                }
+            }
             // 新規タスク判定を同期的に取得（非同期処理が始まる前に確定させる）
             // _is_new_task フラグで判定（IDのallTasks比較はDHTMLXのtemp IDと既存IDが衝突するため不使用）
             const _taskObj = gantt.isTaskExists(id) ? gantt.getTask(id) : null;

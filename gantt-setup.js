@@ -11,6 +11,47 @@
             return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
         }
 
+        // 日付の前後関係エラーを画面中央のモーダルで表示する（設計工程表と同じ）
+        function _showDateErrorModal(message) {
+            var old = document.getElementById('date_error_modal');
+            if (old) old.remove();
+            var overlay = document.createElement('div');
+            overlay.id = 'date_error_modal';
+            overlay.className = 'date-error-overlay';
+            overlay.innerHTML =
+                '<div class="date-error-box" role="alertdialog" aria-modal="true" aria-labelledby="date_error_title">' +
+                    '<div class="date-error-title" id="date_error_title">⚠ 日付の入力エラー</div>' +
+                    '<div class="date-error-msg"></div>' +
+                    '<div class="date-error-actions"><button type="button" class="date-error-ok">OK</button></div>' +
+                '</div>';
+            overlay.querySelector('.date-error-msg').textContent = message;
+            function close() {
+                overlay.remove();
+                document.removeEventListener('keydown', onKey, true);
+            }
+            function onKey(e) {
+                if (e.key === 'Escape' || e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); close(); }
+            }
+            overlay.querySelector('.date-error-ok').addEventListener('click', close);
+            overlay.addEventListener('mousedown', function(e) { e.stopPropagation(); });
+            overlay.addEventListener('click', function(e) { e.stopPropagation(); });
+            document.addEventListener('keydown', onKey, true);
+            document.body.appendChild(overlay);
+            overlay.querySelector('.date-error-ok').focus();
+        }
+
+        // 開始日・終了日（いずれも YYYY-MM-DD）の前後関係をチェック。
+        // 開始日が終了日より後ならエラーメッセージを返す（同じ日は可）
+        function _dateOrderError(startStr, endStr, startLabel, endLabel) {
+            startLabel = startLabel || '開始日';
+            endLabel = endLabel || '終了日';
+            if (!startStr || !endStr) return null;
+            if (startStr <= endStr) return null;
+            var fmt = function(s) { return s.replace(/-/g, '/'); };
+            return startLabel + '（' + fmt(startStr) + '）が' + endLabel + '（' + fmt(endStr) + '）より後になっています。\n' +
+                startLabel + 'は' + endLabel + '以前の日付を入力してください。';
+        }
+
         const S_URL = "https://dgekjzkrybrswsxlcbvh.supabase.co";
         const S_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRnZWtqemtyeWJyc3dzeGxjYnZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg4ODQ3MjIsImV4cCI6MjA4NDQ2MDcyMn0.BsEj53lV3p76yE9fMPTaLn7ocKTNzYPTqIAnBafYItU";
         // createClient呼び出し前にURLのtype情報を保存（Supabaseがhashを処理・クリアする前に取得）
