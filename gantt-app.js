@@ -2014,6 +2014,28 @@
                 });
                 _templateTaskNameCache[t] = names;
             });
+            await load2000TaskNameOptions();
+        }
+
+        // 2000番台のタスク名プルダウン（taskNameOptions）を task_template から作り直す。
+        // task_template は 1行＝1タスク（parent=見出し, text=タスク名, major_item=部署）。
+        // text の入った行が無い（旧形式・取得失敗）ときは gantt-setup.js の予備値のまま。
+        async function load2000TaskNameOptions() {
+            const { data, error } = await supabaseClient
+                .from('task_template')
+                .select('parent, text')
+                .order('id', { ascending: true });
+            if (error || !data) return;
+            const groups = [];
+            data.forEach(row => {
+                if (!row.parent || !row.text) return;
+                let g = groups.find(x => x.label === row.parent);
+                if (!g) { g = { label: row.parent, options: [] }; groups.push(g); }
+                if (!g.options.includes(row.text)) g.options.push(row.text);
+            });
+            if (groups.length === 0) return;
+            taskNameOptions.length = 0;
+            groups.forEach(g => taskNameOptions.push(g));
         }
 
         // 工番に対応するタスク名プルダウン候補（見出し名一覧）を返す。
@@ -2181,9 +2203,16 @@
                         unit: ""
                     });
                 } else {
-                    const taskNameGroup = taskNameOptions.find(g => g.label === item.name);
-                    if (taskNameGroup && taskNameGroup.options.length > 0) {
-                        taskNameGroup.options.forEach(optName => {
+                    // task_template の行（1行＝1タスク）があればそれを使い、部署はタスクごとの major_item。
+                    // 旧形式（見出しのみ）のときは taskNameOptions と見出しの部署を使う。
+                    const templateRows = templates.filter(r => r.parent === item.name && r.text);
+                    const childDefs = templateRows.length > 0
+                        ? templateRows.map(r => ({ name: r.text, major_item: r.major_item || item.major_item }))
+                        : ((taskNameOptions.find(g => g.label === item.name) || { options: [] }).options
+                            .map(n => ({ name: n, major_item: item.major_item })));
+                    if (childDefs.length > 0) {
+                        childDefs.forEach(def => {
+                            const optName = def.name;
                             // 神戸送り開始日は機械組立の開始日-7日
                             let taskStartDateStr = startDateStr;
                             if (optName === "神戸送り開始日") {
@@ -2194,7 +2223,7 @@
                                     taskStartDateStr = dateToDb(d);
                                 }
                             }
-                            const majorItem = resolveMajorItemForTask(optName, item.major_item);
+                            const majorItem = resolveMajorItemForTask(optName, def.major_item);
                             newTasks.push({
                                 project_number: projectNumber,
                                 customer_name: customerName || "",
