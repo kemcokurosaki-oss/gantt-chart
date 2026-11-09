@@ -2206,15 +2206,38 @@
                     // task_template の行（1行＝1タスク）があればそれを使い、部署はタスクごとの major_item。
                     // 旧形式（見出しのみ）のときは taskNameOptions と見出しの部署を使う。
                     const templateRows = templates.filter(r => r.parent === item.name && r.text);
+                    // 日程もタスクごと：relative_start_day が入っていればそのタスクだけの開始日（受注は受注日から、
+                    // それ以外は出荷日から）、duration が入っていればそのタスクだけの日数。空なら見出しの値（従来どおり）。
                     const childDefs = templateRows.length > 0
-                        ? templateRows.map(r => ({ name: r.text, major_item: r.major_item || item.major_item }))
+                        ? templateRows.map(r => ({
+                            name: r.text,
+                            major_item: r.major_item || item.major_item,
+                            relative_start: (r.relative_start_day === null || r.relative_start_day === undefined) ? null : Number(r.relative_start_day),
+                            duration: r.duration ? Number(r.duration) : null
+                        }))
                         : ((taskNameOptions.find(g => g.label === item.name) || { options: [] }).options
-                            .map(n => ({ name: n, major_item: item.major_item })));
+                            .map(n => ({ name: n, major_item: item.major_item, relative_start: null, duration: null })));
+                    const calcChildStart = (offset) => {
+                        if (item.name === "受注") {
+                            const d = new Date(orderDate);
+                            d.setDate(d.getDate() + offset);
+                            return dateToDb(d);
+                        }
+                        if (shippingDate) {
+                            const d = new Date(shippingDate);
+                            d.setDate(d.getDate() + offset);
+                            return dateToDb(d);
+                        }
+                        const d = new Date(orderDate);
+                        d.setDate(d.getDate() + Math.abs(offset));
+                        return dateToDb(d);
+                    };
                     if (childDefs.length > 0) {
                         childDefs.forEach(def => {
                             const optName = def.name;
+                            const childDuration = def.duration || duration;
                             // 神戸送り開始日は機械組立の開始日-7日
-                            let taskStartDateStr = startDateStr;
+                            let taskStartDateStr = def.relative_start === null ? startDateStr : calcChildStart(def.relative_start);
                             if (optName === "神戸送り開始日") {
                                 const kikaieDate = newTasks.find(t => t.text === "機械組立");
                                 if (kikaieDate && kikaieDate.start_date) {
@@ -2232,10 +2255,11 @@
                                 parent: item.name,
                                 major_item: majorItem,
                                 start_date: taskStartDateStr,
-                                duration: duration,
+                                duration: childDuration,
                                 owner: "",
                                 machine: "",
-                                unit: ""
+                                unit: "",
+                                _autoBasic: def.relative_start === null && def.duration === null
                             });
                         });
                     } else {
@@ -2268,7 +2292,8 @@
                 const diffTime = drawingStart.getTime() - basicStart.getTime();
                 const basicDuration = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
                 newTasks.forEach(t => {
-                    if (t.parent === "基本設計＆計画承認") {
+                    // task_template で開始・日数を指定したタスクは自動計算しない
+                    if (t.parent === "基本設計＆計画承認" && t._autoBasic !== false) {
                         t.start_date = dateToDb(basicStart);
                         t.duration = basicDuration;
                     }
@@ -2276,6 +2301,7 @@
             }
 
             newTasks.forEach(function(t) {
+                delete t._autoBasic;
                 t.end_date = inclusiveEndDateToDb(t.start_date, t.duration);
             });
 
