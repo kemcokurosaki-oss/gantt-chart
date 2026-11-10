@@ -2155,11 +2155,7 @@
                 let startDateStr;
                 let duration = item.duration;
 
-                if (item.name === "梱包出荷") {
-                    // 梱包出荷は有無が未定のため、開始日・終了日を空のまま作成する
-                    // （承認フローで「あり」が選択され日付が入力された時点で工程表側に自動反映される）
-                    startDateStr = null;
-                } else if (item.name === "受注") {
+                if (item.name === "受注") {
                     // 受注はヘッダーの受注日をそのまま反映
                     startDateStr = orderDateValue || dateToDb(new Date());
                 } else if (item.name === "出荷") {
