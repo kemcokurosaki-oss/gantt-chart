@@ -919,8 +919,34 @@
                 if (machine) patch.machine = machine;
                 if (unit) patch.unit = unit;
                 const realIds = Array.from(new Set(tasks.map(function(t) { return String(t.original_id || t.id); })));
+                const realIdSet = new Set(realIds);
+                const localPatch = {};
+                if (machine) localPatch.machine = machine;
+                if (unit) localPatch.unit = unit;
 
-                if (typeof showLoading === 'function') showLoading();
+                // ① 画面を先に切り替える（ガント上の行・allTasks・読み込みキャッシュを書き換え）
+                tasks.forEach(function(t) { Object.assign(t, localPatch); });
+                (window.allTasks || []).forEach(function(t) {
+                    if (realIdSet.has(String(t.original_id || t.id))) Object.assign(t, localPatch);
+                });
+                if (Array.isArray(_cachedTasksRows)) {
+                    _cachedTasksRows.forEach(function(r) {
+                        if (realIdSet.has(String(r.id))) Object.assign(r, patch);
+                    });
+                }
+                clearSelection();
+                if (currentDisplayMode === 'machine') {
+                    // 機械ごとの表示はまとまりが変わるため、キャッシュから組み直す（DBの全件読み直しはしない）
+                    fetchTasks({ useCache: true });
+                } else {
+                    gantt.render();
+                }
+
+                // ② DB保存は後ろで行う。失敗・一部未保存ならDBから読み直して画面を戻す
+                const revert = function(msg) {
+                    alert(msg);
+                    fetchTasks();
+                };
                 try {
                     const { data, error } = await supabaseClient
                         .from('tasks')
@@ -928,20 +954,18 @@
                         .in('id', realIds)
                         .select('id');
                     if (error) {
-                        alert('機械・ユニットの一括設定に失敗しました: ' + error.message);
+                        revert('機械・ユニットの一括設定に失敗しました: ' + error.message);
                         return;
                     }
-                    const done = (data || []).length;
                     if (typeof window.markLocalTaskMutation === 'function') {
                         (data || []).forEach(function(r) { window.markLocalTaskMutation(r.id); });
                     }
+                    const done = (data || []).length;
                     if (done < realIds.length) {
-                        alert('一部の行を保存できませんでした（' + done + '／' + realIds.length + '行）。\nログインが切れている可能性があります。再読み込みしてもう一度お試しください。');
+                        revert('一部の行を保存できませんでした（' + done + '／' + realIds.length + '行）。\nログインが切れている可能性があります。再読み込みしてもう一度お試しください。');
                     }
-                    clearSelection();
-                    await fetchTasks();
-                } finally {
-                    if (typeof hideLoading === 'function') hideLoading();
+                } catch (e) {
+                    revert('機械・ユニットの一括設定に失敗しました: ' + (e && e.message ? e.message : e));
                 }
             }
 
