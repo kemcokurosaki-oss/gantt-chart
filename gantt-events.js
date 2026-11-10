@@ -1847,7 +1847,7 @@
 
                 const el = document.createElement("div");
                 el.className = "parts-delivery-mark";
-                el.innerHTML = "🚚";
+                el.innerHTML = '<span class="truck-icon"></span>';
                 el.setAttribute("data-task-id", String(task.id));
                 el.style.left = markLeft + "px";
                 el.style.top  = markTop  + "px";
