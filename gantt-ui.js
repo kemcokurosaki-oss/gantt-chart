@@ -631,7 +631,7 @@
                         <span>📋</span> <span id="ctx-copy-label">行をコピー（下に追加）</span>
                     </div>
                     <div class="ctx-menu-item" id="ctx-mu-btn">
-                        <span>🏷️</span> <span id="ctx-mu-label">機械・ユニットを一括設定</span>
+                        <span>🏷️</span> <span id="ctx-mu-label">一括編集（機械・ユニット・担当・場所）</span>
                     </div>
                     <hr class="ctx-menu-separator">
                     <div class="ctx-menu-item ctx-delete" id="ctx-delete-btn">
@@ -640,7 +640,7 @@
                 document.body.appendChild(m);
                 document.getElementById('ctx-copy-btn').addEventListener('click', handleCopy);
                 document.getElementById('ctx-delete-btn').addEventListener('click', handleDelete);
-                document.getElementById('ctx-mu-btn').addEventListener('click', handleBulkMachineUnit);
+                document.getElementById('ctx-mu-btn').addEventListener('click', handleBulkEdit);
                 return m;
             }
 
@@ -669,7 +669,7 @@
                 const count = _selectedIds.size;
                 const suffix = count > 1 ? '（' + count + '行）' : '';
                 document.getElementById('ctx-copy-label').textContent = '行をコピー' + suffix;
-                document.getElementById('ctx-mu-label').textContent = '機械・ユニットを一括設定' + suffix;
+                document.getElementById('ctx-mu-label').textContent = '一括編集（機械・ユニット・担当・場所）' + suffix;
                 document.getElementById('ctx-delete-label').textContent = _deleteMenuLabel() + suffix;
 
                 m.classList.add('visible');
@@ -836,8 +836,14 @@
                 await fetchTasks();
             }
 
-            // 機械・ユニットの一括設定（選択行すべてに同じ値を入れる。空欄の項目は変更しない）
-            function handleBulkMachineUnit() {
+            // ===== 一括編集（機械・ユニット・担当・場所） =====
+            // 機械・ユニット：入力した項目だけ変更（空欄は変更しない）
+            // 担当・場所：「変更する」にチェックしたときだけ変更。担当は置き換え／追加を選べる
+            function _splitOwners(s) {
+                return String(s || '').split(/[,，]/).map(function(x) { return x.trim(); }).filter(Boolean);
+            }
+
+            function handleBulkEdit() {
                 const targetIds = _selectedIds.size > 0
                     ? Array.from(_selectedIds)
                     : (_ctxTaskId ? [String(_ctxTaskId)] : []);
@@ -868,40 +874,160 @@
                     overlay.innerHTML = `
                         <div id="bulk-mu-dialog">
                             <h3 id="bulk-mu-title"></h3>
-                            <label class="bulk-mu-row"><span>機械</span><input type="text" id="bulk-mu-machine" list="bulk-mu-machine-list" autocomplete="off"></label>
-                            <datalist id="bulk-mu-machine-list"></datalist>
-                            <label class="bulk-mu-row"><span>ユニット</span><input type="text" id="bulk-mu-unit" list="bulk-mu-unit-list" autocomplete="off"></label>
-                            <datalist id="bulk-mu-unit-list"></datalist>
-                            <p class="bulk-mu-note">空欄の項目は変更しません。</p>
+                            <div id="bulk-mu-body">
+                                <label class="bulk-mu-row"><span>機械</span><input type="text" id="bulk-mu-machine" list="bulk-mu-machine-list" autocomplete="off"></label>
+                                <datalist id="bulk-mu-machine-list"></datalist>
+                                <label class="bulk-mu-row"><span>ユニット</span><input type="text" id="bulk-mu-unit" list="bulk-mu-unit-list" autocomplete="off"></label>
+                                <datalist id="bulk-mu-unit-list"></datalist>
+                                <p class="bulk-mu-note">機械・ユニットは空欄なら変更しません。</p>
+
+                                <div class="bulk-mu-section">
+                                    <label class="bulk-mu-toggle"><input type="checkbox" id="bulk-mu-owner-on"> 担当を変更する</label>
+                                    <div class="bulk-mu-panel" id="bulk-mu-owner-panel">
+                                        <div class="bulk-mu-mode">
+                                            <label><input type="radio" name="bulk-mu-owner-mode" value="replace" checked> 置き換え</label>
+                                            <label><input type="radio" name="bulk-mu-owner-mode" value="add"> 追加</label>
+                                        </div>
+                                        <div class="bulk-mu-checks" id="bulk-mu-owner-list"></div>
+                                        <input type="text" id="bulk-mu-owner-free" class="bulk-mu-free" placeholder="自由入力（未登録の担当者。複数はカンマ区切り）">
+                                    </div>
+                                </div>
+
+                                <div class="bulk-mu-section">
+                                    <label class="bulk-mu-toggle"><input type="checkbox" id="bulk-mu-loc-on"> 場所を変更する</label>
+                                    <div class="bulk-mu-panel" id="bulk-mu-loc-panel">
+                                        <div class="bulk-mu-checks bulk-mu-loc-grid" id="bulk-mu-loc-list"></div>
+                                        <select id="bulk-mu-loc-vendor" class="bulk-mu-free"></select>
+                                        <p class="bulk-mu-note">何も選ばずに設定すると場所を空にします。</p>
+                                    </div>
+                                </div>
+                            </div>
                             <div class="dialog-btns">
                                 <button class="btn-confirm-cancel" id="bulk-mu-cancel-btn">キャンセル</button>
                                 <button class="btn-confirm-copy" id="bulk-mu-ok-btn">設定する</button>
                             </div>
                         </div>`;
                     document.body.appendChild(overlay);
+                    const bindToggle = function(cbId, panelId) {
+                        const cb = document.getElementById(cbId), panel = document.getElementById(panelId);
+                        cb.addEventListener('change', function() { panel.classList.toggle('open', cb.checked); });
+                    };
+                    bindToggle('bulk-mu-owner-on', 'bulk-mu-owner-panel');
+                    bindToggle('bulk-mu-loc-on', 'bulk-mu-loc-panel');
                 }
-                document.getElementById('bulk-mu-title').textContent = '機械・ユニットを一括設定（' + tasks.length + '行）';
+
+                document.getElementById('bulk-mu-title').textContent = '一括編集（' + tasks.length + '行）';
                 document.getElementById('bulk-mu-machine-list').innerHTML = optHtml(machineSet);
                 document.getElementById('bulk-mu-unit-list').innerHTML = optHtml(unitSet);
                 const mIn = document.getElementById('bulk-mu-machine');
                 const uIn = document.getElementById('bulk-mu-unit');
                 mIn.value = '';
                 uIn.value = '';
+
+                // 担当の選択肢：選択行の部署が1つならその部署だけ、複数なら全部署（部署見出し付き）
+                const depts = Array.from(new Set(tasks.map(function(t) { return String(t.major_item || '').trim(); })));
+                const allDepts = Object.keys(ownerMaster);
+                const showDepts = (depts.length === 1 && ownerMaster[depts[0]]) ? depts : allDepts;
+                const ownerList = document.getElementById('bulk-mu-owner-list');
+                ownerList.innerHTML = '';
+                showDepts.forEach(function(dept) {
+                    if (showDepts.length > 1) {
+                        const g = document.createElement('div');
+                        g.className = 'bulk-mu-group';
+                        g.textContent = dept;
+                        ownerList.appendChild(g);
+                    }
+                    (ownerMaster[dept] || []).forEach(function(name) {
+                        const lbl = document.createElement('label');
+                        const cb = document.createElement('input');
+                        cb.type = 'checkbox';
+                        cb.value = name;
+                        lbl.appendChild(cb);
+                        lbl.appendChild(document.createTextNode(' ' + name));
+                        ownerList.appendChild(lbl);
+                    });
+                });
+                document.getElementById('bulk-mu-owner-free').value = '';
+                document.getElementById('bulk-mu-owner-on').checked = false;
+                document.getElementById('bulk-mu-owner-panel').classList.remove('open');
+                overlay.querySelector('input[name="bulk-mu-owner-mode"][value="replace"]').checked = true;
+
+                // 場所の選択肢（E1/E3-0〜6、外注）。外注とE1/E3は同時に選べない
+                const locList = document.getElementById('bulk-mu-loc-list');
+                locList.innerHTML = '';
+                const outVal = OUTSOURCE_LOCATION + '-' + OUTSOURCE_LOCATION;
+                const locVals = [];
+                LOCATION_GROUPS.forEach(function(g) { LOCATION_NUMBERS.forEach(function(n) { locVals.push(g + '-' + n); }); });
+                locVals.push(outVal);
+                locVals.forEach(function(v) {
+                    const lbl = document.createElement('label');
+                    const cb = document.createElement('input');
+                    cb.type = 'checkbox';
+                    cb.value = v;
+                    lbl.appendChild(cb);
+                    lbl.appendChild(document.createTextNode(' ' + (v === outVal ? OUTSOURCE_LOCATION : v)));
+                    locList.appendChild(lbl);
+                });
+                bindOutsourceLocationExclusive(locList, 'input[type=checkbox]', function(cb) { return cb.value === outVal; });
+                const vSel = document.getElementById('bulk-mu-loc-vendor');
+                vSel.innerHTML = '<option value="">（外注の会社を選ぶ）</option>';
+                const outCb = locList.querySelector('input[value="' + outVal + '"]');
+                const syncVendor = function() { vSel.disabled = !outCb.checked; vSel.style.opacity = vSel.disabled ? '.45' : '1'; };
+                locList.onchange = syncVendor;
+                syncVendor();
+                if (typeof window.ensureGaichuVendors === 'function') {
+                    window.ensureGaichuVendors().then(function(vendors) {
+                        (vendors || []).forEach(function(v) {
+                            const n = v.name || v.display_name || '';
+                            if (!n) return;
+                            const o = document.createElement('option');
+                            o.value = n; o.textContent = n;
+                            vSel.appendChild(o);
+                        });
+                    }).catch(function() {});
+                }
+                document.getElementById('bulk-mu-loc-on').checked = false;
+                document.getElementById('bulk-mu-loc-panel').classList.remove('open');
+
                 overlay.classList.add('visible');
                 setTimeout(function() { mIn.focus(); }, 0);
 
                 const okBtn = document.getElementById('bulk-mu-ok-btn');
                 const cancelBtn = document.getElementById('bulk-mu-cancel-btn');
                 function onKey(e) {
-                    if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); doExecute(); }
+                    if (e.key === 'Enter' && !e.isComposing && e.target.tagName === 'INPUT' && e.target.type === 'text') { e.preventDefault(); doExecute(); }
                     else if (e.key === 'Escape') { cleanup(); }
                 }
                 function doExecute() {
-                    const machine = mIn.value.trim();
-                    const unit = uIn.value.trim();
-                    if (!machine && !unit) { mIn.focus(); return; }
+                    const opts = {
+                        machine: mIn.value.trim(),
+                        unit: uIn.value.trim(),
+                        owner: null,
+                        loc: null
+                    };
+                    if (document.getElementById('bulk-mu-owner-on').checked) {
+                        const names = Array.from(ownerList.querySelectorAll('input[type=checkbox]:checked')).map(function(cb) { return cb.value; });
+                        _splitOwners(document.getElementById('bulk-mu-owner-free').value).forEach(function(n) {
+                            if (names.indexOf(n) < 0) names.push(n);
+                        });
+                        const mode = overlay.querySelector('input[name="bulk-mu-owner-mode"]:checked').value;
+                        if (mode === 'add' && names.length === 0) {
+                            alert('追加する担当者を選んでください。');
+                            return;
+                        }
+                        opts.owner = { mode: mode, names: names };
+                    }
+                    if (document.getElementById('bulk-mu-loc-on').checked) {
+                        const pairs = Array.from(locList.querySelectorAll('input[type=checkbox]:checked')).map(function(cb) {
+                            const i = cb.value.lastIndexOf('-');
+                            return { area_group: cb.value.slice(0, i), area_number: cb.value.slice(i + 1) };
+                        });
+                        const hasOut = pairs.some(function(p) { return p.area_group === OUTSOURCE_LOCATION; });
+                        opts.loc = { pairs: pairs, vendor: hasOut ? vSel.value : '' };
+                    }
+                    if (!opts.machine && !opts.unit && !opts.owner && !opts.loc) { mIn.focus(); return; }
                     cleanup();
-                    executeBulkMachineUnit(tasks, machine, unit);
+                    executeBulkEdit(tasks, opts);
                 }
                 function cleanup() {
                     overlay.classList.remove('visible');
@@ -914,32 +1040,64 @@
                 overlay.addEventListener('keydown', onKey);
             }
 
-            async function executeBulkMachineUnit(tasks, machine, unit) {
-                const patch = Object.assign({}, (window._editorLastTouchPatch && window._editorLastTouchPatch()) || {});
-                if (machine) patch.machine = machine;
-                if (unit) patch.unit = unit;
-                const realIds = Array.from(new Set(tasks.map(function(t) { return String(t.original_id || t.id); })));
-                const realIdSet = new Set(realIds);
-                const localPatch = {};
-                if (machine) localPatch.machine = machine;
-                if (unit) localPatch.unit = unit;
+            async function executeBulkEdit(tasks, opts) {
+                const touch = (window._editorLastTouchPatch && window._editorLastTouchPatch()) || {};
 
-                // ① 画面を先に切り替える（ガント上の行・allTasks・読み込みキャッシュを書き換え）
-                tasks.forEach(function(t) { Object.assign(t, localPatch); });
+                // 行ごとの tasks 更新内容を作る（担当の「追加」は行ごとに結果が違う）
+                const rows = [];
+                const seen = new Set();
+                tasks.forEach(function(t) {
+                    const realId = String(t.original_id || t.id);
+                    if (seen.has(realId)) return;
+                    seen.add(realId);
+                    const p = {};
+                    if (opts.machine) p.machine = opts.machine;
+                    if (opts.unit) p.unit = opts.unit;
+                    if (opts.owner) {
+                        if (opts.owner.mode === 'replace') {
+                            p.owner = opts.owner.names.join(',');
+                            // 主担当は、新しい担当に残っていれば残す
+                            p.main_owner = opts.owner.names.indexOf(String(t.main_owner || '')) >= 0 ? t.main_owner : '';
+                        } else {
+                            const cur = _splitOwners(t.owner).filter(function(n) { return n !== '未定'; });
+                            opts.owner.names.forEach(function(n) { if (cur.indexOf(n) < 0) cur.push(n); });
+                            p.owner = cur.join(',');
+                        }
+                    }
+                    if (opts.loc) p.test_run_location = opts.loc.vendor || null;
+                    rows.push({ task: t, realId: realId, patch: p });
+                });
+
+                // ① 画面を先に切り替える
+                const realIdMap = new Map(rows.map(function(r) { return [r.realId, r.patch]; }));
+                const localOf = function(p) {
+                    const o = Object.assign({}, p);
+                    if ('test_run_location' in o) o.test_run_location = o.test_run_location || '';
+                    return o;
+                };
+                rows.forEach(function(r) { Object.assign(r.task, localOf(r.patch)); });
                 (window.allTasks || []).forEach(function(t) {
-                    if (realIdSet.has(String(t.original_id || t.id))) Object.assign(t, localPatch);
+                    const p = realIdMap.get(String(t.original_id || t.id));
+                    if (p) Object.assign(t, localOf(p));
                 });
                 if (Array.isArray(_cachedTasksRows)) {
                     _cachedTasksRows.forEach(function(r) {
-                        if (realIdSet.has(String(r.id))) Object.assign(r, patch);
+                        const p = realIdMap.get(String(r.id));
+                        if (p) Object.assign(r, p);
                     });
                 }
+                if (opts.loc && typeof window.applyTaskLocationsLocally === 'function') {
+                    rows.forEach(function(r) { window.applyTaskLocationsLocally(r.realId, opts.loc.pairs); });
+                }
                 clearSelection();
-                if (currentDisplayMode === 'machine') {
+                if (currentDisplayMode === 'machine' && (opts.machine || opts.unit)) {
                     // 機械ごとの表示はまとまりが変わるため、キャッシュから組み直す（DBの全件読み直しはしない）
                     fetchTasks({ useCache: true });
                 } else {
                     gantt.render();
+                }
+                if (opts.loc && currentLocationResourceMode && typeof updateResourceVisibility === 'function') {
+                    updateResourceVisibility();
                 }
 
                 // ② DB保存は後ろで行う。失敗・一部未保存ならDBから読み直して画面を戻す
@@ -948,24 +1106,47 @@
                     fetchTasks();
                 };
                 try {
-                    const { data, error } = await supabaseClient
-                        .from('tasks')
-                        .update(patch)
-                        .in('id', realIds)
-                        .select('id');
-                    if (error) {
-                        revert('機械・ユニットの一括設定に失敗しました: ' + error.message);
+                    // 同じ更新内容の行はまとめて1回で保存
+                    const groups = new Map();
+                    rows.forEach(function(r) {
+                        if (Object.keys(r.patch).length === 0) return;
+                        const key = JSON.stringify(r.patch);
+                        if (!groups.has(key)) groups.set(key, { patch: r.patch, ids: [] });
+                        groups.get(key).ids.push(r.realId);
+                    });
+                    const results = await Promise.all(Array.from(groups.values()).map(function(g) {
+                        return supabaseClient.from('tasks')
+                            .update(Object.assign({}, g.patch, touch))
+                            .in('id', g.ids)
+                            .select('id')
+                            .then(function(res) { return { res: res, expected: g.ids.length }; });
+                    }));
+                    let done = 0, expected = 0, errMsg = '';
+                    results.forEach(function(x) {
+                        expected += x.expected;
+                        if (x.res.error) { errMsg = x.res.error.message; return; }
+                        const d = x.res.data || [];
+                        done += d.length;
+                        if (typeof window.markLocalTaskMutation === 'function') {
+                            d.forEach(function(r) { window.markLocalTaskMutation(r.id); });
+                        }
+                    });
+                    if (errMsg) { revert('一括編集の保存に失敗しました: ' + errMsg); return; }
+                    if (done < expected) {
+                        revert('一部の行を保存できませんでした（' + done + '／' + expected + '行）。\nログインが切れている可能性があります。再読み込みしてもう一度お試しください。');
                         return;
                     }
-                    if (typeof window.markLocalTaskMutation === 'function') {
-                        (data || []).forEach(function(r) { window.markLocalTaskMutation(r.id); });
-                    }
-                    const done = (data || []).length;
-                    if (done < realIds.length) {
-                        revert('一部の行を保存できませんでした（' + done + '／' + realIds.length + '行）。\nログインが切れている可能性があります。再読み込みしてもう一度お試しください。');
+
+                    // 場所は task_locations に保存（機械・ユニットの保存後に行う：同じ機械の組立～出荷タスクへのコピーが新しい機械名で動くように）
+                    if (opts.loc && typeof window.persistTaskLocations === 'function') {
+                        const oks = await Promise.all(rows.map(function(r) {
+                            return window.persistTaskLocations(r.realId, opts.loc.pairs);
+                        }));
+                        const ng = oks.filter(function(ok) { return !ok; }).length;
+                        if (ng > 0) { revert('場所を保存できなかった行があります（' + ng + '行）。'); return; }
                     }
                 } catch (e) {
-                    revert('機械・ユニットの一括設定に失敗しました: ' + (e && e.message ? e.message : e));
+                    revert('一括編集の保存に失敗しました: ' + (e && e.message ? e.message : e));
                 }
             }
 
