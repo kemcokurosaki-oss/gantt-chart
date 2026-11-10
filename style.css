@@ -870,11 +870,13 @@
             pointer-events: none;
         }
 
-        .milestone-circle::before  { content: "●"; color: #d32f2f; text-shadow: 1px 1px 2px rgba(0,0,0,0.1); }
-        .milestone-diamond::before { content: "◆"; color: #1976D2; text-shadow: 1px 1px 2px rgba(0,0,0,0.1); }
-        .milestone-star::before    { content: "★"; color: #2E7D32; text-shadow: 1px 1px 2px rgba(0,0,0,0.2); }
-        .milestone-square::before  { content: "▲"; color: #FBAD4F; text-shadow: 1px 1px 2px rgba(0,0,0,0.1); }
-        .milestone-delivery::before { content: "■"; color: #00897B; font-size: 16px; text-shadow: 1px 1px 2px rgba(0,0,0,0.1); }
+        .milestone-circle::before  { content: "●"; color: #263238; text-shadow: 1px 1px 2px rgba(0,0,0,0.1); }
+        .milestone-diamond::before { content: "◆"; color: #263238; text-shadow: 1px 1px 2px rgba(0,0,0,0.1); }
+        .milestone-star::before    { content: "★"; color: #263238; text-shadow: 1px 1px 2px rgba(0,0,0,0.2); }
+        .milestone-square::before  { content: "▲"; color: #263238; text-shadow: 1px 1px 2px rgba(0,0,0,0.1); }
+        .milestone-delivery::before { content: "■"; color: #263238; font-size: 16px; text-shadow: 1px 1px 2px rgba(0,0,0,0.1); }
+        /* 購入品納期：製作品納期の ■ の白抜き */
+        .milestone-delivery.milestone-delivery--buy::before { color: #fff; -webkit-text-stroke: 1.5px #263238; text-shadow: none; }
         
         /* バー内の文字色（濃いグレーに統一） */
         .gantt_task_content {
@@ -911,30 +913,33 @@
         /* 神戸送り開始日バー非表示 */
         .gantt_task_line.hidden_bar { display: none !important; }
 
+        /* 部品送り開始日：黒いトラック（左向き）。ガント・リソース・凡例で共通 */
+        .truck-icon {
+            display: inline-block;
+            width: 18px;
+            height: 18px;
+            background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23263238' d='M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4zM6 18.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm13.5-9l1.96 2.5H17V9.5h2.5zm-1.5 9c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z'/%3E%3C/svg%3E") no-repeat center / contain;
+            transform: scaleX(-1);
+            vertical-align: middle;
+        }
         /* 神戸送り開始日マーク（ドラッグ可能） */
         .parts-delivery-mark {
             position: absolute;
             width: 20px;
             height: 20px;
-            background: rgba(109, 76, 65, 0.85);
+            background: none;
             border: none;
-            border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 12px;
-            color: white;
             cursor: grab;
             z-index: 50;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
             user-select: none;
             pointer-events: auto;
             transition: transform 0.15s, background 0.15s;
             box-sizing: border-box;
         }
         .parts-delivery-mark:hover {
-            background: rgba(78, 52, 46, 0.95);
-            border-color: rgba(78, 52, 46, 0.95);
             transform: scale(1.2);
         }
         .parts-delivery-mark--dragging {
@@ -950,14 +955,14 @@
             z-index: 6;
             font-size: 18px;
             line-height: 1;
-            color: #2E7D32;
+            color: #263238;
             text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
             pointer-events: none;
             transform: translate(-50%, -50%);
             font-weight: bold;
         }
-        /* 梱包出荷：工場出荷の ★ の色違い（紫） */
-        .factory-shipment-star-mark.factory-shipment-star-mark--packing { color: #7B1FA2; }
+        /* 梱包出荷：工場出荷の ★ の白抜き */
+        .factory-shipment-star-mark.factory-shipment-star-mark--packing { color: #fff; -webkit-text-stroke: 1.5px #263238; text-shadow: none; }
 
         /* 期間リサイズ中：対象行の直上付近に固定表示（変更後の終了日＝グリッドの包含終了日） */
         .gantt-resize-hint {
@@ -1003,21 +1008,14 @@
             display: none !important;
         }
         .resource-cell-bar.parts-delivery-resource::before {
-            content: "🚚";
+            content: "";
             position: absolute;
             left: 50%;
             top: 50%;
-            transform: translate(-50%, -50%);
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            background: rgba(109, 76, 65, 0.85);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
-            color: #fff;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            transform: translate(-50%, -50%) scaleX(-1);
+            width: 18px;
+            height: 18px;
+            background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23263238' d='M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4zM6 18.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm13.5-9l1.96 2.5H17V9.5h2.5zm-1.5 9c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z'/%3E%3C/svg%3E") no-repeat center / contain;
             pointer-events: none;
         }
 
@@ -1764,13 +1762,13 @@
         /* マイルストーン：上段と同じ記号のみ表示 */
         .resource-bar.milestone-circle { background: none !important; border: none !important; }
         .resource-bar.milestone-circle .resource-bar-text { display: none; }
-        .resource-bar.milestone-circle::before { content: "●"; color: #d32f2f; font-size: 18px; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); text-shadow: 1px 1px 2px rgba(0,0,0,0.1); }
+        .resource-bar.milestone-circle::before { content: "●"; color: #263238; font-size: 18px; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); text-shadow: 1px 1px 2px rgba(0,0,0,0.1); }
         .resource-bar.milestone-diamond { background: none !important; border: none !important; }
         .resource-bar.milestone-diamond .resource-bar-text { display: none; }
-        .resource-bar.milestone-diamond::before { content: "◆"; color: #1976D2; font-size: 20px; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); text-shadow: 1px 1px 2px rgba(0,0,0,0.1); }
+        .resource-bar.milestone-diamond::before { content: "◆"; color: #263238; font-size: 20px; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); text-shadow: 1px 1px 2px rgba(0,0,0,0.1); }
         .resource-bar.milestone-star { background: none !important; border: none !important; }
         .resource-bar.milestone-star .resource-bar-text { display: none; }
-        .resource-bar.milestone-star::before { content: "★"; color: #2E7D32; font-size: 22px; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); text-shadow: 1px 1px 2px rgba(0,0,0,0.2); }
+        .resource-bar.milestone-star::before { content: "★"; color: #263238; font-size: 22px; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); text-shadow: 1px 1px 2px rgba(0,0,0,0.2); }
         /* 工場出荷：上段と同様に日数ぶん ★（子要素で配置） */
         .resource-cell-bar.milestone-factory-ship-resource,
         .resource-bar.milestone-factory-ship-resource { background: none !important; border: none !important; overflow: visible !important; }
@@ -1787,20 +1785,21 @@
             position: absolute;
             top: 50%;
             transform: translate(-50%, -50%);
-            color: #2E7D32;
+            color: #263238;
             font-size: 18px;
             line-height: 1;
             text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
             font-weight: bold;
         }
         .resource-cell-bar.milestone-factory-ship-resource .resource-factory-ship-star--packing,
-        .resource-bar.milestone-factory-ship-resource .resource-factory-ship-star--packing { color: #7B1FA2; }
+        .resource-bar.milestone-factory-ship-resource .resource-factory-ship-star--packing { color: #fff; -webkit-text-stroke: 1.5px #263238; text-shadow: none; }
         .resource-bar.milestone-square { background: none !important; border: none !important; }
         .resource-bar.milestone-square .resource-bar-text { display: none; }
-        .resource-bar.milestone-square::before { content: "▲"; color: #FBAD4F; font-size: 20px; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); text-shadow: 1px 1px 2px rgba(0,0,0,0.1); }
+        .resource-bar.milestone-square::before { content: "▲"; color: #263238; font-size: 20px; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); text-shadow: 1px 1px 2px rgba(0,0,0,0.1); }
         .resource-bar.milestone-delivery { background: none !important; border: none !important; }
         .resource-bar.milestone-delivery .resource-bar-text { display: none; }
-        .resource-bar.milestone-delivery::before { content: "■"; color: #00897B; font-size: 16px; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); text-shadow: 1px 1px 2px rgba(0,0,0,0.1); }
+        .resource-bar.milestone-delivery.milestone-delivery--buy::before { color: #fff; -webkit-text-stroke: 1.5px #263238; text-shadow: none; }
+        .resource-bar.milestone-delivery::before { content: "■"; color: #263238; font-size: 16px; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); text-shadow: 1px 1px 2px rgba(0,0,0,0.1); }
         .resource-scale-row { display: flex; align-items: stretch; margin-bottom: 0; font-size: 10px; }
         .resource-scale-row:first-of-type .resource-scale-inner { border-bottom: 1px solid #cfd8dc; }
         .resource-scale-row:last-of-type .resource-scale-inner { height: 20px; }
@@ -2110,12 +2109,13 @@
             display: inline-block;
             font-size: 17px;
         }
-        .help-tip .help-tip-mark-shape--circle { color: #d32f2f; }
-        .help-tip .help-tip-mark-shape--tri { color: #FBAD4F; }
-        .help-tip .help-tip-mark-shape--dia { color: #1976D2; }
-        .help-tip .help-tip-mark-shape--delivery { color: #00897B; }
-        .help-tip .help-tip-mark-shape--star { color: #2E7D32; }
-        .help-tip .help-tip-mark-shape--star-packing { color: #7B1FA2; }
+        .help-tip .help-tip-mark-shape--circle,
+        .help-tip .help-tip-mark-shape--tri,
+        .help-tip .help-tip-mark-shape--dia,
+        .help-tip .help-tip-mark-shape--delivery,
+        .help-tip .help-tip-mark-shape--star { color: #263238; }
+        .help-tip .help-tip-mark-shape--delivery-buy,
+        .help-tip .help-tip-mark-shape--star-packing { color: #fff; -webkit-text-stroke: 1.5px #263238; }
         .help-tip.tip-visible { opacity: 1; visibility: visible; }
         .help-tip-title { font-weight: bold; font-size: 12px; color: #1565c0; margin-bottom: 3px; }
         .help-tip::before { content: ''; position: absolute; top: -8px; left: 12px; width: 0; height: 0; border-left: 7px solid transparent; border-right: 7px solid transparent; border-bottom: 8px solid #1565c0; }

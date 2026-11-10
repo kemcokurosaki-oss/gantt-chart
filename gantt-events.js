@@ -1528,7 +1528,8 @@
             if (task.text === "出荷確認会議") return css + "milestone-diamond";
             if (task.text === "工場出荷" || task.text === "梱包出荷") return css + "milestone-factory-ship";
             if (task.text === "客先立会") return css + "milestone-square";
-            if (task.text === "製作品納期" || task.text === "購入品納期") return css + "milestone-delivery";
+            if (task.text === "製作品納期") return css + "milestone-delivery";
+            if (task.text === "購入品納期") return css + "milestone-delivery milestone-delivery--buy";
 
             // 大項目フィルタ（部署別フィルタ）と部署別リソースの両方が有効な時のみ担当者ごとの色を適用
             if (currentMajorFilters.size > 0 && currentResourceDeptFilter && currentMajorFilters.has(currentResourceDeptFilter)) {
@@ -1846,7 +1847,7 @@
 
                 const el = document.createElement("div");
                 el.className = "parts-delivery-mark";
-                el.innerHTML = "🚚";
+                el.innerHTML = '<span class="truck-icon"></span>';
                 el.setAttribute("data-task-id", String(task.id));
                 el.style.left = markLeft + "px";
                 el.style.top  = markTop  + "px";
