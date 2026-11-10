@@ -499,6 +499,7 @@
                         factoryShipStarsHtml = buildResourceFactoryShipStarsHtml(t.duration, t.text === "梱包出荷");
                     }
                     else if (t.text === "客先立会") milestoneClass = "milestone-square";
+                    else if (t.text === "製作品納期" || t.text === "購入品納期") milestoneClass = "milestone-delivery";
                     const partsDeliveryClass = isPartsDeliveryTask ? "parts-delivery-resource" : "";
 
                     // スタック位置の計算
@@ -609,7 +610,7 @@
             });
         }
 
-        const RESOURCE_BAR_MILESTONE_TEXTS = ["外観検査", "簡易検査", "出荷品確認検査", "客先立会", "出荷確認会議", "工場出荷", "梱包出荷"];
+        const RESOURCE_BAR_MILESTONE_TEXTS = ["外観検査", "簡易検査", "出荷品確認検査", "客先立会", "出荷確認会議", "工場出荷", "梱包出荷", "製作品納期", "購入品納期"];
 
         function resourceBarIsMilestoneTask(task) {
             return !!(task && RESOURCE_BAR_MILESTONE_TEXTS.indexOf(task.text) >= 0);
@@ -1826,6 +1827,7 @@
             if (task.text === "出荷確認会議") return "milestone-diamond";
             if (task.text === "工場出荷" || task.text === "梱包出荷") return "milestone-factory-ship-resource";
             if (task.text === "客先立会") return "milestone-square";
+            if (task.text === "製作品納期" || task.text === "購入品納期") return "milestone-delivery";
             switch (task.major_item) {
                 case '設計': return "task-blue";
                 case '製管': case '品証': return "task-green";

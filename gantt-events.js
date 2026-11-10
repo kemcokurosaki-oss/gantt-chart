@@ -838,7 +838,7 @@
             // 見出し行（仮想タスク）は期間リサイズ不可
             if (task.$virtual && mode === gantt.config.drag_mode.resize) return false;
             // 工場出荷・梱包出荷は複数日出荷に対応するため期間リサイズを許可する
-            const milestones = ["外観検査", "簡易検査", "出荷品確認検査", "客先立会", "出荷確認会議"];
+            const milestones = ["外観検査", "簡易検査", "出荷品確認検査", "客先立会", "出荷確認会議", "製作品納期", "購入品納期"];
             if (milestones.includes(task.text) && mode === gantt.config.drag_mode.resize) {
                 return false; // リサイズ操作をキャンセル
             }
@@ -1528,6 +1528,7 @@
             if (task.text === "出荷確認会議") return css + "milestone-diamond";
             if (task.text === "工場出荷" || task.text === "梱包出荷") return css + "milestone-factory-ship";
             if (task.text === "客先立会") return css + "milestone-square";
+            if (task.text === "製作品納期" || task.text === "購入品納期") return css + "milestone-delivery";
 
             // 大項目フィルタ（部署別フィルタ）と部署別リソースの両方が有効な時のみ担当者ごとの色を適用
             if (currentMajorFilters.size > 0 && currentResourceDeptFilter && currentMajorFilters.has(currentResourceDeptFilter)) {
