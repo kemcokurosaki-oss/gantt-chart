@@ -630,6 +630,9 @@
                     <div class="ctx-menu-item" id="ctx-copy-btn">
                         <span>📋</span> <span id="ctx-copy-label">行をコピー（下に追加）</span>
                     </div>
+                    <div class="ctx-menu-item" id="ctx-mu-btn">
+                        <span>🏷️</span> <span id="ctx-mu-label">機械・ユニットを一括設定</span>
+                    </div>
                     <hr class="ctx-menu-separator">
                     <div class="ctx-menu-item ctx-delete" id="ctx-delete-btn">
                         <span>🗑️</span> <span id="ctx-delete-label">行を削除</span>
@@ -637,6 +640,7 @@
                 document.body.appendChild(m);
                 document.getElementById('ctx-copy-btn').addEventListener('click', handleCopy);
                 document.getElementById('ctx-delete-btn').addEventListener('click', handleDelete);
+                document.getElementById('ctx-mu-btn').addEventListener('click', handleBulkMachineUnit);
                 return m;
             }
 
@@ -665,6 +669,7 @@
                 const count = _selectedIds.size;
                 const suffix = count > 1 ? '（' + count + '行）' : '';
                 document.getElementById('ctx-copy-label').textContent = '行をコピー' + suffix;
+                document.getElementById('ctx-mu-label').textContent = '機械・ユニットを一括設定' + suffix;
                 document.getElementById('ctx-delete-label').textContent = _deleteMenuLabel() + suffix;
 
                 m.classList.add('visible');
@@ -829,6 +834,115 @@
 
                 clearSelection();
                 await fetchTasks();
+            }
+
+            // 機械・ユニットの一括設定（選択行すべてに同じ値を入れる。空欄の項目は変更しない）
+            function handleBulkMachineUnit() {
+                const targetIds = _selectedIds.size > 0
+                    ? Array.from(_selectedIds)
+                    : (_ctxTaskId ? [String(_ctxTaskId)] : []);
+                hideMenu();
+                if (!_isEditor || targetIds.length === 0) return;
+                const tasks = targetIds.map(function(id) { return gantt.getTask(id); })
+                    .filter(function(t) { return t && !t.$virtual; });
+                if (tasks.length === 0) return;
+
+                // 入力候補：選択行と同じ工番で使われている機械名・ユニット名
+                const pns = new Set(tasks.map(function(t) { return String(t.project_number || '').trim(); }));
+                const machineSet = new Set(), unitSet = new Set();
+                (window.allTasks || []).forEach(function(t) {
+                    if (!pns.has(String(t.project_number || '').trim())) return;
+                    const m = String(t.machine || '').trim(), u = String(t.unit || '').trim();
+                    if (m) machineSet.add(m);
+                    if (u) unitSet.add(u);
+                });
+                const sortJa = function(a, b) { return a.localeCompare(b, 'ja', { numeric: true }); };
+                const optHtml = function(set) {
+                    return Array.from(set).sort(sortJa).map(function(v) { return '<option value="' + escapeHtml(v) + '"></option>'; }).join('');
+                };
+
+                let overlay = document.getElementById('bulk-mu-overlay');
+                if (!overlay) {
+                    overlay = document.createElement('div');
+                    overlay.id = 'bulk-mu-overlay';
+                    overlay.innerHTML = `
+                        <div id="bulk-mu-dialog">
+                            <h3 id="bulk-mu-title"></h3>
+                            <label class="bulk-mu-row"><span>機械</span><input type="text" id="bulk-mu-machine" list="bulk-mu-machine-list" autocomplete="off"></label>
+                            <datalist id="bulk-mu-machine-list"></datalist>
+                            <label class="bulk-mu-row"><span>ユニット</span><input type="text" id="bulk-mu-unit" list="bulk-mu-unit-list" autocomplete="off"></label>
+                            <datalist id="bulk-mu-unit-list"></datalist>
+                            <p class="bulk-mu-note">空欄の項目は変更しません。</p>
+                            <div class="dialog-btns">
+                                <button class="btn-confirm-cancel" id="bulk-mu-cancel-btn">キャンセル</button>
+                                <button class="btn-confirm-copy" id="bulk-mu-ok-btn">設定する</button>
+                            </div>
+                        </div>`;
+                    document.body.appendChild(overlay);
+                }
+                document.getElementById('bulk-mu-title').textContent = '機械・ユニットを一括設定（' + tasks.length + '行）';
+                document.getElementById('bulk-mu-machine-list').innerHTML = optHtml(machineSet);
+                document.getElementById('bulk-mu-unit-list').innerHTML = optHtml(unitSet);
+                const mIn = document.getElementById('bulk-mu-machine');
+                const uIn = document.getElementById('bulk-mu-unit');
+                mIn.value = '';
+                uIn.value = '';
+                overlay.classList.add('visible');
+                setTimeout(function() { mIn.focus(); }, 0);
+
+                const okBtn = document.getElementById('bulk-mu-ok-btn');
+                const cancelBtn = document.getElementById('bulk-mu-cancel-btn');
+                function onKey(e) {
+                    if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); doExecute(); }
+                    else if (e.key === 'Escape') { cleanup(); }
+                }
+                function doExecute() {
+                    const machine = mIn.value.trim();
+                    const unit = uIn.value.trim();
+                    if (!machine && !unit) { mIn.focus(); return; }
+                    cleanup();
+                    executeBulkMachineUnit(tasks, machine, unit);
+                }
+                function cleanup() {
+                    overlay.classList.remove('visible');
+                    okBtn.removeEventListener('click', doExecute);
+                    cancelBtn.removeEventListener('click', cleanup);
+                    overlay.removeEventListener('keydown', onKey);
+                }
+                okBtn.addEventListener('click', doExecute);
+                cancelBtn.addEventListener('click', cleanup);
+                overlay.addEventListener('keydown', onKey);
+            }
+
+            async function executeBulkMachineUnit(tasks, machine, unit) {
+                const patch = Object.assign({}, (window._editorLastTouchPatch && window._editorLastTouchPatch()) || {});
+                if (machine) patch.machine = machine;
+                if (unit) patch.unit = unit;
+                const realIds = Array.from(new Set(tasks.map(function(t) { return String(t.original_id || t.id); })));
+
+                if (typeof showLoading === 'function') showLoading();
+                try {
+                    const { data, error } = await supabaseClient
+                        .from('tasks')
+                        .update(patch)
+                        .in('id', realIds)
+                        .select('id');
+                    if (error) {
+                        alert('機械・ユニットの一括設定に失敗しました: ' + error.message);
+                        return;
+                    }
+                    const done = (data || []).length;
+                    if (typeof window.markLocalTaskMutation === 'function') {
+                        (data || []).forEach(function(r) { window.markLocalTaskMutation(r.id); });
+                    }
+                    if (done < realIds.length) {
+                        alert('一部の行を保存できませんでした（' + done + '／' + realIds.length + '行）。\nログインが切れている可能性があります。再読み込みしてもう一度お試しください。');
+                    }
+                    clearSelection();
+                    await fetchTasks();
+                } finally {
+                    if (typeof hideLoading === 'function') hideLoading();
+                }
             }
 
             // 削除処理（確認ダイアログあり）

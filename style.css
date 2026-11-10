@@ -1197,6 +1197,50 @@
         }
         .btn-confirm-copy:hover { background: #1f6fa0; }
 
+        /* 機械・ユニット一括設定モーダル */
+        #bulk-mu-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.35);
+            z-index: 200001;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+        #bulk-mu-overlay.visible { display: flex; }
+        #bulk-mu-dialog {
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 6px 24px rgba(0,0,0,0.25);
+            padding: 20px 24px;
+            min-width: 300px;
+            max-width: 380px;
+        }
+        #bulk-mu-dialog h3 {
+            margin: 0 0 14px;
+            font-size: 14px;
+            color: #2c3e50;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 8px;
+        }
+        .bulk-mu-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+            font-size: 13px;
+        }
+        .bulk-mu-row span { width: 56px; flex-shrink: 0; color: #2c3e50; }
+        .bulk-mu-row input {
+            flex: 1;
+            height: 28px;
+            padding: 2px 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+        .bulk-mu-note { margin: 2px 0 14px; font-size: 12px; color: #7f8c8d; }
+
         /* 削除確認モーダル */
         #delete-confirm-overlay {
             position: fixed;
