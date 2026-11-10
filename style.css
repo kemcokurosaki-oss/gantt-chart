@@ -1248,6 +1248,7 @@
         .bulk-mu-checks { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px 10px; max-height: 200px; overflow-y: auto; border: 1px solid #e3e6ea; border-radius: 4px; padding: 6px 8px; }
         .bulk-mu-checks label { display: flex; align-items: center; gap: 4px; font-size: 13px; cursor: pointer; white-space: nowrap; }
         .bulk-mu-loc-grid { grid-template-columns: repeat(4, 1fr); max-height: none; }
+        .bulk-mu-break { grid-column: 1 / -1; height: 0; }
         .bulk-mu-group { grid-column: 1 / -1; font-size: 11px; color: #7f8c8d; font-weight: bold; margin-top: 4px; }
         .bulk-mu-free { width: 100%; box-sizing: border-box; height: 28px; margin-top: 6px; padding: 2px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; }
 

@@ -944,9 +944,17 @@
                 const outVal = OUTSOURCE_LOCATION + '-' + OUTSOURCE_LOCATION;
                 const locList = document.getElementById('bulk-mu-loc-list');
                 locList.innerHTML = '';
-                LOCATION_GROUPS.forEach(function(g) {
+                // E1・E3・外注はそれぞれ新しい行から始める
+                const lineBreak = function() {
+                    const br = document.createElement('div');
+                    br.className = 'bulk-mu-break';
+                    locList.appendChild(br);
+                };
+                LOCATION_GROUPS.forEach(function(g, gi) {
+                    if (gi > 0) lineBreak();
                     LOCATION_NUMBERS.forEach(function(n) { locList.appendChild(makeCheck(g + '-' + n, g + '-' + n)); });
                 });
+                lineBreak();
                 locList.appendChild(makeCheck(outVal, OUTSOURCE_LOCATION));
                 bindOutsourceLocationExclusive(locList, 'input[type=checkbox]', function(cb) { return cb.value === outVal; });
                 const outCb = locList.querySelector('input[value="' + outVal + '"]');
