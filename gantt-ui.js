@@ -837,50 +837,10 @@
             }
 
             // ===== 一括編集（機械・ユニット・担当・場所） =====
-            // 機械・ユニット：入力した項目だけ変更（空欄は変更しない）
-            // 担当・場所：今の値にチェックが入った状態で開く。チェックが入っているものが保存される
-            //   選んだ行で値が違う項目は「■（一部の行だけ）」で表示し、そのままなら行ごとに今の値を残す
+            // 機械・ユニット：入力した項目だけ選択行すべてに設定（空欄は変更しない）
+            // 担当・場所：チェックを入れたものを選択行すべてに設定（何もチェックしなければ変更しない）
             function _splitOwners(s) {
-                return String(s || '').split(/[,，]/).map(function(x) { return x.trim(); }).filter(Boolean)
-                    .filter(function(x) { return x !== '未定'; });
-            }
-            function _locValsOfTask(t) {
-                const out = [];
-                const g = String(t.area_group || '').trim();
-                String(t.area_number || '').split(',').map(function(s) { return s.trim(); }).filter(Boolean).forEach(function(p) {
-                    if (p.indexOf('-') >= 0) out.push(p);
-                    else if (g) out.push(g + '-' + p);
-                });
-                return out;
-            }
-
-            // 3状態チェックボックス（on / off / mixed）。mixed は最初に値がばらばらだった項目だけ
-            function _setTri(cb, state) {
-                cb.dataset.state = state;
-                cb.checked = state === 'on';
-                cb.indeterminate = state === 'mixed';
-            }
-            function _makeTriCheckbox(value, state, onChange) {
-                const cb = document.createElement('input');
-                cb.type = 'checkbox';
-                cb.value = value;
-                cb.dataset.mixedAllowed = state === 'mixed' ? '1' : '';
-                _setTri(cb, state);
-                cb.addEventListener('click', function() {
-                    const cur = cb.dataset.state;
-                    let next;
-                    if (cb.dataset.mixedAllowed) next = cur === 'mixed' ? 'on' : (cur === 'on' ? 'off' : 'mixed');
-                    else next = cur === 'on' ? 'off' : 'on';
-                    _setTri(cb, next);
-                    if (onChange) onChange(cb);
-                });
-                return cb;
-            }
-            function _stateFor(values, counts, total) {
-                return values.map(function(v) {
-                    const c = counts.get(v) || 0;
-                    return c === 0 ? 'off' : (c === total ? 'on' : 'mixed');
-                });
+                return String(s || '').split(/[,，]/).map(function(x) { return x.trim(); }).filter(Boolean);
             }
 
             function handleBulkEdit() {
@@ -892,7 +852,6 @@
                 const tasks = targetIds.map(function(id) { return gantt.getTask(id); })
                     .filter(function(t) { return t && !t.$virtual; });
                 if (tasks.length === 0) return;
-                const total = tasks.length;
 
                 // 入力候補：選択行と同じ工番で使われている機械名・ユニット名
                 const pns = new Set(tasks.map(function(t) { return String(t.project_number || '').trim(); }));
@@ -920,12 +879,11 @@
                                 <datalist id="bulk-mu-machine-list"></datalist>
                                 <label class="bulk-mu-row"><span>ユニット</span><input type="text" id="bulk-mu-unit" list="bulk-mu-unit-list" autocomplete="off"></label>
                                 <datalist id="bulk-mu-unit-list"></datalist>
-                                <p class="bulk-mu-note">機械・ユニットは空欄なら変更しません。</p>
 
                                 <div class="bulk-mu-section">
                                     <div class="bulk-mu-heading">担当</div>
                                     <div class="bulk-mu-checks" id="bulk-mu-owner-list"></div>
-                                    <input type="text" id="bulk-mu-owner-free" class="bulk-mu-free" placeholder="自由入力（未登録の担当者を追加。複数はカンマ区切り）">
+                                    <input type="text" id="bulk-mu-owner-free" class="bulk-mu-free" placeholder="自由入力（未登録の担当者。複数はカンマ区切り）">
                                 </div>
 
                                 <div class="bulk-mu-section">
@@ -933,7 +891,7 @@
                                     <div class="bulk-mu-checks bulk-mu-loc-grid" id="bulk-mu-loc-list"></div>
                                     <select id="bulk-mu-loc-vendor" class="bulk-mu-free"></select>
                                 </div>
-                                <p class="bulk-mu-note" id="bulk-mu-mixed-note">■ は一部の行だけに入っている項目です。そのままなら行ごとに今の値を残します。</p>
+                                <p class="bulk-mu-note">入力・チェックした項目だけを選んだ行すべてに設定します。空欄・チェックなしの項目は変更しません。</p>
                             </div>
                             <div class="dialog-btns">
                                 <button class="btn-confirm-cancel" id="bulk-mu-cancel-btn">キャンセル</button>
@@ -943,115 +901,71 @@
                     document.body.appendChild(overlay);
                 }
 
-                document.getElementById('bulk-mu-title').textContent = '一括編集（' + total + '行）';
+                document.getElementById('bulk-mu-title').textContent = '一括編集（' + tasks.length + '行）';
                 document.getElementById('bulk-mu-machine-list').innerHTML = optHtml(machineSet);
                 document.getElementById('bulk-mu-unit-list').innerHTML = optHtml(unitSet);
                 const mIn = document.getElementById('bulk-mu-machine');
                 const uIn = document.getElementById('bulk-mu-unit');
                 mIn.value = '';
                 uIn.value = '';
-                let anyMixed = false;
 
-                // ---- 担当 ----
-                const ownerCounts = new Map();
-                tasks.forEach(function(t) {
-                    new Set(_splitOwners(t.owner)).forEach(function(n) { ownerCounts.set(n, (ownerCounts.get(n) || 0) + 1); });
-                });
-                // 選択肢：選択行の部署が1つならその部署だけ、複数なら全部署。今の担当で名簿にない人は「その他」に出す
+                const makeCheck = function(value, label) {
+                    const lbl = document.createElement('label');
+                    const cb = document.createElement('input');
+                    cb.type = 'checkbox';
+                    cb.value = value;
+                    lbl.appendChild(cb);
+                    lbl.appendChild(document.createTextNode(' ' + label));
+                    return lbl;
+                };
+
+                // ---- 担当：選択行の部署が1つならその部署だけ、複数なら全部署（部署見出し付き） ----
                 const depts = Array.from(new Set(tasks.map(function(t) { return String(t.major_item || '').trim(); })));
                 const showDepts = (depts.length === 1 && ownerMaster[depts[0]]) ? depts : Object.keys(ownerMaster);
-                const listed = new Set();
-                showDepts.forEach(function(d) { (ownerMaster[d] || []).forEach(function(n) { listed.add(n); }); });
-                const others = Array.from(ownerCounts.keys()).filter(function(n) { return !listed.has(n); });
-                const ownerGroups = showDepts.map(function(d) { return { label: showDepts.length > 1 ? d : '', names: ownerMaster[d] || [] }; });
-                if (others.length > 0) ownerGroups.push({ label: 'その他', names: others });
-
                 const ownerList = document.getElementById('bulk-mu-owner-list');
                 ownerList.innerHTML = '';
                 const addedOwner = new Set();
-                ownerGroups.forEach(function(grp) {
-                    if (grp.label) {
+                showDepts.forEach(function(dept) {
+                    if (showDepts.length > 1) {
                         const g = document.createElement('div');
                         g.className = 'bulk-mu-group';
-                        g.textContent = grp.label;
+                        g.textContent = dept;
                         ownerList.appendChild(g);
                     }
-                    grp.names.forEach(function(name) {
+                    (ownerMaster[dept] || []).forEach(function(name) {
                         if (addedOwner.has(name)) return;
                         addedOwner.add(name);
-                        const state = _stateFor([name], ownerCounts, total)[0];
-                        if (state === 'mixed') anyMixed = true;
-                        const lbl = document.createElement('label');
-                        lbl.appendChild(_makeTriCheckbox(name, state));
-                        lbl.appendChild(document.createTextNode(' ' + name));
-                        ownerList.appendChild(lbl);
+                        ownerList.appendChild(makeCheck(name, name));
                     });
                 });
                 document.getElementById('bulk-mu-owner-free').value = '';
 
-                // ---- 場所 ----（外注とE1/E3は同時に選べない）
-                const locCounts = new Map();
-                tasks.forEach(function(t) {
-                    new Set(_locValsOfTask(t)).forEach(function(v) { locCounts.set(v, (locCounts.get(v) || 0) + 1); });
-                });
+                // ---- 場所（外注とE1/E3は同時に選べない） ----
                 const outVal = OUTSOURCE_LOCATION + '-' + OUTSOURCE_LOCATION;
-                const locVals = [];
-                LOCATION_GROUPS.forEach(function(g) { LOCATION_NUMBERS.forEach(function(n) { locVals.push(g + '-' + n); }); });
-                locVals.push(outVal);
                 const locList = document.getElementById('bulk-mu-loc-list');
                 locList.innerHTML = '';
-                const vSel = document.getElementById('bulk-mu-loc-vendor');
-                const syncVendor = function() {
-                    const st = outCb.dataset.state;
-                    vSel.disabled = st === 'off';
-                    vSel.style.opacity = vSel.disabled ? '.45' : '1';
-                };
-                const onLocChange = function(cb) {
-                    if (cb.dataset.state === 'on') {
-                        const isOut = cb.value === outVal;
-                        locList.querySelectorAll('input[type=checkbox]').forEach(function(o) {
-                            if (o !== cb && (o.value === outVal) !== isOut) _setTri(o, 'off');
-                        });
-                    }
-                    syncVendor();
-                };
-                let outCb = null;
-                locVals.forEach(function(v) {
-                    const state = _stateFor([v], locCounts, total)[0];
-                    if (state === 'mixed') anyMixed = true;
-                    const cb = _makeTriCheckbox(v, state, onLocChange);
-                    if (v === outVal) outCb = cb;
-                    const lbl = document.createElement('label');
-                    lbl.appendChild(cb);
-                    lbl.appendChild(document.createTextNode(' ' + (v === outVal ? OUTSOURCE_LOCATION : v)));
-                    locList.appendChild(lbl);
+                LOCATION_GROUPS.forEach(function(g) {
+                    LOCATION_NUMBERS.forEach(function(n) { locList.appendChild(makeCheck(g + '-' + n, g + '-' + n)); });
                 });
-                // 外注の会社：全行同じならその会社、違えば「行ごとに今のまま」
-                const vendorVals = Array.from(new Set(tasks.filter(function(t) { return _locValsOfTask(t).indexOf(outVal) >= 0; })
-                    .map(function(t) { return String(t.test_run_location || ''); })));
-                const vendorMixed = vendorVals.length > 1;
-                const vendorCur = vendorVals.length === 1 ? vendorVals[0] : '';
-                vSel.innerHTML = '';
-                const addOpt = function(v, label) {
-                    const o = document.createElement('option');
-                    o.value = v; o.textContent = label;
-                    vSel.appendChild(o);
-                };
-                if (vendorMixed) addOpt('__keep__', '（外注の会社：行ごとに今のまま）');
-                addOpt('', '（外注の会社を選ぶ）');
-                if (vendorCur) addOpt(vendorCur, vendorCur);
-                vSel.value = vendorMixed ? '__keep__' : vendorCur;
+                locList.appendChild(makeCheck(outVal, OUTSOURCE_LOCATION));
+                bindOutsourceLocationExclusive(locList, 'input[type=checkbox]', function(cb) { return cb.value === outVal; });
+                const outCb = locList.querySelector('input[value="' + outVal + '"]');
+                const vSel = document.getElementById('bulk-mu-loc-vendor');
+                vSel.innerHTML = '<option value="">（外注の会社を選ぶ）</option>';
+                const syncVendor = function() { vSel.disabled = !outCb.checked; vSel.style.opacity = vSel.disabled ? '.45' : '1'; };
+                locList.onchange = syncVendor;
                 syncVendor();
                 if (typeof window.ensureGaichuVendors === 'function') {
                     window.ensureGaichuVendors().then(function(vendors) {
                         (vendors || []).forEach(function(v) {
                             const n = v.name || v.display_name || '';
-                            if (!n || n === vendorCur) return;
-                            addOpt(n, n);
+                            if (!n) return;
+                            const o = document.createElement('option');
+                            o.value = n; o.textContent = n;
+                            vSel.appendChild(o);
                         });
                     }).catch(function() {});
                 }
-                document.getElementById('bulk-mu-mixed-note').style.display = anyMixed ? '' : 'none';
 
                 overlay.classList.add('visible');
                 setTimeout(function() { mIn.focus(); }, 0);
@@ -1062,22 +976,22 @@
                     if (e.key === 'Enter' && !e.isComposing && e.target.tagName === 'INPUT' && e.target.type === 'text') { e.preventDefault(); doExecute(); }
                     else if (e.key === 'Escape') { cleanup(); }
                 }
-                function readStates(container) {
-                    const m = new Map();
-                    container.querySelectorAll('input[type=checkbox]').forEach(function(cb) { m.set(cb.value, cb.dataset.state); });
-                    return m;
-                }
                 function doExecute() {
-                    const ownerStates = readStates(ownerList);
-                    _splitOwners(document.getElementById('bulk-mu-owner-free').value).forEach(function(n) { ownerStates.set(n, 'on'); });
+                    const owners = Array.from(ownerList.querySelectorAll('input[type=checkbox]:checked')).map(function(cb) { return cb.value; });
+                    _splitOwners(document.getElementById('bulk-mu-owner-free').value).forEach(function(n) {
+                        if (owners.indexOf(n) < 0) owners.push(n);
+                    });
+                    const pairs = Array.from(locList.querySelectorAll('input[type=checkbox]:checked')).map(function(cb) {
+                        const i = cb.value.lastIndexOf('-');
+                        return { area_group: cb.value.slice(0, i), area_number: cb.value.slice(i + 1) };
+                    });
                     const opts = {
                         machine: mIn.value.trim(),
                         unit: uIn.value.trim(),
-                        ownerStates: ownerStates,
-                        locStates: readStates(locList),
-                        vendor: vSel.value,
-                        outVal: outVal
+                        owners: owners.length > 0 ? owners : null,
+                        loc: pairs.length > 0 ? { pairs: pairs, vendor: outCb.checked ? vSel.value : '' } : null
                     };
+                    if (!opts.machine && !opts.unit && !opts.owners && !opts.loc) { mIn.focus(); return; }
                     cleanup();
                     executeBulkEdit(tasks, opts);
                 }
@@ -1092,17 +1006,10 @@
                 overlay.addEventListener('keydown', onKey);
             }
 
-            // 3状態の結果を行ごとの値に当てはめる（off は外す、on は入れる、mixed はその行の今の値のまま）
-            function _applyStates(current, states) {
-                const out = current.filter(function(v) { return states.get(v) !== 'off'; });
-                states.forEach(function(st, v) { if (st === 'on' && out.indexOf(v) < 0) out.push(v); });
-                return out;
-            }
-
             async function executeBulkEdit(tasks, opts) {
                 const touch = (window._editorLastTouchPatch && window._editorLastTouchPatch()) || {};
 
-                // 行ごとに変わる内容を作る（変わらない行・項目は保存しない）
+                // 行ごとの tasks 更新内容を作る（主担当は行ごとに残す・外すが違う）
                 const rows = [];
                 const seen = new Set();
                 tasks.forEach(function(t) {
@@ -1110,34 +1017,17 @@
                     if (seen.has(realId)) return;
                     seen.add(realId);
                     const p = {};
-                    if (opts.machine && opts.machine !== String(t.machine || '')) p.machine = opts.machine;
-                    if (opts.unit && opts.unit !== String(t.unit || '')) p.unit = opts.unit;
-
-                    const curOwners = _splitOwners(t.owner);
-                    const newOwners = _applyStates(curOwners, opts.ownerStates);
-                    if (newOwners.join(',') !== curOwners.join(',')) {
-                        p.owner = newOwners.join(',');
+                    if (opts.machine) p.machine = opts.machine;
+                    if (opts.unit) p.unit = opts.unit;
+                    if (opts.owners) {
+                        p.owner = opts.owners.join(',');
+                        // 主担当は、新しい担当に残っていれば残す
                         const main = String(t.main_owner || '');
-                        if (main && newOwners.indexOf(main) < 0) p.main_owner = '';
+                        p.main_owner = (main && opts.owners.indexOf(main) >= 0) ? main : '';
                     }
-
-                    const curLocs = _locValsOfTask(t);
-                    const newLocs = _applyStates(curLocs, opts.locStates);
-                    const locChanged = curLocs.slice().sort().join(',') !== newLocs.slice().sort().join(',');
-                    const curVendor = String(t.test_run_location || '');
-                    let newVendor = '';
-                    if (newLocs.indexOf(opts.outVal) >= 0) newVendor = opts.vendor === '__keep__' ? curVendor : opts.vendor;
-                    if (newVendor !== curVendor) p.test_run_location = newVendor || null;
-
-                    const pairs = locChanged ? newLocs.map(function(v) {
-                        const i = v.lastIndexOf('-');
-                        return { area_group: v.slice(0, i), area_number: v.slice(i + 1) };
-                    }) : null;
-                    if (Object.keys(p).length === 0 && !pairs) return;
-                    rows.push({ task: t, realId: realId, patch: p, pairs: pairs });
+                    if (opts.loc) p.test_run_location = opts.loc.vendor || null;
+                    rows.push({ task: t, realId: realId, patch: p });
                 });
-                clearSelection();
-                if (rows.length === 0) { gantt.render(); return; }
 
                 // ① 画面を先に切り替える
                 const localOf = function(p) {
@@ -1157,18 +1047,17 @@
                         if (p) Object.assign(r, p);
                     });
                 }
-                const locRows = rows.filter(function(r) { return r.pairs; });
-                if (locRows.length > 0 && typeof window.applyTaskLocationsLocally === 'function') {
-                    locRows.forEach(function(r) { window.applyTaskLocationsLocally(r.realId, r.pairs); });
+                if (opts.loc && typeof window.applyTaskLocationsLocally === 'function') {
+                    rows.forEach(function(r) { window.applyTaskLocationsLocally(r.realId, opts.loc.pairs); });
                 }
-                const muChanged = rows.some(function(r) { return 'machine' in r.patch || 'unit' in r.patch; });
-                if (currentDisplayMode === 'machine' && muChanged) {
+                clearSelection();
+                if (currentDisplayMode === 'machine' && (opts.machine || opts.unit)) {
                     // 機械ごとの表示はまとまりが変わるため、キャッシュから組み直す（DBの全件読み直しはしない）
                     fetchTasks({ useCache: true });
                 } else {
                     gantt.render();
                 }
-                if (locRows.length > 0 && currentLocationResourceMode && typeof updateResourceVisibility === 'function') {
+                if (opts.loc && currentLocationResourceMode && typeof updateResourceVisibility === 'function') {
                     updateResourceVisibility();
                 }
 
@@ -1210,9 +1099,9 @@
                     }
 
                     // 場所は task_locations に保存（機械・ユニットの保存後に行う：同じ機械の組立～出荷タスクへのコピーが新しい機械名で動くように）
-                    if (locRows.length > 0 && typeof window.persistTaskLocations === 'function') {
-                        const oks = await Promise.all(locRows.map(function(r) {
-                            return window.persistTaskLocations(r.realId, r.pairs);
+                    if (opts.loc && typeof window.persistTaskLocations === 'function') {
+                        const oks = await Promise.all(rows.map(function(r) {
+                            return window.persistTaskLocations(r.realId, opts.loc.pairs);
                         }));
                         const ng = oks.filter(function(ok) { return !ok; }).length;
                         if (ng > 0) { revert('場所を保存できなかった行があります（' + ng + '行）。'); return; }
