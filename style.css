@@ -140,12 +140,14 @@
         .side-nav-toggle {
             width: 30px; height: 30px; padding: 0; box-sizing: border-box;
             display: inline-flex; align-items: center; justify-content: center;
-            background: #fff; color: #37474f; border: 1px solid #b0bec5; border-radius: 6px;
+            background: transparent; color: #37474f; border: 1px solid #b0bec5; border-radius: 6px;
             cursor: pointer;
         }
         .side-nav-toggle:hover { background: #e0e6ea; border-color: #90a4ae; }
         .side-nav-toggle svg { width: 18px; height: 18px; }
-        #side-icon-bar.open .side-nav-toggle { background: #37474f; color: #fff; border-color: #37474f; }
+        /* パネル型アイコン：閉じているときは「＞」（開く）、開いているときは「＜」（閉じる） */
+        .side-nav-toggle-chev { transform-origin: 14.75px 12px; transition: transform 0.15s; }
+        #side-icon-bar.open .side-nav-toggle-chev { transform: scaleX(-1); }
         #side-icon-bar.open {
             width: 190px;
             overflow-y: auto;
