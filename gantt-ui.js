@@ -1405,10 +1405,11 @@
 
         // ===== ヘルプモード =====
         var HELP_TIPS = [
-            { id: 'side-nav-links',        title: '工程表・外部リンク', text: 'ホバーで承認フロー・各部工程表・外注組立シート・\n3Dモデルビューアへのリンクを表示', noBullets: true },
+            { id: 'side_nav_toggle',       title: 'ツールバーの開閉', text: 'クリックで左のツールバーを開閉します\n開くと各項目の名前とメニューが表示されます', noBullets: true },
+            { id: 'side-nav-links',        title: '工程表・外部リンク', text: 'ツールバーを開くと承認フロー・各部工程表・外注組立シート・\n3Dモデルビューアへのリンクを表示', noBullets: true },
             { id: 'sync_log_btn',          title: '更新履歴',         text: '過去1ヶ月間のタスク追加・変更・削除の\n履歴を一覧表示します\n誰が・いつ・どのタスクを変更したかを確認できます', noBullets: true },
             { id: 'help_btn',              title: '使い方ガイド',     text: '各所の説明吹き出しを表示します\n背景の暗い部分をクリックで閉じます', closeOnClick: true, noBullets: true },
-            { id: 'side-nav-more',         title: 'その他',           text: 'ホバーで新規受注・完了済み・\nログインのメニューを表示', noBullets: true },
+            { id: 'side-nav-more',         title: 'その他',           text: 'ツールバーを開くと新規受注・完了済み・\nログインのメニューを表示', noBullets: true },
             { id: 'reset_filter_btn',      title: '表示リセット',     text: 'ページを再読み込みし、すべての表示条件を<br>初期状態に戻します', noBullets: true },
             { id: 'mark-legend',           title: 'マーク凡例',       text: '<span class="truck-icon"></span> 部品送り開始日<br><span class="help-tip-mark-shape help-tip-mark-shape--delivery">■</span> 製作品納期<br><span class="help-tip-mark-shape help-tip-mark-shape--delivery-buy">■</span> 購入品納期<br><span class="help-tip-mark-shape help-tip-mark-shape--circle">●</span> 検査<br><span class="help-tip-mark-shape help-tip-mark-shape--tri">▲</span> 客先立会<br><span class="help-tip-mark-shape help-tip-mark-shape--dia">◆</span> 出荷確認会議<br><span class="help-tip-mark-shape help-tip-mark-shape--star-packing">★</span> 梱包出荷<br><span class="help-tip-mark-shape help-tip-mark-shape--star">★</span> 工場出荷', noBullets: true },
             { id: 'sort_process_btn',      title: '工程別表示',       text: '部署の工程順にタスクを並べて表示\nデフォルトの表示モードです', noBullets: true },

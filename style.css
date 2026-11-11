@@ -111,7 +111,7 @@
             transform: none !important;
         }
 
-        /* ===== 左サイドアイコンバー（常時表示。ホバーでバー自体の幅が広がりラベルと小項目が現れる。
+        /* ===== 左サイドアイコンバー（常時表示。一番上の開閉ボタンでバー自体の幅が広がりラベルと小項目が現れる。
            ガントチャートには重ねず最前面のオーバーレイとして表示） ===== */
         #side-icon-bar {
             position: fixed;
@@ -124,16 +124,28 @@
             border-right: 1px solid #b0bec5;
             display: flex;
             flex-direction: column;
-            padding-top: 10px;
+            padding-top: 6px;
             overflow-x: hidden;
             overflow-y: hidden;
             z-index: 9500;
             box-shadow: 1px 0 4px rgba(38,50,56,0.10);
             transition: width 0.15s ease;
         }
-        /* ログイン中のユーザー表示（m365-login.js）: ツールバーの一番下（左下）。ツールバーを開いたときだけ見せる */
-        #side-icon-bar #m365_user_chip { margin: auto 0 12px 8px; }
-        #side-icon-bar:not(.open) #m365_user_chip { display: none !important; }
+        /* ログイン中のユーザー表示（m365-login.js）: ツールバーの一番下（左下）。
+           閉じているときは人のアイコンだけ、開いているときは名前も見せる */
+        #side-icon-bar #m365_user_chip { margin: auto 0 12px 7px; flex-shrink: 0; }
+        #side-icon-bar:not(.open) #m365_user_chip .m365-user-label { display: none; }
+        /* 開閉ボタン（ツールバーの一番上）。開いても閉じても同じ位置に置く */
+        .side-nav-toggle-row { flex-shrink: 0; height: 34px; padding-left: 6px; margin-bottom: 6px; display: flex; align-items: center; }
+        .side-nav-toggle {
+            width: 30px; height: 30px; padding: 0; box-sizing: border-box;
+            display: inline-flex; align-items: center; justify-content: center;
+            background: #fff; color: #37474f; border: 1px solid #b0bec5; border-radius: 6px;
+            cursor: pointer;
+        }
+        .side-nav-toggle:hover { background: #e0e6ea; border-color: #90a4ae; }
+        .side-nav-toggle svg { width: 18px; height: 18px; }
+        #side-icon-bar.open .side-nav-toggle { background: #37474f; color: #fff; border-color: #37474f; }
         #side-icon-bar.open {
             width: 190px;
             overflow-y: auto;

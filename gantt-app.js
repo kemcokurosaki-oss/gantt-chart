@@ -3239,41 +3239,32 @@
         });
 
         // ===== 左サイドアイコンバー =====
-        // バーにホバーすると幅が広がり、内部の階層（サブメニュー）も最初から展開した状態で表示する。
-        // グループごとの個別開閉はせず、バー全体の開閉だけを1本のタイマーで管理する単純な状態機械にする。
+        // 一番上の開閉ボタンをクリックしたときだけ開閉する（ホバーでは開閉しない）。
+        // 開くと幅が広がり、内部の階層（サブメニュー）も最初から展開した状態で表示する。
         (function () {
             const bar = document.getElementById('side-icon-bar');
+            const toggle = document.getElementById('side_nav_toggle');
             if (!bar) return;
 
-            let closeTimer = null;
-
-            function closeAll() {
-                bar.classList.remove('open');
+            function setOpen(on) {
+                bar.classList.toggle('open', on);
+                if (toggle) {
+                    const label = on ? 'ツールバーを閉じる' : 'ツールバーを開く';
+                    toggle.title = label;
+                    toggle.setAttribute('aria-label', label);
+                    toggle.setAttribute('aria-expanded', on ? 'true' : 'false');
+                }
             }
-            function openBar() {
-                clearTimeout(closeTimer);
-                closeTimer = null;
-                bar.classList.add('open');
-            }
-            function scheduleClose() {
-                clearTimeout(closeTimer);
-                closeTimer = setTimeout(closeAll, 300);
-            }
+            if (toggle) toggle.addEventListener('click', function () { setOpen(!bar.classList.contains('open')); });
 
-            bar.addEventListener('mouseenter', openBar);
-            bar.addEventListener('mouseleave', scheduleClose);
-
-            // ヒント表示（openHelp）実行時：💡をクリックする都合上、直前にバー領域へマウスが
-            // 入って開いてしまっているため、ヒント表示中はアイコンのみの閉じた状態に固定する
+            // ヒント表示（openHelp）実行時は、アイコンのみの閉じた状態に固定する
             // （中の項目一覧はヒント対象から外しているので展開する必要がない）。
             // 幅の transition が残ったままだと閉じる瞬間の中間位置を拾ってしまうので、
             // 一時的にtransitionを無効化してから強制リフローで即座に確定させる。
             window._openSideBarForHelp = function () {
-                clearTimeout(closeTimer);
-                closeTimer = null;
                 const prevTransition = bar.style.transition;
                 bar.style.transition = 'none';
-                bar.classList.remove('open');
+                setOpen(false);
                 void bar.offsetWidth;
                 bar.style.transition = prevTransition;
                 bar.style.pointerEvents = 'none';
