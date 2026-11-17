@@ -223,9 +223,23 @@
     }
     window.GaichuSheetReturnKey = RETURN_QS_KEY;
 
+    // Cloud Run 版向け：サーバーも確認できるよう、ログイン状態を Cookie にも反映する（他のドメインでは無害）
+    function syncServerCookie(session) {
+        try {
+            if (session && session.access_token) {
+                const maxAge = Math.max(0, (session.expires_at || 0) - Math.floor(Date.now() / 1000));
+                document.cookie = `sb_at=${session.access_token}; path=/; max-age=${maxAge}; secure; samesite=lax`;
+            } else {
+                document.cookie = 'sb_at=; path=/; max-age=0';
+            }
+        } catch (_) { /* Cookie が使えない環境では何もしない */ }
+    }
+    client.auth.onAuthStateChange((_event, session) => syncServerCookie(session));
+
     async function init() {
         // getSession はログインから戻った直後のトークン取り込みが終わってから返る
         const { data: { session } } = await client.auth.getSession();
+        syncServerCookie(session);
         if (session && restoreQueryAfterLogin()) return;
         state.loggedIn = !!session;
         await Promise.all([

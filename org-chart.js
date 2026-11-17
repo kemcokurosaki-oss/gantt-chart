@@ -335,14 +335,17 @@
     }
     function loginDialog() {
         return new Promise(resolve => {
+            // Cloud Run 版（GitHub Pages 以外）では、社内アカウント以外も通ってしまう非常用パスワードログインは出さない
+            const showPassword = /(^|\.)github\.io$/.test(location.hostname) || location.protocol === 'file:';
             const m = openModal('管理者ログイン', `
                 <button type="button" class="oc-btn" data-ms-login style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:12px">
                     <svg width="16" height="16" viewBox="0 0 21 21" aria-hidden="true"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg>
                     Microsoftでサインイン
                 </button>
+                ${showPassword ? `
                 <p class="oc-note">または、工程表と同じアカウントのメールアドレスとパスワードでログインしてください。</p>
                 <label class="oc-field"><span>メールアドレス</span><input type="email" name="email" autocomplete="username"></label>
-                <label class="oc-field"><span>パスワード</span><input type="password" name="pw" autocomplete="current-password"></label>
+                <label class="oc-field"><span>パスワード</span><input type="password" name="pw" autocomplete="current-password"></label>` : ''}
                 <div class="oc-err"></div>`, [
                 { label: 'キャンセル', ghost: true, onClick: () => { m.close(); resolve(false); } },
                 { label: 'ログイン', primary: true, onClick: async () => {
@@ -368,10 +371,12 @@
                 });
                 if (error) m.el.querySelector('.oc-err').textContent = 'Microsoftでのログインを開始できませんでした：' + error.message;
             });
-            m.el.querySelector('[name=pw]').addEventListener('keydown', e => {
-                if (e.key === 'Enter') m.el.querySelector('.oc-btn--primary').click();
-            });
-            m.el.querySelector('[name=email]').focus();
+            if (showPassword) {
+                m.el.querySelector('[name=pw]').addEventListener('keydown', e => {
+                    if (e.key === 'Enter') m.el.querySelector('.oc-btn--primary').click();
+                });
+                m.el.querySelector('[name=email]').focus();
+            }
         });
     }
 
@@ -1113,7 +1118,16 @@
     // 工程表など別タブでログイン／ログアウトしたときも、ボタンの表示を追従させる。
     // このコールバックは認証処理の途中（ロック中）に呼ばれ、ログイン情報が残っていると起動時にも SIGNED_IN が来る。
     // ここで直接 getSession/rpc を await すると互いに待ち合って止まるため、setTimeout で処理を後ろにずらす
-    client.auth.onAuthStateChange((event) => {
+    client.auth.onAuthStateChange((event, session) => {
+        // Cloud Run 版向け：サーバーも確認できるよう、ログイン状態を Cookie にも反映する（他のドメインでは無害）
+        try {
+            if (session && session.access_token) {
+                const maxAge = Math.max(0, (session.expires_at || 0) - Math.floor(Date.now() / 1000));
+                document.cookie = `sb_at=${session.access_token}; path=/; max-age=${maxAge}; secure; samesite=lax`;
+            } else if (event === 'SIGNED_OUT') {
+                document.cookie = 'sb_at=; path=/; max-age=0';
+            }
+        } catch (_) { /* Cookie が使えない環境では何もしない */ }
         if (event !== 'SIGNED_IN' && event !== 'SIGNED_OUT') return;
         setTimeout(async () => {
             canEdit = event === 'SIGNED_IN' && await checkAdmin();

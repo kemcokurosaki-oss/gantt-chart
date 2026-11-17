@@ -27,9 +27,24 @@
 (function () {
     const M365_ONLY = true;
 
+    // Cloud Run 版（組立範囲詳細シートなど）向け：サーバーも確認できるよう、ログイン状態を Cookie にも反映する。
+    // 別ドメイン（GitHub Pages）では送り先が無いだけで、害はない。
+    function syncServerCookie(session) {
+        try {
+            if (session && session.access_token) {
+                const maxAge = Math.max(0, (session.expires_at || 0) - Math.floor(Date.now() / 1000));
+                document.cookie = `sb_at=${session.access_token}; path=/; max-age=${maxAge}; secure; samesite=lax`;
+            } else {
+                document.cookie = 'sb_at=; path=/; max-age=0';
+            }
+        } catch (_) { /* Cookie が使えない環境では何もしない */ }
+    }
+
     const qs = new URLSearchParams(window.location.search);
     const GATE          = M365_ONLY || qs.has('ms');
-    const SHOW_PASSWORD = !M365_ONLY || qs.has('pw');
+    // Cloud Run 版（GitHub Pages 以外）では、社内アカウント以外も通ってしまう非常用パスワードログインは出さない
+    const ON_GITHUB_PAGES = /(^|\.)github\.io$/.test(location.hostname) || location.protocol === 'file:';
+    const SHOW_PASSWORD = (!M365_ONLY || qs.has('pw')) && ON_GITHUB_PAGES;
 
     const CSS = `
 #m365_login_overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, .55); z-index: 2147483000;
@@ -164,6 +179,7 @@
 
             client.auth.onAuthStateChange((event, session) => setTimeout(() => {
                 if (event !== 'INITIAL_SESSION' && event !== 'SIGNED_IN' && event !== 'SIGNED_OUT' && event !== 'USER_UPDATED') return;
+                syncServerCookie(session);
                 currentUser = session?.user || null;
                 const hide = hideWhenLoggedIn ? document.querySelector(hideWhenLoggedIn) : null;
                 if (currentUser) {
@@ -235,6 +251,7 @@
 
             client.auth.onAuthStateChange((event, session) => {
                 if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
+                    syncServerCookie(session);
                     if (session?.user) overlay.classList.remove('open');
                     else if (GATE) overlay.classList.add('open');
                 }
