@@ -108,17 +108,17 @@
         window.GAICHU_LINK_ENABLED = true;
         const DEPT_SCHEDULE_LINK_CONFIG = {
             approval: {
-                url: 'https://kemcokurosaki-oss.github.io/approval-flow/',
+                url: 'https://app-approval-flow-5rsre7hedq-an.a.run.app/',
                 title: '承認フローを別タブで開く（ログインはリンク先で行います）',
                 disabled: false,
             },
             design: {
-                url: 'https://kemcokurosaki-oss.github.io/design-schedule/',
+                url: 'https://app-design-schedule-5rsre7hedq-an.a.run.app/',
                 title: '設計工程表を別タブで開く（ログインはリンク先で行います）',
                 disabled: false,
             },
             assembly: {
-                url: 'https://kemcokurosaki-oss.github.io/assembly-schedule/',
+                url: 'https://app-assembly-schedule-5rsre7hedq-an.a.run.app/',
                 title: '組立工程表を別タブで開く（ログインはリンク先で行います）',
                 disabled: false,
             },
@@ -128,18 +128,18 @@
                 disabled: true,
             },
             delivery: {
-                url: 'https://kemcokurosaki-oss.github.io/delivery-schedule/',
+                url: 'https://app-shipping-schedule-5rsre7hedq-an.a.run.app/',
                 title: '入出荷予定一覧を別タブで開く（ログインはリンク先で行います）',
                 disabled: false,
             },
             gaichu: {
-                // 外注先用 工事詳細シート（同じリポジトリのページ）。工事一覧で外注組立シートのある工番を選んでいれば、その工番を開く
-                url: new URL('組立範囲詳細シート.html', location.href).href,
+                // 外注先用 工事詳細シート（独立したCloud Runアプリ）。工事一覧で外注組立シートのある工番を選んでいれば、その工番を開く
+                url: 'https://app-assembly-scope-5rsre7hedq-an.a.run.app/',
                 title: window.GAICHU_LINK_ENABLED ? '外注組立シートを別タブで開く（工番を選んでいればその工番のシート）' : '外注組立シートは準備中です（公開後に有効化します）',
                 disabled: !window.GAICHU_LINK_ENABLED,
             },
             viewer3d: {
-                url: 'https://kemcokurosaki-oss.github.io/3d-viewer/',
+                url: 'https://app-3d-viewer-5rsre7hedq-an.a.run.app/',
                 title: '3Dモデルビューアを別タブで開く',
                 disabled: false,
             },

@@ -127,7 +127,7 @@
         window.hasGaichuSheet = pn => _gaichuSheetPns.has(String(pn || '').trim());
         window.openGaichuSheet = pn => {
             if (!window.GAICHU_LINK_ENABLED) return;
-            const u = new URL('組立範囲詳細シート.html', location.href);
+            const u = new URL('https://app-assembly-scope-5rsre7hedq-an.a.run.app/');
             if (pn) u.searchParams.set('pn', String(pn).trim());
             window.open(u.href, '_blank', 'noopener,noreferrer');
         };
@@ -1331,7 +1331,7 @@
             const isSpecFolder = task.text === "受注" || task.text === "受注説明会";
 
             if (isDesignDetail) {
-                let url = `https://kemcokurosaki-oss.github.io/design-schedule/?project_no=${encodeURIComponent(projectNo)}`;
+                let url = `https://app-design-schedule-5rsre7hedq-an.a.run.app/?project_no=${encodeURIComponent(projectNo)}`;
                 if (task.text === "長納期品手配") {
                     url += `&task_type=long_lead_item`;
                 } else if (task.text === "出図＆部品手配") {
